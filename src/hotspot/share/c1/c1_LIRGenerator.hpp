@@ -266,6 +266,8 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
 
+  void do_RTGCStoreObj(LIR_Address* addr, LIR_Opr value);
+
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);
   LIR_Opr call_runtime(BasicTypeArray* signature, LIR_OprList* args, address entry, ValueType* result_type, CodeEmitInfo* info);

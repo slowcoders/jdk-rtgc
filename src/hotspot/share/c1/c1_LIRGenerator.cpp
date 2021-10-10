@@ -1331,6 +1331,25 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   set_no_result(x);
 }
 
+void LIRGenerator::do_RTGCStoreObj(LIR_Address* addr, LIR_Opr value) {
+
+  BasicTypeList signature;
+  // signature.append(T_OBJECT);    // object
+  // signature.append(T_INT); // offset
+  // signature.append(T_OBJECT); // value
+  
+  LIR_OprList* args = new LIR_OprList();
+  // args->append(addr->base());
+  // args->append(addr->index());
+  // args->append(value);
+
+  //CodeEmitInfo* info = state_for(x, x->state());
+  call_runtime(&signature, args,
+               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObj),
+               voidType, NULL);
+
+  //set_no_result(x);
+}
 
 //------------------------local access--------------------------------------
 
@@ -1640,6 +1659,14 @@ void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
     _barrier_set->BarrierSetC1::store_at(access, value);
   } else {
     _barrier_set->store_at(access, value);
+  }
+  LIR_Address* addr = access.resolved_addr()->as_address_ptr();
+  if (addr->type() == T_OBJECT && addr->base()->type() == T_OBJECT) {
+    printf("T_OBJ: base=%p(%d), index=%p, value=%p\n", addr->base(), 9, addr->index(), value);
+    volatile int do_rtgc_debug = 0;
+    if (do_rtgc_debug) {
+      do_RTGCStoreObj(addr, value);
+    }
   }
 }
 
@@ -3537,7 +3564,7 @@ LIR_Opr LIRGenerator::call_runtime(Value arg1, Value arg2, address entry, ValueT
   return call_runtime(&signature, &args, entry, result_type, info);
 }
 
-
+// RTGC
 LIR_Opr LIRGenerator::call_runtime(BasicTypeArray* signature, LIR_OprList* args,
                                    address entry, ValueType* result_type, CodeEmitInfo* info) {
   // get a result register

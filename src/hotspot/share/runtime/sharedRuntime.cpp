@@ -3257,3 +3257,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
   BarrierSet *bs = BarrierSet::barrier_set();
   bs->on_slowpath_allocation_exit(thread, new_obj);
 }
+
+JRT_LEAF(void, SharedRuntime::RTGC_StoreObj()) //oopDesc* obj, int offset, oopDesc* value)) 
+  return;
+JRT_END

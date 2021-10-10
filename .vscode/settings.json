@@ -51,6 +51,7 @@
         "condition_variable": "cpp",
         "cstring": "cpp",
         "mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "regex": "cpp"
     }
 }

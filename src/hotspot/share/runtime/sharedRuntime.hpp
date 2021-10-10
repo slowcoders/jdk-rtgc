@@ -504,6 +504,9 @@ class SharedRuntime: AllStatic {
   static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
   static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
+
+  static void RTGC_StoreObj();//oopDesc* obj, int offset, oopDesc* value);
+
   // Resolving of calls
   static address resolve_static_call_C     (JavaThread *thread);
   static address resolve_virtual_call_C    (JavaThread *thread);
