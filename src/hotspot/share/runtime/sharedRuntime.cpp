@@ -3258,6 +3258,16 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
   bs->on_slowpath_allocation_exit(thread, new_obj);
 }
 
-JRT_LEAF(void, SharedRuntime::RTGC_StoreObj()) //oopDesc* obj, int offset, oopDesc* value)) 
+JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value)) 
+  // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
+  printf("RT_STOrE: base=%p(%d), index=%d, value=%p\n", obj, 3, offset, value);
+  // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
+  //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  return;
+JRT_END
+JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value)) 
+  printf("RT_ARRAY: base=%p(%d), index=%d, value=%p\n", obj, 3, index, value);
+  // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
+  //     value == nullptr ? "null" : value->klass()->name()->bytes());
   return;
 JRT_END

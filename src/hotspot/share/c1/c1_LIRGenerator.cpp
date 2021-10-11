@@ -1334,20 +1334,37 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
 void LIRGenerator::do_RTGCStoreObj(LIR_Address* addr, LIR_Opr value) {
 
   BasicTypeList signature;
-  // signature.append(T_OBJECT);    // object
-  // signature.append(T_INT); // offset
-  // signature.append(T_OBJECT); // value
+  signature.append(T_OBJECT);    // object
+  signature.append(T_INT); // offset
+  signature.append(T_OBJECT); // value
   
   LIR_OprList* args = new LIR_OprList();
-  // args->append(addr->base());
-  // args->append(addr->index());
-  // args->append(value);
+  bool isArray = addr->index()->is_valid();
+  if (isArray != (addr->type() == T_ARRAY)) {
+    printf("Direct Array-Access %ld", addr->disp());
+  }
+  args->append(addr->base());
+  if (isArray) {
+    assert(addr->type() == T_ARRAY, "must be");
+    args->append(addr->index());
+  }
+  else {
+    LIR_Opr offset = LIR_OprFact::intConst(addr->disp());
+    args->append(offset);
+  }
+  args->append(value);
 
   //CodeEmitInfo* info = state_for(x, x->state());
-  call_runtime(&signature, args,
-               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObj),
+  if (isArray) {
+    call_runtime(&signature, args,
+               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem),
                voidType, NULL);
-
+  }
+  else {
+    call_runtime(&signature, args,
+               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
+               voidType, NULL);
+  }
   //set_no_result(x);
 }
 
@@ -1661,15 +1678,22 @@ void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
     _barrier_set->store_at(access, value);
   }
   LIR_Address* addr = access.resolved_addr()->as_address_ptr();
-  if (addr->type() == T_OBJECT && addr->base()->type() == T_OBJECT) {
-    printf("T_OBJ: base=%p(%d), index=%p, value=%p\n", addr->base(), 9, addr->index(), value);
-    volatile int do_rtgc_debug = 0;
-    if (do_rtgc_debug) {
-      do_RTGCStoreObj(addr, value);
-    }
+  volatile int do_rtgc_debug = 0;
+  switch(addr->type()) {
+    case T_OBJECT:
+    case T_ARRAY: {
+        BasicType vt = value->type();
+        printf("%s: base=%p(%d), disp=%ld, index=%p, value=%p(%d)\n", 
+          addr->type == T_OBJECT ? "OBJECT" : "ARRAY",
+          addr->base(), addr->type(), addr->disp(), addr->index(), value), vt;
+        if (do_rtgc_debug) {
+          do_RTGCStoreObj(addr, value);
+        }
+      }
+      break;
+    default:  break;
   }
 }
-
 LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicType type,
                                                LIRItem& base, LIRItem& offset, LIRItem& cmp_value, LIRItem& new_value) {
   decorators |= ACCESS_READ;
