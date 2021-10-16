@@ -1194,21 +1194,8 @@ void LIR_List::store_mem_oop(jobject o, LIR_Opr base, int offset_in_bytes, Basic
             info));
 }
 
-
+// RTGC
 void LIR_List::store(LIR_Opr src, LIR_Address* addr, CodeEmitInfo* info, LIR_PatchCode patch_code) {
-  switch (addr->type()) {
-    case T_OBJECT:
-      printf("!!T_OBJ: base=%p(%d), index=%p, value=%p\n", addr->base(), addr->base()->type() == T_OBJECT, addr->index(), src);
-      break;
-    case T_ARRAY:
-      printf("!!T_ARRAY: base=%p(%d), index=%p, value=%p\n", addr->base(), addr->base()->type() == T_OBJECT, addr->index(), src);
-      break;
-    case T_ADDRESS:
-      printf("!!T_ADDRESS: base=%p(%d), index=%p, value=%p\n", addr->base(), addr->base()->type() == T_OBJECT, addr->index(), src);
-      break;
-    default:
-      break;
-  }
   append(new LIR_Op1(
             lir_move,
             src,

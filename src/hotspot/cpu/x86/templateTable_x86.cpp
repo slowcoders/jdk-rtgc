@@ -148,6 +148,7 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 // Store an oop (or NULL) at the address described by obj.
 // If val == noreg this means store a NULL
 
+extern volatile int show_rtgc_store_log;
 
 static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Address dst,
@@ -155,6 +156,59 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
   __ store_heap_oop(dst, val, rdx, rbx, decorators);
+
+  if (show_rtgc_store_log) {
+    bool isArray = dst.scale() != Address::times_1;
+    if (!isArray) {
+      assert(dst.disp() == 0, "must be");
+      if (dst.index() == 0) {
+        printf("set klass\n");
+        return;
+      }
+    }
+
+    Register obj = dst.base();
+    Register off = dst.index();
+    if (obj != rdi) {
+      __ push(rdi);
+      __ mov(rdi, obj);
+    }
+    if (off != rsi) {
+      __ push(rsi);
+      __ mov(rsi, off);
+    }
+    if (val != rdx) {
+      __ push(rdx);
+      if (val == noreg) {
+        __ xorq(rdx, rdx);
+      }
+      else {
+        __ mov(rdx, val);
+      }
+    }
+
+    address fn = 
+      isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
+              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
+    call(RuntimeAddress(fn));
+
+    if (val != rdx) {
+      __ pop(rdx);
+    }
+    if (off != rsi) {
+      __ pop(rsi);
+    }
+    if (obj != rdi) {
+      __ pop(rdi);
+    }
+
+    // TemplateTable::_masm->call_VM(noreg, 
+    //   isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
+    //           : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
+    //   val, obj, off, false);
+  }
+
+
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,
@@ -3151,6 +3205,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   putfield_or_static_helper(byte_no, is_static, rc, obj, off, flags);
 
   __ bind(Done);
+
 }
 
 void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, RewriteControl rc,

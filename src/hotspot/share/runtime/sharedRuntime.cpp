@@ -3258,16 +3258,29 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
   bs->on_slowpath_allocation_exit(thread, new_obj);
 }
 
+volatile int show_rtgc_store_log = 0;
 JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value)) 
   // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
-  printf("RT_STOrE: base=%p(%d), index=%d, value=%p\n", obj, 3, offset, value);
-  // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
-  //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  if (offset < 0) {
+    show_rtgc_store_log = offset;
+  }
+  if (show_rtgc_store_log && offset != 0) {
+    printf("RT_STOrE: base=%p(%s), index=%d, value=%p\n", 
+      obj, obj->klass()->name()->bytes(), offset, value);
+    // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
+    //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  }
   return;
 JRT_END
+
 JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value)) 
-  printf("RT_ARRAY: base=%p(%d), index=%d, value=%p\n", obj, 3, index, value);
-  // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
-  //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  if (index < 0) {
+    show_rtgc_store_log = index;
+  }
+  if (show_rtgc_store_log) {
+    printf("RT_ARRAY: base=%p(%d), index=%d, value=%p\n", obj, 3, index, value);
+    // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
+    //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  }
   return;
 JRT_END
