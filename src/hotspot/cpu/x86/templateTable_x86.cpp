@@ -155,57 +155,85 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
-  __ store_heap_oop(dst, val, rdx, rbx, decorators);
 
-  if (show_rtgc_store_log) {
+  if (!show_rtgc_store_log) {
+    __ store_heap_oop(dst, val, rdx, rbx, decorators);
+  }
+  else {
     bool isArray = dst.scale() != Address::times_1;
     if (!isArray) {
       assert(dst.disp() == 0, "must be");
       if (dst.index() == 0) {
         printf("set klass\n");
+        __ store_heap_oop(dst, val, rdx, rbx, decorators);
         return;
       }
     }
 
+
+
+    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
     Register obj = dst.base();
     Register off = dst.index();
+
+    __ push(obj);
+    __ store_heap_oop(dst, val, rdx, rbx, decorators);
+    __ pop(obj);
+
+    // address the_pc = pc();
+    // call_offset = offset();
+    // set_last_Java_frame(thread, noreg, rbp, the_pc);
+    __ push(rbp);
+    __ mov(rbp, rsp);
+    __ andptr(rsp, -(StackAlignmentInBytes));
+    __ pusha();  
+
+    // __ push(rax);
+    // __ push(rcx);
+    // __ push(rdx);
+    // __ push(rdi);
+    // __ push(rsi);
+    // __ push(rdx); // dummy for stack align
     if (obj != rdi) {
-      __ push(rdi);
-      __ mov(rdi, obj);
+      __ movptr(rdi, obj);
     }
     if (off != rsi) {
-      __ push(rsi);
       __ mov(rsi, off);
     }
     if (val != rdx) {
-      __ push(rdx);
       if (val == noreg) {
         __ xorq(rdx, rdx);
       }
       else {
-        __ mov(rdx, val);
+        __ movptr(rdx, val);
       }
     }
 
-    address fn = 
-      isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
-              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
-    call(RuntimeAddress(fn));
+    address fn;
+    // if (useCompressedOops) {
+    //   fn = isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem_C32)
+    //           : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField_C32);
+    // }
+    // else 
+    {
+      fn = isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
+              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
+    }
+    __ call(RuntimeAddress(fn));
 
-    if (val != rdx) {
-      __ pop(rdx);
-    }
-    if (off != rsi) {
-      __ pop(rsi);
-    }
-    if (obj != rdi) {
-      __ pop(rdi);
-    }
+    // __ pop(rdx); // dummy for stack align () 
+    // __ pop(rsi);
+    // __ pop(rdi);
+    // __ pop(rdx);
+    // __ pop(rcx);
+    // __ pop(rax);
 
-    // TemplateTable::_masm->call_VM(noreg, 
-    //   isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
-    //           : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
-    //   val, obj, off, false);
+    // __ reset_last_Java_frame(thread, true);
+
+    // __ pop(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
+    __ popa();
+    __ mov(rsp, rbp);
+    __ pop(rbp);
   }
 
 

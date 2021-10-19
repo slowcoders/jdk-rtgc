@@ -1331,30 +1331,19 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   set_no_result(x);
 }
 
-void LIRGenerator::do_RTGCStoreObj(LIR_Address* addr, LIR_Opr value) {
-
-  bool isArray = addr->index()->is_valid();
-  if (!isArray && addr->disp() == 0) {
-    //printf("set klass\n");
-    return;
-  }
+void LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
 
   BasicTypeList signature;
   signature.append(T_OBJECT);    // object
   signature.append(T_INT); // offset
   signature.append(T_OBJECT); // value
+  signature.append(T_INT); // debug
   
   LIR_OprList* args = new LIR_OprList();
-  args->append(addr->base());
-  if (isArray) {
-    assert(addr->type() == T_ARRAY, "must be");
-    args->append(addr->index());
-  }
-  else {
-    LIR_Opr offset = LIR_OprFact::intConst(addr->disp());
-    args->append(offset);
-  }
+  args->append(base);
+  args->append(offset);
   args->append(value);
+  args->append(LIR_OprFact::intConst(3));
 
   //CodeEmitInfo* info = state_for(x, x->state());
   if (isArray) {
@@ -1640,7 +1629,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (x->check_boolean()) {
     decorators |= C1_MASK_BOOLEAN;
   }
-
+  // RTGC x->needs_nullcheck(), needs_range_check
   access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
                   NULL, null_check_info);
 }
@@ -1679,23 +1668,21 @@ void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
   } else {
     _barrier_set->store_at(access, value);
   }
-  LIR_Address* addr = access.resolved_addr()->as_address_ptr();
+
   volatile int do_rtgc_debug = true;
-  switch(addr->type()) {
-    case T_OBJECT:
-    case T_ARRAY: {
-        BasicType vt = value->type();
-        printf("%s: base=%p(%d), disp=%ld, index=%p, value=%p(%d)\n", 
-          addr->type() == T_OBJECT ? "OBJECT" : "ARRAY",
-          addr->base(), addr->type(), addr->disp(), addr->index(), value, vt);
-        if (do_rtgc_debug) {
-          do_RTGCStoreObj(addr, value);
-        }
-      }
-      break;
-    default:  break;
+  if ((decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
+    if (do_rtgc_debug) {
+      // decorators &= ~IS_ARRAY;
+      // LIRAccess access2(this, decorators, base, 0, type, patch_info, store_emit_info);
+      // LIR_Opr resolved = _barrier_set->resolve_address(access2, false);
+      // LIR_Opr _obj = resolved->as_address_ptr()->base();
+      do_RTGCStoreObj(base.result(), offset, value, (decorators & IS_ARRAY) != 0);
+    }
+  }
+  else {
   }
 }
+
 LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicType type,
                                                LIRItem& base, LIRItem& offset, LIRItem& cmp_value, LIRItem& new_value) {
   decorators |= ACCESS_READ;

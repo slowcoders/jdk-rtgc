@@ -3259,28 +3259,75 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 }
 
 volatile int show_rtgc_store_log = 0;
-JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value)) 
+JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from)) 
   // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
   if (offset < 0) {
     show_rtgc_store_log = offset;
   }
-  if (show_rtgc_store_log && offset != 0) {
-    printf("RT_STOrE: base=%p(%s), index=%d, value=%p\n", 
-      obj, obj->klass()->name()->bytes(), offset, value);
-    // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
-    //     value == nullptr ? "null" : value->klass()->name()->bytes());
+  if (show_rtgc_store_log) {
+    assert(offset != 0, "must be");
+    printf("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+    uintptr_t addr = (uintptr_t)obj + offset;
+    uint32_t* ar32 = (uint32_t*)addr;
+    uint64_t* ar64 = (uint64_t*)addr;
+    uintptr_t v = (uintptr_t)value;
+#ifdef _LP64
+    if (false) {
+      if (UseCompressedOops) {
+        ar32[offset] = (uint32_t)v;
+      }
+      else {
+        ar64[offset] = v;
+      }
+    }
+    else {
+      if (UseCompressedOops) {
+        assert(*ar32 == v || *ar32 == (v >> 3), "must be");
+      }
+      else {
+        assert(*ar64 == v, "must be");
+      }
+    }
+#else
+    assert(*ar32 == v, "must be");
+#endif
   }
   return;
 JRT_END
 
-JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value)) 
+JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value, int from)) 
   if (index < 0) {
     show_rtgc_store_log = index;
   }
   if (show_rtgc_store_log) {
-    printf("RT_ARRAY: base=%p(%d), index=%d, value=%p\n", obj, 3, index, value);
-    // printf("RT_STOrE: base=%s, value=%p\n", obj->klass()->name()->bytes(),
-    //     value == nullptr ? "null" : value->klass()->name()->bytes());
+    printf("RT_ARRAY[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), index, value);
+    uintptr_t addr = (uintptr_t)obj + 16;
+    uint32_t* ar32 = (uint32_t*)addr;
+    uint64_t* ar64 = (uint64_t*)addr;
+    uintptr_t v = (uintptr_t)value;
+
+#ifdef _LP64
+    if (false) {
+      if (UseCompressedOops) {
+        ar32[index] = (uint32_t)v;
+      }
+      else {
+        ar64[index] = v;
+      }
+    }
+    else {
+      if (UseCompressedOops) {
+        assert(ar32[index] == v >> 3 || ar32[index] == v, "must be");
+      }
+      else {
+        assert(ar64[index] == v, "must be");
+      }
+    }
+#else
+    assert(ar32[index] == v, "must be");
+#endif
   }
   return;
 JRT_END

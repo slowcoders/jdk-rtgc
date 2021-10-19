@@ -2550,6 +2550,45 @@ encode %{
     encode_RegMem(cbuf, reg, base, index, scale, disp, disp_reloc);
   %}
 
+  enc_class reg_mem_StoreP(rRegI ereg, memory mem)
+  %{
+    // High registers handle in encode_RegMem
+    int reg = $ereg$$reg;
+    int base = $mem$$base;
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    relocInfo::relocType disp_reloc = $mem->disp_reloc();
+
+    encode_RegMem(cbuf, reg, base, index, scale, disp, disp_reloc);
+
+    MacroAssembler _masm(&cbuf);
+
+    // call RTGC
+    bool isArray = $mem$$scale > 0;
+    address fn = 
+      isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
+              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
+
+    __ push(rdi);
+    __ push(rsi);
+    __ push(rdx);
+    //encode_RegMem(cbuf, rdi, base, 0, 0, 0, disp_reloc);
+    __ mov(rdi, $mem$$base$$Register);
+    if (isArray || $mem$$disp == 0) {
+      __ mov(rsi, $mem$$index$$Register);
+    }
+    else {
+      __ movl(rsi, $mem$$disp);
+    }
+    __ mov(rdx, $ereg$$Register);
+    __ call(RuntimeAddress(fn));
+    __ pop(rdx);
+    __ pop(rsi);
+    __ pop(rdi);
+
+  %}
+
   enc_class RM_opc_mem(immI rm_opcode, memory mem)
   %{
     int rm_byte_opcode = $rm_opcode$$constant;
@@ -5983,7 +6022,11 @@ instruct storeP(memory mem, any_RegP src)
   ins_cost(125); // XXX
   format %{ "movq    $mem, $src\t# ptr" %}
   opcode(0x89);
+  //*/
   ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem(src, mem));
+  /*/
+  ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem_StoreP(src, mem));
+  //*/
   ins_pipe(ialu_mem_reg);
 %}
 

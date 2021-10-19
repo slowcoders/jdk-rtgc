@@ -112,8 +112,9 @@ public:
 
 class BarrierSetC1: public CHeapObj<mtGC> {
 protected:
-  virtual LIR_Opr resolve_address(LIRAccess& access, bool resolve_in_register);
-
+// RTGC-- 
+// virtual LIR_Opr resolve_address(LIRAccess& access, bool resolve_in_register);
+ 
   virtual void generate_referent_check(LIRAccess& access, LabelObj* cont);
 
   // Accesses with resolved address
@@ -126,6 +127,9 @@ protected:
   virtual LIR_Opr atomic_add_at_resolved(LIRAccess& access, LIRItem& value);
 
 public:
+// RTGC++ 
+  virtual LIR_Opr resolve_address(LIRAccess& access, bool resolve_in_register);
+
   virtual void store_at(LIRAccess& access, LIR_Opr value);
   virtual void load_at(LIRAccess& access, LIR_Opr result);
   virtual void load(LIRAccess& access, LIR_Opr result);
