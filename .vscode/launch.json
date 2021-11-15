@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/build/linux-x86_64-client-fastdebug/images/jdk/bin/java",
-            "args": ["-cp", "test/rtgc", "Main", "2000", "1000"],
+            "args": ["-cp", "test/rtgc", "Main", "2", "1000"],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],

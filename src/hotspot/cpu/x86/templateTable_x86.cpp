@@ -148,7 +148,8 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 // Store an oop (or NULL) at the address described by obj.
 // If val == noreg this means store a NULL
 
-extern volatile int show_rtgc_store_log;
+extern volatile int ENABLE_RTGC_STORE_HOOK;
+extern volatile int ENABLE_RTGC_STORE_TEST;
 
 static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Address dst,
@@ -156,87 +157,71 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
 
-  if (!show_rtgc_store_log) {
+  if (!ENABLE_RTGC_STORE_HOOK && !ENABLE_RTGC_STORE_TEST) {
     __ store_heap_oop(dst, val, rdx, rbx, decorators);
+    return;
   }
-  else {
-    bool isArray = dst.scale() != Address::times_1;
-    if (!isArray) {
-      assert(dst.disp() == 0, "must be");
-      if (dst.index() == 0) {
-        printf("set klass\n");
-        __ store_heap_oop(dst, val, rdx, rbx, decorators);
-        return;
-      }
+
+  bool isArray = dst.scale() != Address::times_1;
+  if (!isArray) {
+    assert(dst.disp() == 0, "must be");
+    if (dst.index() == 0) {
+      printf("set klass\n");
+      __ store_heap_oop(dst, val, rdx, rbx, decorators);
+      return;
     }
+  }
 
+  const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+  Register obj = dst.base();
+  Register off = dst.index();
+  const bool do_save_Java_frame = false;
 
-
-    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
-    Register obj = dst.base();
-    Register off = dst.index();
-
+  if (ENABLE_RTGC_STORE_TEST) {
     __ push(obj);
     __ store_heap_oop(dst, val, rdx, rbx, decorators);
     __ pop(obj);
-
-    // address the_pc = pc();
-    // call_offset = offset();
-    // set_last_Java_frame(thread, noreg, rbp, the_pc);
-    __ push(rbp);
-    __ mov(rbp, rsp);
-    __ andptr(rsp, -(StackAlignmentInBytes));
-    __ pusha();  
-
-    // __ push(rax);
-    // __ push(rcx);
-    // __ push(rdx);
-    // __ push(rdi);
-    // __ push(rsi);
-    // __ push(rdx); // dummy for stack align
-    if (obj != rdi) {
-      __ movptr(rdi, obj);
-    }
-    if (off != rsi) {
-      __ mov(rsi, off);
-    }
-    if (val != rdx) {
-      if (val == noreg) {
-        __ xorq(rdx, rdx);
-      }
-      else {
-        __ movptr(rdx, val);
-      }
-    }
-
-    address fn;
-    // if (useCompressedOops) {
-    //   fn = isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem_C32)
-    //           : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField_C32);
-    // }
-    // else 
-    {
-      fn = isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
-              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
-    }
-    __ call(RuntimeAddress(fn));
-
-    // __ pop(rdx); // dummy for stack align () 
-    // __ pop(rsi);
-    // __ pop(rdi);
-    // __ pop(rdx);
-    // __ pop(rcx);
-    // __ pop(rax);
-
-    // __ reset_last_Java_frame(thread, true);
-
-    // __ pop(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
-    __ popa();
-    __ mov(rsp, rbp);
-    __ pop(rbp);
   }
 
+  if (do_save_Java_frame) {
+    address the_pc = __ pc();
+    // int call_offset = __ offset();
+    __ set_last_Java_frame(thread, noreg, rbp, the_pc);
+  }
 
+  __ push(rbp);
+  __ mov(rbp, rsp);
+  __ andptr(rsp, -(StackAlignmentInBytes));
+  __ pusha();  
+
+  if (obj != rdi) {
+    __ movptr(rdi, obj);
+  }
+  if (off != rsi) {
+    __ mov(rsi, off);
+  }
+  if (val != rdx) {
+    if (val == noreg) {
+      __ xorq(rdx, rdx);
+    }
+    else {
+      __ movptr(rdx, val);
+    }
+  }
+  __ xorq(rcx, rcx);
+
+  address fn = isArray
+      ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
+      : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
+
+  __ call(RuntimeAddress(fn));
+
+  if (do_save_Java_frame) {
+    __ reset_last_Java_frame(thread, true);
+  }
+  __ popa();
+  __ mov(rsp, rbp);
+  __ pop(rbp);
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,

@@ -7,6 +7,8 @@ public class Main {
     static volatile int idx;
 
     Main(int sno) {
+        System.arraycopy(paras, 0, paras, paras.length - 1, 1);
+
         System.out.println("set int member: " + sno);
         this.id = sno;
         System.out.println("set obj member");

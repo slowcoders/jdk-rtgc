@@ -1658,28 +1658,25 @@ void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
   }
 }
 
+extern volatile int ENABLE_RTGC_STORE_HOOK;
 void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
                                    CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {
-  decorators |= ACCESS_WRITE;
-  LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info);
-  if (access.is_raw()) {
-    _barrier_set->BarrierSetC1::store_at(access, value);
-  } else {
-    _barrier_set->store_at(access, value);
-  }
-
-  volatile int do_rtgc_debug = true;
-  if ((decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
-    if (do_rtgc_debug) {
-      // decorators &= ~IS_ARRAY;
-      // LIRAccess access2(this, decorators, base, 0, type, patch_info, store_emit_info);
-      // LIR_Opr resolved = _barrier_set->resolve_address(access2, false);
-      // LIR_Opr _obj = resolved->as_address_ptr()->base();
-      do_RTGCStoreObj(base.result(), offset, value, (decorators & IS_ARRAY) != 0);
-    }
+  if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
+    // decorators &= ~IS_ARRAY;
+    // LIRAccess access2(this, decorators, base, 0, type, patch_info, store_emit_info);
+    // LIR_Opr resolved = _barrier_set->resolve_address(access2, false);
+    // LIR_Opr _obj = resolved->as_address_ptr()->base();
+    do_RTGCStoreObj(base.result(), offset, value, (decorators & IS_ARRAY) != 0);
   }
   else {
+    decorators |= ACCESS_WRITE;
+    LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info);
+    if (access.is_raw()) {
+      _barrier_set->BarrierSetC1::store_at(access, value);
+    } else {
+      _barrier_set->store_at(access, value);
+    }
   }
 }
 
