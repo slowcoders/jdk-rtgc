@@ -921,6 +921,34 @@ void LIRGenerator::do_LibmIntrinsic(Intrinsic* x) {
   __ move(result_reg, calc_result);
 }
 
+extern volatile int ENABLE_RTGC_STORE_HOOK;
+
+static void do_RTGCArrayCopy(
+  LIRGenerator* gen,
+  LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length, 
+  LIR_Opr tmp, ciArrayKlass* expected_type, int flags, CodeEmitInfo* info
+) { 
+  BasicTypeList signature;
+  signature.append(T_OBJECT);    // object
+  signature.append(T_INT); // offset
+  signature.append(T_OBJECT); // value
+  signature.append(T_INT); // offset
+  signature.append(T_INT); // length
+  signature.append(T_INT); // debug-info
+  
+  LIR_OprList* args = new LIR_OprList();
+  args->append(src);
+  args->append(src_pos);
+  args->append(dst);
+  args->append(dst_pos);
+  args->append(length);
+  args->append(LIR_OprFact::intConst(3));
+
+  gen->call_runtime(&signature, args,
+              CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_ObjArrayCopy),
+              voidType, NULL);
+}
+
 void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   assert(x->number_of_arguments() == 5, "wrong type");
 
@@ -968,8 +996,14 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   int flags;
   ciArrayKlass* expected_type;
   arraycopy_helper(x, &flags, &expected_type);
-
-  __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
+  // RTGC_ArrayCopy
+  if (ENABLE_RTGC_STORE_HOOK && (expected_type == NULL || !expected_type->base_element_type()->is_primitive_type())) {
+    do_RTGCArrayCopy(this, src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
+    // __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
+  }
+  else {
+    __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
+  }
 }
 
 void LIRGenerator::do_update_CRC32(Intrinsic* x) {

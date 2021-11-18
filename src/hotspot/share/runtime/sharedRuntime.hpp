@@ -507,6 +507,7 @@ class SharedRuntime: AllStatic {
 
   static void RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from);
   static void RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value, int from);
+  static void RTGC_ObjArrayCopy(arrayOopDesc* src, int src_pos, arrayOopDesc* dst, int dst_pos, int length, int callFrom);
 
   // Resolving of calls
   static address resolve_static_call_C     (JavaThread *thread);
