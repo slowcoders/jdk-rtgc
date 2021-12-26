@@ -921,7 +921,7 @@ void LIRGenerator::do_LibmIntrinsic(Intrinsic* x) {
   __ move(result_reg, calc_result);
 }
 
-extern volatile int ENABLE_RTGC_STORE_HOOK;
+#include "rtgc/RTGC.hpp"
 
 static void do_RTGCArrayCopy(
   LIRGenerator* gen,
@@ -942,10 +942,10 @@ static void do_RTGCArrayCopy(
   args->append(dst);
   args->append(dst_pos);
   args->append(length);
-  args->append(LIR_OprFact::intConst(3));
+  args->append(LIR_OprFact::intConst(flags));
 
   gen->call_runtime(&signature, args,
-              CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_ObjArrayCopy),
+              CAST_FROM_FN_PTR(address, RTGC::RTGC_ObjArrayCopy),
               voidType, NULL);
 }
 
@@ -998,6 +998,7 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   arraycopy_helper(x, &flags, &expected_type);
   // RTGC_ArrayCopy
   if (ENABLE_RTGC_STORE_HOOK && (expected_type == NULL || !expected_type->base_element_type()->is_primitive_type())) {
+    // LIR_OpArrayCopy::type_check -> 
     do_RTGCArrayCopy(this, src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
     // __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
   }

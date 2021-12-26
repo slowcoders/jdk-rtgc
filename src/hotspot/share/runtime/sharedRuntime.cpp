@@ -3258,19 +3258,29 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
   bs->on_slowpath_allocation_exit(thread, new_obj);
 }
 
+#include "rtgc/RTGC.hpp"
+#include "rtgc/RTGCArray.hpp"
+
 volatile int ENABLE_RTGC_STORE_TEST = 0;
 volatile int ENABLE_RTGC_STORE_HOOK = 0;
 
-JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from)) 
+volatile int RTGC::g_mv_lock = (0);
+
+JRT_LEAF(void, RTGC::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from)) 
   // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
   if (ENABLE_RTGC_STORE_TEST) {
     assert(offset != 0, "must be");
-    printf("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+  }
+  if (obj->klass() == SystemDictionary::Class_klass()) {
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
       from, obj, obj->klass()->name()->bytes(), offset, value);
   }
 
   if (!ENABLE_RTGC_STORE_HOOK) return;
 
+  bool locked = RTGC::lock_refLink(obj);
   uintptr_t addr = (uintptr_t)obj + offset;
   uint32_t* ar32 = (uint32_t*)addr;
   uint64_t* ar64 = (uint64_t*)addr;
@@ -3285,17 +3295,19 @@ JRT_LEAF(void, SharedRuntime::RTGC_StoreObjField(oopDesc* obj, int offset, oopDe
 #else
   ar32[0] = (uint32_t)v;
 #endif
+  RTGC::unlock_refLink(locked);
   return;
 JRT_END
 
-JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value, int from)) 
+JRT_LEAF(void, RTGC::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value, int from)) 
   if (ENABLE_RTGC_STORE_TEST) {
-    printf("RT_ARRAY[%d]: base=%p(%s), index=%d, value=%p\n", 
+    rtgc_log("RT_ARRAY[%d]: base=%p(%s), index=%d, value=%p\n", 
       from, obj, obj->klass()->name()->bytes(), index, value);
   }
 
   if (!ENABLE_RTGC_STORE_HOOK) return;
 
+  bool locked = RTGC::lock_refLink(obj);
   uintptr_t addr = (uintptr_t)obj + 16;
   uint32_t* ar32 = (uint32_t*)addr;
   uint64_t* ar64 = (uint64_t*)addr;
@@ -3311,69 +3323,40 @@ JRT_LEAF(void, SharedRuntime::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oo
 #else
   ar64[index] = v;
 #endif
+  RTGC::unlock_refLink(locked);
   return;
 JRT_END
 
-static void add_referrer(oopDesc* obj, oopDesc* referrer) {
-    printf("add_ref: obj=%p(%s), referrer=%p\n", 
-      obj, obj->klass()->name()->bytes(), referrer); 
-}
+JRT_LEAF(void, RTGC::RTGC_ObjArrayCopy(arrayOopDesc* s, int src_pos, arrayOopDesc* d, int dst_pos, int length, int flags)) 
+  if (ENABLE_RTGC_STORE_TEST) {
+    rtgc_log("ARRAY_COPY[%d]: src=%p(%s), src_pos=%d, dst=%p, dst_pos=%d, len=%d\n", 
+      flags, s, s->klass()->name()->bytes(),
+      src_pos, d, dst_pos, length);
+  }
 
-static void remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    printf("remove_ref: obj=%p(%s), referrer=%p\n",
-      obj, obj->klass()->name()->bytes(), referrer); 
-}
-
-JRT_LEAF(void, SharedRuntime::RTGC_ObjArrayCopy(arrayOopDesc* src, int src_pos, arrayOopDesc* dst, int dst_pos, int length, int callFrom)) 
-    printf("ARRAY_COPY[%d]: src=%p(%s), src_pos=%d, dst=%p, dst_pos=%d, len=%d\n", 
-      callFrom, src, src->klass()->name()->bytes(),
-      src_pos, dst, dst_pos, length);
-
-    // (1) src and dst must not be null.
-    // (2) src_pos must not be negative.
-    // (3) dst_pos must not be negative.
-    // (4) length  must not be negative.
-    // (5) src klass and dst klass should be the same and not NULL.
-    // (6) src and dst should be arrays.
-    // (7) src_pos + length must not exceed length of src.
-    // (8) dst_pos + length must not exceed length of dst.
-
-  assert(src->is_objArray() && dst->is_objArray(), "must be");
   JavaThread* __the_thread__ = JavaThread::current();
-
-  if ((src_pos | dst_pos | length) < 0) {
-      THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                err_msg("Illegal argument "));
-  }
-  if (dst_pos + length > dst->length()) {
-      THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                err_msg("Illegal argument "));
-  }
-  if (src_pos + length > src->length()) {
-      THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                err_msg("Illegal argument "));
+  if (!RTGCArray::check_arraycopy_offsets(s, src_pos, d, dst_pos, length, THREAD)) {
+    return;
   }
 
-#define ARRAY_COPY_INTERNAL(T) \
-  T* src_p = (T*)src->base(T_OBJECT) + src_pos; \
-  T* dst_p = (T*)dst->base(T_OBJECT) + dst_pos; \
-  for (int i = length; --i >= 0; ) { \
-    add_referrer((oopDesc*)(void*)(intptr_t)dst_p[i], dst); \
-  } \
-  for (int i = length; --i >= 0; ) { \
-    remove_referrer((oopDesc*)(void*)(intptr_t)src_p[i], src); \
-  } \
-  memmove(dst_p, src_p, length * sizeof(T)); \
-
-#ifdef _LP64
   if (UseCompressedOops) {
-    ARRAY_COPY_INTERNAL(uint32_t);
+    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(src_pos);
+    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(dst_pos);
+    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(s, src_offset, NULL) ==
+           objArrayOop(s)->obj_at_addr_raw<narrowOop>(src_pos), "sanity");
+    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(d, dst_offset, NULL) ==
+           objArrayOop(d)->obj_at_addr_raw<narrowOop>(dst_pos), "sanity");
+    ObjArrayKlass::do_copy(s, src_offset, d, dst_offset, length, CHECK);
+  } else {
+    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(src_pos);
+    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(dst_pos);
+    assert(arrayOopDesc::obj_offset_to_raw<oop>(s, src_offset, NULL) ==
+           objArrayOop(s)->obj_at_addr_raw<oop>(src_pos), "sanity");
+    assert(arrayOopDesc::obj_offset_to_raw<oop>(d, dst_offset, NULL) ==
+           objArrayOop(d)->obj_at_addr_raw<oop>(dst_pos), "sanity");
+    ObjArrayKlass::do_copy(s, src_offset, d, dst_offset, length, CHECK);
   }
-  else {
-    ARRAY_COPY_INTERNAL(uint64_t);
-  }
-#else
-  ARRAY_COPY_INTERNAL(uint64_t);
-#endif
 
 JRT_END
+
+void RTGC_oop_arraycopy2() {}

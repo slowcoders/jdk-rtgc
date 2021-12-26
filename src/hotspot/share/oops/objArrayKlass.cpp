@@ -209,6 +209,42 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   return h_array();
 }
 
+#include "rtgc/RTGC.hpp"
+#include "rtgc/RTGCArray.hpp"
+
+template <DecoratorSet ds>
+bool ArrayAccess<ds>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
+                                arrayOop dst_obj, size_t dst_offset_in_bytes,
+                                size_t length) {
+  RTGC_oop_arraycopy2();
+
+  if (ENABLE_RTGC_STORE_HOOK) {
+    void* src_p = (void*)((intptr_t)(void*)src_obj + src_offset_in_bytes);
+    void* dst_p = (void*)((intptr_t)(void*)dst_obj + dst_offset_in_bytes);
+    bool res;
+#ifdef _LP64
+    if (UseCompressedOops) {
+      res = RTGCArray::oop_arraycopy<ds, narrowOop>(src_obj, (narrowOop*)src_p, 
+                                       dst_obj, (narrowOop*)dst_p, length);
+    }
+    else {
+      res = RTGCArray::oop_arraycopy<ds, oop>(src_obj, (oop*)src_p, 
+                                       dst_obj, (oop*)dst_p, length);
+    }
+#else
+      res = RTGCArray::oop_arraycopy<ds, oop>(src_obj, (oop*)src_p, 
+                                       dst_obj, (oop*)dst_p, length);
+#endif
+    return res;
+  }
+  else {
+    return AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const HeapWord*>(NULL),
+                                  dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
+                                  length);
+  }
+}
+// }}
+
 // Either oop or narrowOop depending on UseCompressedOops.
 void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
                             arrayOop d, size_t dst_offset, int length, TRAPS) {
@@ -261,45 +297,10 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
     THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
   }
 
-  // Check is all offsets and lengths are non negative
-  if (src_pos < 0 || dst_pos < 0 || length < 0) {
-    // Pass specific exception reason.
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    if (src_pos < 0) {
-      ss.print("arraycopy: source index %d out of bounds for object array[%d]",
-               src_pos, s->length());
-    } else if (dst_pos < 0) {
-      ss.print("arraycopy: destination index %d out of bounds for object array[%d]",
-               dst_pos, d->length());
-    } else {
-      ss.print("arraycopy: length %d is negative", length);
-    }
-    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-  }
-  // Check if the ranges are valid
-  if ((((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) ||
-      (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length())) {
-    // Pass specific exception reason.
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    if (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) {
-      ss.print("arraycopy: last source index %u out of bounds for object array[%d]",
-               (unsigned int) length + (unsigned int) src_pos, s->length());
-    } else {
-      ss.print("arraycopy: last destination index %u out of bounds for object array[%d]",
-               (unsigned int) length + (unsigned int) dst_pos, d->length());
-    }
-    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-  }
-
-  // Special case. Boundary cases must be checked first
-  // This allows the following call: copy_array(s, s.length(), d.length(), 0).
-  // This is correct, since the position is supposed to be an 'in between point', i.e., s.length(),
-  // points to the right of the last element.
-  if (length==0) {
+  if (!RTGCArray::check_arraycopy_offsets(s, src_pos, d, dst_pos, length, THREAD)) {
     return;
   }
+
   if (UseCompressedOops) {
     size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(src_pos);
     size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(dst_pos);

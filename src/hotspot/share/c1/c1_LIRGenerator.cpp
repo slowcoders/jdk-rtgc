@@ -1331,6 +1331,8 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   set_no_result(x);
 }
 
+#include "rtgc/RTGC.hpp"
+
 void LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
 
   BasicTypeList signature;
@@ -1348,12 +1350,12 @@ void LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, 
   //CodeEmitInfo* info = state_for(x, x->state());
   if (isArray) {
     call_runtime(&signature, args,
-               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem),
+               CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem),
                voidType, NULL);
   }
   else {
     call_runtime(&signature, args,
-               CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField),
+               CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField),
                voidType, NULL);
   }
   //set_no_result(x);
@@ -1658,7 +1660,6 @@ void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
   }
 }
 
-extern volatile int ENABLE_RTGC_STORE_HOOK;
 void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
                                    CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {

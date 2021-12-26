@@ -3,6 +3,7 @@ public class Main {
     String[] paras = new String[16];
     int[] intArray = new int[16];
     int id;
+    static Object sObj;
     static volatile int sno;
     static volatile int idx;
 
@@ -24,6 +25,8 @@ public class Main {
         this.paras[idx] = "";
         System.out.println("set array item with variable index + null.");
         this.paras[idx] = null;
+        System.out.println("set static field.");
+        sObj = "";
     }
     
     public static void main(String args[]) {

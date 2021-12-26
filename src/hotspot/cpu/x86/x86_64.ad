@@ -2564,11 +2564,11 @@ encode %{
 
     MacroAssembler _masm(&cbuf);
 
-    // call RTGC
+    // call RTGC = C2 Compiler 용. 테스트 필요.
     bool isArray = $mem$$scale > 0;
     address fn = 
-      isArray ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
-              : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
+      isArray ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
+              : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
 
     __ push(rdi);
     __ push(rsi);

@@ -34,6 +34,7 @@
 class ObjArrayKlass : public ArrayKlass {
   friend class VMStructs;
   friend class JVMCIVMStructs;
+  friend class RTGC;
 
  public:
   static const KlassID ID = ObjArrayKlassID;
@@ -91,7 +92,7 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // Either oop or narrowOop depending on UseCompressedOops.
   // must be called from within ObjArrayKlass.cpp
-  void do_copy(arrayOop s, size_t src_offset,
+  static void do_copy(arrayOop s, size_t src_offset,
                arrayOop d, size_t dst_offset,
                int length, TRAPS);
  protected:

@@ -143,13 +143,11 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 }
 
 
+#include "rtgc/RTGC.hpp"
 
 // Miscelaneous helper routines
 // Store an oop (or NULL) at the address described by obj.
 // If val == noreg this means store a NULL
-
-extern volatile int ENABLE_RTGC_STORE_HOOK;
-extern volatile int ENABLE_RTGC_STORE_TEST;
 
 static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Address dst,
@@ -211,8 +209,8 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
   __ xorq(rcx, rcx);
 
   address fn = isArray
-      ? CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjArrayItem)
-      : CAST_FROM_FN_PTR(address, SharedRuntime::RTGC_StoreObjField);
+      ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
+      : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
 
   __ call(RuntimeAddress(fn));
 

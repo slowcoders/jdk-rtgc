@@ -323,6 +323,12 @@ public:
                        length);
   }
 
+  //** RTGC {
+  static bool oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
+                    arrayOop dst_obj, size_t dst_offset_in_bytes,
+                    size_t length);
+
+  /*} else {
   static inline bool oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
                                    arrayOop dst_obj, size_t dst_offset_in_bytes,
                                    size_t length) {
@@ -330,6 +336,7 @@ public:
                                   dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
                                   length);
   }
+  //*/
 
   template <typename T>
   static inline bool oop_arraycopy_raw(T* src, T* dst, size_t length) {
