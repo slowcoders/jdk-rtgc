@@ -3266,7 +3266,7 @@ volatile int ENABLE_RTGC_STORE_HOOK = 0;
 
 volatile int RTGC::g_mv_lock = (0);
 
-JRT_LEAF(void, RTGC::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from)) 
+JRT_LEAF(void, RTGC::RTGC_StoreStaticField(oopDesc* obj, int offset, oopDesc* value, int from)) 
   // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
   if (ENABLE_RTGC_STORE_TEST) {
     assert(offset != 0, "must be");
@@ -3285,19 +3285,99 @@ JRT_LEAF(void, RTGC::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value
   uint32_t* ar32 = (uint32_t*)addr;
   uint64_t* ar64 = (uint64_t*)addr;
   uintptr_t v = (uintptr_t)value;
+  uintptr_t old;
 #ifdef _LP64
   if (UseCompressedOops) {
+    old = ar32[0];
     ar32[0] = (uint32_t)v;
   }
   else {
+    old = ar64[0];
     ar64[0] = v;
   }
 #else
   ar32[0] = (uint32_t)v;
 #endif
   RTGC::unlock_refLink(locked);
-  return;
+  return;// (oopDesc*)old;
 JRT_END
+
+JRT_LEAF(oopDesc*, RTGC::RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from)) 
+  // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
+  if (ENABLE_RTGC_STORE_TEST) {
+    assert(offset != 0, "must be");
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+  }
+  if (obj->klass() == SystemDictionary::Class_klass()) {
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+  }
+
+  if (!ENABLE_RTGC_STORE_HOOK) return 0;
+
+  bool locked = RTGC::lock_refLink(obj);
+  uintptr_t addr = (uintptr_t)obj + offset;
+  uint32_t* ar32 = (uint32_t*)addr;
+  uint64_t* ar64 = (uint64_t*)addr;
+  uintptr_t v = (uintptr_t)value;
+  uintptr_t old;
+#ifdef _LP64
+  if (UseCompressedOops) {
+    old = ar32[0];
+    ar32[0] = (uint32_t)v;
+  }
+  else {
+    old = ar64[0];
+    ar64[0] = v;
+  }
+#else
+  ar32[0] = (uint32_t)v;
+#endif
+  RTGC::unlock_refLink(locked);
+  return (oopDesc*)old;
+JRT_END
+
+JRT_LEAF(oopDesc*, RTGC::RTGC_CmpXchgObjField(oopDesc* obj, int offset, oopDesc* cmp_value, oopDesc* new_value)) 
+  // 주의) Array 참조 시에도 상수 인덱스를 사용하면 본 함수가 호출된다. 
+  if (ENABLE_RTGC_STORE_TEST) {
+    assert(offset != 0, "must be");
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+  }
+  if (obj->klass() == SystemDictionary::Class_klass()) {
+    rtgc_log("RT_STOrE[%d]: base=%p(%s), index=%d, value=%p\n", 
+      from, obj, obj->klass()->name()->bytes(), offset, value);
+  }
+
+  if (!ENABLE_RTGC_STORE_HOOK) return 0;
+
+  bool locked = RTGC::lock_refLink(obj);
+  uintptr_t addr = (uintptr_t)obj + offset;
+  uint32_t* ar32 = (uint32_t*)addr;
+  uint64_t* ar64 = (uint64_t*)addr;
+  uintptr_t v = (uintptr_t)new_value;
+  uintptr_t old;
+#ifdef _LP64
+  if (UseCompressedOops) {
+    old = ar32[0];
+    if (old == (uintptr_t)cmp_value) {
+      ar32[0] = (uint32_t)v;
+    }
+  }
+  else {
+    old = ar64[0];
+    if (old == (uintptr_t)cmp_value) {
+      ar64[0] = v;
+    }
+  }
+#else
+  ar32[0] = (uint32_t)v;
+#endif
+  RTGC::unlock_refLink(locked);
+  return (oopDesc*)old;
+JRT_END
+
 
 JRT_LEAF(void, RTGC::RTGC_StoreObjArrayItem(oopDesc* obj, int index, oopDesc* value, int from)) 
   if (ENABLE_RTGC_STORE_TEST) {

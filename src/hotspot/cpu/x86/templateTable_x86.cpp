@@ -144,7 +144,6 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 
 
 #include "rtgc/RTGC.hpp"
-
 // Miscelaneous helper routines
 // Store an oop (or NULL) at the address described by obj.
 // If val == noreg this means store a NULL
@@ -160,6 +159,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
     return;
   }
 
+  bool isStatic = (decorators & RTGC_IS_STATIC) != 0;
   bool isArray = dst.scale() != Address::times_1;
   if (!isArray) {
     assert(dst.disp() == 0, "must be");
@@ -210,7 +210,9 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
 
   address fn = isArray
       ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
-      : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
+      : isStatic
+          ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreStaticField)
+          : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
 
   __ call(RuntimeAddress(fn));
 
@@ -3273,7 +3275,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
     // Store into the field
-    do_oop_store(_masm, field, rax);
+    do_oop_store(_masm, field, rax, is_static ? RTGC_IS_STATIC : 0);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
     }
@@ -3509,7 +3511,7 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax) {
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_aputfield:
-    do_oop_store(_masm, field, rax);
+    do_oop_store(_masm, field, rax, 0);
     break;
   case Bytecodes::_fast_lputfield:
 #ifdef _LP64

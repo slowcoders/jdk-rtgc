@@ -95,6 +95,7 @@
 
 #include <errno.h>
 
+#include "rtgc/RTGC.hpp"
 /*
   NOTE about use of any ctor or function call that can trigger a safepoint/GC:
   such ctors and calls MUST NOT come between an oop declaration/init and its
@@ -678,6 +679,24 @@ JVM_ENTRY(void, JVM_MonitorNotifyAll(JNIEnv* env, jobject handle))
   ObjectSynchronizer::notifyall(obj, CHECK);
 JVM_END
 
+class RTGC_CloneClosure : public BasicOopIterateClosure {
+  oopDesc* src;
+
+public:
+  RTGC_CloneClosure(oopDesc* src) {
+    this->src = src;
+  }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(      oop* p) { do_oop_work(p); }
+  template <class T> void do_oop_work(T* p) {
+    T const o = RawAccess<>::oop_load(p);
+    oop v = CompressedOops::decode(o);
+    if (v != NULL) {
+      RTGC::add_referrer(v, src);
+    }
+  }  
+};
+
 
 JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_Clone");
@@ -710,14 +729,21 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   const int size = obj->size();
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
-    const int length = ((arrayOop)obj())->length();
+    arrayOop src_array = (arrayOop)obj();
+    const int length = src_array->length();
     new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
                                                    /* do_zero */ true, CHECK_NULL);
-  } else {
+  } else {  
     new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
+  if (ENABLE_RTGC_STORE_HOOK) {
+    bool locked = RTGC::lock_refLink(obj());
+    RTGC_CloneClosure c(obj());
+    obj()->oop_iterate(&c);
+    RTGC::unlock_refLink(locked);
+  }
 
   Handle new_obj(THREAD, new_obj_oop);
   // Caution: this involves a java upcall, so the clone should be

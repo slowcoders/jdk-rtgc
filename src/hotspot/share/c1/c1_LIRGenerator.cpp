@@ -1333,7 +1333,7 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
 
 #include "rtgc/RTGC.hpp"
 
-void LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
+LIR_Opr LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
 
   BasicTypeList signature;
   signature.append(T_OBJECT);    // object
@@ -1348,19 +1348,49 @@ void LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, 
   args->append(LIR_OprFact::intConst(3));
 
   //CodeEmitInfo* info = state_for(x, x->state());
+  LIR_Opr res;
   if (isArray) {
-    call_runtime(&signature, args,
+    res = call_runtime(&signature, args,
                CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem),
                voidType, NULL);
   }
   else {
-    call_runtime(&signature, args,
+    res = call_runtime(&signature, args,
                CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField),
                voidType, NULL);
   }
-  //set_no_result(x);
+  return res;
 }
 
+LIR_Opr LIRGenerator::do_RTGCCmpXchgObj(LIR_Opr base, LIR_Opr offset, LIR_Opr cmp_value, LIR_Opr new_value) {
+
+  BasicTypeList signature;
+  signature.append(T_OBJECT);    // object
+  signature.append(T_INT); // offset
+  signature.append(T_OBJECT); // cmp_value
+  signature.append(T_OBJECT); // new_value
+  
+  LIR_OprList* args = new LIR_OprList();
+  args->append(base);
+  args->append(offset);
+  args->append(cmp_value);
+  args->append(new_value);
+
+  //CodeEmitInfo* info = state_for(x, x->state());
+  LIR_Opr res;
+  //  {
+  //   res = call_runtime(&signature, args,
+  //              CAST_FROM_FN_PTR(address, RTGC::RTGC_CmpXchgObjArrayItem),
+  //              voidType, NULL);
+  // }
+  // else 
+  {
+    res = call_runtime(&signature, args,
+               CAST_FROM_FN_PTR(address, RTGC::RTGC_CmpXchgObjField),
+               voidType, NULL);
+  }
+  return res;
+}
 //------------------------local access--------------------------------------
 
 LIR_Opr LIRGenerator::operand_for_instruction(Instruction* x) {
@@ -1567,8 +1597,11 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (needs_patching) {
     decorators |= C1_NEEDS_PATCHING;
   }
+  if (x->is_static()) {
+    decorators |= RTGC_IS_STATIC;
+  }
 
-  access_store_at(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
+  access_store_at_rtgc(decorators, field_type, object, LIR_OprFact::intConst(x->offset()),
                   value.result(), info != NULL ? new CodeEmitInfo(info) : NULL, info);
 }
 
@@ -1631,8 +1664,11 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (x->check_boolean()) {
     decorators |= C1_MASK_BOOLEAN;
   }
+  // if (x->is_static()) {
+  //   decorators |= RTGC_IS_STATIC;
+  // }
   // RTGC x->needs_nullcheck(), needs_range_check
-  access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
+  access_store_at_rtgc(decorators, x->elt_type(), array, index.result(), value.result(),
                   NULL, null_check_info);
 }
 
@@ -1660,7 +1696,7 @@ void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
   }
 }
 
-void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
+void LIRGenerator::access_store_at_rtgc(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
                                    CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {
   if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
@@ -1687,11 +1723,25 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
   decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
-  LIRAccess access(this, decorators, base, offset, type);
-  if (access.is_raw()) {
-    return _barrier_set->BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
-  } else {
-    return _barrier_set->atomic_cmpxchg_at(access, cmp_value, new_value);
+  if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
+    // decorators &= ~IS_ARRAY;
+    // LIRAccess access2(this, decorators, base, 0, type, patch_info, store_emit_info);
+    // LIR_Opr resolved = _barrier_set->resolve_address(access2, false);
+    // LIR_Opr _obj = resolved->as_address_ptr()->base();
+    assert (type != T_ARRAY, "array item xchg not supported");
+    rtgc_log("LIRGenerator::access_atomic_cmpxchg_at")
+    offset.load_nonconstant();
+    cmp_value.load_item_force(FrameMap::rax_oop_opr);
+    new_value.load_item();
+    return do_RTGCCmpXchgObj(base.result(), offset.result(), cmp_value.result(), new_value.result());
+  }
+  else {
+    LIRAccess access(this, decorators, base, offset, type);
+    if (access.is_raw()) {
+      return _barrier_set->BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
+    } else {
+      return _barrier_set->atomic_cmpxchg_at(access, cmp_value, new_value);
+    }
   }
 }
 
@@ -1701,11 +1751,18 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
   decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
-  LIRAccess access(this, decorators, base, offset, type);
-  if (access.is_raw()) {
-    return _barrier_set->BarrierSetC1::atomic_xchg_at(access, value);
-  } else {
-    return _barrier_set->atomic_xchg_at(access, value);
+  if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
+    offset.load_nonconstant();
+    value.load_item();
+    return do_RTGCStoreObj(base.result(), offset.result(), value.result(), (decorators & IS_ARRAY) != 0);
+  }
+  else {
+    LIRAccess access(this, decorators, base, offset, type);
+    if (access.is_raw()) {
+      return _barrier_set->BarrierSetC1::atomic_xchg_at(access, value);
+    } else {
+      return _barrier_set->atomic_xchg_at(access, value);
+    }
   }
 }
 
@@ -2235,7 +2292,10 @@ void LIRGenerator::do_UnsafePutObject(UnsafePutObject* x) {
   if (x->is_volatile()) {
     decorators |= MO_SEQ_CST;
   }
-  access_store_at(decorators, type, src, off.result(), data.result());
+  // if (x->is_static()) {
+  //   decorators |= RTGC_IS_STATIC;
+  // }
+  access_store_at_rtgc(decorators, type, src, off.result(), data.result());
 }
 
 void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
@@ -2254,7 +2314,11 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
   if (x->is_add()) {
     result = access_atomic_add_at(decorators, type, src, off, value);
   } else {
-    result = access_atomic_xchg_at(decorators, type, src, off, value);
+    if (is_reference_type(type) && ENABLE_RTGC_STORE_HOOK) {
+    }
+    else {
+      result = access_atomic_xchg_at(decorators, type, src, off, value);
+    }
   }
   set_result(x, result);
 }

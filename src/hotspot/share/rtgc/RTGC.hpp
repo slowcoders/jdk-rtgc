@@ -46,7 +46,9 @@ struct RTGC {
         obj, obj->klass()->name()->bytes(), referrer); 
   }
 
-  static void RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from);
+  static void RTGC_StoreStaticField(oopDesc* obj, int offset, oopDesc* value, int from);
+  static oopDesc* RTGC_StoreObjField(oopDesc* obj, int offset, oopDesc* value, int from);
+  static oopDesc* RTGC_CmpXchgObjField(oopDesc* obj, int offset, oopDesc* cmp_value, oopDesc* new_value);
   static void RTGC_StoreObjField_0(oopDesc* obj, int offset, oopDesc* value);
   static void RTGC_StoreObjField_3(oopDesc* obj, int offset, oopDesc* value);
   static void RTGC_StoreObjField_64(oopDesc* obj, int offset, oopDesc* value);

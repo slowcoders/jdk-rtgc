@@ -266,7 +266,8 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
 
-  void do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray);
+  LIR_Opr do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray);
+  LIR_Opr do_RTGCCmpXchgObj(LIR_Opr base, LIR_Opr offset, LIR_Opr cmp_value, LIR_Opr new_value);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);
@@ -282,7 +283,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   BarrierSetC1 *_barrier_set;
 
  public:
-  void access_store_at(DecoratorSet decorators, BasicType type,
+  void access_store_at_rtgc(DecoratorSet decorators, BasicType type,
                        LIRItem& base, LIR_Opr offset, LIR_Opr value,
                        CodeEmitInfo* patch_info = NULL, CodeEmitInfo* store_emit_info = NULL);
 
