@@ -32,3 +32,22 @@ bash configure --with-jvm-variants=client \
   .vscode/launch.json "Launch Main" 실행.
   ENABLE_RTGC_STORE_HOOK = 1 (RTGC_HOOK enable)
   ENABLE_RTGC_STORE_TEST = 1 ( TEST Log 출력)
+
+
+9. obj_field_put
+아래 외엔 모두 class 전용.
+/workspaces/jdk-rtgc/src/hotspot/share/interpreter/bytecodeInterpreter.cpp:
+   obj->release_obj_field_put(field_offset, STACK_OBJECT(-1));
+   obj->obj_field_put(field_offset, STACK_OBJECT(-1));
+/workspaces/jdk-rtgc/src/hotspot/share/memory/heapShared.cpp
+/workspaces/jdk-rtgc/src/hotspot/share/runtime/deoptimization.cpp
+
+
+10. JVM SetField
+- putfield
+- putstatic
+- clone() -> JVM_Clone()
+- arraycopy()
+- Unsafe::PutReference
+- Unsafe::CompareAndSetReference
+- Unsafe::ComapreAndExchageReference

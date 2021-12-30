@@ -270,7 +270,12 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
+  if (ENABLE_RTGC_STORE_HOOK) {
+    RTGC::RTGC_StoreObjField(p, offset, x, 7);
+  }
+  else {
+    HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
+  }
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetReferenceVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {
@@ -896,13 +901,19 @@ UNSAFE_ENTRY(void, Unsafe_ThrowException(JNIEnv *env, jobject unsafe, jthrowable
 } UNSAFE_END
 
 // JSR166 ------------------------------------------------------------------
-
+#include "rtgc/RTGC.hpp"
 UNSAFE_ENTRY(jobject, Unsafe_CompareAndExchangeReference(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jobject e_h, jobject x_h)) {
   oop x = JNIHandles::resolve(x_h);
   oop e = JNIHandles::resolve(e_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  oop res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
+  oop res;
+  if (ENABLE_RTGC_STORE_HOOK) {
+    res = RTGC::RTGC_CmpXchgObjField(p, (ptrdiff_t)offset, e, x);
+  }
+  else {
+    res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
+  }
   return JNIHandles::make_local(env, res);
 } UNSAFE_END
 
@@ -933,8 +944,14 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetReference(JNIEnv *env, jobject unsafe
   oop e = JNIHandles::resolve(e_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  oop ret = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
-  return ret == e;
+  oop res;
+  if (ENABLE_RTGC_STORE_HOOK) {
+    res = RTGC::RTGC_CmpXchgObjField(p, (ptrdiff_t)offset, e, x);
+  }
+  else {
+    res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
+  }
+  return res == e;
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {

@@ -3,7 +3,7 @@
 
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedOops.hpp"
-#include "oops/oop.inline.hpp"
+// #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 
 extern volatile int ENABLE_RTGC_STORE_HOOK;
@@ -71,6 +71,17 @@ struct RTGC {
   static void RTGC_ObjArrayCopy_0_range_check(arrayOopDesc* src, int src_pos, arrayOopDesc* dst, int dst_pos, int length);
   static void RTGC_ObjArrayCopy_3_range_check(arrayOopDesc* src, int src_pos, arrayOopDesc* dst, int dst_pos, int length);
   static void RTGC_ObjArrayCopy_64_range_check(arrayOopDesc* src, int src_pos, arrayOopDesc* dst, int dst_pos, int length);
+};
+
+class RTGC_CloneClosure : public BasicOopIterateClosure {
+  oopDesc* src;
+
+public:
+  RTGC_CloneClosure(oopDesc* src) {
+    this->src = src;
+  }
+  virtual void do_oop(narrowOop* p);
+  virtual void do_oop(      oop* p);
 };
 
 

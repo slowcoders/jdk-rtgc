@@ -3440,3 +3440,16 @@ JRT_LEAF(void, RTGC::RTGC_ObjArrayCopy(arrayOopDesc* s, int src_pos, arrayOopDes
 JRT_END
 
 void RTGC_oop_arraycopy2() {}
+
+
+template <class T> void do_oop_work(T* p, oopDesc* src) {
+  T const o = RawAccess<>::oop_load(p);
+  oop v = CompressedOops::decode(o);
+  if (v != NULL) {
+    RTGC::add_referrer(v, src);
+  }
+}
+
+void RTGC_CloneClosure::do_oop(narrowOop* p) { do_oop_work(p, src); }
+void RTGC_CloneClosure::do_oop(      oop* p) { do_oop_work(p, src); }
+

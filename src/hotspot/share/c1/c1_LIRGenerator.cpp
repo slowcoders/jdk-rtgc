@@ -1730,6 +1730,7 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
     // LIR_Opr _obj = resolved->as_address_ptr()->base();
     assert (type != T_ARRAY, "array item xchg not supported");
     rtgc_log("LIRGenerator::access_atomic_cmpxchg_at")
+    base.load_item();
     offset.load_nonconstant();
     cmp_value.load_item_force(FrameMap::rax_oop_opr);
     new_value.load_item();
@@ -1752,6 +1753,7 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
   // Atomic operations are SEQ_CST by default
   decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
+    base.load_item();
     offset.load_nonconstant();
     value.load_item();
     return do_RTGCStoreObj(base.result(), offset.result(), value.result(), (decorators & IS_ARRAY) != 0);
@@ -2315,6 +2317,10 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
     result = access_atomic_add_at(decorators, type, src, off, value);
   } else {
     if (is_reference_type(type) && ENABLE_RTGC_STORE_HOOK) {
+      src.load_item();
+      off.load_nonconstant();
+      value.load_item();
+      result = do_RTGCStoreObj(src.result(), off.result(), value.result(), (decorators & IS_ARRAY) != 0);
     }
     else {
       result = access_atomic_xchg_at(decorators, type, src, off, value);
