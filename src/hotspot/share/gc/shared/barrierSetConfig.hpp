@@ -31,6 +31,7 @@
 #define FOR_EACH_CONCRETE_BARRIER_SET_DO(f)          \
   f(CardTableBarrierSet)                             \
   EPSILONGC_ONLY(f(EpsilonBarrierSet))               \
+  RTGC_ONLY(f(RtgcBarrierSet))                       \
   G1GC_ONLY(f(G1BarrierSet))                         \
   SHENANDOAHGC_ONLY(f(ShenandoahBarrierSet))         \
   ZGC_ONLY(f(ZBarrierSet))

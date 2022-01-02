@@ -8,34 +8,6 @@
 void RTGC_oop_arraycopy2();
 
 struct RTGCArray {
-  template <DecoratorSet ds, class ITEM_T>
-  static bool oop_arraycopy(arrayOop src, ITEM_T* src_p,
-                      arrayOop dst, ITEM_T* dst_p,
-                      size_t length) {
-    bool checkcast = ARRAYCOPY_CHECKCAST & ds;
-    Klass* bound = !checkcast ? NULL
-                              : ObjArrayKlass::cast(dst->klass())->element_klass();
-    bool locked = RTGC::lock_refLink(dst);                          
-    for (size_t i = 0; i < length; i++) {
-      ITEM_T s_raw = src_p[i]; 
-      oopDesc* item = CompressedOops::decode(s_raw);
-      if (checkcast && item != NULL) {
-        Klass* stype = item->klass();
-        if (stype != bound && !stype->is_subtype_of(bound)) {
-          memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
-          RTGC::unlock_refLink(locked);
-          return false; 
-        }
-      }
-      oopDesc* old = CompressedOops::decode(dst_p[i]);
-      //dst_p[i] = s_raw; // ARRAYCOPY_DISJOINT
-      if (item != NULL) RTGC::add_referrer(item, dst);
-      if (old != NULL) RTGC::remove_referrer(old, dst);
-    } 
-    memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
-    RTGC::unlock_refLink(locked);
-    return true;
-  }
 
   static bool check_arraycopy_offsets(arrayOop s, int src_pos, arrayOop d,
                               int dst_pos, int length, TRAPS) {

@@ -1335,6 +1335,7 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
 
 LIR_Opr LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
 
+  RTGC_TRACE();
   BasicTypeList signature;
   signature.append(T_OBJECT);    // object
   signature.append(T_INT); // offset
@@ -1357,13 +1358,14 @@ LIR_Opr LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr valu
   else {
     res = call_runtime(&signature, args,
                CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField),
-               voidType, NULL);
+               objectType, NULL);
   }
   return res;
 }
 
 LIR_Opr LIRGenerator::do_RTGCCmpXchgObj(LIR_Opr base, LIR_Opr offset, LIR_Opr cmp_value, LIR_Opr new_value) {
 
+  RTGC_TRACE();
   BasicTypeList signature;
   signature.append(T_OBJECT);    // object
   signature.append(T_INT); // offset
@@ -1387,7 +1389,7 @@ LIR_Opr LIRGenerator::do_RTGCCmpXchgObj(LIR_Opr base, LIR_Opr offset, LIR_Opr cm
   {
     res = call_runtime(&signature, args,
                CAST_FROM_FN_PTR(address, RTGC::RTGC_CmpXchgObjField),
-               voidType, NULL);
+               objectType, NULL);
   }
   return res;
 }
@@ -1565,7 +1567,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
     // because of code patching we cannot inline constants
     if (field_type == T_BYTE || field_type == T_BOOLEAN) {
       value.load_byte_item();
-    } else  {
+    } else {
       value.load_item();
     }
   } else {
@@ -1730,10 +1732,18 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
     // LIR_Opr _obj = resolved->as_address_ptr()->base();
     assert (type != T_ARRAY, "array item xchg not supported");
     rtgc_log("LIRGenerator::access_atomic_cmpxchg_at")
-    base.load_item();
-    offset.load_nonconstant();
-    cmp_value.load_item_force(FrameMap::rax_oop_opr);
-    new_value.load_item();
+    if (1) {
+      base.load_item(); //_force(FrameMap::as_oop_opr(j_rarg0));
+      offset.load_nonconstant();// _force(FrameMap::as_opr(j_rarg1));
+      cmp_value.load_item(); //_force(FrameMap::as_oop_opr(j_rarg2));
+      new_value.load_item(); //_force(FrameMap::as_oop_opr(j_rarg3));
+    }
+    else {
+      base.load_item_force(FrameMap::as_oop_opr(j_rarg0));
+      offset.load_item_force(FrameMap::as_opr(j_rarg1));
+      cmp_value.load_item_force(FrameMap::as_oop_opr(j_rarg2));
+      new_value.load_item_force(FrameMap::as_oop_opr(j_rarg3));
+    }
     return do_RTGCCmpXchgObj(base.result(), offset.result(), cmp_value.result(), new_value.result());
   }
   else {
@@ -1753,9 +1763,16 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
   // Atomic operations are SEQ_CST by default
   decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   if (ENABLE_RTGC_STORE_HOOK && (decorators & IN_HEAP) != 0 && (type == T_ARRAY || type == T_OBJECT)) {
-    base.load_item();
-    offset.load_nonconstant();
-    value.load_item();
+    if (1) {
+      base.load_item();//_force(FrameMap::as_oop_opr(j_rarg0));
+      offset.load_nonconstant();// item_force(FrameMap::as_opr(j_rarg1));
+      value.load_item();// _force(FrameMap::as_oop_opr(j_rarg2));
+    }
+    else {
+      base.load_item_force(FrameMap::as_oop_opr(j_rarg0));
+      offset.load_item_force(FrameMap::as_opr(j_rarg1));
+      value.load_item_force(FrameMap::as_oop_opr(j_rarg2));
+    }
     return do_RTGCStoreObj(base.result(), offset.result(), value.result(), (decorators & IS_ARRAY) != 0);
   }
   else {
@@ -1790,7 +1807,7 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
 
   return _barrier_set->resolve(this, decorators, obj);
 }
-
+// RTGC oop field load
 void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();

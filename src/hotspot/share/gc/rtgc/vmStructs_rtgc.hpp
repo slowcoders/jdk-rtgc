@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,25 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
-#define SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
+#ifndef SHARE_GC_RTGC_VMSTRUCTS_RTGC_HPP
+#define SHARE_GC_RTGC_VMSTRUCTS_RTGC_HPP
 
-#include "gc/shared/barrierSetConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/shared/space.hpp"
+#include "memory/virtualspace.hpp"
 
-#include "gc/shared/modRefBarrierSet.inline.hpp"
-#include "gc/shared/cardTableBarrierSet.inline.hpp"
+#define VM_STRUCTS_RTGC(nonstatic_field,                       \
+                            volatile_nonstatic_field,               \
+                            static_field)                           \
+  nonstatic_field(RtgcHeap, _virtual_space, VirtualSpace)        \
+  nonstatic_field(RtgcHeap, _space, ContiguousSpace*)
 
-#if INCLUDE_EPSILONGC
-#include "gc/epsilon/epsilonBarrierSet.hpp"
-#endif
-#if INCLUDE_RTGC
-#include "gc/rtgc/rtgcBarrierSet.hpp"
-#endif
-#if INCLUDE_G1GC
-#include "gc/g1/g1BarrierSet.inline.hpp"
-#endif
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
-#endif
-#if INCLUDE_ZGC
-#include "gc/z/zBarrierSet.inline.hpp"
-#endif
+#define VM_TYPES_RTGC(declare_type,                            \
+                          declare_toplevel_type,                    \
+                          declare_integer_type)                     \
+  declare_type(RtgcHeap, CollectedHeap)
 
-#endif // SHARE_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
+#define VM_INT_CONSTANTS_RTGC(declare_constant,                \
+                                  declare_constant_with_value)
+
+#endif // SHARE_GC_RTGC_VMSTRUCTS_RTGC_HPP

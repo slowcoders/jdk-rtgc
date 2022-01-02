@@ -212,38 +212,6 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
 #include "rtgc/RTGC.hpp"
 #include "rtgc/RTGCArray.hpp"
 
-template <DecoratorSet ds>
-bool ArrayAccess<ds>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
-                                arrayOop dst_obj, size_t dst_offset_in_bytes,
-                                size_t length) {
-  RTGC_oop_arraycopy2();
-
-  if (ENABLE_RTGC_STORE_HOOK) {
-    void* src_p = (void*)((intptr_t)(void*)src_obj + src_offset_in_bytes);
-    void* dst_p = (void*)((intptr_t)(void*)dst_obj + dst_offset_in_bytes);
-    bool res;
-#ifdef _LP64
-    if (UseCompressedOops) {
-      res = RTGCArray::oop_arraycopy<ds, narrowOop>(src_obj, (narrowOop*)src_p, 
-                                       dst_obj, (narrowOop*)dst_p, length);
-    }
-    else {
-      res = RTGCArray::oop_arraycopy<ds, oop>(src_obj, (oop*)src_p, 
-                                       dst_obj, (oop*)dst_p, length);
-    }
-#else
-      res = RTGCArray::oop_arraycopy<ds, oop>(src_obj, (oop*)src_p, 
-                                       dst_obj, (oop*)dst_p, length);
-#endif
-    return res;
-  }
-  else {
-    return AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const HeapWord*>(NULL),
-                                  dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
-                                  length);
-  }
-}
-// }}
 
 // Either oop or narrowOop depending on UseCompressedOops.
 void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,

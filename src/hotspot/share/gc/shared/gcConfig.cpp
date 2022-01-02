@@ -31,6 +31,9 @@
 #if INCLUDE_EPSILONGC
 #include "gc/epsilon/epsilonArguments.hpp"
 #endif
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtgcArguments.hpp"
+#endif
 #if INCLUDE_G1GC
 #include "gc/g1/g1Arguments.hpp"
 #endif
@@ -143,7 +146,7 @@ bool GCConfig::is_exactly_one_gc_selected() {
 
   return selected != CollectedHeap::None;
 }
-
+// RTGC select gc
 GCArguments* GCConfig::select_gc() {
   // Fail immediately if an unsupported GC is selected
   fail_if_non_included_gc_is_selected();

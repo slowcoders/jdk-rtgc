@@ -34,13 +34,12 @@ bash configure --with-jvm-variants=client \
   ENABLE_RTGC_STORE_TEST = 1 ( TEST Log 출력)
 
 
-9. obj_field_put
-아래 외엔 모두 class 전용.
-/workspaces/jdk-rtgc/src/hotspot/share/interpreter/bytecodeInterpreter.cpp:
-   obj->release_obj_field_put(field_offset, STACK_OBJECT(-1));
-   obj->obj_field_put(field_offset, STACK_OBJECT(-1));
-/workspaces/jdk-rtgc/src/hotspot/share/memory/heapShared.cpp
-/workspaces/jdk-rtgc/src/hotspot/share/runtime/deoptimization.cpp
+9. arraycopy 의 추가적인 최적화
+LIR_OpArrayCopy::emit_code() 
+   -> LIR_Assembler::emit_arraycopy() // c1_LIRAssembler_x86.cpp 
+      StubRoutines::select_arraycopy_function() 함수를 통해
+         stubGenerator_x86_64.cpp 의
+            generate_*****_int_oop_copy 등에 의해 생성된 함수 호출
 
 
 10. JVM SetField
@@ -51,3 +50,11 @@ bash configure --with-jvm-variants=client \
 - Unsafe::PutReference
 - Unsafe::CompareAndSetReference
 - Unsafe::ComapreAndExchageReference
+- JNI jni_SetObjectField jni_SetObjectArrayElement
+
+
+RuntimeDispatch<decorators,..> 를 이용하여 모드 Hook을 처리??
+
+CollectedHeap 을 상속한 genCollectedHeap 가 default 선택
+genCollectedHeap->initialize() 에서 CardTableBarrierSet 을 생성.
+   BarrierSet::set_barrier_set() 호출.

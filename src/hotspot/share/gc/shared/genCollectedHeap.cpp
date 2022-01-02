@@ -76,6 +76,8 @@
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
+#include "rtgc/RTGC.hpp"
+#include "rtgc/RTGCBarrierSet.hpp"
 
 GenCollectedHeap::GenCollectedHeap(Generation::Name young,
                                    Generation::Name old,
@@ -118,7 +120,13 @@ jint GenCollectedHeap::initialize() {
 
   _rem_set = create_rem_set(heap_rs.region());
   _rem_set->initialize();
-  CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
+  CardTableBarrierSet *bs;
+  // if (!ENABLE_RTGC_STORE_HOOK) {
+    bs = new CardTableBarrierSet(_rem_set);
+  // }
+  // else {
+  //   bs = new RTGCBarrierSet(_rem_set);
+  // }
   bs->initialize();
   BarrierSet::set_barrier_set(bs);
 

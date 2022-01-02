@@ -41,9 +41,7 @@ oop objArrayOopDesc::atomic_compare_exchange_oop(int index, oop exchange_value,
   if (ENABLE_RTGC_STORE_HOOK) {
     return RTGC::RTGC_CmpXchgObjField(as_oop(), offs, compare_value, exchange_value);
   }
-  else {
-    return HeapAccess<IS_ARRAY>::oop_atomic_cmpxchg_at(as_oop(), offs, compare_value, exchange_value);
-  }
+  return HeapAccess<IS_ARRAY>::oop_atomic_cmpxchg_at(as_oop(), offs, compare_value, exchange_value);
 }
 
 Klass* objArrayOopDesc::element_klass() {

@@ -720,9 +720,9 @@ namespace AccessInternal {
         const DecoratorSet expanded_decorators = decorators | AS_RAW;
         PreRuntimeDispatch::store_at<expanded_decorators>(base, offset, value);
       } else {
-        if ((decorators & IN_HEAP) && (decorators & INTERNAL_VALUE_IS_OOP)
-        &&  ENABLE_RTGC_STORE_HOOK) {
-          RTGC::RTGC_StoreObjField(base, offset, *(oopDesc**)(void*)&value, 4);
+        if (IS_RTGC_ACCESS(decorators)) {
+          RTGC_TRACE();
+          RTGC::oop_store(base, offset, value);
         }
         else {
           RuntimeDispatch<decorators, T, BARRIER_STORE_AT>::store_at(base, offset, value);

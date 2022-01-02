@@ -674,9 +674,7 @@ void LIRGenerator::do_CompareOp(CompareOp* x) {
 LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_value, LIRItem& new_value) {
   LIR_Opr ill = LIR_OprFact::illegalOpr;  // for convenience
   if (is_reference_type(type)) {
-    if (ENABLE_RTGC_STORE_HOOK) {
-      assert(!is_reference_type(type), "can not write ref-field in rtgc");
-    }
+    RTGC_ASSERT(false, "can not write ref-field in rtgc");
     cmp_value.load_item_force(FrameMap::rax_oop_opr);
     new_value.load_item();
     __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
@@ -699,9 +697,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
 
 LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) {
   bool is_oop = is_reference_type(type);
-  if (ENABLE_RTGC_STORE_HOOK) {
-    assert(!is_oop, "can not write ref-field in rtgc");
-  }
+  RTGC_ASSERT(!is_oop, "can not write ref-field in rtgc");
   LIR_Opr result = new_register(type);
   value.load_item();
   // Because we want a 2-arg form of xchg and xadd
@@ -934,13 +930,14 @@ static void do_RTGCArrayCopy(
   LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length, 
   LIR_Opr tmp, ciArrayKlass* expected_type, int flags, CodeEmitInfo* info
 ) { 
+  RTGC_TRACE();
   BasicTypeList signature;
-  signature.append(T_OBJECT);    // object
-  signature.append(T_INT); // offset
-  signature.append(T_OBJECT); // value
-  signature.append(T_INT); // offset
-  signature.append(T_INT); // length
-  signature.append(T_INT); // debug-info
+  signature.append(T_OBJECT); // src
+  signature.append(T_INT);    // src_pos
+  signature.append(T_OBJECT); // dst
+  signature.append(T_INT);    // dst_pos
+  signature.append(T_INT);    // length
+  signature.append(T_INT);    // debug-info
   
   LIR_OprList* args = new LIR_OprList();
   args->append(src);

@@ -170,6 +170,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
     }
   }
 
+  RTGC_TRACE();
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   Register obj = dst.base();
   Register off = dst.index();
@@ -210,9 +211,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
 
   address fn = isArray
       ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
-      : isStatic
-          ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreStaticField)
-          : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
+      : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
 
   __ call(RuntimeAddress(fn));
 

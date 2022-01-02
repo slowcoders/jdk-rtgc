@@ -48,7 +48,7 @@ inline oop objArrayOopDesc::obj_at(int index) const {
   ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index) : obj_at_offset<oop>(index);
   return HeapAccess<IS_ARRAY>::oop_load_at(as_oop(), offset);
 }
-
+// RTGC jni 에 의해 호출.
 inline void objArrayOopDesc::obj_at_put(int index, oop value) {
   ptrdiff_t offset = UseCompressedOops ? obj_at_offset<narrowOop>(index) : obj_at_offset<oop>(index);
   HeapAccess<IS_ARRAY>::oop_store_at(as_oop(), offset, value);

@@ -500,7 +500,7 @@ void LIR_Assembler::emit_opLabel(LIR_OpLabel* op) {
   _masm->bind (*(op->label()));
 }
 
-
+// RTGC oop field load (lir_move) c1_LIRGenerator
 void LIR_Assembler::emit_op1(LIR_Op1* op) {
   switch (op->code()) {
     case lir_move:

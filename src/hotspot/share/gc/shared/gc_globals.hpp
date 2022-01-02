@@ -30,6 +30,9 @@
 #if INCLUDE_EPSILONGC
 #include "gc/epsilon/epsilon_globals.hpp"
 #endif
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtgc_globals.hpp"
+#endif
 #if INCLUDE_G1GC
 #include "gc/g1/g1_globals.hpp"
 #endif
@@ -62,6 +65,22 @@
                  writeable)                                                 \
                                                                             \
   EPSILONGC_ONLY(GC_EPSILON_FLAGS(                                          \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
+  RTGC_ONLY(GC_RTGC_FLAGS(                                          \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -174,6 +193,9 @@
                                                                             \
   experimental(bool, UseEpsilonGC, false,                                   \
           "Use the Epsilon (no-op) garbage collector")                      \
+                                                                            \
+  experimental(bool, UseRTGC, false,                                   \
+          "Use the RTGC garbage collector")                      \
                                                                             \
   experimental(bool, UseZGC, false,                                         \
           "Use the Z garbage collector")                                    \

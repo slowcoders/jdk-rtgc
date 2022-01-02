@@ -1140,7 +1140,7 @@ void LIR_List::klass2reg_patch(Metadata* o, LIR_Opr reg, CodeEmitInfo* info) {
   assert(reg->type() == T_METADATA, "bad reg");
   append(new LIR_Op1(lir_move, LIR_OprFact::metadataConst(o), reg, T_METADATA, lir_patch_normal, info));
 }
-
+// RTGC oop field load c1_LIRGenerator
 void LIR_List::load(LIR_Address* addr, LIR_Opr src, CodeEmitInfo* info, LIR_PatchCode patch_code) {
   append(new LIR_Op1(
             lir_move,

@@ -32,8 +32,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
 
-extern volatile int ENABLE_RTGC_STORE_HOOK;
-#define RTGC_FAIL()  assert(!(decorators & IN_HEAP) || !ENABLE_RTGC_STORE_HOOK, "direct oop field access prohibited in RTGC")
+#include "rtgc/RTGC.hpp"
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
@@ -63,16 +62,22 @@ RawAccessBarrier<decorators>::encode_internal(T value) {
 template <DecoratorSet decorators>
 template <typename T>
 inline void RawAccessBarrier<decorators>::oop_store(void* addr, T value) {
-  RTGC_FAIL();
+  RTGC_ASSERT(!IS_RTGC_ACCESS(decorators), "direct oop field access prohibited in RTGC(1)");
   typedef typename AccessInternal::EncodedType<decorators, T>::type Encoded;
   Encoded encoded = encode(value);
   store(reinterpret_cast<Encoded*>(addr), encoded);
 }
 
 template <DecoratorSet decorators>
-template <typename T>
+template <typename T> // RTGC_BASE
 inline void RawAccessBarrier<decorators>::oop_store_at(oop base, ptrdiff_t offset, T value) {
-  oop_store(field_addr(base, offset), value);
+  if (IS_RTGC_ACCESS(decorators)) {
+    RTGC_TRACE();
+    RTGC::oop_store(base, offset, value);
+  }
+  else {
+    oop_store(field_addr(base, offset), value);
+  }
 }
 
 template <DecoratorSet decorators>
@@ -92,7 +97,7 @@ inline T RawAccessBarrier<decorators>::oop_load_at(oop base, ptrdiff_t offset) {
 template <DecoratorSet decorators>
 template <typename T>
 inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg(void* addr, T compare_value, T new_value) {
-  RTGC_FAIL();
+  RTGC_ASSERT(!IS_RTGC_ACCESS(decorators), "direct oop field access prohibited in RTGC(2)");
   typedef typename AccessInternal::EncodedType<decorators, T>::type Encoded;
   Encoded encoded_new = encode(new_value);
   Encoded encoded_compare = encode(compare_value);
@@ -103,15 +108,21 @@ inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg(void* addr, T compare_
 }
 
 template <DecoratorSet decorators>
-template <typename T>
+template <typename T> // RTGC
 inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg_at(oop base, ptrdiff_t offset, T compare_value, T new_value) {
-  return oop_atomic_cmpxchg(field_addr(base, offset), compare_value, new_value);
+  if (IS_RTGC_ACCESS(decorators)) {
+    RTGC_TRACE();
+    return RTGC::oop_cmpxchg(base, offset, compare_value, new_value);
+  }
+  else {
+    return oop_atomic_cmpxchg(field_addr(base, offset), compare_value, new_value);
+  }
 }
 
 template <DecoratorSet decorators>
 template <typename T>
 inline T RawAccessBarrier<decorators>::oop_atomic_xchg(void* addr, T new_value) {
-  RTGC_FAIL();
+  RTGC_ASSERT(!IS_RTGC_ACCESS(decorators), "direct oop field access prohibited in RTGC(3)");
   typedef typename AccessInternal::EncodedType<decorators, T>::type Encoded;
   Encoded encoded_new = encode(new_value);
   Encoded encoded_result = atomic_xchg(reinterpret_cast<Encoded*>(addr), encoded_new);
@@ -119,9 +130,15 @@ inline T RawAccessBarrier<decorators>::oop_atomic_xchg(void* addr, T new_value) 
 }
 
 template <DecoratorSet decorators>
-template <typename T>
+template <typename T> // RTGC
 inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(oop base, ptrdiff_t offset, T new_value) {
-  return oop_atomic_xchg(field_addr(base, offset), new_value);
+  if (IS_RTGC_ACCESS(decorators)) {
+    RTGC_TRACE();
+    return RTGC::oop_xchg(base, offset, new_value);
+  }
+  else {
+    return oop_atomic_xchg(field_addr(base, offset), new_value);
+  }
 }
 
 template <DecoratorSet decorators>
@@ -129,7 +146,6 @@ template <typename T>
 inline bool RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                                         arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                         size_t length) {
-  RTGC_FAIL();
   return arraycopy(src_obj, src_offset_in_bytes, src_raw,
                    dst_obj, dst_offset_in_bytes, dst_raw,
                    length);
@@ -267,6 +283,11 @@ public:
     src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
     dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
+    // if (ENABLE_RTGC_STORE_HOOK) {
+    //   RTGC::oop_arraycopy_nocheck(dst_obj, dst_raw, src_raw, length);
+    //   return;
+    // }
+
     // We do not check for ARRAYCOPY_ATOMIC for oops, because they are unconditionally always atomic.
     if (HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value) {
       AccessInternal::arraycopy_arrayof_conjoint_oops(src_raw, dst_raw, length);
@@ -299,7 +320,7 @@ public:
             size_t length) {
     src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
     dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
-
+    // RTGC Hook
     // There is only a disjoint optimization for word granularity copying
     if (HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value) {
       AccessInternal::arraycopy_disjoint_words_atomic(src_raw, dst_raw, length);
@@ -364,17 +385,18 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
   // The same is true of StubRoutines::object_copy and the various oop_copy
   // variants, and of the code generated by the inline_native_clone intrinsic.
 
-  // RTGC_FAIL(); this function called from JVM_Clone()
+  // RTGC: this function called from JVM_Clone()
   assert(MinObjAlignmentInBytes >= BytesPerLong, "objects misaligned");
   AccessInternal::arraycopy_conjoint_atomic(reinterpret_cast<jlong*>((oopDesc*)src),
                                             reinterpret_cast<jlong*>((oopDesc*)dst),
                                             align_object_size(size) / HeapWordsPerLong);
   // Clear the header
   if ((decorators & IN_HEAP) && ENABLE_RTGC_STORE_HOOK) {
-    bool locked = RTGC::lock_refLink(dst);
+    RTGC_TRACE();
+    bool locked = RTGC::lock_heap(dst);
     RTGC_CloneClosure c(dst);
     dst->oop_iterate(&c);
-    RTGC::unlock_refLink(locked);
+    RTGC::unlock_heap(locked);
   }
   dst->init_mark_raw();
 }
