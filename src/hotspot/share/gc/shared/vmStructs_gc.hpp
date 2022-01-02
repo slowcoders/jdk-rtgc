@@ -39,7 +39,7 @@
 #include "gc/epsilon/vmStructs_epsilon.hpp"
 #endif
 #if INCLUDE_RTGC
-#include "gc/epsilon/vmStructs_epsilon.hpp"
+#include "gc/rtgc/vmStructs_rtgc.hpp"
 #endif
 #if INCLUDE_G1GC
 #include "gc/g1/vmStructs_g1.hpp"

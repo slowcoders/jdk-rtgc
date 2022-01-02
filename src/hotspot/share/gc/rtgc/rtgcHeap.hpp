@@ -28,7 +28,7 @@
 #include "gc/shared/softRefPolicy.hpp"
 #include "gc/shared/space.hpp"
 #include "gc/rtgc/rtgcMonitoringSupport.hpp"
-#include "gc/rtgc/rtgcBarrierSet.hpp"
+#include "gc/rtgc/rtgcBarrierSet.inline.hpp"
 #include "services/memoryManager.hpp"
 
 class RtgcHeap : public CollectedHeap {

@@ -56,39 +56,35 @@
 #include "rtgc/RTGC.hpp"
 #include "rtgc/RTGCArray.hpp"
 
-volatile int ENABLE_RTGC_STORE_TEST = 0;
-volatile int ENABLE_RTGC_STORE_HOOK = 0;
 
-volatile int RTGC::g_mv_lock = (0);
+// bool RTGC::isPublished(oopDesc* obj) {
+//   return true;
+// }
 
-bool RTGC::isPublished(oopDesc* obj) {
-  return true;
-}
+// bool RTGC::lock_heap(oopDesc* obj) {
+//   if (!isPublished(obj)) return false;
+//   while (Atomic::xchg(&g_mv_lock, 1) != 0) { /* do spin. */ }
+//   return true;
+// }
 
-bool RTGC::lock_heap(oopDesc* obj) {
-  if (!isPublished(obj)) return false;
-  while (Atomic::xchg(&g_mv_lock, 1) != 0) { /* do spin. */ }
-  return true;
-}
+// void RTGC::unlock_heap(bool locked) {
+//   if (locked) {
+//     Atomic::release_store(&g_mv_lock, 0);
+//   }
+// }
 
-void RTGC::unlock_heap(bool locked) {
-  if (locked) {
-    Atomic::release_store(&g_mv_lock, 0);
-  }
-}
+// void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
+//     rtgc_log("add_ref: obj=%p(%s), referrer=%p\n", 
+//       obj, obj->klass()->name()->bytes(), referrer); 
+// }
 
-void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log("add_ref: obj=%p(%s), referrer=%p\n", 
-      obj, obj->klass()->name()->bytes(), referrer); 
-}
-
-void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log("remove_ref: obj=%p(%s), referrer=%p\n",
-      obj, obj->klass()->name()->bytes(), referrer); 
-}
+// void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
+//     rtgc_log("remove_ref: obj=%p(%s), referrer=%p\n",
+//       obj, obj->klass()->name()->bytes(), referrer); 
+// }
 
 template<class T>
-T rtgc_xchg(oop obj, ptrdiff_t offset, T value) {
+static T rtgc_xchg(oop obj, ptrdiff_t offset, T value) {
   T* slot = (T*)((uintptr_t)(void*)obj + offset);
   bool locked = RTGC::lock_heap(obj);
   T old = *slot;
@@ -112,7 +108,7 @@ narrowOop RTGC::oop_xchg(oop base, ptrdiff_t offset, narrowOop new_value) {
 }
 
 template<class T>
-T rtgc_cmpxchg(oop base, ptrdiff_t offset, T compare_value, T new_value) {
+static T rtgc_cmpxchg(oop base, ptrdiff_t offset, T compare_value, T new_value) {
   T* slot = (T*)((uintptr_t)(void*)base + offset);
   bool locked = RTGC::lock_heap(base);
   T old = *slot;
@@ -269,15 +265,4 @@ JRT_END
 
 void RTGC_oop_arraycopy2() {}
 
-
-template <class T> void do_oop_work(T* p, oopDesc* src) {
-  T const o = RawAccess<>::oop_load(p);
-  oop v = CompressedOops::decode(o);
-  if (v != NULL) {
-    RTGC::add_referrer(v, src);
-  }
-}
-
-void RTGC_CloneClosure::do_oop(narrowOop* p) { do_oop_work(p, src); }
-void RTGC_CloneClosure::do_oop(      oop* p) { do_oop_work(p, src); }
 

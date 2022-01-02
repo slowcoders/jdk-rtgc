@@ -77,7 +77,6 @@
 #include "jvmci/jvmci.hpp"
 #endif
 #include "rtgc/RTGC.hpp"
-#include "rtgc/RTGCBarrierSet.hpp"
 
 GenCollectedHeap::GenCollectedHeap(Generation::Name young,
                                    Generation::Name old,

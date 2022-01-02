@@ -89,6 +89,9 @@ public:
     static oop oop_load_not_in_heap(T* addr);
 
     template <typename T>
+    static oop oop_store_not_in_heap(T* addr, oop new_value);
+
+    template <typename T>
     static oop oop_atomic_cmpxchg_not_in_heap(T* addr, oop compare_value, oop new_value);
 
     template <typename T>

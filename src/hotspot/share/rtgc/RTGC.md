@@ -36,7 +36,8 @@ bash configure --with-jvm-variants=client \
 
 9. arraycopy 의 추가적인 최적화
 LIR_OpArrayCopy::emit_code() 
-   -> LIR_Assembler::emit_arraycopy() // c1_LIRAssembler_x86.cpp 
+   //c1_LIRAssembler_x86.cpp 
+   -> LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) 
       StubRoutines::select_arraycopy_function() 함수를 통해
          stubGenerator_x86_64.cpp 의
             generate_*****_int_oop_copy 등에 의해 생성된 함수 호출
