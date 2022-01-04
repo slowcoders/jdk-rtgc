@@ -53,8 +53,9 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-#include "rtgc/RTGC.hpp"
-#include "rtgc/RTGCArray.hpp"
+#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGCArray.hpp"
+#include "gc/rtgc/rtgc_jrt.hpp"
 
 volatile int ENABLE_RTGC_STORE_TEST = 0;
 volatile int ENABLE_RTGC_STORE_HOOK = 0;
@@ -284,6 +285,30 @@ void RtgcBarrier::clone_barrier_post(arrayOop new_array) {
 
 // void RTGC_oop_arraycopy2() {}
 
+
+JRT_LEAF(oop, rtgc_oop_xchg_0(oop base, volatile narrowOop* p, oop new_value))
+  return RtgcBarrier::oop_xchg(base, p, new_value);
+JRT_END
+
+JRT_LEAF(oop, rtgc_oop_xchg_3(oop base, volatile narrowOop* p, oop new_value))
+  return RtgcBarrier::oop_xchg(base, p, new_value);
+JRT_END
+
+JRT_LEAF(oop, rtgc_oop_xchg_8(oop base, volatile oop* p, oop new_value))
+  return RtgcBarrier::oop_xchg(base, p, new_value);
+JRT_END
+
+JRT_LEAF(oop, rtgc_oop_cmpxchg_0(oop base, volatile narrowOop* p, oop cmp_value, oop new_value))
+  return RtgcBarrier::oop_cmpxchg(base, p, cmp_value, new_value);
+JRT_END
+
+JRT_LEAF(oop, rtgc_oop_cmpxchg_3(oop base, volatile narrowOop* p, oop cmp_value, oop new_value))
+  return RtgcBarrier::oop_cmpxchg(base, p, cmp_value, new_value);
+JRT_END
+
+JRT_LEAF(oop, rtgc_oop_cmpxchg_8(oop base, volatile oop* p, oop cmp_value, oop new_value))
+  return RtgcBarrier::oop_cmpxchg(base, p, cmp_value, new_value);
+JRT_END
 
 template <class T> void do_oop_work(T* p, oopDesc* src) {
   T const o = RawAccess<>::oop_load(p);

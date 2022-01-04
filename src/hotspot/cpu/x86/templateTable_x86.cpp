@@ -143,7 +143,7 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 }
 
 
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 // Miscelaneous helper routines
 // Store an oop (or NULL) at the address described by obj.
 // If val == noreg this means store a NULL

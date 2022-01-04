@@ -27,7 +27,7 @@
 
 #include "gc/shared/barrierSet.hpp"
 #include "memory/memRegion.hpp"
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 class Klass;
 

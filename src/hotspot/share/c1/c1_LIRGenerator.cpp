@@ -1331,7 +1331,7 @@ void LIRGenerator::do_RegisterFinalizer(Intrinsic* x) {
   set_no_result(x);
 }
 
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 LIR_Opr LIRGenerator::do_RTGCStoreObj(LIR_Opr base, LIR_Opr offset, LIR_Opr value, bool isArray) {
 

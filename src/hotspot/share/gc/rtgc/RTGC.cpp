@@ -53,8 +53,8 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-#include "rtgc/RTGC.hpp"
-#include "rtgc/RTGCArray.hpp"
+#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgc.inline.hpp"
 
 
 // bool RTGC::isPublished(oopDesc* obj) {

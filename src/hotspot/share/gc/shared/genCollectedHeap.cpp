@@ -76,7 +76,7 @@
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 GenCollectedHeap::GenCollectedHeap(Generation::Name young,
                                    Generation::Name old,

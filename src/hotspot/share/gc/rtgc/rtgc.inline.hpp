@@ -2,7 +2,7 @@
 #ifndef __RTGC_ARRAY_HPP__
 #define __RTGC_ARRAY_HPP__
 
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 //extern volatile int ENABLE_RTGC_STORE_HOOK;
 void RTGC_oop_arraycopy2();

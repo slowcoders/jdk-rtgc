@@ -901,7 +901,7 @@ UNSAFE_ENTRY(void, Unsafe_ThrowException(JNIEnv *env, jobject unsafe, jthrowable
 } UNSAFE_END
 
 // JSR166 ------------------------------------------------------------------
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 UNSAFE_ENTRY(jobject, Unsafe_CompareAndExchangeReference(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jobject e_h, jobject x_h)) {
   oop x = JNIHandles::resolve(x_h);
   oop e = JNIHandles::resolve(e_h);

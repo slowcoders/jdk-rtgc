@@ -68,7 +68,7 @@
 #include "runtime/vm_version.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgc_jrt.hpp"
 
 // Implementation of StubAssembler
 
@@ -328,10 +328,12 @@ const char* Runtime1::name_for_address(address entry) {
   FUNCTION_CASE(entry, SharedRuntime::lrem);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_entry);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_exit);
-  FUNCTION_CASE(entry, RTGC::RTGC_StoreObjField);
-  FUNCTION_CASE(entry, RTGC::RTGC_CmpXchgObjField);
-  FUNCTION_CASE(entry, RTGC::RTGC_StoreObjArrayItem);
-  FUNCTION_CASE(entry, RTGC::RTGC_ObjArrayCopy);
+  FUNCTION_CASE(entry, rtgc_oop_xchg_0);
+  FUNCTION_CASE(entry, rtgc_oop_xchg_3);
+  FUNCTION_CASE(entry, rtgc_oop_xchg_8);
+  FUNCTION_CASE(entry, rtgc_oop_cmpxchg_0);
+  FUNCTION_CASE(entry, rtgc_oop_cmpxchg_3);
+  FUNCTION_CASE(entry, rtgc_oop_cmpxchg_8);
   FUNCTION_CASE(entry, is_instance_of);
   FUNCTION_CASE(entry, trace_block_entry);
 #ifdef JFR_HAVE_INTRINSICS

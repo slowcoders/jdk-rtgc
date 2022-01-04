@@ -61,6 +61,7 @@ struct IncludedGC {
 };
 
    EPSILONGC_ONLY(static EpsilonArguments    epsilonArguments;)
+        RTGC_ONLY(static RtgcArguments       rtgcArguments;)
         G1GC_ONLY(static G1Arguments         g1Arguments;)
   PARALLELGC_ONLY(static ParallelArguments   parallelArguments;)
     SERIALGC_ONLY(static SerialArguments     serialArguments;)
@@ -71,6 +72,7 @@ SHENANDOAHGC_ONLY(static ShenandoahArguments shenandoahArguments;)
 // line flag, CollectedHeap::Name and GCArguments instance.
 static const IncludedGC IncludedGCs[] = {
    EPSILONGC_ONLY_ARG(IncludedGC(UseEpsilonGC,       CollectedHeap::Epsilon,    epsilonArguments,    "epsilon gc"))
+        RTGC_ONLY_ARG(IncludedGC(UseRTGC,            CollectedHeap::Rtgc,       rtgcArguments,       "rtgc gc"))
         G1GC_ONLY_ARG(IncludedGC(UseG1GC,            CollectedHeap::G1,         g1Arguments,         "g1 gc"))
   PARALLELGC_ONLY_ARG(IncludedGC(UseParallelGC,      CollectedHeap::Parallel,   parallelArguments,   "parallel gc"))
   PARALLELGC_ONLY_ARG(IncludedGC(UseParallelOldGC,   CollectedHeap::Parallel,   parallelArguments,   "parallel gc"))
@@ -94,6 +96,7 @@ bool GCConfig::_gc_selected_ergonomically = false;
 
 void GCConfig::fail_if_non_included_gc_is_selected() {
   NOT_EPSILONGC(   FAIL_IF_SELECTED(UseEpsilonGC,       true));
+  NOT_RTGC(        FAIL_IF_SELECTED(UseRTGC,            true));
   NOT_G1GC(        FAIL_IF_SELECTED(UseG1GC,            true));
   NOT_PARALLELGC(  FAIL_IF_SELECTED(UseParallelGC,      true));
   NOT_PARALLELGC(  FAIL_IF_SELECTED(UseParallelOldGC,   true));

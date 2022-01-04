@@ -32,7 +32,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
 
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>

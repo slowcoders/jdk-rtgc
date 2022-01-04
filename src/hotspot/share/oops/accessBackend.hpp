@@ -42,7 +42,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-#include "rtgc/RTGC.hpp"
+#include "gc/rtgc/RTGC.hpp"
 
 // This metafunction returns either oop or narrowOop depending on whether
 // an access needs to use compressed oops or not.

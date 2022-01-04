@@ -1,6 +1,22 @@
 
 #include "precompiled.hpp"
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
+#include "gc/rtgc/rtgc_jrt.hpp"
+
+static int getOopShift() {
+#ifdef _LP64
+  if (UseCompressedOops) {
+    assert(3 == CompressedOops::shift()
+        || 0 == CompressedOops::shift(), "invalid narrowOop shift");
+    return CompressedOops::shift();
+  }
+  else {
+    return 8;
+  }
+#else
+  return 4;
+#endif
+}
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   if (!access.is_oop()) {
@@ -22,8 +38,15 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   args->append(addr);
   args->append(value);
 
+  address fn;
+  switch (getOopShift()) {
+    case 0: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_0); break;
+    case 3: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_3); break;
+    case 8: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_8); break;
+    default: assert(false, "invalid oop shift");
+  }
   gen->call_runtime(&signature, args,
-              CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField),
+              fn,
               objectType, NULL);
   return;    
 }
@@ -52,8 +75,15 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   args->append(cmp_value.result());
   args->append(new_value.result());
 
+  address fn;
+  switch (getOopShift()) {
+    case 0: fn = CAST_FROM_FN_PTR(rtgc_oop_cmpxchg_0); break;
+    case 3: fn = CAST_FROM_FN_PTR(rtgc_oop_cmpxchg_3); break;
+    case 8: fn = CAST_FROM_FN_PTR(rtgc_oop_cmpxchg_8); break;
+    default: assert(false, "invalid oop shift");
+  }
   LIR_Opr res = gen->call_runtime(&signature, args,
-              CAST_FROM_FN_PTR(address, RTGC::RTGC_CmpXchgObjField),
+              fn,
               objectType, NULL);
   return res;    
 }
@@ -78,8 +108,16 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   args->append(addr);
   args->append(value.result());
 
+  address fn;
+  switch (getOopShift()) {
+    case 0: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_0); break;
+    case 3: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_3); break;
+    case 8: fn = CAST_FROM_FN_PTR(rtgc_oop_xchg_8); break;
+    default: assert(false, "invalid oop shift");
+  }
   LIR_Opr res = gen->call_runtime(&signature, args,
-              CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField),
-              objectType, NULL);
+                fn,
+                objectType, NULL);
   return res;    
 }
+
