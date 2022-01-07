@@ -221,10 +221,8 @@ const DecoratorSet ARRAYCOPY_DECORATOR_MASK       = ARRAYCOPY_CHECKCAST | ARRAYC
 const DecoratorSet ACCESS_READ                    = UCONST64(1) << 29;
 const DecoratorSet ACCESS_WRITE                   = UCONST64(1) << 30;
 
-const DecoratorSet RTGC_IS_STATIC                 = UCONST64(1) << 31;
-
 // Keep track of the last decorator.
-const DecoratorSet DECORATOR_LAST = UCONST64(1) << 31;
+const DecoratorSet DECORATOR_LAST = UCONST64(1) << 30;
 
 namespace AccessInternal {
   // This class adds implied decorators that follow according to decorator rules.

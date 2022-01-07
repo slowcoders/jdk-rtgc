@@ -328,6 +328,9 @@ const char* Runtime1::name_for_address(address entry) {
   FUNCTION_CASE(entry, SharedRuntime::lrem);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_entry);
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_exit);
+  FUNCTION_CASE(entry, rtgc_oop_array_xchg_0);
+  FUNCTION_CASE(entry, rtgc_oop_array_xchg_3);
+  FUNCTION_CASE(entry, rtgc_oop_array_xchg_8);
   FUNCTION_CASE(entry, rtgc_oop_xchg_0);
   FUNCTION_CASE(entry, rtgc_oop_xchg_3);
   FUNCTION_CASE(entry, rtgc_oop_xchg_8);

@@ -4,12 +4,16 @@
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedOops.hpp"
 
-oop rtgc_oop_xchg_0(oop base, volatile narrowOop* p, oop new_value);
-oop rtgc_oop_xchg_3(oop base, volatile narrowOop* p, oop new_value);
-oop rtgc_oop_xchg_8(oop base, volatile oop* p, oop new_value);
+oopDesc* rtgc_oop_array_xchg_0(arrayOopDesc* array, size_t index, oopDesc* new_value);
+oopDesc* rtgc_oop_array_xchg_3(arrayOopDesc* array, size_t index, oopDesc* new_value);
+oopDesc* rtgc_oop_array_xchg_8(arrayOopDesc* array, size_t index, oopDesc* new_value);
 
-oop rtgc_oop_cmpxchg_0(oop base, volatile narrowOop* p, oop new_value);
-oop rtgc_oop_cmpxchg_3(oop base, volatile narrowOop* p, oop new_value);
-oop rtgc_oop_cmpxchg_8(oop base, volatile oop* p, oop new_value);
+oopDesc* rtgc_oop_xchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* new_value);
+oopDesc* rtgc_oop_xchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* new_value);
+oopDesc* rtgc_oop_xchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* new_value);
+
+oopDesc* rtgc_oop_cmpxchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value);
+oopDesc* rtgc_oop_cmpxchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value);
+oopDesc* rtgc_oop_cmpxchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value);
 
 #endif // __RTGC_JRT_HPP__

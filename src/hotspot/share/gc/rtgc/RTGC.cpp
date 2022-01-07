@@ -263,6 +263,12 @@ JRT_LEAF(void, RTGC::RTGC_ObjArrayCopy(arrayOopDesc* s, int src_pos, arrayOopDes
 
 JRT_END
 
-void RTGC_oop_arraycopy2() {}
+extern volatile int enable_rtgc_c1_barrier_hook;
+
+void RTGC_oop_arraycopy2() {
+  if (enable_rtgc_c1_barrier_hook) {
+    enable_rtgc_c1_barrier_hook ++;
+  }
+}
 
 

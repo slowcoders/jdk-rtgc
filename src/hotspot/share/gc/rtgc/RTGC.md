@@ -59,3 +59,10 @@ RuntimeDispatch<decorators,..> 를 이용하여 모드 Hook을 처리??
 CollectedHeap 을 상속한 genCollectedHeap 가 default 선택
 genCollectedHeap->initialize() 에서 CardTableBarrierSet 을 생성.
    BarrierSet::set_barrier_set() 호출.
+
+## What is a Safepoint ?
+A safepoint is a state of your application execution where all references to objects are perfectly reachable by the VM.
+
+Some operations of the VM require that all threads reach a safepoint to be performed. The most common operation that need it is the GC.
+
+A safepoint means that all threads need to reach a certain point of execution before they are stopped. Then the VM operation is performed. After that all threads are resumed.

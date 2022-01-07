@@ -71,13 +71,7 @@ inline void RawAccessBarrier<decorators>::oop_store(void* addr, T value) {
 template <DecoratorSet decorators>
 template <typename T> // RTGC_BASE
 inline void RawAccessBarrier<decorators>::oop_store_at(oop base, ptrdiff_t offset, T value) {
-  if (IS_RTGC_ACCESS(decorators)) {
-    RTGC_TRACE();
-    RTGC::oop_store(base, offset, value);
-  }
-  else {
-    oop_store(field_addr(base, offset), value);
-  }
+  oop_store(field_addr(base, offset), value);
 }
 
 template <DecoratorSet decorators>
@@ -110,13 +104,7 @@ inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg(void* addr, T compare_
 template <DecoratorSet decorators>
 template <typename T> // RTGC
 inline T RawAccessBarrier<decorators>::oop_atomic_cmpxchg_at(oop base, ptrdiff_t offset, T compare_value, T new_value) {
-  if (IS_RTGC_ACCESS(decorators)) {
-    RTGC_TRACE();
-    return RTGC::oop_cmpxchg(base, offset, compare_value, new_value);
-  }
-  else {
-    return oop_atomic_cmpxchg(field_addr(base, offset), compare_value, new_value);
-  }
+  return oop_atomic_cmpxchg(field_addr(base, offset), compare_value, new_value);
 }
 
 template <DecoratorSet decorators>
@@ -132,13 +120,7 @@ inline T RawAccessBarrier<decorators>::oop_atomic_xchg(void* addr, T new_value) 
 template <DecoratorSet decorators>
 template <typename T> // RTGC
 inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(oop base, ptrdiff_t offset, T new_value) {
-  if (IS_RTGC_ACCESS(decorators)) {
-    RTGC_TRACE();
-    return RTGC::oop_xchg(base, offset, new_value);
-  }
-  else {
-    return oop_atomic_xchg(field_addr(base, offset), new_value);
-  }
+  return oop_atomic_xchg(field_addr(base, offset), new_value);
 }
 
 template <DecoratorSet decorators>
@@ -283,11 +265,6 @@ public:
     src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
     dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
-    // if (ENABLE_RTGC_STORE_HOOK) {
-    //   RTGC::oop_arraycopy_nocheck(dst_obj, dst_raw, src_raw, length);
-    //   return;
-    // }
-
     // We do not check for ARRAYCOPY_ATOMIC for oops, because they are unconditionally always atomic.
     if (HasDecorator<decorators, ARRAYCOPY_ARRAYOF>::value) {
       AccessInternal::arraycopy_arrayof_conjoint_oops(src_raw, dst_raw, length);
@@ -391,13 +368,6 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
                                             reinterpret_cast<jlong*>((oopDesc*)dst),
                                             align_object_size(size) / HeapWordsPerLong);
   // Clear the header
-  if ((decorators & IN_HEAP) && ENABLE_RTGC_STORE_HOOK) {
-    RTGC_TRACE();
-    bool locked = RTGC::lock_heap(dst);
-    RTGC_CloneClosure c(dst);
-    dst->oop_iterate(&c);
-    RTGC::unlock_heap(locked);
-  }
   dst->init_mark_raw();
 }
 

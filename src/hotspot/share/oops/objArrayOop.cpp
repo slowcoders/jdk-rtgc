@@ -27,7 +27,6 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "gc/rtgc/RTGC.hpp"
 
 oop objArrayOopDesc::atomic_compare_exchange_oop(int index, oop exchange_value,
                                                  oop compare_value) {
@@ -37,9 +36,6 @@ oop objArrayOopDesc::atomic_compare_exchange_oop(int index, oop exchange_value,
     offs = objArrayOopDesc::obj_at_offset<narrowOop>(index);
   } else {
     offs = objArrayOopDesc::obj_at_offset<oop>(index);
-  }
-  if (ENABLE_RTGC_STORE_HOOK) {
-    return RTGC::RTGC_CmpXchgObjField(as_oop(), offs, compare_value, exchange_value);
   }
   return HeapAccess<IS_ARRAY>::oop_atomic_cmpxchg_at(as_oop(), offs, compare_value, exchange_value);
 }

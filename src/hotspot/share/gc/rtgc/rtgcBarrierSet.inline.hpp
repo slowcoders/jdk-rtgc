@@ -195,7 +195,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
   // ZBarrier::load_barrier_on_oop_fields(src);
   Raw::clone_in_heap(src, dst, size);
-  RtgcBarrier::clone_barrier_post(dst);
+  RtgcBarrier::clone_post_barrier(dst);
   // bool locked = RtgcBarrier::lock_refLink(dst);
   // RTGC_CloneClosure c(dst);
   // dst->oop_iterate(&c);

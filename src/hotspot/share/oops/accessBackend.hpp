@@ -42,8 +42,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-#include "gc/rtgc/RTGC.hpp"
-
 // This metafunction returns either oop or narrowOop depending on whether
 // an access needs to use compressed oops or not.
 template <DecoratorSet decorators>
@@ -720,13 +718,7 @@ namespace AccessInternal {
         const DecoratorSet expanded_decorators = decorators | AS_RAW;
         PreRuntimeDispatch::store_at<expanded_decorators>(base, offset, value);
       } else {
-        if (IS_RTGC_ACCESS(decorators)) {
-          RTGC_TRACE();
-          RTGC::oop_store(base, offset, value);
-        }
-        else {
-          RuntimeDispatch<decorators, T, BARRIER_STORE_AT>::store_at(base, offset, value);
-        }
+        RuntimeDispatch<decorators, T, BARRIER_STORE_AT>::store_at(base, offset, value);
       }
     }
 

@@ -27,7 +27,6 @@
 
 #include "gc/shared/barrierSet.hpp"
 #include "memory/memRegion.hpp"
-#include "gc/rtgc/RTGC.hpp"
 
 class Klass;
 
@@ -92,30 +91,15 @@ public:
     static void clone_in_heap(oop src, oop dst, size_t size);
 
     static void oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
-      if (ENABLE_RTGC_STORE_HOOK) {
-        RTGC::RTGC_StoreObjField(base, offset, value, 11);
-      }
-      else {
-        oop_store_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), value);
-      }
+      oop_store_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), value);
     }
 
     static oop oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value) {
-      if (ENABLE_RTGC_STORE_HOOK) {
-        return RTGC::RTGC_StoreObjField(base, offset, new_value, 12);
-      }
-      else {
-        return oop_atomic_xchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), new_value);
-      }
+      return oop_atomic_xchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), new_value);
     }
 
     static oop oop_atomic_cmpxchg_in_heap_at(oop base, ptrdiff_t offset, oop compare_value, oop new_value) {
-      if (ENABLE_RTGC_STORE_HOOK) {
-        return RTGC::RTGC_CmpXchgObjField(base, offset, compare_value, new_value);
-      }
-      else {
-        return oop_atomic_cmpxchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), compare_value, new_value);
-      }
+      return oop_atomic_cmpxchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), compare_value, new_value);
     }
   };
 };

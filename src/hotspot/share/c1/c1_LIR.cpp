@@ -385,7 +385,6 @@ LIR_OpUpdateCRC32::LIR_OpUpdateCRC32(LIR_Opr crc, LIR_Opr val, LIR_Opr res)
 }
 
 //-------------------verify--------------------------
-// RTGC
 void LIR_Op1::verify() const {
   switch(code()) {
   case lir_move:
@@ -1194,7 +1193,6 @@ void LIR_List::store_mem_oop(jobject o, LIR_Opr base, int offset_in_bytes, Basic
             info));
 }
 
-// RTGC
 void LIR_List::store(LIR_Opr src, LIR_Address* addr, CodeEmitInfo* info, LIR_PatchCode patch_code) {
   append(new LIR_Op1(
             lir_move,
