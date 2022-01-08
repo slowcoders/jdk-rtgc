@@ -50,6 +50,9 @@
 #include "gc/z/zThreadLocalData.hpp"
 #endif
 
+volatile int ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER = 1;
+
+
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp
@@ -1984,7 +1987,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_INT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, count, c_rarg3);
 
     {
       // UnsafeCopyMemory page error: continue after ucm
@@ -2086,7 +2089,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_INT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     // no registers are destroyed by this call
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, count, c_rarg3);
 
     assert_clean_int(count, rax); // Make sure 'count' is clean int.
     {
@@ -2196,7 +2199,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count, c_rarg3);
     {
       // UnsafeCopyMemory page error: continue after ucm
       UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
@@ -2296,7 +2299,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count, c_rarg3);
     {
       // UnsafeCopyMemory page error: continue after ucm
       UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
@@ -2385,6 +2388,7 @@ class StubGenerator: public StubCodeGenerator {
                                   bool dest_uninitialized = false) {
 
     Label L_load_element, L_store_element, L_do_card_marks, L_done;
+    Label L_post_barrier, L_check_copy_length;
 
     // Input registers (after setup_arg_regs)
     const Register from        = rdi;   // source array address
@@ -2431,8 +2435,10 @@ class StubGenerator: public StubCodeGenerator {
                        // ckoff => rcx, ckval => r8
                        // r9 and r10 may be used to save non-volatile registers
 #ifdef _WIN64
-    // last argument (#4) is on stack on Win64
-    __ movptr(ckval, Address(rsp, 6 * wordSize));
+    if (!ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+      // last argument (#4) is on stack on Win64
+      __ movptr(ckval, Address(rsp, 6 * wordSize));
+    }
 #endif
 
     // Caller of this entry point must set up the argument registers.
@@ -2464,6 +2470,28 @@ class StubGenerator: public StubCodeGenerator {
 
     // check that int operands are properly extended to size_t
     assert_clean_int(length, rax);
+
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST | ARRAYCOPY_DISJOINT;
+    if (dest_uninitialized) {
+      decorators |= IS_DEST_UNINITIALIZED;
+    }
+
+    BasicType type = T_OBJECT;
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
+    if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+      bs->arraycopy_prologue(_masm, decorators, type, from, to, count, c_rarg3);
+      //int copied = bs->arraycopy_checkcast(_masm, decorators, type, from, to, count, c_rarg3);
+      if (false) {
+        __ movptr(r14_length, rax);
+        __ subptr(count, rax);
+        __ jcc(Assembler::zero, L_do_card_marks);
+        __ jmp(L_check_copy_length);
+      }
+      // printf("load_klass %p\n", c_rarg3);
+      __ load_klass(ckval, c_rarg3);
+      __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
+      __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
+    }
     assert_clean_int(ckoff, rax);
 
 #ifdef ASSERT
@@ -2486,14 +2514,9 @@ class StubGenerator: public StubCodeGenerator {
     Address from_element_addr(end_from, count, TIMES_OOP, 0);
     Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST | ARRAYCOPY_DISJOINT;
-    if (dest_uninitialized) {
-      decorators |= IS_DEST_UNINITIALIZED;
+    if (!ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+      bs->arraycopy_prologue(_masm, decorators, type, from, to, count, c_rarg3);
     }
-
-    BasicType type = T_OBJECT;
-    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
     // Copy from low to high addresses, indexed from the end of each array.
     __ lea(end_from, end_from_addr);
@@ -2534,9 +2557,9 @@ class StubGenerator: public StubCodeGenerator {
     // Emit GC store barriers for the oops we have copied (r14 + rdx),
     // and report their number to the caller.
     assert_different_registers(rax, r14_length, count, to, end_to, rcx, rscratch1);
-    Label L_post_barrier;
     __ addptr(r14_length, count);     // K = (original - remaining) oops
     __ movptr(rax, r14_length);       // save the value
+    __ BIND(L_check_copy_length);
     __ notptr(rax);                   // report (-1^K) to caller (does not affect flags)
     __ jccb(Assembler::notZero, L_post_barrier);
     __ jmp(L_done); // K == 0, nothing was copied, skip post barrier
@@ -2910,6 +2933,9 @@ class StubGenerator: public StubCodeGenerator {
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // dst_addr
     __ movl2ptr(count, r11_length); // length
   __ BIND(L_plain_copy);
+    if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+      __ movptr(c_rarg3, dst);
+    }
     __ jump(RuntimeAddress(oop_copy_entry));
 
   __ BIND(L_checkcast_copy);
@@ -2932,6 +2958,7 @@ class StubGenerator: public StubCodeGenerator {
       __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
       __ movl(count, length);           // length (reloaded)
+
       Register sco_temp = c_rarg3;      // this register is free now
       assert_different_registers(from, to, count, sco_temp,
                                  r11_dst_klass, r10_src_klass);
@@ -2943,17 +2970,21 @@ class StubGenerator: public StubCodeGenerator {
       assert_clean_int(sco_temp, rax);
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
-      // Fetch destination element klass from the ObjArrayKlass header.
-      int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
-      __ movptr(r11_dst_klass, Address(r11_dst_klass, ek_offset));
-      __ movl(  sco_temp,      Address(r11_dst_klass, sco_offset));
-      assert_clean_int(sco_temp, rax);
+      if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+        __ movptr(c_rarg3, dst);  
+      } else {
+        // Fetch destination element klass from the ObjArrayKlass header.
+        int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
+        __ movptr(r11_dst_klass, Address(r11_dst_klass, ek_offset));
+        __ movl(  sco_temp,      Address(r11_dst_klass, sco_offset));
+        assert_clean_int(sco_temp, rax);
 
-      // the checkcast_copy loop needs two extra arguments:
-      assert(c_rarg3 == sco_temp, "#3 already in place");
-      // Set up arguments for checkcast_copy_entry.
-      setup_arg_regs(4);
-      __ movptr(r8, r11_dst_klass);  // dst.klass.element_klass, r8 is c_rarg4 on Linux/Solaris
+        // the checkcast_copy loop needs two extra arguments:
+        assert(c_rarg3 == sco_temp, "#3 already in place");
+        // Set up arguments for checkcast_copy_entry.
+        setup_arg_regs(4);
+        __ movptr(r8, r11_dst_klass);  // dst.klass.element_klass, r8 is c_rarg4 on Linux/Solaris
+      }
       __ jump(RuntimeAddress(checkcast_copy_entry));
     }
 

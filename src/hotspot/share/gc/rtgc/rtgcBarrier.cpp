@@ -96,6 +96,7 @@ static void rtgc_store(volatile oop* addr, oopDesc* value) {
 
 template<class T, bool inHeap>
 oopDesc* rtgc_xchg(oopDesc* obj, volatile T* addr, oopDesc* new_value) {
+  printf("xchg0 *%p(%p) = %p\n", obj, addr, new_value);
   bool locked = RTGC::lock_heap(obj);
   oopDesc* old = CompressedOops::decode(*addr);
   rtgc_store(addr, new_value);
@@ -118,6 +119,7 @@ oopDesc* RtgcBarrier::oop_xchg_in_root(volatile oop* addr, oopDesc* new_value) {
 
 template<class T, bool inHeap>
 oopDesc* rtgc_cmpxchg(oopDesc* base, volatile T* addr, oopDesc* compare_value, oopDesc* new_value) {
+  printf("cmpxchg0 *%p(%p) = %p->%p\n", base, addr, compare_value, new_value);
   bool locked = RTGC::lock_heap(base);
   oopDesc* old = CompressedOops::decode(*addr);
   if (old == compare_value) {
@@ -139,6 +141,7 @@ oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile oop* addr, oopDesc* compare_v
   return rtgc_cmpxchg<oop, false>(NULL, addr, compare_value, new_value);
 }
 
+//ObjArrayKlass::do_copy -> AccessBarrier::arraycopy_in_heap -> rtgc_arraycopy
 template <DecoratorSet ds, class ITEM_T>
 static bool rtgc_arraycopy(arrayOopDesc*  dst, ITEM_T* dst_p, ITEM_T* src_p,
                     size_t length) {
@@ -286,7 +289,6 @@ void RtgcBarrier::clone_post_barrier(oopDesc*  new_array) {
 
 
 JRT_LEAF(oopDesc*, rtgc_oop_xchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  printf("xchg0 %p[%d] = %p\n", base, (int)offset, new_value);
   return RtgcBarrier::oop_xchg(base, (narrowOop*)((address)base + offset), new_value);
 JRT_END
 
@@ -307,35 +309,29 @@ JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_0(arrayOopDesc* array, size_t index, oopD
   //   offs = objArrayOopDesc::obj_at_offset<oop>(index);
   // }
   size_t offset = index * sizeof(narrowOop) + 16;
-  printf("xchg0 %p[%d=%d] = %p\n", array, (int)index, (int)offset, new_value);
   return RtgcBarrier::oop_xchg(array, (narrowOop*)((address)array + offset), new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_3(arrayOopDesc* array, size_t index, oopDesc* new_value))
   size_t offset = index * sizeof(narrowOop) + 16;
-  printf("xchg3 %p[%d=%d] = %p\n", array, (int)index, (int)offset, new_value);
   return RtgcBarrier::oop_xchg(array, (narrowOop*)((address)array + offset), new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_8(arrayOopDesc* array, size_t index, oopDesc* new_value))
   size_t offset = index * sizeof(narrowOop) + 16;
-  printf("xchg8 %p[%d=%d] = %p\n", array, (int)index, (int)offset, new_value);
   assert(false, "Not Implemented");
   return RtgcBarrier::oop_xchg(array, (oop*)((address)array + offset), new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  printf("cmpxchg0 %p[%d] %p => %p\n", base, (int)offset, cmp_value, new_value);
   return RtgcBarrier::oop_cmpxchg(base, (narrowOop*)((address)base + offset), cmp_value, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  printf("cmpxchg3 %p[%d] %p => %p\n", base, (int)offset, cmp_value, new_value);
   return RtgcBarrier::oop_cmpxchg(base, (narrowOop*)((address)base + offset), cmp_value, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  printf("cmpxchg8 %p[%d] %p => %p\n", base, (int)offset, cmp_value, new_value);
   return RtgcBarrier::oop_cmpxchg(base, (oop*)((address)base + offset), cmp_value, new_value);
 JRT_END
 

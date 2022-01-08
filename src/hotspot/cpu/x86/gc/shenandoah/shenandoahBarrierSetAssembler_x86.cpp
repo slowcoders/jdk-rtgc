@@ -46,7 +46,8 @@
 address ShenandoahBarrierSetAssembler::_shenandoah_lrb = NULL;
 
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                                       Register src, Register dst, Register count) {
+                                                       Register src, Register dst, Register count,
+                                                       Register rtgc_dst_array) {
 
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 

@@ -25,8 +25,7 @@
 #include "runtime/thread.hpp"
 #include "gc/rtgc/rtgcBarrierSet.hpp"
 #include "gc/rtgc/rtgcThreadLocalData.hpp"
-#include "gc/shared/barrierSet.hpp"
-#include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
@@ -36,7 +35,7 @@
 #endif
 
 RtgcBarrierSet::RtgcBarrierSet() : BarrierSet(
-          make_barrier_set_assembler<BarrierSetAssembler>(),
+          make_barrier_set_assembler<RtgcBarrierSetAssembler>(),
           make_barrier_set_c1<RtgcBarrierSetC1>(),
           make_barrier_set_c2<BarrierSetC2>(),
           NULL /* barrier_set_nmethod */,

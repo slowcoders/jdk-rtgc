@@ -4,11 +4,12 @@ public class Main {
     int[] intArray = new int[16];
     int id;
     static Object sObj;
+    static Object sObj2;
     static volatile int sno;
     static volatile int idx;
 
     Main(int sno) {
-        System.arraycopy(paras, 0, paras, paras.length - 1, 1);
+        System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
 
         System.out.println("set int member: " + sno);
         this.id = sno;
@@ -16,17 +17,18 @@ public class Main {
         this.title = "title-" + sno;
         idx = sno % paras.length;
         System.out.println("set int array item with volatile idx ");
-        this.intArray[idx] = sno * 20 + idx;
         System.out.println("set array item with constant index + constant obj.");
-        this.paras[8] = "";
         System.out.println("set array item with constant index + null.");
-        this.paras[9] = null;
         System.out.println("set array item with variable index + constant obj.");
-        this.paras[idx] = "";
         System.out.println("set array item with variable index + null.");
-        this.paras[idx] = null;
         System.out.println("set static field.");
-        sObj = "";
+        sObj2 = this;
+        this.intArray[idx] = sno * 20 + idx;
+        this.paras[8] = "";
+        this.paras[9] = null;
+        this.paras[idx] = "";
+        this.paras[10] = null;
+        sObj = this;
     }
     
     public static void main(String args[]) {

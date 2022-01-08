@@ -202,6 +202,7 @@ void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNo
   transform_later(*mem);
 }
 
+// rtgc-arraycopy
 address PhaseMacroExpand::basictype2arraycopy(BasicType t,
                                               Node* src_offset,
                                               Node* dest_offset,
@@ -996,6 +997,7 @@ Node* PhaseMacroExpand::generate_checkcast_arraycopy(Node** ctrl, MergeMemNode**
                                                      Node* copy_length, bool dest_uninitialized) {
   if ((*ctrl)->is_top())  return NULL;
 
+  // rtgc-arraycopy
   address copyfunc_addr = StubRoutines::checkcast_arraycopy(dest_uninitialized);
   if (copyfunc_addr == NULL) { // Stub was not generated, go slow path.
     return NULL;
@@ -1015,6 +1017,7 @@ Node* PhaseMacroExpand::generate_checkcast_arraycopy(Node** ctrl, MergeMemNode**
   Node* dest_start = array_element_address(dest, dest_offset, T_OBJECT);
 
   const TypeFunc* call_type = OptoRuntime::checkcast_arraycopy_Type();
+  // rtgc-arraycopy
   Node* call = make_leaf_call(*ctrl, *mem, call_type, copyfunc_addr, "checkcast_arraycopy", adr_type,
                               src_start, dest_start, copy_length XTOP, check_offset XTOP, check_value);
 
@@ -1035,6 +1038,7 @@ Node* PhaseMacroExpand::generate_generic_arraycopy(Node** ctrl, MergeMemNode** m
   if ((*ctrl)->is_top()) return NULL;
   assert(!dest_uninitialized, "Invariant");
 
+  // rtgc-arraycopy
   address copyfunc_addr = StubRoutines::generic_arraycopy();
   if (copyfunc_addr == NULL) { // Stub was not generated, go slow path.
     return NULL;
@@ -1071,6 +1075,7 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
 
   // Figure out which arraycopy runtime method to call.
   const char* copyfunc_name = "arraycopy";
+  // rtgc-arraycopy
   address     copyfunc_addr =
       basictype2arraycopy(basic_elem_type, src_offset, dest_offset,
                           disjoint_bases, copyfunc_name, dest_uninitialized);

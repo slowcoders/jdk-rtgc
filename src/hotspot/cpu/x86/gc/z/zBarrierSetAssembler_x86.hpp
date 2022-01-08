@@ -70,7 +70,8 @@ public:
                                   BasicType type,
                                   Register src,
                                   Register dst,
-                                  Register count);
+                                  Register count,
+                                  Register rtgc_dst_array);
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm,
                                              Register jni_env,

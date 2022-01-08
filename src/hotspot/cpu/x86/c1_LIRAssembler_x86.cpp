@@ -41,7 +41,9 @@
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_x86.inline.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 
+extern volatile int ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER;
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
 // instructions, to allow sign-masking or sign-bit flipping.  They allow
@@ -3055,6 +3057,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
+  // printf("emit_arraycopy \n");
+
   __ resolve(ACCESS_READ, src);
   __ resolve(ACCESS_WRITE, dst);
 
@@ -3339,16 +3343,26 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #ifdef _WIN64
         // Allocate abi space for args but be sure to keep stack aligned
         __ subptr(rsp, 6*wordSize);
-        __ load_klass(c_rarg3, dst);
-        __ movptr(c_rarg3, Address(c_rarg3, ObjArrayKlass::element_klass_offset()));
-        store_parameter(c_rarg3, 4);
-        __ movl(c_rarg3, Address(c_rarg3, Klass::super_check_offset_offset()));
+        if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+          __ movptr(c_rarg3, dst);
+        }
+        else {
+          __ load_klass(c_rarg3, dst);
+          __ movptr(c_rarg3, Address(c_rarg3, ObjArrayKlass::element_klass_offset()));
+          store_parameter(c_rarg3, 4);
+          __ movl(c_rarg3, Address(c_rarg3, Klass::super_check_offset_offset()));
+        }
         __ call(RuntimeAddress(copyfunc_addr));
         __ addptr(rsp, 6*wordSize);
-#else
-        __ load_klass(c_rarg4, dst);
-        __ movptr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
-        __ movl(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
+#else 
+        if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+          __ movptr(c_rarg3, dst);
+        }
+        else {
+          __ load_klass(c_rarg4, dst);
+          __ movptr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
+          __ movl(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
+        }
         __ call(RuntimeAddress(copyfunc_addr));
 #endif
 
@@ -3448,13 +3462,18 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   assert_different_registers(c_rarg1, length);
   __ lea(c_rarg1, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   __ mov(c_rarg2, length);
-
+  if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+    __ movptr(c_rarg3, dst);
+  }
 #else
   __ lea(tmp, Address(src, src_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   store_parameter(tmp, 0);
   __ lea(tmp, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   store_parameter(tmp, 1);
   store_parameter(length, 2);
+  if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+    store_parameter(dst, 3);
+  }
 #endif // _LP64
 
   bool disjoint = (flags & LIR_OpArrayCopy::overlapping) == 0;

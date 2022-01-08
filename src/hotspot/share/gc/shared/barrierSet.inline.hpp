@@ -44,10 +44,6 @@ inline bool BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in
     return Raw::oop_arraycopy(NULL, 0, src, NULL, 0, dst, length);
   }
 
-  if (ENABLE_RTGC_STORE_HOOK) {
-    return RTGC::oop_arraycopy_checkcast(dst_obj, dst, src, length);
-  }
-
   // Copy each element with checking casts
   Klass* const dst_klass = objArrayOop(dst_obj)->element_klass();
   for (const T* const end = src + length; src < end; src++, dst++) {

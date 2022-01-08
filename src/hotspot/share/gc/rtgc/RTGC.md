@@ -24,9 +24,11 @@ bash configure --with-jvm-variants=client \
    javac test/rtgc/Main.java
 
 7. Test 실행
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java
-   java -cp test/rtgc Main 2 1 // interpreter 
-   java -cp test/rtgc Main 2 1000 // compile by c1_LIRGenerator 
+   // interpreter only
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1 
+   
+   // enable c1_LIRGenerator 
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 
 
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
