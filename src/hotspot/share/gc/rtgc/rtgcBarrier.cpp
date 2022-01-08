@@ -128,6 +128,7 @@ oopDesc* rtgc_cmpxchg(oopDesc* base, volatile T* addr, oopDesc* compare_value, o
   RTGC::unlock_heap(locked);
   return old;
 }
+
 oopDesc* RtgcBarrier::oop_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare_value, oopDesc* new_value) {
   return rtgc_cmpxchg<narrowOop, true>(base, addr, compare_value, new_value);
 }
@@ -289,50 +290,52 @@ void RtgcBarrier::clone_post_barrier(oopDesc*  new_array) {
 
 
 JRT_LEAF(oopDesc*, rtgc_oop_xchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  return RtgcBarrier::oop_xchg(base, (narrowOop*)((address)base + offset), new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_xchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  printf("xchg3 %p[%d] = %p\n", base, (int)offset, new_value);
-  return RtgcBarrier::oop_xchg(base, (narrowOop*)((address)base + offset), new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_xchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  printf("xchg8 %p[%d] = %p\n", base, (int)offset, new_value);
-  return RtgcBarrier::oop_xchg(base, (oop*)((address)base + offset), new_value);
+  oop* addr = (oop*)((address)base + offset);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_0(arrayOopDesc* array, size_t index, oopDesc* new_value))
-  // if (UseCompressedOops) {
-  //   offs = objArrayOopDesc::obj_at_offset<narrowOop>(index);
-  // } else {
-  //   offs = objArrayOopDesc::obj_at_offset<oop>(index);
-  // }
   size_t offset = index * sizeof(narrowOop) + 16;
-  return RtgcBarrier::oop_xchg(array, (narrowOop*)((address)array + offset), new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_3(arrayOopDesc* array, size_t index, oopDesc* new_value))
   size_t offset = index * sizeof(narrowOop) + 16;
-  return RtgcBarrier::oop_xchg(array, (narrowOop*)((address)array + offset), new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_8(arrayOopDesc* array, size_t index, oopDesc* new_value))
   size_t offset = index * sizeof(narrowOop) + 16;
+  oop* addr = (oop*)((address)base + offset);
   assert(false, "Not Implemented");
-  return RtgcBarrier::oop_xchg(array, (oop*)((address)array + offset), new_value);
+  return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  return RtgcBarrier::oop_cmpxchg(base, (narrowOop*)((address)base + offset), cmp_value, new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  return RtgcBarrier::oop_cmpxchg(base, (narrowOop*)((address)base + offset), cmp_value, new_value);
+  narrowOop* addr = (narrowOop*)((address)base + offset);
+  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  return RtgcBarrier::oop_cmpxchg(base, (oop*)((address)base + offset), cmp_value, new_value);
+  oop* addr = (oop*)((address)base + offset);
+  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
 JRT_END
 
 template <class T> void do_oop_work(T* p, oopDesc* src) {
