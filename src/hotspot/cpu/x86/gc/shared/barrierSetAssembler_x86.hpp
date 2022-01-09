@@ -40,15 +40,12 @@ private:
 
 public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register src, Register dst, Register count,
-                                  Register dst_array/*extended parameter*/) {}
+                                  Register src, Register dst, Register count) {}
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
-#if ENABLE_EXTENDED_ARRAYCOPY_BARRIER
-  virtual int arraycopy_checkcast(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register src, Register dst, Register count,
-                                  Register dst_array) { return -1; }
-#endif
+  // INCLUDE_RTGC
+  virtual bool oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
+                                  Register src, Register dst, Register count) { return false; }
 
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);

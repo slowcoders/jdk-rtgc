@@ -224,8 +224,7 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
                                               BasicType type,
                                               Register src,
                                               Register dst,
-                                              Register count,
-                                              Register rtgc_dst_array) {
+                                              Register count) {
   if (!ZBarrierSet::barrier_needed(decorators, type)) {
     // Barrier not needed
     return;

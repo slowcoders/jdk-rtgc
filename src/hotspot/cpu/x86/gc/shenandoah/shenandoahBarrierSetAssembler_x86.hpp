@@ -79,8 +79,7 @@ public:
                    Register res, Address addr, Register oldval, Register newval,
                    bool exchange, Register tmp1, Register tmp2);
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register src, Register dst, Register count,
-                                  Register rtgc_dst_array);
+                                  Register src, Register dst, Register count);
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

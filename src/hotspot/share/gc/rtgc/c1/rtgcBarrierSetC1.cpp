@@ -24,7 +24,7 @@
 #include "gc/rtgc/rtgc_jrt.hpp"
 
 volatile int enable_rtgc_c1_barrier_hook = 1;
-static int getOopShift() {
+int rtgc_getOopShift() {
 #ifdef _LP64
   if (UseCompressedOops) {
     assert(0 == CompressedOops::base(), "invalid narrowOop base");
@@ -65,7 +65,7 @@ void RtgcBarrierSetC1::store_at(LIRAccess& access, LIR_Opr value) {
   address fn;
   if (access.decorators() & IS_ARRAY) {
     // 참고) Index range is already cheked. 
-    switch (getOopShift()) {
+    switch (rtgc_getOopShift()) {
       case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_0); break;
       case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_3); break;
       case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_8); break;
@@ -73,7 +73,7 @@ void RtgcBarrierSetC1::store_at(LIRAccess& access, LIR_Opr value) {
     }
   }
   else {
-    switch (getOopShift()) {
+    switch (rtgc_getOopShift()) {
       case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
       case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_3); break;
       case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_8); break;
@@ -112,7 +112,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at(LIRAccess& access, LIRItem& value) {
   args->append(value.result());
 
   address fn;
-  switch (getOopShift()) {
+  switch (rtgc_getOopShift()) {
     case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
     case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_3); break;
     case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_8); break;
@@ -153,7 +153,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at(LIRAccess& access, LIRItem& cmp_valu
   args->append(new_value.result());
 
   address fn;
-  switch (getOopShift()) {
+  switch (rtgc_getOopShift()) {
     case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_0); break;
     case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_3); break;
     case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_8); break;

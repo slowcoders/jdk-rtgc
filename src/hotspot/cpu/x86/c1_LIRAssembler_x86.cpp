@@ -43,7 +43,6 @@
 #include "vmreg_x86.inline.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 
-extern volatile int ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER;
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
 // instructions, to allow sign-masking or sign-bit flipping.  They allow
@@ -3343,7 +3342,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #ifdef _WIN64
         // Allocate abi space for args but be sure to keep stack aligned
         __ subptr(rsp, 6*wordSize);
-        if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+        if (INCLUDE_RTGC) {
           __ movptr(c_rarg3, dst);
         }
         else {
@@ -3355,7 +3354,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
         __ call(RuntimeAddress(copyfunc_addr));
         __ addptr(rsp, 6*wordSize);
 #else 
-        if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+        if (INCLUDE_RTGC) {
           __ movptr(c_rarg3, dst);
         }
         else {
@@ -3462,7 +3461,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   assert_different_registers(c_rarg1, length);
   __ lea(c_rarg1, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   __ mov(c_rarg2, length);
-  if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+  if (INCLUDE_RTGC) {
     __ movptr(c_rarg3, dst);
   }
 #else
@@ -3471,7 +3470,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   __ lea(tmp, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   store_parameter(tmp, 1);
   store_parameter(length, 2);
-  if (ENABLE_EXTENDED_ARRAYCOPY_CHECKCAST_BARRIER_ASSEMBLER) {
+  if (INCLUDE_RTGC) {
     store_parameter(dst, 3);
   }
 #endif // _LP64

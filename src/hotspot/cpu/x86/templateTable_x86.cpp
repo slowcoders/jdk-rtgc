@@ -153,73 +153,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
-
-  if (!ENABLE_RTGC_STORE_HOOK && !ENABLE_RTGC_STORE_TEST) {
-    __ store_heap_oop(dst, val, rdx, rbx, decorators);
-    return;
-  }
-
-  bool isArray = dst.scale() != Address::times_1;
-  if (!isArray) {
-    assert(dst.disp() == 0, "must be");
-    if (dst.index() == 0) {
-      printf("set klass\n");
-      __ store_heap_oop(dst, val, rdx, rbx, decorators);
-      return;
-    }
-  }
-
-  RTGC_TRACE();
-  const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
-  Register obj = dst.base();
-  Register off = dst.index();
-  const bool do_save_Java_frame = false;
-
-  if (ENABLE_RTGC_STORE_TEST) {
-    __ push(obj);
-    __ store_heap_oop(dst, val, rdx, rbx, decorators);
-    __ pop(obj);
-  }
-
-  if (do_save_Java_frame) {
-    address the_pc = __ pc();
-    // int call_offset = __ offset();
-    __ set_last_Java_frame(thread, noreg, rbp, the_pc);
-  }
-
-  __ push(rbp);
-  __ mov(rbp, rsp);
-  __ andptr(rsp, -(StackAlignmentInBytes));
-  __ pusha();  
-
-  if (obj != rdi) {
-    __ movptr(rdi, obj);
-  }
-  if (off != rsi) {
-    __ mov(rsi, off);
-  }
-  if (val != rdx) {
-    if (val == noreg) {
-      __ xorq(rdx, rdx);
-    }
-    else {
-      __ movptr(rdx, val);
-    }
-  }
-  __ xorq(rcx, rcx);
-
-  address fn = isArray
-      ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
-      : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
-
-  __ call(RuntimeAddress(fn));
-
-  if (do_save_Java_frame) {
-    __ reset_last_Java_frame(thread, true);
-  }
-  __ popa();
-  __ mov(rsp, rbp);
-  __ pop(rbp);
+  __ store_heap_oop(dst, val, rdx, rbx, decorators);
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,

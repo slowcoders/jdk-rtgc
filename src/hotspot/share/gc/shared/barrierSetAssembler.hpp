@@ -26,7 +26,6 @@
 #define SHARE_GC_SHARED_BARRIERSETASSEMBLER_HPP
 
 #include "utilities/macros.hpp"
-#define ENABLE_EXTENDED_ARRAYCOPY_BARRIER 1
 
 #include CPU_HEADER(gc/shared/barrierSetAssembler)
 

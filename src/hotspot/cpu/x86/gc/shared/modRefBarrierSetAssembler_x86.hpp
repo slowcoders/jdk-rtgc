@@ -42,8 +42,7 @@ protected:
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register src, Register dst, Register count,
-                                  Register rtgc_dst_array);
+                                  Register src, Register dst, Register count);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
 

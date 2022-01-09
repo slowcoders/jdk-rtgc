@@ -166,14 +166,14 @@ inline bool RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycop
   T* dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
   if (!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
-    RtgcBarrier::oop_arraycopy_nocheck(dst_obj, dst, src, length);
+    RtgcBarrier::oop_arraycopy_nocheck(src, dst, length, dst_obj);
     return true;
     // No check cast, bulk barrier and bulk copy
     // ZBarrier::load_barrier_on_oop_array(src, length);
     //return Raw::oop_arraycopy_in_heap(NULL, 0, src, NULL, 0, dst, length);
   }
 
-  return RtgcBarrier::oop_arraycopy_checkcast(dst_obj, dst, src, length);
+  return RtgcBarrier::oop_arraycopy_checkcast(src, dst, length, dst_obj) == 0;
 
   // Check cast and copy each elements
   // Klass* const dst_klass = objArrayOop(dst_obj)->element_klass();

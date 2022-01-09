@@ -209,8 +209,6 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   return h_array();
 }
 
-#include "gc/rtgc/RTGC.hpp"
-
 
 // Either oop or narrowOop depending on UseCompressedOops.
 void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
