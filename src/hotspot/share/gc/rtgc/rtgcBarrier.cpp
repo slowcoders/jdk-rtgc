@@ -144,54 +144,57 @@ oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile oop* addr, oopDesc* compare_v
 
 //ObjArrayKlass::do_copy -> AccessBarrier::arraycopy_in_heap -> rtgc_arraycopy
 template <DecoratorSet ds, class ITEM_T>
-static bool rtgc_arraycopy(arrayOopDesc*  dst, ITEM_T* dst_p, ITEM_T* src_p,
+static int rtgc_arraycopy(arrayOopDesc* dst_array, ITEM_T* dst_p, ITEM_T* src_p,
                     size_t length) {
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   Klass* bound = !checkcast ? NULL
-                            : ObjArrayKlass::cast(dst->klass())->element_klass();
-  bool locked = RTGC::lock_heap(dst);                          
+                            : ObjArrayKlass::cast(dst_array->klass())->element_klass();
+  bool locked = RTGC::lock_heap(dst_array);                          
   for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
+  // for (ITEM_T* end_p = src_p + length; src_p < end_p; src_p ++, dst_p ++) {
+  //   ITEM_T s_raw = src_p[0]; 
     oopDesc* item = CompressedOops::decode(s_raw);
     if (checkcast && item != NULL) {
       Klass* stype = item->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
         memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(locked);
-        return false; 
+        return length - i;//(end_p - src_p); // returns remain_count;
       }
     }
     oopDesc* old = CompressedOops::decode(dst_p[i]);
-    //dst_p[i] = s_raw; // ARRAYCOPY_DISJOINT
-    if (item != NULL) RTGC::add_referrer(CompressedOops::decode(item), dst);
-    if (old != NULL) RTGC::remove_referrer(CompressedOops::decode(old), dst);
+    // 사용불가 memmove 필요
+    // dst_p[i] = s_raw;
+    if (item != NULL) RTGC::add_referrer(CompressedOops::decode(item), dst_array);
+    if (old != NULL) RTGC::remove_referrer(CompressedOops::decode(old), dst_array);
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(locked);
-  return true;
+  return 0;
 }
 
-void RtgcBarrier::oop_arraycopy_nocheck(arrayOopDesc*  dst_array, oop* dst_p, oop* src_p, size_t length) {
+void RtgcBarrier::oop_arraycopy_nocheck(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   rtgc_arraycopy<0, oop>(dst_array, dst_p, src_p, length);
 }
-void RtgcBarrier::oop_arraycopy_nocheck(arrayOopDesc*  dst_array, narrowOop* dst_p, narrowOop* src_p, size_t length) {
+void RtgcBarrier::oop_arraycopy_nocheck(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
   rtgc_arraycopy<0, narrowOop>(dst_array, dst_p, src_p, length);
 }
-void RtgcBarrier::oop_arraycopy_nocheck(arrayOopDesc*  dst_array, HeapWord* dst_p, HeapWord* src_p, size_t length) {
+void RtgcBarrier::oop_arraycopy_nocheck(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
   assert(false, "not implemented");
   //rtgc_arraycopy<0, HeapWord>(dst_array, dst_p, src_p, length);
 }
 
-bool RtgcBarrier::oop_arraycopy_checkcast(arrayOopDesc*  dst_array, oop* dst_p, oop* src_p, size_t length) {
+int RtgcBarrier::oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   return rtgc_arraycopy<ARRAYCOPY_CHECKCAST, oop>(dst_array, dst_p, src_p, length);
 }
-bool RtgcBarrier::oop_arraycopy_checkcast(arrayOopDesc*  dst_array, narrowOop* dst_p, narrowOop* src_p, size_t length) {
+int RtgcBarrier::oop_arraycopy_checkcast(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
   return rtgc_arraycopy<ARRAYCOPY_CHECKCAST, narrowOop>(dst_array, dst_p, src_p, length);
 }
-bool RtgcBarrier::oop_arraycopy_checkcast(arrayOopDesc*  dst_array, HeapWord* dst_p, HeapWord* src_p, size_t length) {
+int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
   assert(false, "not implemented");
   return false;
-  //rtgc_arraycopy<ARRAYCOPY_CHECKCAST, narrowOop>(dst_array, dst_p, src_p, length);
+  //rtgc_arraycopy<ARRAYCOPY_CHECKCAST, HeapWord>(dst_array, dst_p, src_p, length);
 }
 
 void RtgcBarrier::clone_post_barrier(oopDesc*  new_array) {
@@ -350,3 +353,28 @@ template <class T> void do_oop_work(T* p, oopDesc* src) {
 void RTGC_CloneClosure::do_oop(narrowOop* p) { do_oop_work(p, src); }
 void RTGC_CloneClosure::do_oop(      oop* p) { do_oop_work(p, src); }
 
+template <DecoratorSet ds, class ITEM_T>
+static int rtgc_arraycopy22(arrayOopDesc* dst_array, ITEM_T* dst_p, ITEM_T* src_p,
+                    size_t length) {
+  bool checkcast = ARRAYCOPY_CHECKCAST & ds;
+  Klass* bound = !checkcast ? NULL
+                            : ObjArrayKlass::cast(dst_array->klass())->element_klass();
+  bool locked = RTGC::lock_heap(dst_array);                          
+  for (ITEM_T* end_p = src_p + length; src_p < end_p; src_p ++, dst_p ++) {
+    ITEM_T s_raw = src_p[0]; 
+    oopDesc* item = CompressedOops::decode(s_raw);
+    if (checkcast && item != NULL) {
+      Klass* stype = item->klass();
+      if (stype != bound && !stype->is_subtype_of(bound)) {
+        RTGC::unlock_heap(locked);
+        return (end_p - src_p); // returns remain_count;
+      }
+    }
+    oopDesc* old = CompressedOops::decode(dst_p[0]);
+    dst_p[0] = s_raw;
+    if (item != NULL) RTGC::add_referrer(CompressedOops::decode(item), dst_array);
+    if (old != NULL) RTGC::remove_referrer(CompressedOops::decode(old), dst_array);
+  } 
+  RTGC::unlock_heap(locked);
+  return 0;
+}

@@ -21,14 +21,16 @@ public:
 
   static void clone_post_barrier(oopDesc* array);
 
-  static void oop_arraycopy_nocheck(arrayOopDesc*  dst_array, oop* dst_p, oop* src_p, size_t length);
-  static void oop_arraycopy_nocheck(arrayOopDesc*  dst_array, narrowOop* dst_p, narrowOop* src_p, size_t length);
-  static void oop_arraycopy_nocheck(arrayOopDesc*  dst_array, HeapWord* dst_p, HeapWord* src_p, size_t length);
+  static void oop_arraycopy_nocheck(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static void oop_arraycopy_nocheck(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static void oop_arraycopy_nocheck(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);
 
-  static bool oop_arraycopy_checkcast(arrayOopDesc*  dst_array, oop* dst_p, oop* src_p, size_t length);
-  static bool oop_arraycopy_checkcast(arrayOopDesc*  dst_array, narrowOop* dst_p, narrowOop* src_p, size_t length);
-  static bool oop_arraycopy_checkcast(arrayOopDesc*  dst_array, HeapWord* dst_p, HeapWord* src_p, size_t length);
-
+  /**
+   * returns remaining count: 0 for success
+   */
+  static int oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static int oop_arraycopy_checkcast(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static int oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);
 };
 
 #endif // SHARE_GC_RTGC_RTGCBARRIER_HPP

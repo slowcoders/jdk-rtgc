@@ -890,6 +890,8 @@ class StubGenerator: public StubCodeGenerator {
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
+    if (!is_oop || !INCLUDE_RTGC ||
+        !bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
     {
       bool add_entry = (t != T_OBJECT && (!aligned || t == T_INT));
       // UnsafeCopyMemory page error: continue after ucm
@@ -935,7 +937,7 @@ class StubGenerator: public StubCodeGenerator {
           __ movl(Address(from, to_from, Address::times_1, 0), rax);
           __ addptr(from, 4);
           __ subl(count, 1<<shift);
-         }
+        }
       __ BIND(L_copy_64_bytes);
         __ mov(rax, count);
         __ shrl(rax, shift+1);  // 8 bytes chunk count
@@ -983,6 +985,7 @@ class StubGenerator: public StubCodeGenerator {
       __ emms();
     }
     __ movl(count, Address(rsp, 12+12)); // reread 'count'
+  }
     bs->arraycopy_epilogue(_masm, decorators, t, from, to, count);
 
     if (t == T_OBJECT) {
@@ -1086,7 +1089,8 @@ class StubGenerator: public StubCodeGenerator {
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
-
+    if (!is_oop || !INCLUDE_RTGC ||
+        !bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
     {
       bool add_entry = (t != T_OBJECT && (!aligned || t == T_INT));
       // UnsafeCopyMemory page error: continue after ucm
@@ -1194,6 +1198,7 @@ class StubGenerator: public StubCodeGenerator {
       __ emms();
     }
     __ movl2ptr(count, Address(rsp, 12+12)); // reread count
+  }
     bs->arraycopy_epilogue(_masm, decorators, t, from, to, count);
 
     if (t == T_OBJECT) {
@@ -1461,7 +1466,14 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-
+    if (is_oop && INCLUDE_RTGC &&
+          bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
+      __ testptr(rax, rax);        
+      __ jccb(Assembler::zero, L_do_card_marks);
+      __ subl(count, rax);  
+      __ movl2ptr(rax, count); // rax, count = copied item_count
+    }
+    else {
     // Copy from low to high addresses, indexed from the end of each array.
     __ lea(end_from, end_from_addr);
     __ lea(end_to,   end_to_addr);
@@ -1508,6 +1520,7 @@ class StubGenerator: public StubCodeGenerator {
     Label L_post_barrier;
     __ addl(count, length_arg);         // transfers = (length - remaining)
     __ movl2ptr(rax, count);            // save the value
+  }
     __ notptr(rax);                     // report (-1^K) to caller (does not affect flags)
     __ jccb(Assembler::notZero, L_post_barrier);
     __ jmp(L_done); // K == 0, nothing was copied, skip post barrier

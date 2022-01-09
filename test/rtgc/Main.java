@@ -10,6 +10,7 @@ public class Main {
 
     Main(int sno) {
         System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
+        System.arraycopy(new String[16], 0, paras, paras.length - 1, 1);
 
         System.out.println("set int member: " + sno);
         this.id = sno;

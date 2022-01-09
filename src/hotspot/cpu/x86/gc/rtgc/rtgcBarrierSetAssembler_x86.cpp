@@ -77,35 +77,37 @@ void pop_registers(MacroAssembler* masm, bool include_rax, bool include_r12_r15)
   }
 }
 
-void rtgc_arraycopy_prologue(void* src, void* dst, int count, arrayOopDesc* array) {
-  printf("rtgc_arraycopy_prologue %p %p<-%p %d\n", array, dst, src, count);
+void rtgc_arraycopy_prologue(void* src, void* dst, int count) {
+  printf("rtgc_arraycopy_prologue %p<-%p %d\n", dst, src, count);
 }
 
-void rtgc_arraycopy_epilogue(void* src, void* dst, int count, arrayOopDesc* array) {
-  printf("rtgc_arraycopy_epilogue %p %p<-%p %d\n", array, dst, src, count);
+void rtgc_arraycopy_epilogue(void* src, void* dst, int count) {
+  printf("rtgc_arraycopy_epilogue %p<-%p %d\n", dst, src, count);
 }
 
 void rtgc_arraycopy_checkcast(void* src, void* dst, int count, arrayOopDesc* array) {
   printf("rtgc_arraycopy_checkcast %p %p<-%p %d\n", array, dst, src, count);
 }
 
+void rtgc_arraycopy_nocheck(void* src, void* dst, int count, arrayOopDesc* array) {
+  printf("rtgc_arraycopy_nocheck %p %p<-%p %d\n", array, dst, src, count);
+}
+
 void RtgcBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                                 Register src, Register dst, Register count,
-                                                 Register rtgc_dst_array) {
+                                                 Register src, Register dst, Register count) {
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
   if (!is_reference_type(type)) return;
 
   // Call VM
-  assert_different_registers(src, dst, count, rtgc_dst_array);
+  assert_different_registers(src, dst, count);
   assert(src == c_rarg0, "invalid arg");
   assert(dst == c_rarg1, "invalid arg");
   assert(count == c_rarg2, "invalid arg");
-  assert(c_rarg3 == rtgc_dst_array, "invalid arg");
 
   push_registers(masm, true, false);
-  __ MacroAssembler::call_VM_leaf_base(reinterpret_cast<address>(rtgc_arraycopy_prologue), 4);
+  __ MacroAssembler::call_VM_leaf_base(reinterpret_cast<address>(rtgc_arraycopy_prologue), 3);
   pop_registers(masm, true, false);
 
 }
@@ -143,45 +145,16 @@ void RtgcBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decora
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
-  bool atomic = (decorators & MO_RELAXED) != 0;
-
-  bool isArray = dst.scale() != Address::times_1;
-  // if (!isArray) {
-  //   assert(dst.disp() == 0, "must be");
-  //   if (dst.index() == 0) {
-  //     printf("set klass\n");
-  //     __ store_heap_oop(dst, val, rdx, rbx, decorators);
-  //     return;
-  //   }
-  // }
 
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   Register obj = dst.base();
-  Register off = dst.index();
-  const bool do_save_Java_frame = false;
-
-  // if (ENABLE_RTGC_STORE_TEST) {
-  //   __ push(obj);
-  //   __ store_heap_oop(dst, val, rdx, rbx, decorators);
-  //   __ pop(obj);
-  // }
-
-  if (do_save_Java_frame) {
-    address the_pc = __ pc();
-    // int call_offset = __ offset();
-    __ set_last_Java_frame(thread, noreg, rbp, the_pc);
-  }
 
   push_registers(masm, true, false);
-  // __ pusha();  
 
   if (obj != c_rarg0) {
     __ movptr(c_rarg0, obj);
   }
   __ leaq(c_rarg1, dst);
-  // if (off != rsi) {
-  //   __ mov(rsi, off);
-  // }
   if (val != c_rarg2) {
     if (val == noreg) {
       __ xorq(c_rarg2, c_rarg2);
@@ -190,43 +163,69 @@ void RtgcBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decora
       __ movptr(c_rarg2, val);
     }
   }
-  // __ xorq(rcx, rcx);
 
   address fn;
-  // '' = isArray
-  //     ? CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjArrayItem)
-  //     : CAST_FROM_FN_PTR(address, RTGC::RTGC_StoreObjField);
-  typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*);
-  typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*);
+  if (true || in_heap) {
+    typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_xchg); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_xchg); break;
+      default: assert(false, "invalid oop shift");
+    }
 
-  switch (rtgc_getOopShift()) {
-    case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-    case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_xchg); break;
-    case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_xchg); break;
-    default: assert(false, "invalid oop shift");
+    __ MacroAssembler::call_VM_leaf_base(fn, 3);
+  }
+  else {
+    typedef oopDesc* (*narrow_fn)(volatile narrowOop*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(volatile oop*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_xchg_in_root); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_xchg_in_root); break;
+      default: assert(false, "invalid oop shift");
+    }
+
+    __ MacroAssembler::call_VM_leaf_base(fn, 2);
   }
 
-  __ MacroAssembler::call_VM_leaf_base(fn, 3);
-  // __ call(RuntimeAddress(fn));
-
-  if (do_save_Java_frame) {
-    __ reset_last_Java_frame(thread, true);
-  }
   pop_registers(masm, true, false);
 }
 
 
-int RtgcBarrierSetAssembler::arraycopy_checkcast(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                Register src, Register dst, Register count,
-                                Register dst_array) {
-  assert((decorators & ARRAYCOPY_CHECKCAST) != 0, "no arraycopy_checkcast");
-  assert((decorators & ARRAYCOPY_DISJOINT) != 0, "no arraycopy_checkcast");
+bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
+                                Register src, Register dst, Register count) {
+  bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
+  bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  push_registers(masm, false, false);
-  __ MacroAssembler::call_VM_leaf_base(reinterpret_cast<address>(rtgc_arraycopy_checkcast), 3);
-  pop_registers(masm, false, false);
-  return +1;
+  printf("oop_arraycopy_hook checkcast %d, disjoint %d\n", checkcast, disjoint);
+  assert(src == c_rarg0, "invalid arg");
+  assert(dst == c_rarg1, "invalid arg");
+  assert(count == c_rarg2, "invalid arg");
+  assert(dst_array == c_rarg3, "invalid arg");
+
+  if (false && checkcast) {
+    address fn;
+    typedef int (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
+    typedef int (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_arraycopy_checkcast); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_arraycopy_checkcast); break;
+      default: assert(false, "invalid oop shift");
+    }
+
+    push_registers(masm, false, false);
+    __ MacroAssembler::call_VM_leaf_base(fn, 4);
+    pop_registers(masm, false, false);
+    return true;
+  }
+  else {
+    //__ MacroAssembler::call_VM_leaf_base(reinterpret_cast<address>(rtgc_arraycopy_nocheck), 4);
+    return false;
+  }
 }
 
 
