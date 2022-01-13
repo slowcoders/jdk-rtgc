@@ -53,12 +53,6 @@ public:
 
     static oop* field_addr(oop base, ptrdiff_t offset);
 
-    template <typename T>
-    static oop load_barrier_on_oop_field_preloaded(T* addr, oop o);
-
-    template <typename T>
-    static oop load_barrier_on_unknown_oop_field_preloaded(oop base, ptrdiff_t offset, T* addr, oop o);
-
   public:
     //
     // In heap

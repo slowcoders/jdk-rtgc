@@ -54,15 +54,42 @@
 #endif
 
 #include "gc/rtgc/RTGC.hpp"
-#include "gc/rtgc/rtgc.inline.hpp"
-
 
 extern volatile int enable_rtgc_c1_barrier_hook;
 
-void RTGC_oop_arraycopy2() {
-  if (enable_rtgc_c1_barrier_hook) {
-    enable_rtgc_c1_barrier_hook ++;
+using namespace RTGC;
+
+static int g_mv_lock = (0);
+
+volatile int RTGC::ENABLE_LOG = 1;
+volatile int RTGC::ENABLE_TRACE = 1;
+
+bool RTGC::isPublished(oopDesc* obj) {
+  return true;
+}
+
+bool RTGC::lock_heap(oopDesc* obj) {
+  if (!isPublished(obj)) return false;
+  while (Atomic::xchg(&g_mv_lock, 1) != 0) { /* do spin. */ }
+  return true;
+}
+
+void RTGC::unlock_heap(bool locked) {
+  if (locked) {
+    Atomic::release_store(&g_mv_lock, 0);
   }
 }
+
+void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
+    rtgc_log(1, "add_ref: obj=%p(%s), referrer=%p\n", 
+      obj, obj->klass()->name()->bytes(), referrer); 
+}
+
+void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
+    rtgc_log(1, "remove_ref: obj=%p(%s), referrer=%p\n",
+      obj, obj->klass()->name()->bytes(), referrer); 
+}
+
+
 
 

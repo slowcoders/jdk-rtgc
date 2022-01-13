@@ -37,7 +37,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "vmreg_x86.inline.hpp"
-#include "gc/rtgc/RTGC.hpp"
 
 
 #ifdef ASSERT

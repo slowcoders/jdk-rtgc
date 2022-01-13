@@ -7,17 +7,23 @@
 
 class RtgcBarrier : public AllStatic {
 public:
+  static oopDesc*  oop_xchg(oopDesc* base, volatile narrowOop* p, oopDesc* new_value);
+  static oopDesc*  oop_xchg(oopDesc* base, volatile oop* p, oopDesc* new_value);
+
+  static oopDesc*  oop_xchg_in_root(volatile narrowOop* p, oopDesc* new_value);
+  static oopDesc*  oop_xchg_in_root(volatile oop* p, oopDesc* new_value);
+
   static oopDesc*  oop_cmpxchg(oopDesc* base, volatile narrowOop* p, oopDesc* comapre_value, oopDesc* new_value);
   static oopDesc*  oop_cmpxchg(oopDesc* base, volatile oop* p, oopDesc* comapre_value, oopDesc* new_value);
 
   static oopDesc*  oop_cmpxchg_in_root(volatile narrowOop* p, oopDesc* comapre_value, oopDesc* new_value);
   static oopDesc*  oop_cmpxchg_in_root(volatile oop* p, oopDesc* comapre_value, oopDesc* new_value);
 
-  static oopDesc*  oop_xchg(oopDesc* base, volatile narrowOop* p, oopDesc* new_value);
-  static oopDesc*  oop_xchg(oopDesc* base, volatile oop* p, oopDesc* new_value);
+  static oopDesc*  oop_load(oopDesc* base, volatile narrowOop* p);
+  static oopDesc*  oop_load(oopDesc* base, volatile oop* p);
 
-  static oopDesc*  oop_xchg_in_root(volatile narrowOop* p, oopDesc* new_value);
-  static oopDesc*  oop_xchg_in_root(volatile oop* p, oopDesc* new_value);
+  static oopDesc*  oop_load_in_root(volatile narrowOop* p);
+  static oopDesc*  oop_load_in_root(volatile oop* p);
 
   static void clone_post_barrier(oopDesc* array);
 

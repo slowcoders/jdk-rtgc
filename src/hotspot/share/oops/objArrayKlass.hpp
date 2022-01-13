@@ -34,7 +34,6 @@
 class ObjArrayKlass : public ArrayKlass {
   friend class VMStructs;
   friend class JVMCIVMStructs;
-  friend class RTGC;
 
  public:
   static const KlassID ID = ObjArrayKlassID;
