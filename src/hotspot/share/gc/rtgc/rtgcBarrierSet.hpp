@@ -24,7 +24,6 @@
 #ifndef SHARE_GC_RTGC_RTGCBARRIERSET_HPP
 #define SHARE_GC_RTGC_RTGCBARRIERSET_HPP
 
-#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 
 // No interaction with application is required for Rtgc, and therefore

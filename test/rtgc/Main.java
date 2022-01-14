@@ -47,6 +47,7 @@ public class Main {
 
         for (int i = 0; i < round; i++) {
             doTest(i, array_size);
+            System.gc();
         }
     }
 

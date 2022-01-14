@@ -23,63 +23,68 @@
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgc_jrt.hpp"
 
+
 volatile int enable_rtgc_c1_barrier_hook = 1;
-int rtgc_getOopShift() {
-#ifdef _LP64
-  if (UseCompressedOops) {
-    assert(0 == CompressedOops::base(), "invalid narrowOop base");
-    assert(3 == CompressedOops::shift()
-        || 0 == CompressedOops::shift(), "invalid narrowOop shift");
-    return CompressedOops::shift();
-  }
-  else {
-    return 8;
-  }
-#else
-  return 4;
-#endif
+
+void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr value) {
+    BarrierSetC1::load_at_resolved(access, value);
+    return;
 }
 
-void RtgcBarrierSetC1::store_at(LIRAccess& access, LIR_Opr value) {
+LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
+  DecoratorSet decorators = access.decorators();
+  LIRGenerator* gen = access.gen();
+  bool is_array = (decorators & IS_ARRAY) != 0;
+  bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
+
+  bool precise = is_array || on_anonymous;
+  LIR_Opr addr = access.resolved_addr();
+
+  if (addr->is_address()) {
+    LIR_Address* address = addr->as_address_ptr();
+    // ptr cannot be an object because we use this barrier for array card marks
+    // and addr can point in the middle of an array.
+    LIR_Opr ptr = // FrameMap::as_oop_opr(reg);
+      gen->new_pointer_register();
+    if (!address->index()->is_valid() && address->disp() == 0) {
+      gen->lir()->move(address->base(), ptr);
+    } else {
+      assert(address->disp() != max_jint, "lea doesn't support patched addresses!");
+      gen->lir()->leal(addr, ptr);
+    }
+    addr = ptr;
+  }
+  assert(addr->is_register(), "must be a register at this point");
+  return addr;
+}
+
+/* 참고) LIR_Op1::emit_code()
+   -> LIR_Assembler::emit_op1() 
+     -> LIR_Assembler::move_op()
+        -> LIR_Assembler::mem2reg()
+*/
+void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   if (!enable_rtgc_c1_barrier_hook || !access.is_oop()) {
-    BarrierSetC1::store_at(access, value);
+    BarrierSetC1::store_at_resolved(access, value);
     return;
   }
 
   LIRGenerator* gen = access.gen();
   LIRItem base = access.base().item();
-  LIR_Opr offset = access.offset().opr();//->as_address_ptr()->base();
-
-  assert(access.decorators() & IN_HEAP, "store_at not in heap!!");
-
+  LIR_Opr addr = get_resolved_addr(access, c_rarg1);
+  bool in_heap = access.decorators() & IN_HEAP;
+  
   BasicTypeList signature;
-  signature.append(T_OBJECT);    // object
-  signature.append(T_INT); // offset
+  if (in_heap) signature.append(T_OBJECT); // object
+  signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
   
   LIR_OprList* args = new LIR_OprList();
-  args->append(base.result());
-  args->append(offset);
+  if (in_heap) args->append(base.result());
+  args->append(addr);
   args->append(value);
 
-  address fn;
-  if (access.decorators() & IS_ARRAY) {
-    // 참고) Index range is already cheked. 
-    switch (rtgc_getOopShift()) {
-      case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_0); break;
-      case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_3); break;
-      case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_array_xchg_8); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
-  else {
-    switch (rtgc_getOopShift()) {
-      case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_3); break;
-      case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_8); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
+  address fn = RtgcBarrier::getXchgFunction(in_heap);
   gen->call_runtime(&signature, args,
               fn,
               voidType, NULL);
@@ -87,37 +92,33 @@ void RtgcBarrierSetC1::store_at(LIRAccess& access, LIR_Opr value) {
 }
 
 
-LIR_Opr RtgcBarrierSetC1::atomic_xchg_at(LIRAccess& access, LIRItem& value) {
+LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& value) {
   if (!enable_rtgc_c1_barrier_hook || !access.is_oop()) {
-    return BarrierSetC1::atomic_xchg_at(access, value);
+    return BarrierSetC1::atomic_xchg_at_resolved(access, value);
   }
 
   LIRGenerator* gen = access.gen();
   LIRItem base = access.base().item();
-  LIRItem offset = access.offset().item();
-  base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
-  offset.load_item_force(FrameMap::as_opr(c_rarg1));
-  value.load_item_force(FrameMap::as_oop_opr(c_rarg2));
-      // new_value.load_item_force(FrameMap::as_oop_opr(j_rarg3));
-  assert(access.decorators() & IN_HEAP, "store_at not in heap!!");
+  LIRItem addr = access.offset().item();
+
+  bool in_heap = access.decorators() & IN_HEAP;
+  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
+  addr.load_item_force(FrameMap::as_opr(in_heap ? c_rarg1 : c_rarg0));
+  value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg2 : c_rarg1));
+
+  assert(access.decorators() & IN_HEAP, "store_at_resolved not in heap!!");
 
   BasicTypeList signature;
-  signature.append(T_OBJECT);    // object
-  signature.append(T_INT); // offset
+  if (in_heap) signature.append(T_OBJECT);    // object
+  signature.append(T_INT); // addr
   signature.append(T_OBJECT); // new_value
   
   LIR_OprList* args = new LIR_OprList();
-  args->append(base.result());
-  args->append(offset.result());
+  if (in_heap) args->append(base.result());
+  args->append(addr.result());
   args->append(value.result());
 
-  address fn;
-  switch (rtgc_getOopShift()) {
-    case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-    case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_3); break;
-    case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_8); break;
-    default: assert(false, "invalid oop shift");
-  }
+  address fn = RtgcBarrier::getXchgFunction(access.decorators() & IN_HEAP);
   LIR_Opr res = gen->call_runtime(&signature, args,
                 fn,
                 objectType, NULL);
@@ -125,43 +126,53 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at(LIRAccess& access, LIRItem& value) {
 }
 
 
-LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
+LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   if (!enable_rtgc_c1_barrier_hook || !access.is_oop()) {
-    return BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
+    return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 
   LIRGenerator* gen = access.gen();
   LIRItem base = access.base().item();
-  LIRItem offset = access.offset().item();
-  base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
-  offset.load_item_force(FrameMap::as_opr(c_rarg1));
-  cmp_value.load_item_force(FrameMap::as_oop_opr(c_rarg2));
-  new_value.load_item_force(FrameMap::as_oop_opr(c_rarg3));
-  assert(access.decorators() & IN_HEAP, "store_at not in heap!!");
+  LIRItem addr = access.offset().item();
+  bool in_heap = access.decorators() & IN_HEAP;
+
+  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
+  addr.load_item_force(FrameMap::as_opr(in_heap ? c_rarg1 : c_rarg0));
+  cmp_value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg2 : c_rarg1));
+  new_value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg3 : c_rarg2));
+  assert(access.decorators() & IN_HEAP, "store_at_resolved not in heap!!");
 
 
   BasicTypeList signature;
-  signature.append(T_OBJECT); // object
-  signature.append(T_INT);    // offset
+  if (in_heap) signature.append(T_OBJECT); // object
+  signature.append(T_ADDRESS);    // addr
   signature.append(T_OBJECT); // cmp_value
   signature.append(T_OBJECT); // new_value
   
   LIR_OprList* args = new LIR_OprList();
-  args->append(base.result());
-  args->append(offset.result());
+  if (in_heap) args->append(base.result());
+  args->append(addr.result());
   args->append(cmp_value.result());
   args->append(new_value.result());
 
-  address fn;
-  switch (rtgc_getOopShift()) {
-    case 0: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_0); break;
-    case 3: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_3); break;
-    case 8: fn = CAST_FROM_FN_PTR(address, rtgc_oop_cmpxchg_8); break;
-    default: assert(false, "invalid oop shift");
-  }
+  address fn = RtgcBarrier::getCmpXchgFunction(access.decorators() & IN_HEAP);
   LIR_Opr res = gen->call_runtime(&signature, args,
               fn,
               objectType, NULL);
   return res;    
 }
 
+const char* RtgcBarrierSetC1::rtcall_name_for_address(address entry) {
+  #define FUNCTION_CASE(a, f) \
+    if ((intptr_t)a == CAST_FROM_FN_PTR(intptr_t, f))  return #f
+
+  // FUNCTION_CASE(entry, rtgc_oop_xchg_0);
+  // FUNCTION_CASE(entry, rtgc_oop_xchg_3);
+  // FUNCTION_CASE(entry, rtgc_oop_xchg_8);
+  // FUNCTION_CASE(entry, rtgc_oop_cmpxchg_0);
+  // FUNCTION_CASE(entry, rtgc_oop_cmpxchg_3);
+  // FUNCTION_CASE(entry, rtgc_oop_cmpxchg_8);
+  #undef FUNCTION_CASE
+
+  return "RtgcRuntime::method";
+}

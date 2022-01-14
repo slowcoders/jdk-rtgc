@@ -68,3 +68,77 @@ A safepoint is a state of your application execution where all references to obj
 Some operations of the VM require that all threads reach a safepoint to be performed. The most common operation that need it is the GC.
 
 A safepoint means that all threads need to reach a certain point of execution before they are stopped. Then the VM operation is performed. After that all threads are resumed.
+
+
+oopDesc::markWord (markWord.hpp)
+하위 3bit 값이,
+   monitor_value(0x2) 인 경우, ObjectMonitor*
+      = v ^ monitor_value 
+      --> 원본 markWord 갑 = (markWord*)(ObjectMonitor*)v;
+   biased_lock_pattern(0x5) 인 경우, JavaThread* + age + epoc
+      = v & ~(biased_lock_mask_in_place | age_mask_in_place | epoch_mask_in_place)
+   locked_value(0x0) 인 경우, (BasicLock*)
+      = v
+
+### psMarkSweep.cpp:501
+```
+void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
+   ...
+    Universe::oops_do(mark_and_push_closure());
+    JNIHandles::oops_do(mark_and_push_closure());   // Global (strong) JNI handles
+    MarkingCodeBlobClosure each_active_code_blob(mark_and_push_closure(), !CodeBlobToOopClosure::FixRelocations);
+    Threads::oops_do(mark_and_push_closure(), &each_active_code_blob);
+    ...
+```
+
+Generation 구조
+Generation
+   -> DefNewGenration (Single Space??)
+   -> CardGenaration (다수의 Sapce??.)
+      -> TenuredGeneration
+
+### SerialGC 처리 과정.
+```
+void GenCollectedHeap::collect_generation()
+   -> TenuredGeneration::collect // old gen 
+   or DefNewGenration::collect // young gen
+      -> GenMarkSweep::invoke_at_safepoint()
+         -> GenMarkSweep::mark_sweep_phase1()
+            -> GenCollectedHeap::full_process_roots
+               -> GenCollectedHeap::process_roots
+         -> GenMarkSweep::mark_sweep_phase2()
+            -> GenCollectedHeap::prepare_for_compaction()
+               -> Generation::prepare_for_compaction(CompactPoint* cp) {
+                  -> for_each Space::prepare_for_compaction
+                     -> CompactibleSpace::scan_and_forward() 
+```
+
+### CollectedHeap::collect()
+```
+   GenCollectedHeap::collect(GCCause::Cause cause) {
+      ...> collect_generation(...)
+   }
+
+   ParallelScavengeHeap::collect(GCCause::Cause cause) {
+      if (UseParallelOldGC) {
+         PSParallelCompact::invoke(maximum_compaction);
+      } else {
+         PSMarkSweep::invoke(clear_all_soft_refs);
+      }
+   }
+
+   G1CollectedHeap::collect(GCCause::Cause cause) {
+      G1CollectedHeap::try_collect_concurrently() {
+         VM_G1TryInitiateConcMark op(gc_counter, cause, ..);
+         VMThread::execute(&op);   
+      }
+   }
+
+   ShenandoahHeap::collect(GCCause::Cause cause) {
+      control_thread()->request_gc()
+   }
+
+   void ZCollectedHeap::collect(GCCause::Cause cause) {
+      ZDriveer::Collect()
+   }
+```   

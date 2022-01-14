@@ -61,8 +61,8 @@ using namespace RTGC;
 
 static int g_mv_lock = (0);
 
-volatile int RTGC::ENABLE_LOG = 1;
-volatile int RTGC::ENABLE_TRACE = 1;
+volatile int RTGC::ENABLE_LOG = false;
+volatile int RTGC::ENABLE_TRACE = false;
 
 bool RTGC::isPublished(oopDesc* obj) {
   return true;

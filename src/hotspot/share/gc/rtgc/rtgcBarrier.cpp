@@ -64,6 +64,22 @@ static void rtgc_store(volatile oop* addr, oopDesc* value) {
   *(oop*)addr = value;
 }
 
+int rtgc_getOopShift() {
+#ifdef _LP64
+  if (UseCompressedOops) {
+    assert(0 == CompressedOops::base(), "invalid narrowOop base");
+    assert(3 == CompressedOops::shift()
+        || 0 == CompressedOops::shift(), "invalid narrowOop shift");
+    return CompressedOops::shift();
+  }
+  else {
+    return 8;
+  }
+#else
+  return 4;
+#endif
+}
+
 template<class T, bool inHeap>
 oopDesc* rtgc_xchg(oopDesc* base, volatile T* addr, oopDesc* new_value) {
   // printf("xchg0 *%p(%p) = %p\n", base, addr, new_value);
@@ -85,6 +101,31 @@ oopDesc* RtgcBarrier::oop_xchg_in_root(volatile narrowOop* addr, oopDesc* new_va
 }
 oopDesc* RtgcBarrier::oop_xchg_in_root(volatile oop* addr, oopDesc* new_value) {
   return rtgc_xchg<oop, false>(NULL, addr, new_value);
+}
+
+address RtgcBarrier::getXchgFunction(bool in_heap) {
+  address fn;
+  if (in_heap) {
+    typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_xchg); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)oop_xchg); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  else {
+    typedef oopDesc* (*narrow_fn)(volatile narrowOop*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(volatile oop*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_xchg_in_root); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)oop_xchg_in_root); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  return fn;
 }
 
 
@@ -112,7 +153,30 @@ oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile narrowOop* addr, oopDesc* com
 oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile oop* addr, oopDesc* compare_value, oopDesc* new_value) {
   return rtgc_cmpxchg<oop, false>(NULL, addr, compare_value, new_value);
 }
-
+address RtgcBarrier::getCmpXchgFunction(bool in_heap) {
+  address fn;
+  if (in_heap) {
+    typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_cmpxchg); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_cmpxchg); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  else {
+    typedef oopDesc* (*narrow_fn)(volatile narrowOop*, oopDesc*, oopDesc*);
+    typedef oopDesc* (*oop_fn)(volatile oop*, oopDesc*, oopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_cmpxchg_in_root); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_cmpxchg_in_root); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  return fn;
+}
 
 template<class T, bool inHeap>
 oopDesc* rtgc_load(oopDesc* base, volatile T* addr) {
@@ -192,6 +256,30 @@ int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_
   //rtgc_arraycopy<ARRAYCOPY_CHECKCAST, HeapWord>(dst_array, dst_p, src_p, length);
 }
 
+address RtgcBarrier::getArrayCopyFunction(bool checkcast) {
+  address fn = 0;
+  if (checkcast) {
+    typedef int (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
+    typedef int (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_arraycopy_checkcast); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)oop_arraycopy_checkcast); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  else if (false) {
+    typedef void (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
+    typedef void (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
+    switch (rtgc_getOopShift()) {
+      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
+      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_arraycopy_nocheck); break;
+      case 8: fn = reinterpret_cast<address>((oop_fn)oop_arraycopy_nocheck); break;
+      default: assert(false, "invalid oop shift");
+    }
+  }
+  return fn;
+}
 
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
@@ -223,7 +311,7 @@ JRT_LEAF(oopDesc*, rtgc_oop_xchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* new
 JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_xchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  narrowOop* addr = (narrowOop*)((address)base + offset);
+  narrowOop* addr = (narrowOop*)((address)/*base + */offset);
   printf("xchg3 %p(%p) = %p\n", base, addr, new_value);
   return RtgcBarrier::oop_xchg(base, addr, new_value);
 JRT_END
@@ -241,7 +329,8 @@ JRT_END
 
 JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_3(arrayOopDesc* array, size_t index, oopDesc* new_value))
   size_t offset = index * sizeof(narrowOop) + 16;
-  narrowOop* addr = (narrowOop*)((address)array + offset);
+  narrowOop* addr = (narrowOop*)((address)/*array + offset*/index);
+  printf("array_xchg3 %p(%p) = %p\n", array, addr, new_value);
   return RtgcBarrier::oop_xchg(array, addr, new_value);
 JRT_END
 

@@ -7,21 +7,23 @@
 
 class RtgcBarrier : public AllStatic {
 public:
+  static address getXchgFunction(bool in_heap);
+  static address getCmpXchgFunction(bool in_heap);
+  static address getLoadFunction(bool in_heap);
+  static address getArrayCopyFunction(DecoratorSet decorators);
+
   static oopDesc*  oop_xchg(oopDesc* base, volatile narrowOop* p, oopDesc* new_value);
   static oopDesc*  oop_xchg(oopDesc* base, volatile oop* p, oopDesc* new_value);
-
   static oopDesc*  oop_xchg_in_root(volatile narrowOop* p, oopDesc* new_value);
   static oopDesc*  oop_xchg_in_root(volatile oop* p, oopDesc* new_value);
 
   static oopDesc*  oop_cmpxchg(oopDesc* base, volatile narrowOop* p, oopDesc* comapre_value, oopDesc* new_value);
   static oopDesc*  oop_cmpxchg(oopDesc* base, volatile oop* p, oopDesc* comapre_value, oopDesc* new_value);
-
   static oopDesc*  oop_cmpxchg_in_root(volatile narrowOop* p, oopDesc* comapre_value, oopDesc* new_value);
   static oopDesc*  oop_cmpxchg_in_root(volatile oop* p, oopDesc* comapre_value, oopDesc* new_value);
 
   static oopDesc*  oop_load(oopDesc* base, volatile narrowOop* p);
   static oopDesc*  oop_load(oopDesc* base, volatile oop* p);
-
   static oopDesc*  oop_load_in_root(volatile narrowOop* p);
   static oopDesc*  oop_load_in_root(volatile oop* p);
 

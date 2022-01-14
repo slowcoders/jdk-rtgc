@@ -91,3 +91,5 @@ void ModRefBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet deco
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
   }
 }
+
+

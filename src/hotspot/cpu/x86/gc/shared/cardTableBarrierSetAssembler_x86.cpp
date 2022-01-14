@@ -139,7 +139,11 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
 
   bool needs_post_barrier = val != noreg && in_heap;
 
-  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+#if INCLUDE_RTGC
+  ModRefBarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
+#else
+  BarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
+#endif  
   if (needs_post_barrier) {
     // flatten object address if needed
     if (!precise || (dst.index() == noreg && dst.disp() == 0)) {
