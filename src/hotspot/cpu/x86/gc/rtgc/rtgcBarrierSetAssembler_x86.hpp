@@ -26,8 +26,22 @@
 #define CPU_X86_GC_RTGC_RTGCBARRIERSETASSEMBLER_X86_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "gc/shared/modRefBarrierSetAssembler.hpp"
+#include "gc/shared/BarrierSetAssembler.hpp"
 
-#define RtgcBarrierSetAssembler ModRefBarrierSetAssembler
+class RtgcBarrierSetAssembler : public BarrierSetAssembler {
+public:    
+  virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                       Register dst, Address src, Register tmp1, Register tmp_thread);
+  virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                            Address dst, Register val, Register tmp1, Register tmp2);
+
+  virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                       Register dst, Address src, Register tmp1, Register tmp_thread);
+  virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                        Address dst, Register val, Register tmp1, Register tmp2);
+
+  virtual bool oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
+                                  Register src, Register dst, Register count);
+};
 
 #endif // CPU_X86_GC_RTGC_MODREFBARRIERSETASSEMBLER_X86_HPP

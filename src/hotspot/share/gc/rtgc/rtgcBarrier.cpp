@@ -256,7 +256,11 @@ int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_
   //rtgc_arraycopy<ARRAYCOPY_CHECKCAST, HeapWord>(dst_array, dst_p, src_p, length);
 }
 
-address RtgcBarrier::getArrayCopyFunction(bool checkcast) {
+address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
+  bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
+  bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
+
   address fn = 0;
   if (checkcast) {
     typedef int (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);

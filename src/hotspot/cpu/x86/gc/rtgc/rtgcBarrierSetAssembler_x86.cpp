@@ -105,16 +105,31 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
 
   Register addr_reg = in_heap ? c_rarg1 : c_rarg0;
   Register  val_reg = in_heap ? c_rarg2 : c_rarg1;
-
-  if (in_heap && obj != c_rarg0) {
+  assert_different_registers(addr_reg, val_reg);
+  if (in_heap) {
+    assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
+    assert_different_registers(addr_reg, val_reg);
+    if (dst.index() == c_rarg0) {
+      __ leaq(addr_reg, dst);
       __ movptr(c_rarg0, obj);
+    } else {
+      if (obj != c_rarg0) {
+        assert_different_registers(c_rarg0, val_reg);
+        __ movptr(c_rarg0, obj);
+      }
+      __ leaq(addr_reg, dst);
+    }
   }
-  __ leaq(addr_reg, dst);
+  else if (dst.index() != noreg || dst.disp() != 0) {
+    __ lea(addr_reg, dst);  
+  } else if (dst.base() != addr_reg) {
+    __ movptr(addr_reg, dst.base());
+  }
+
   if (val != val_reg) {
     if (val == noreg) {
       __ xorq(val_reg, val_reg);
-    }
-    else {
+    } else {
       __ movptr(val_reg, val);
     }
   }
@@ -124,6 +139,14 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   pop_registers(masm, true, false);
 }
 
+void RtgcBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                                         Address dst, Register val, Register tmp1, Register tmp2) {
+  if (is_reference_type(type)) {
+    oop_store_at(masm, decorators, type, dst, val, tmp1, tmp2);
+  } else {
+    BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
+  }
+}
 
 int rtgc_arraycopy_hook_checkcast(narrowOop* src, narrowOop* dst, int count, arrayOopDesc* dst_array) {
   printf("rtgc_arraycopy_checkcast %p %p<-%p %d\n", dst_array, dst, src, count);
@@ -144,24 +167,11 @@ bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, Decorator
 
   address fn = RtgcBarrier::getArrayCopyFunction(checkcast);
   if (fn) {
-    // address fn;
-    // typedef int (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
-    // typedef int (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
-    // switch (rtgc_getOopShift()) {
-    //   case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-    //   case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_arraycopy_checkcast); break;
-    //   case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_arraycopy_checkcast); break;
-    //   default: assert(false, "invalid oop shift");
-    // }
-
     push_registers(masm, false, false);
     __ MacroAssembler::call_VM_leaf_base(fn, 4);
     pop_registers(masm, false, false);
-    return true;
+    return checkcast;
   }
-  else {
-    //__ MacroAssembler::call_VM_leaf_base(reinterpret_cast<address>(rtgc_arraycopy_nocheck), 4);
-    return false;
-  }
+  return false;
 }
 

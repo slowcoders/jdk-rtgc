@@ -27,37 +27,35 @@
 
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#if INCLUDE_RTGC
+  #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
+  typedef RtgcBarrierSetAssembler   _RawBarrierSetAssembler;
+#else
+  typedef ModRefBarrierSetAssembler _RawBarrierSetAssembler;
+#endif
 
 // The ModRefBarrierSetAssembler filters away accesses on BasicTypes other
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-class ModRefBarrierSetAssembler: public BarrierSetAssembler {
+class ModRefBarrierSetAssembler: public _RawBarrierSetAssembler {
 protected:
   virtual void gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                Register addr, Register count) {}
   virtual void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                 Register addr, Register count, Register tmp) {}
+#if !INCLUDE_RTGC
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                            Address dst, Register val, Register tmp1, Register tmp2);
-#if INCLUDE_RTGC
-  virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                       Register dst, Address src, Register tmp1, Register tmp_thread);
-#endif
+                            Address dst, Register val, Register tmp1, Register tmp2) = 0;
+#endif                            
 public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
-
+#if !INCLUDE_RTGC
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
-
-  virtual bool oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
-                                  Register src, Register dst, Register count);
-#if INCLUDE_RTGC
-  virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                       Register dst, Address src, Register tmp1, Register tmp_thread);
 #endif
 };
 
