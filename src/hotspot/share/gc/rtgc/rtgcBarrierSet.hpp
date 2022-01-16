@@ -24,33 +24,43 @@
 #ifndef SHARE_GC_RTGC_RTGCBARRIERSET_HPP
 #define SHARE_GC_RTGC_RTGCBARRIERSET_HPP
 
-#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/modRefBarrierSet.hpp"
 
 // No interaction with application is required for Rtgc, and therefore
 // the barrier set is empty.
-class RtgcBarrierSet: public BarrierSet {
+class RtgcBarrierSet: public ModRefBarrierSet {
   friend class VMStructs;
+
+  void initialize();
 
 public:
   RtgcBarrierSet();
+
+  RtgcBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                 BarrierSetC1* barrier_set_c1,
+                 BarrierSetC2* barrier_set_c2,
+                 const BarrierSet::FakeRtti& fake_rtti)
+    : ModRefBarrierSet(barrier_set_assembler,
+                 barrier_set_c1,
+                 barrier_set_c2,
+                 fake_rtti.add_tag(BarrierSet::RtgcBarrierSet)) { 
+    initialize();
+  }
 
   virtual void print_on(outputStream *st) const {}
 
   virtual void on_thread_create(Thread* thread);
   virtual void on_thread_destroy(Thread* thread);
 
+  virtual void invalidate(MemRegion mr) {};
+  virtual void write_region(MemRegion mr) {};
+  virtual void write_ref_array_work(MemRegion mr) {};
+
+
   template <DecoratorSet decorators, typename BarrierSetT = RtgcBarrierSet>
-  class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {
+  class AccessBarrier: public ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> {
   private:
-    typedef BarrierSet::AccessBarrier<decorators, BarrierSetT> Raw;
-
-    template <DecoratorSet expected>
-    static void verify_decorators_present();
-
-    template <DecoratorSet expected>
-    static void verify_decorators_absent();
-
-    static oop* field_addr(oop base, ptrdiff_t offset);
+    typedef ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> Raw;
 
   public:
     //
@@ -59,6 +69,10 @@ public:
     template <typename T>
     static oop oop_load_in_heap(T* addr);
     static oop oop_load_in_heap_at(oop base, ptrdiff_t offset);
+
+    template <typename T>
+    static void oop_store_in_heap(T* addr, oop value);
+    static void oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value);
 
     template <typename T>
     static oop oop_atomic_cmpxchg_in_heap(T* addr, oop compare_value, oop new_value);
@@ -82,7 +96,7 @@ public:
     static oop oop_load_not_in_heap(T* addr);
 
     template <typename T>
-    static oop oop_store_not_in_heap(T* addr, oop new_value);
+    static void oop_store_not_in_heap(T* addr, oop new_value);
 
     template <typename T>
     static oop oop_atomic_cmpxchg_not_in_heap(T* addr, oop compare_value, oop new_value);

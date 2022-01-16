@@ -108,29 +108,29 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   assert_different_registers(addr_reg, val_reg);
   if (in_heap) {
     assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
-    assert_different_registers(addr_reg, val_reg);
-    if (dst.index() == c_rarg0) {
-      __ leaq(addr_reg, dst);
-      __ movptr(c_rarg0, obj);
+    assert_different_registers(c_rarg0, val);
+    if (dst.index() == c_rarg2) {
+      __ leaq(c_rarg0, dst);
+      __ movptr(c_rarg2, obj);
     } else {
-      if (obj != c_rarg0) {
-        assert_different_registers(c_rarg0, val_reg);
-        __ movptr(c_rarg0, obj);
+      if (obj != c_rarg2) {
+        assert_different_registers(c_rarg2, val);
+        __ movptr(c_rarg2, obj);
       }
-      __ leaq(addr_reg, dst);
+      __ leaq(c_rarg0, dst);
     }
   }
   else if (dst.index() != noreg || dst.disp() != 0) {
-    __ lea(addr_reg, dst);  
-  } else if (dst.base() != addr_reg) {
-    __ movptr(addr_reg, dst.base());
+    __ lea(c_rarg0, dst);  
+  } else if (dst.base() != c_rarg0) {
+    __ movptr(c_rarg0, dst.base());
   }
 
-  if (val != val_reg) {
+  if (val != c_rarg1) {
     if (val == noreg) {
-      __ xorq(val_reg, val_reg);
+      __ xorq(c_rarg1, c_rarg1);
     } else {
-      __ movptr(val_reg, val);
+      __ movptr(c_rarg1, val);
     }
   }
 

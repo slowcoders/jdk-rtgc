@@ -71,18 +71,18 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   LIRGenerator* gen = access.gen();
   LIRItem base = access.base().item();
-  LIR_Opr addr = get_resolved_addr(access, c_rarg1);
+  LIR_Opr addr = get_resolved_addr(access, c_rarg0);
   bool in_heap = access.decorators() & IN_HEAP;
   
   BasicTypeList signature;
-  if (in_heap) signature.append(T_OBJECT); // object
   signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
+  if (in_heap) signature.append(T_OBJECT); // object
   
   LIR_OprList* args = new LIR_OprList();
-  if (in_heap) args->append(base.result());
   args->append(addr);
   args->append(value);
+  if (in_heap) args->append(base.result());
 
   address fn = RtgcBarrier::getXchgFunction(in_heap);
   gen->call_runtime(&signature, args,
@@ -102,21 +102,21 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   LIRItem addr = access.offset().item();
 
   bool in_heap = access.decorators() & IN_HEAP;
-  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
-  addr.load_item_force(FrameMap::as_opr(in_heap ? c_rarg1 : c_rarg0));
-  value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg2 : c_rarg1));
+  addr.load_item_force(FrameMap::as_opr(c_rarg0));
+  value.load_item_force(FrameMap::as_oop_opr(c_rarg1));
+  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg2));
 
   assert(access.decorators() & IN_HEAP, "store_at_resolved not in heap!!");
 
   BasicTypeList signature;
-  if (in_heap) signature.append(T_OBJECT);    // object
   signature.append(T_INT); // addr
   signature.append(T_OBJECT); // new_value
+  if (in_heap) signature.append(T_OBJECT);    // object
   
   LIR_OprList* args = new LIR_OprList();
-  if (in_heap) args->append(base.result());
   args->append(addr.result());
   args->append(value.result());
+  if (in_heap) args->append(base.result());
 
   address fn = RtgcBarrier::getXchgFunction(access.decorators() & IN_HEAP);
   LIR_Opr res = gen->call_runtime(&signature, args,
@@ -136,24 +136,24 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   LIRItem addr = access.offset().item();
   bool in_heap = access.decorators() & IN_HEAP;
 
-  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg0));
-  addr.load_item_force(FrameMap::as_opr(in_heap ? c_rarg1 : c_rarg0));
-  cmp_value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg2 : c_rarg1));
-  new_value.load_item_force(FrameMap::as_oop_opr(in_heap ? c_rarg3 : c_rarg2));
+  addr.load_item_force(FrameMap::as_opr(c_rarg0));
+  cmp_value.load_item_force(FrameMap::as_oop_opr(c_rarg1));
+  new_value.load_item_force(FrameMap::as_oop_opr(c_rarg2));
+  if (in_heap) base.load_item_force(FrameMap::as_oop_opr(c_rarg3));
   assert(access.decorators() & IN_HEAP, "store_at_resolved not in heap!!");
 
 
   BasicTypeList signature;
-  if (in_heap) signature.append(T_OBJECT); // object
   signature.append(T_ADDRESS);    // addr
   signature.append(T_OBJECT); // cmp_value
   signature.append(T_OBJECT); // new_value
+  if (in_heap) signature.append(T_OBJECT); // object
   
   LIR_OprList* args = new LIR_OprList();
-  if (in_heap) args->append(base.result());
   args->append(addr.result());
   args->append(cmp_value.result());
   args->append(new_value.result());
+  if (in_heap) args->append(base.result());
 
   address fn = RtgcBarrier::getCmpXchgFunction(access.decorators() & IN_HEAP);
   LIR_Opr res = gen->call_runtime(&signature, args,

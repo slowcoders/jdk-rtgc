@@ -1,0 +1,439 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x0000000000000000, pid=83282, tid=83291
+#
+# JRE version:  (14.0) (fastdebug build )
+# Java VM: OpenJDK 64-Bit Client VM (fastdebug 14-internal+0-adhoc.root.jdk-rtgc, mixed mode, compressed oops, serial gc, linux-amd64)
+# Problematic frame:
+# 
+[error occurred during error reporting (printing problematic frame), id 0xe0000000, Internal Error (src/hotspot/cpu/x86/frame_x86.inline.hpp:49)]
+
+# No core dump will be written. Core dumps have been disabled. To enable core dumping, try "ulimit -c unlimited" before starting Java again
+#
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -Dapplication.home=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk -Xms8m -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1 -Djdk.module.main=jdk.jlink jdk.jlink/jdk.tools.jmod.Main create --module-version 14-internal --target-platform linux-amd64 --module-path /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/interim-jmods --libs /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_libs/java.base --cmds /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_cmds/java.base --config /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_conf/java.base --class-path /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/modules/java.base --header-files /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_include/java.base --man-pages /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_man/java.base --legal-notices /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_legal/common:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_legal/java.base --exclude **{_the.*,_*.marker,*.diz,*.debuginfo,*.dSYM/**,*.dSYM,*.pdb,*.map} /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/interim-jmods/support/java.base.jmod
+
+Host: 029523dfc2db, Intel(R) Core(TM) i7-4980HQ CPU @ 2.80GHz, 4 cores, 7G, Debian GNU/Linux 10 (buster)
+Time: Sun Jan 16 07:53:28 2022 UTC elapsed time: 0 seconds (0d 0h 0m 0s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007f7878031000):  JavaThread "Unknown thread" [_thread_in_Java, id=83291, stack(0x00007f787db2e000,0x00007f787dc2f000)]
+
+Stack: [0x00007f787db2e000,0x00007f787dc2f000]
+[error occurred during error reporting (printing stack bounds), id 0xe0000000, Internal Error (src/hotspot/cpu/x86/frame_x86.inline.hpp:49)]
+
+
+[error occurred during error reporting (printing native stack), id 0xe0000000, Internal Error (src/hotspot/cpu/x86/frame_x86.inline.hpp:49)]
+
+
+siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000000
+
+Register to memory mapping:
+
+RAX=0x00000000e0006a58 is an oop: 
+[error occurred during error reporting (printing register info), id 0xe0000000, Internal Error (src/hotspot/share/memory/resourceArea.inline.hpp:33)]
+
+Registers:
+RAX=0x00000000e0006a58, RBX=0x0000000000000070, RCX=0x00000000e0000a80, RDX=0x00000000e0006a58
+RSP=0x00007f787dc2d538, RBP=0x00007f787dc2d588, RSI=0x00000000e0000af0, RDI=0x00000000e0000a80
+R8 =0x0000000000000008, R9 =0x0000000000000006, R10=0x0000000000000000, R11=0x0000000000400000
+R12=0x0000000000000000, R13=0x00007f787d05e5e8, R14=0x00007f787dc2d5e8, R15=0x00007f7878031000
+RIP=0x0000000000000000, EFLAGS=0x0000000000010246, CSGSFS=0x002b000000000033, ERR=0x0000000000000014
+  TRAPNO=0x000000000000000e
+
+Top of Stack: (sp=0x00007f787dc2d538)
+0x00007f787dc2d538:   00007f7876021282 0000000000400000
+0x00007f787dc2d548:   0000000000000000 0000000000000006
+0x00007f787dc2d558:   0000000000000008 00007f787802f240
+0x00007f787dc2d568:   00007f7878031000 0000000000000000 
+
+Instructions: (pc=0x0000000000000000)
+0xffffffffffffff00:   
+
+
+
+[error occurred during error reporting (inspecting top of stack), id 0xe0000000, Internal Error (src/hotspot/cpu/x86/frame_x86.inline.hpp:49)]
+
+
+---------------  P R O C E S S  ---------------
+
+uid  : 0 euid : 0 gid  : 0 egid : 0
+
+umask: 0022 (----w--w-)
+
+Threads class SMR info:
+_java_thread_list=0x00007f78781b1650, length=1, elements={
+0x00007f7878031000
+}
+_java_thread_list_alloc_cnt=2, _java_thread_list_free_cnt=0, _java_thread_list_max=1, _nested_thread_list_max=0
+_delete_lock_wait_cnt=0, _delete_lock_wait_max=0
+_to_delete_list_cnt=0, _to_delete_list_max=0
+
+Java Threads: ( => current thread )
+=>0x00007f7878031000 JavaThread "Unknown thread" [_thread_in_Java, id=83291, stack(0x00007f787db2e000,0x00007f787dc2f000)]
+
+Other Threads:
+  0x00007f78781b1800 VMThread "VM Thread" [stack: 0x00007f787ce35000,0x00007f787cf35000] [id=83316]
+
+Threads with active compile tasks:
+
+VM state:not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+Heap address: 0x00000000e0000000, size: 512 MB, Compressed Oops mode: 32-bit
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 3
+Compressed class space size: 1073741824 Address: 0x0000000100000000
+
+Heap:
+ def new generation   total 9792K, used 174K [0x00000000e0000000, 0x00000000e0aa0000, 0x00000000eaaa0000)
+  eden space 8704K,   2% used [0x00000000e0000000, 0x00000000e002b860, 0x00000000e0880000)
+  from space 1088K,   0% used [0x00000000e0880000, 0x00000000e0880000, 0x00000000e0990000)
+  to   space 1088K,   0% used [0x00000000e0990000, 0x00000000e0990000, 0x00000000e0aa0000)
+ tenured generation   total 21888K, used 0K [0x00000000eaaa0000, 0x00000000ec000000, 0x0000000100000000)
+   the space 21888K,   0% used [0x00000000eaaa0000, 0x00000000eaaa0000, 0x00000000eaaa0200, 0x00000000ec000000)
+ Metaspace       used 1245K, capacity 4480K, committed 4480K, reserved 1056768K
+  class space    used 95K, capacity 384K, committed 384K, reserved 1048576K
+
+Card table byte_map: [0x00007f787d93f000,0x00007f787da40000] _byte_map_base: 0x00007f787d23f000
+
+Polling page: 0x00007f787f579000
+
+Metaspace:
+
+Usage:
+  Non-class:      4.00 MB capacity,     1.12 MB ( 28%) used,     2.88 MB ( 72%) free+waste,    64 bytes ( <1%) overhead. 
+      Class:    384.00 KB capacity,    95.23 KB ( 25%) used,   288.71 KB ( 75%) free+waste,    64 bytes ( <1%) overhead. 
+       Both:      4.38 MB capacity,     1.22 MB ( 28%) used,     3.16 MB ( 72%) free+waste,   128 bytes ( <1%) overhead. 
+
+Virtual space:
+  Non-class space:        8.00 MB reserved,       4.00 MB ( 50%) committed 
+      Class space:        1.00 GB reserved,     384.00 KB ( <1%) committed 
+             Both:        1.01 GB reserved,       4.38 MB ( <1%) committed 
+
+Chunk freelists:
+   Non-Class:  0 bytes
+       Class:  0 bytes
+        Both:  0 bytes
+
+MaxMetaspaceSize: unlimited
+CompressedClassSpaceSize: 1.00 GB
+
+CodeCache: size=32768Kb used=899Kb max_used=1055Kb free=31868Kb
+ bounds [0x00007f7876000000, 0x00007f7876110000, 0x00007f7878000000]
+ total_blobs=650 nmethods=0 adapters=613
+ compilation: enabled
+              stopped_count=0, restarted_count=0
+ full_count=0
+
+Compilation events (0 events):
+No events
+
+GC Heap History (0 events):
+No events
+
+Deoptimization events (0 events):
+No events
+
+Classes unloaded (0 events):
+No events
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (0 events):
+No events
+
+Events (20 events):
+Event: 0.615 loading class java/lang/Double done
+Event: 0.615 loading class java/lang/Byte
+Event: 0.619 loading class java/lang/Byte done
+Event: 0.619 loading class java/lang/Short
+Event: 0.621 loading class java/lang/Short done
+Event: 0.621 loading class java/lang/Integer
+Event: 0.624 loading class java/lang/Integer done
+Event: 0.624 loading class java/lang/Long
+Event: 0.626 loading class java/lang/Long done
+Event: 0.626 loading class java/util/Iterator
+Event: 0.628 loading class java/util/Iterator done
+Event: 0.628 loading class java/lang/reflect/RecordComponent
+Event: 0.630 loading class java/lang/reflect/RecordComponent done
+Event: 0.639 loading class java/lang/NullPointerException
+Event: 0.642 loading class java/lang/NullPointerException done
+Event: 0.642 loading class java/lang/ArithmeticException
+Event: 0.644 loading class java/lang/ArithmeticException done
+Event: 0.658 Thread 0x00007f7878031000 Thread added: 0x00007f7878031000
+Event: 0.661 loading class java/io/ObjectStreamField
+Event: 0.663 loading class java/io/ObjectStreamField done
+
+
+Dynamic libraries:
+e0000000-e0aa0000 rw-p 00000000 00:00 0 
+e0aa0000-eaaa0000 ---p 00000000 00:00 0 
+eaaa0000-ec000000 rw-p 00000000 00:00 0 
+ec000000-100000000 ---p 00000000 00:00 0 
+100000000-100060000 rw-p 00000000 00:00 0 
+100060000-140000000 ---p 00000000 00:00 0 
+55cfee1a5000-55cfee1a6000 r--p 00000000 00:7d 31802050                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/bin/jmod
+55cfee1a6000-55cfee1a7000 r-xp 00001000 00:7d 31802050                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/bin/jmod
+55cfee1a7000-55cfee1a8000 r--p 00002000 00:7d 31802050                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/bin/jmod
+55cfee1a8000-55cfee1a9000 r--p 00002000 00:7d 31802050                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/bin/jmod
+55cfee1a9000-55cfee1aa000 rw-p 00003000 00:7d 31802050                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/bin/jmod
+55cfefd80000-55cfefda1000 rw-p 00000000 00:00 0                          [heap]
+7f7870000000-7f7870021000 rw-p 00000000 00:00 0 
+7f7870021000-7f7874000000 ---p 00000000 00:00 0 
+7f7876000000-7f7876110000 rwxp 00000000 00:00 0 
+7f7876110000-7f7878000000 ---p 00000000 00:00 0 
+7f7878000000-7f78781ba000 rw-p 00000000 00:00 0 
+7f78781ba000-7f787c000000 ---p 00000000 00:00 0 
+7f787ce33000-7f787ce34000 ---p 00000000 00:00 0 
+7f787ce34000-7f787d452000 rw-p 00000000 00:00 0 
+7f787d452000-7f787d852000 ---p 00000000 00:00 0 
+7f787d852000-7f787d89f000 rw-p 00000000 00:00 0 
+7f787d89f000-7f787d93f000 ---p 00000000 00:00 0 
+7f787d93f000-7f787d945000 rw-p 00000000 00:00 0 
+7f787d945000-7f787d994000 ---p 00000000 00:00 0 
+7f787d994000-7f787d99f000 rw-p 00000000 00:00 0 
+7f787d99f000-7f787da3f000 ---p 00000000 00:00 0 
+7f787da3f000-7f787da45000 rw-p 00000000 00:00 0 
+7f787da45000-7f787dac0000 ---p 00000000 00:00 0 
+7f787dac0000-7f787dac2000 r--p 00000000 00:7d 31800229                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libzip.so
+7f787dac2000-7f787dac6000 r-xp 00002000 00:7d 31800229                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libzip.so
+7f787dac6000-7f787dac8000 r--p 00006000 00:7d 31800229                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libzip.so
+7f787dac8000-7f787dac9000 r--p 00007000 00:7d 31800229                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libzip.so
+7f787dac9000-7f787daca000 rw-p 00008000 00:7d 31800229                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libzip.so
+7f787daca000-7f787dad6000 r--p 00000000 00:7d 31800207                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjava.so
+7f787dad6000-7f787dae7000 r-xp 0000c000 00:7d 31800207                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjava.so
+7f787dae7000-7f787daed000 r--p 0001d000 00:7d 31800207                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjava.so
+7f787daed000-7f787daee000 r--p 00022000 00:7d 31800207                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjava.so
+7f787daee000-7f787daf0000 rw-p 00023000 00:7d 31800207                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjava.so
+7f787daf0000-7f787daf3000 r--p 00000000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787daf3000-7f787dafa000 r-xp 00003000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787dafa000-7f787dafc000 r--p 0000a000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787dafc000-7f787dafd000 ---p 0000c000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787dafd000-7f787dafe000 r--p 0000c000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787dafe000-7f787daff000 rw-p 0000d000 fe:01 3694637                    /lib/x86_64-linux-gnu/libnss_files-2.28.so
+7f787daff000-7f787db05000 rw-p 00000000 00:00 0 
+7f787db05000-7f787db0d000 rw-s 00000000 fe:01 2490369                    /tmp/hsperfdata_root/83282
+7f787db0d000-7f787db11000 r--p 00000000 00:7d 31800253                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjimage.so
+7f787db11000-7f787db24000 r-xp 00004000 00:7d 31800253                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjimage.so
+7f787db24000-7f787db2b000 r--p 00017000 00:7d 31800253                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjimage.so
+7f787db2b000-7f787db2d000 r--p 0001d000 00:7d 31800253                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjimage.so
+7f787db2d000-7f787db2e000 rw-p 0001f000 00:7d 31800253                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjimage.so
+7f787db2e000-7f787db32000 ---p 00000000 00:00 0 
+7f787db32000-7f787dc2f000 rw-p 00000000 00:00 0 
+7f787dc2f000-7f787dc3c000 r--p 00000000 fe:01 3694620                    /lib/x86_64-linux-gnu/libm-2.28.so
+7f787dc3c000-7f787dcdb000 r-xp 0000d000 fe:01 3694620                    /lib/x86_64-linux-gnu/libm-2.28.so
+7f787dcdb000-7f787ddb0000 r--p 000ac000 fe:01 3694620                    /lib/x86_64-linux-gnu/libm-2.28.so
+7f787ddb0000-7f787ddb1000 r--p 00180000 fe:01 3694620                    /lib/x86_64-linux-gnu/libm-2.28.so
+7f787ddb1000-7f787ddb2000 rw-p 00181000 fe:01 3694620                    /lib/x86_64-linux-gnu/libm-2.28.so
+7f787ddb2000-7f787de7e000 r--p 00000000 00:7d 35343297                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/client/libjvm.so
+7f787de7e000-7f787ed5b000 r-xp 000cc000 00:7d 35343297                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/client/libjvm.so
+7f787ed5b000-7f787f03f000 r--p 00fa9000 00:7d 35343297                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/client/libjvm.so
+7f787f03f000-7f787f078000 r--p 0128c000 00:7d 35343297                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/client/libjvm.so
+7f787f078000-7f787f0a3000 rw-p 012c5000 00:7d 35343297                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/client/libjvm.so
+7f787f0a3000-7f787f15d000 rw-p 00000000 00:00 0 
+7f787f15d000-7f787f17f000 r--p 00000000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f17f000-7f787f2c7000 r-xp 00022000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f2c7000-7f787f313000 r--p 0016a000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f313000-7f787f314000 ---p 001b6000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f314000-7f787f318000 r--p 001b6000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f318000-7f787f31a000 rw-p 001ba000 fe:01 3694595                    /lib/x86_64-linux-gnu/libc-2.28.so
+7f787f31a000-7f787f31e000 rw-p 00000000 00:00 0 
+7f787f31e000-7f787f31f000 r--p 00000000 fe:01 3694605                    /lib/x86_64-linux-gnu/libdl-2.28.so
+7f787f31f000-7f787f320000 r-xp 00001000 fe:01 3694605                    /lib/x86_64-linux-gnu/libdl-2.28.so
+7f787f320000-7f787f321000 r--p 00002000 fe:01 3694605                    /lib/x86_64-linux-gnu/libdl-2.28.so
+7f787f321000-7f787f322000 r--p 00002000 fe:01 3694605                    /lib/x86_64-linux-gnu/libdl-2.28.so
+7f787f322000-7f787f323000 rw-p 00003000 fe:01 3694605                    /lib/x86_64-linux-gnu/libdl-2.28.so
+7f787f323000-7f787f329000 r--p 00000000 fe:01 3694654                    /lib/x86_64-linux-gnu/libpthread-2.28.so
+7f787f329000-7f787f338000 r-xp 00006000 fe:01 3694654                    /lib/x86_64-linux-gnu/libpthread-2.28.so
+7f787f338000-7f787f33e000 r--p 00015000 fe:01 3694654                    /lib/x86_64-linux-gnu/libpthread-2.28.so
+7f787f33e000-7f787f33f000 r--p 0001a000 fe:01 3694654                    /lib/x86_64-linux-gnu/libpthread-2.28.so
+7f787f33f000-7f787f340000 rw-p 0001b000 fe:01 3694654                    /lib/x86_64-linux-gnu/libpthread-2.28.so
+7f787f340000-7f787f344000 rw-p 00000000 00:00 0 
+7f787f344000-7f787f347000 r--p 00000000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f347000-7f787f350000 r-xp 00003000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f350000-7f787f353000 r--p 0000c000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f353000-7f787f354000 ---p 0000f000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f354000-7f787f355000 r--p 0000f000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f355000-7f787f356000 rw-p 00010000 00:7d 31800175                   /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/lib/libjli.so
+7f787f356000-7f787f372000 r-xp 00000000 fe:01 3694679                    /lib/x86_64-linux-gnu/libz.so.1.2.11
+7f787f372000-7f787f572000 ---p 0001c000 fe:01 3694679                    /lib/x86_64-linux-gnu/libz.so.1.2.11
+7f787f572000-7f787f573000 r--p 0001c000 fe:01 3694679                    /lib/x86_64-linux-gnu/libz.so.1.2.11
+7f787f573000-7f787f574000 rw-p 0001d000 fe:01 3694679                    /lib/x86_64-linux-gnu/libz.so.1.2.11
+7f787f579000-7f787f57a000 ---p 00000000 00:00 0 
+7f787f57a000-7f787f57b000 r--p 00000000 00:00 0 
+7f787f57b000-7f787f57c000 ---p 00000000 00:00 0 
+7f787f57c000-7f787f57e000 rw-p 00000000 00:00 0 
+7f787f57e000-7f787f57f000 r--p 00000000 fe:01 3694581                    /lib/x86_64-linux-gnu/ld-2.28.so
+7f787f57f000-7f787f59d000 r-xp 00001000 fe:01 3694581                    /lib/x86_64-linux-gnu/ld-2.28.so
+7f787f59d000-7f787f5a5000 r--p 0001f000 fe:01 3694581                    /lib/x86_64-linux-gnu/ld-2.28.so
+7f787f5a5000-7f787f5a6000 r--p 00026000 fe:01 3694581                    /lib/x86_64-linux-gnu/ld-2.28.so
+7f787f5a6000-7f787f5a7000 rw-p 00027000 fe:01 3694581                    /lib/x86_64-linux-gnu/ld-2.28.so
+7f787f5a7000-7f787f5a8000 rw-p 00000000 00:00 0 
+7fff24d76000-7fff24d97000 rw-p 00000000 00:00 0                          [stack]
+7fff24de0000-7fff24de4000 r--p 00000000 00:00 0                          [vvar]
+7fff24de4000-7fff24de6000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+
+
+VM Arguments:
+jvm_args: -Dapplication.home=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk -Xms8m -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1 -Djdk.module.main=jdk.jlink 
+java_command: jdk.jlink/jdk.tools.jmod.Main create --module-version 14-internal --target-platform linux-amd64 --module-path /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/interim-jmods --libs /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_libs/java.base --cmds /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_cmds/java.base --config /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_conf/java.base --class-path /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/jdk/modules/java.base --header-files /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_include/java.base --man-pages /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_man/java.base --legal-notices /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_legal/common:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/modules_legal/java.base --exclude **{_the.*,_*.marker,*.diz,*.debuginfo,*.dSYM/**,*.dSYM,*.pdb,*.map} /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/support/interim-jmods/support/java.base.jmod
+java_class_path (initial): <not set>
+Launcher Type: SUN_STANDARD
+
+[Global flags]
+   size_t InitialHeapSize                          = 33554432                                  {product} {command line}  Initial heap size (in bytes); zero means use ergonomics
+   size_t MaxHeapSize                              = 536870912                                 {product} {command line}  Maximum heap size (in bytes)
+   size_t MaxNewSize                               = 178913280                                 {product} {ergonomic}     Maximum new generation size (in bytes), max_uintx means set ergonomically
+   size_t MinHeapDeltaBytes                        = 196608                                    {product} {ergonomic}     The minimum change in heap space due to GC (in bytes)
+   size_t MinHeapSize                              = 33554432                                  {product} {command line}  Minimum heap size (in bytes); zero means use ergonomics
+   size_t NewSize                                  = 11141120                                  {product} {ergonomic}     Initial new generation size (in bytes)
+    uintx NonProfiledCodeHeapSize                  = 0                                      {pd product} {ergonomic}     Size of code heap with non-profiled methods (in bytes)
+   size_t OldSize                                  = 22413312                                  {product} {ergonomic}     Initial tenured generation size (in bytes)
+    uintx ProfiledCodeHeapSize                     = 0                                      {pd product} {ergonomic}     Size of code heap with profiled methods (in bytes)
+   size_t SoftMaxHeapSize                          = 536870912                              {manageable} {ergonomic}     Soft limit for maximum heap size (in bytes)
+     intx TieredStopAtLevel                        = 1                                         {product} {command line}  Stop at given compilation level
+     bool UseCompressedClassPointers               = true                                 {lp64_product} {ergonomic}     Use 32-bit class pointers in 64-bit VM. lp64_product means flag is always constant in 32 bit VM
+     bool UseCompressedOops                        = true                                 {lp64_product} {ergonomic}     Use 32-bit object references in 64-bit VM. lp64_product means flag is always constant in 32 bit VM
+     bool UseSerialGC                              = true                                      {product} {command line}  Use the Serial garbage collector
+
+Logging:
+Log output configuration:
+ #0: stdout all=warning uptime,level,tags
+ #1: stderr all=off uptime,level,tags
+
+Environment Variables:
+PATH=/vscode/vscode-server/bin/linux-x64/899d46d82c4c95423fb7e10e68eba52050e30ba3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.local/bin
+SHELL=/bin/bash
+
+Signal Handlers:
+SIGSEGV: [libjvm.so+0xebb300], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGBUS: [libjvm.so+0xebb300], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGFPE: [libjvm.so+0xebb300], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGPIPE: [libjvm.so+0xaf9d90], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGXFSZ: [libjvm.so+0xaf9d90], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGILL: [libjvm.so+0xebb300], sa_mask[0]=11111111011111111101111111111110, sa_flags=SA_RESTART|SA_SIGINFO
+SIGUSR2: [libjvm.so+0xaf9b90], sa_mask[0]=00000000000000000000000000000000, sa_flags=SA_RESTART|SA_SIGINFO
+SIGHUP: SIG_DFL, sa_mask[0]=00000000000000000000000000000000, sa_flags=none
+SIGINT: SIG_DFL, sa_mask[0]=00000000000000000000000000000000, sa_flags=none
+SIGTERM: SIG_DFL, sa_mask[0]=00000000000000000000000000000000, sa_flags=none
+SIGQUIT: SIG_DFL, sa_mask[0]=00000000000000000000000000000000, sa_flags=none
+
+
+---------------  S Y S T E M  ---------------
+
+OS:PRETTY_NAME="Debian GNU/Linux 10 (buster)"
+NAME="Debian GNU/Linux"
+VERSION_ID="10"
+VERSION="10 (buster)"
+VERSION_CODENAME=buster
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+uname:Linux 029523dfc2db 5.10.25-linuxkit #1 SMP Tue Mar 23 09:27:39 UTC 2021 x86_64
+OS uptime: 9 days 4:01 hours
+libc:glibc 2.28 NPTL 2.28 
+rlimit: STACK 8192k, CORE 0k, NPROC infinity, NOFILE 1048576, AS infinity, DATA infinity, FSIZE infinity
+load average:3.71 4.64 4.50
+
+/proc/meminfo:
+MemTotal:        8153416 kB
+MemFree:         3195212 kB
+MemAvailable:    5214596 kB
+Buffers:           39000 kB
+Cached:          2148984 kB
+SwapCached:        27604 kB
+Active:          3042776 kB
+Inactive:        1667452 kB
+Active(anon):    1773932 kB
+Inactive(anon):   757068 kB
+Active(file):    1268844 kB
+Inactive(file):   910384 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       1048572 kB
+SwapFree:              0 kB
+Dirty:               116 kB
+Writeback:             0 kB
+AnonPages:       2494752 kB
+Mapped:            64820 kB
+Shmem:             10176 kB
+KReclaimable:     123012 kB
+Slab:             183624 kB
+SReclaimable:     123012 kB
+SUnreclaim:        60612 kB
+KernelStack:       10336 kB
+PageTables:        22144 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     5125280 kB
+Committed_AS:    7866912 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       12148 kB
+VmallocChunk:          0 kB
+Percpu:             2256 kB
+AnonHugePages:      2048 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      204800 kB
+DirectMap2M:     8183808 kB
+DirectMap1G:     2097152 kB
+
+
+/proc/sys/kernel/threads-max (system-wide limit on the number of threads):
+62635
+
+
+/proc/sys/vm/max_map_count (maximum number of memory map areas a process may have):
+262144
+
+
+/proc/sys/kernel/pid_max (system-wide limit on number of process identifiers):
+99999
+
+
+
+container (cgroup) information:
+container_type: cgroupv1
+cpu_cpuset_cpus: 0-3
+cpu_memory_nodes: 0
+active_processor_count: 4
+cpu_quota: no quota
+cpu_period: 100000
+cpu_shares: no shares
+memory_limit_in_bytes: unlimited
+memory_and_swap_limit_in_bytes: unlimited
+memory_soft_limit_in_bytes: unlimited
+memory_usage_in_bytes: 4195188736
+memory_max_usage_in_bytes: 7370207232
+
+Steal ticks since vm start: 0
+Steal ticks percentage since vm start:  0.000
+
+CPU:total 4 (initial active 4) (1 cores per cpu, 1 threads per core) family 6 model 70 stepping 1, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, avx2, aes, clmul, erms, lzcnt, tsc, tscinvbit, bmi1, bmi2, fma
+CPU Model and flags from /proc/cpuinfo:
+model name	: Intel(R) Core(TM) i7-4980HQ CPU @ 2.80GHz
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht pbe syscall nx pdpe1gb lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid pni pclmulqdq dtes64 ds_cpl ssse3 sdbg fma cx16 xtpr pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm fsgsbase bmi1 avx2 bmi2 erms xsaveopt arat
+
+Memory: 4k page, physical 8153416k(3194960k free), swap 1048572k(0k free)
+
+vm_info: OpenJDK 64-Bit Client VM (fastdebug 14-internal+0-adhoc.root.jdk-rtgc) for linux-amd64 JRE (14-internal+0-adhoc.root.jdk-rtgc), built on Jan 16 2022 07:49:01 by "root" with gcc 8.3.0
+
+END.

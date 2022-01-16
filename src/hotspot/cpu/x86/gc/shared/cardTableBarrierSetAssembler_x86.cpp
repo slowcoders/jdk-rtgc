@@ -142,7 +142,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
 #if INCLUDE_RTGC
   ModRefBarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
 #else
-  BarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
+  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
 #endif  
   if (needs_post_barrier) {
     // flatten object address if needed

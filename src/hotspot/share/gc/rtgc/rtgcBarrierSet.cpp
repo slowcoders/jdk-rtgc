@@ -27,26 +27,31 @@
 #include "gc/rtgc/rtgcThreadLocalData.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
-#ifdef COMPILER1
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
-#endif
-#ifdef COMPILER2
-#include "gc/shared/c2/barrierSetC2.hpp"
-#endif
+#include "gc/rtgc/rtgcBarrier.hpp"
 
-RtgcBarrierSet::RtgcBarrierSet() : BarrierSet(
+RtgcBarrierSet::RtgcBarrierSet() : ModRefBarrierSet(
           make_barrier_set_assembler<RtgcBarrierSetAssembler>(),
           make_barrier_set_c1<RtgcBarrierSetC1>(),
           make_barrier_set_c2<BarrierSetC2>(),
-          NULL /* barrier_set_nmethod */,
-          BarrierSet::FakeRtti(BarrierSet::RtgcBarrierSet)) {};
+          BarrierSet::FakeRtti(BarrierSet::RtgcBarrierSet)) {
+  initialize();
+};
+
+void RtgcBarrierSet::initialize() {
+  RtgcBarrier::init_barrier_runtime();
+}
 
 void RtgcBarrierSet::on_thread_create(Thread *thread) {
-  RtgcThreadLocalData::create(thread);
+  if (UseRTGC) {
+    RtgcThreadLocalData::create(thread);
+  }
 }
 
 void RtgcBarrierSet::on_thread_destroy(Thread *thread) {
-  RtgcThreadLocalData::destroy(thread);
+  if (UseRTGC) {
+    RtgcThreadLocalData::destroy(thread);
+  }
 }
 
 oop rtgc_break(const char* file, int line, const char* function) {

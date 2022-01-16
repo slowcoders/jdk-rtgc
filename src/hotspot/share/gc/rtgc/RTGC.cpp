@@ -60,8 +60,9 @@ extern volatile int enable_rtgc_c1_barrier_hook;
 using namespace RTGC;
 
 static int g_mv_lock = (0);
+static bool LOG_REF_CHAIN = false;
 
-volatile int RTGC::ENABLE_LOG = false;
+volatile int RTGC::ENABLE_LOG = true;
 volatile int RTGC::ENABLE_TRACE = false;
 
 bool RTGC::isPublished(oopDesc* obj) {
@@ -81,12 +82,12 @@ void RTGC::unlock_heap(bool locked) {
 }
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(1, "add_ref: obj=%p(%s), referrer=%p\n", 
+    rtgc_log(LOG_REF_CHAIN, "add_ref: obj=%p(%s), referrer=%p\n", 
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(1, "remove_ref: obj=%p(%s), referrer=%p\n",
+    rtgc_log(LOG_REF_CHAIN, "remove_ref: obj=%p(%s), referrer=%p\n",
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 

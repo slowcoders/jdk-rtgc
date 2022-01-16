@@ -56,13 +56,7 @@
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgc_jrt.hpp"
 
-
-static void rtgc_store(volatile narrowOop* addr, oopDesc* value) {
-  *addr = CompressedOops::encode(value);
-}
-static void rtgc_store(volatile oop* addr, oopDesc* value) {
-  *(oop*)addr = value;
-}
+volatile int VERBOSE = 1;
 
 int rtgc_getOopShift() {
 #ifdef _LP64
@@ -80,131 +74,158 @@ int rtgc_getOopShift() {
 #endif
 }
 
-template<class T, bool inHeap>
-oopDesc* rtgc_xchg(oopDesc* base, volatile T* addr, oopDesc* new_value) {
-  // printf("xchg0 *%p(%p) = %p\n", base, addr, new_value);
+static void rtgc_setField(volatile narrowOop* addr, oopDesc* value) {
+  *addr = CompressedOops::encode(value);
+}
+static void rtgc_setField(volatile oop* addr, oopDesc* value) {
+  *(oop*)addr = value;
+}
+
+
+
+template<class T, bool inHeap, int shift>
+void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
+  // rtgc_log(VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
   bool locked = RTGC::lock_heap(base);
   oopDesc* old = CompressedOops::decode(*addr);
-  rtgc_store(addr, new_value);
+  rtgc_setField(addr, new_value);
+  RTGC::unlock_heap(locked);
+}
+
+template<class T, bool inHeap, int shift>
+void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
+  // rtgc_log(VERBOSE, "store_ (%p) = %p\n", addr, new_value);
+  bool locked = RTGC::lock_heap(NULL);
+  oopDesc* old = CompressedOops::decode(*addr);
+  rtgc_setField(addr, new_value);
+  RTGC::unlock_heap(locked);
+}
+
+void (*RtgcBarrier::rt_store)(narrowOop* addr, oopDesc* new_value, oopDesc* base);
+void RtgcBarrier::oop_store(oop* addr, oopDesc* new_value, oopDesc* base) {
+  rtgc_store<oop, true, 0>(addr, new_value, base);
+}
+
+void (*RtgcBarrier::rt_store_not_in_heap)(narrowOop* addr, oopDesc* new_value);
+void RtgcBarrier::oop_store_not_in_heap(oop* addr, oopDesc* new_value) {
+  rtgc_store_not_in_heap<oop, false, 0>(addr, new_value);
+}
+
+address RtgcBarrier::getStoreFunction(bool in_heap) {
+  return in_heap ? reinterpret_cast<address>(rt_store)
+                 : reinterpret_cast<address>(rt_store_not_in_heap);
+}
+
+
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
+  rtgc_log(VERBOSE, "xchg %p(%p) = %p\n", base, addr, new_value);
+  bool locked = RTGC::lock_heap(base);
+  oopDesc* old = CompressedOops::decode(*addr);
+  rtgc_setField(addr, new_value);
   RTGC::unlock_heap(locked);
   return old;
 }
 
-oopDesc* RtgcBarrier::oop_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* new_value) {
-  return rtgc_xchg<narrowOop, true>(base, addr, new_value);
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
+  rtgc_log(VERBOSE, "xchg__ (%p) = %p\n", addr, new_value);
+  bool locked = RTGC::lock_heap(NULL);
+  oopDesc* old = CompressedOops::decode(*addr);
+  rtgc_setField(addr, new_value);
+  RTGC::unlock_heap(locked);
+  return old;
 }
-oopDesc* RtgcBarrier::oop_xchg(oopDesc* base, volatile oop* addr, oopDesc* new_value) {
-  return rtgc_xchg<oop, true>(base, addr, new_value);
+
+oopDesc* (*RtgcBarrier::rt_xchg)(volatile narrowOop* addr, oopDesc* new_value, oopDesc* base);
+oopDesc* RtgcBarrier::oop_xchg(volatile oop* addr, oopDesc* new_value, oopDesc* base) {
+  return rtgc_xchg<oop, true, 0>(addr, new_value, base);
 }
-oopDesc* RtgcBarrier::oop_xchg_in_root(volatile narrowOop* addr, oopDesc* new_value) {
-  return rtgc_xchg<narrowOop, false>(NULL, addr, new_value);
-}
-oopDesc* RtgcBarrier::oop_xchg_in_root(volatile oop* addr, oopDesc* new_value) {
-  return rtgc_xchg<oop, false>(NULL, addr, new_value);
+
+oopDesc* (*RtgcBarrier::rt_xchg_not_in_heap)(volatile narrowOop* addr, oopDesc* new_value);
+oopDesc* RtgcBarrier::oop_xchg_not_in_heap(volatile oop* addr, oopDesc* new_value) {
+  return rtgc_xchg_not_in_heap<oop, false, 0>(addr, new_value);
 }
 
 address RtgcBarrier::getXchgFunction(bool in_heap) {
-  address fn;
-  if (in_heap) {
-    typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*);
-    typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_xchg); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)oop_xchg); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
-  else {
-    typedef oopDesc* (*narrow_fn)(volatile narrowOop*, oopDesc*);
-    typedef oopDesc* (*oop_fn)(volatile oop*, oopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_xchg_in_root); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)oop_xchg_in_root); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
-  return fn;
+  return in_heap ? reinterpret_cast<address>(rt_xchg)
+                 : reinterpret_cast<address>(rt_xchg_not_in_heap);
 }
 
 
-template<class T, bool inHeap>
-oopDesc* rtgc_cmpxchg(oopDesc* base, volatile T* addr, oopDesc* compare_value, oopDesc* new_value) {
-  // printf("cmpxchg0 *%p(%p) = %p->%p\n", base, addr, compare_value, new_value);
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  rtgc_log(VERBOSE, "cmpxchg %p(%p) = %p->%p\n", base, addr, cmp_value, new_value);
   bool locked = RTGC::lock_heap(base);
   oopDesc* old = CompressedOops::decode(*addr);
-  if (old == compare_value) {
-    rtgc_store(addr, new_value);
+  if (old == cmp_value) {
+    rtgc_setField(addr, new_value);
   }
   RTGC::unlock_heap(locked);
   return old;
 }
 
-oopDesc* RtgcBarrier::oop_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare_value, oopDesc* new_value) {
-  return rtgc_cmpxchg<narrowOop, true>(base, addr, compare_value, new_value);
-}
-oopDesc* RtgcBarrier::oop_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* compare_value, oopDesc* new_value) {
-  return rtgc_cmpxchg<oop, true>(base, addr, compare_value, new_value);
-}
-oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile narrowOop* addr, oopDesc* compare_value, oopDesc* new_value) {
-  return rtgc_cmpxchg<narrowOop, false>(NULL, addr, compare_value, new_value);
-}
-oopDesc* RtgcBarrier::oop_cmpxchg_in_root(volatile oop* addr, oopDesc* compare_value, oopDesc* new_value) {
-  return rtgc_cmpxchg<oop, false>(NULL, addr, compare_value, new_value);
-}
-address RtgcBarrier::getCmpXchgFunction(bool in_heap) {
-  address fn;
-  if (in_heap) {
-    typedef oopDesc* (*narrow_fn)(oopDesc*, volatile narrowOop*, oopDesc*, oopDesc*);
-    typedef oopDesc* (*oop_fn)(oopDesc*, volatile oop*, oopDesc*, oopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_cmpxchg); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_cmpxchg); break;
-      default: assert(false, "invalid oop shift");
-    }
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value) {
+  rtgc_log(VERBOSE, "cmpxchg__ (%p) = %p->%p\n", addr, cmp_value, new_value);
+  bool locked = RTGC::lock_heap(NULL);
+  oopDesc* old = CompressedOops::decode(*addr);
+  if (old == cmp_value) {
+    rtgc_setField(addr, new_value);
   }
-  else {
-    typedef oopDesc* (*narrow_fn)(volatile narrowOop*, oopDesc*, oopDesc*);
-    typedef oopDesc* (*oop_fn)(volatile oop*, oopDesc*, oopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)RtgcBarrier::oop_cmpxchg_in_root); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)RtgcBarrier::oop_cmpxchg_in_root); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
-  return fn;
+  RTGC::unlock_heap(locked);
+  return old;
 }
 
-template<class T, bool inHeap>
-oopDesc* rtgc_load(oopDesc* base, volatile T* addr) {
-  // printf("load0 *%p(%p)\n", base, addr);
+oopDesc* (*RtgcBarrier::rt_cmpxchg)(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
+oopDesc* RtgcBarrier::oop_cmpxchg(volatile oop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  return rtgc_cmpxchg<oop, true, 0>(addr, cmp_value, new_value, base);
+}
+
+oopDesc* (*RtgcBarrier::rt_cmpxchg_not_in_heap)(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value);
+oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_value, oopDesc* new_value) {
+  return rtgc_cmpxchg_not_in_heap<oop, false, 0>(addr, cmp_value, new_value);
+}
+
+address RtgcBarrier::getCmpXchgFunction(bool in_heap) {
+  return in_heap ? reinterpret_cast<address>(rt_cmpxchg)
+                 : reinterpret_cast<address>(rt_cmpxchg_not_in_heap);
+}
+
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
+  // rtgc_log(VERBOSE, "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap(base);
   oopDesc* value = CompressedOops::decode(*addr);
-  // rtgc_store(addr, new_value);
+  // rtgc_setField(addr, new_value);
   // RTGC::unlock_heap(locked);
   return value;
 }
 
-oopDesc* RtgcBarrier::oop_load(oopDesc* base, volatile narrowOop* addr) {
-  return rtgc_load<narrowOop, true>(base, addr);
+template<class T, bool inHeap, int shift>
+oopDesc* rtgc_load_not_in_heap(volatile T* addr) {
+  // rtgc_log(VERBOSE, "load__ (%p)\n", addr);
+  // bool locked = RTGC::lock_heap(base);
+  oopDesc* value = CompressedOops::decode(*addr);
+  // rtgc_setField(addr, new_value);
+  // RTGC::unlock_heap(locked);
+  return value;
 }
-oopDesc* RtgcBarrier::oop_load(oopDesc* base, volatile oop* addr) {
-  return rtgc_load<oop, true>(base, addr);
+
+oopDesc* (*RtgcBarrier::rt_load)(volatile narrowOop* addr, oopDesc* base) = 0;
+oopDesc* RtgcBarrier::oop_load(volatile oop* addr, oopDesc* base) {
+  return rtgc_load<oop, true, 0>(addr, base);
 }
-oopDesc* RtgcBarrier::oop_load_in_root(volatile narrowOop* addr) {
-  return rtgc_load<narrowOop, false>(NULL, addr);
-}
-oopDesc* RtgcBarrier::oop_load_in_root(volatile oop* addr) {
-  return rtgc_load<oop, false>(NULL, addr);
+oopDesc* (*RtgcBarrier::rt_load_not_in_heap)(volatile narrowOop* addr);
+oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
+  return rtgc_load_not_in_heap<oop, false, 0>(addr);
 }
 
 //ObjArrayKlass::do_copy -> AccessBarrier::arraycopy_in_heap -> rtgc_arraycopy
-template <DecoratorSet ds, class ITEM_T>
-static int rtgc_arraycopy(arrayOopDesc* dst_array, ITEM_T* dst_p, ITEM_T* src_p,
-                    size_t length) {
+template <class ITEM_T, DecoratorSet ds, int shift>
+static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
+                    size_t length, arrayOopDesc* dst_array) {
+  // rtgc_log(VERBOSE, "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
@@ -233,27 +254,29 @@ static int rtgc_arraycopy(arrayOopDesc* dst_array, ITEM_T* dst_p, ITEM_T* src_p,
   return 0;
 }
 
-void RtgcBarrier::oop_arraycopy_nocheck(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
-  rtgc_arraycopy<0, oop>(dst_array, dst_p, src_p, length);
-}
-void RtgcBarrier::oop_arraycopy_nocheck(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
-  rtgc_arraycopy<0, narrowOop>(dst_array, dst_p, src_p, length);
-}
-void RtgcBarrier::oop_arraycopy_nocheck(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
-  assert(false, "not implemented");
-  //rtgc_arraycopy<0, HeapWord>(dst_array, dst_p, src_p, length);
-}
-
+int (*RtgcBarrier::rt_arraycopy_checkcast)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
 int RtgcBarrier::oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
-  return rtgc_arraycopy<ARRAYCOPY_CHECKCAST, oop>(dst_array, dst_p, src_p, length);
-}
-int RtgcBarrier::oop_arraycopy_checkcast(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
-  return rtgc_arraycopy<ARRAYCOPY_CHECKCAST, narrowOop>(dst_array, dst_p, src_p, length);
+  return rtgc_arraycopy<oop, ARRAYCOPY_CHECKCAST, 0>(src_p, dst_p, length, dst_array);
 }
 int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
   assert(false, "not implemented");
   return false;
-  //rtgc_arraycopy<ARRAYCOPY_CHECKCAST, HeapWord>(dst_array, dst_p, src_p, length);
+}
+
+void (*RtgcBarrier::rt_arraycopy_disjoint)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+void RtgcBarrier::oop_arraycopy_disjoint(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
+  rtgc_arraycopy<oop, ARRAYCOPY_DISJOINT, 0>(src_p, dst_p, length, dst_array);
+}
+void RtgcBarrier::oop_arraycopy_disjoint(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
+  fatal("not implemented");
+}
+
+void (*RtgcBarrier::rt_arraycopy_conjoint)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+void RtgcBarrier::oop_arraycopy_conjoint(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
+  rtgc_arraycopy<oop, 0, 0>(src_p, dst_p, length, dst_array);
+}
+void RtgcBarrier::oop_arraycopy_conjoint(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
+  fatal("not implemented");
 }
 
 address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
@@ -261,28 +284,13 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  address fn = 0;
   if (checkcast) {
-    typedef int (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
-    typedef int (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_arraycopy_checkcast); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)oop_arraycopy_checkcast); break;
-      default: assert(false, "invalid oop shift");
-    }
+    return reinterpret_cast<address>(rt_arraycopy_checkcast);
+  } else if (disjoint) {
+    return reinterpret_cast<address>(rt_arraycopy_disjoint);
+  } else {
+    return reinterpret_cast<address>(rt_arraycopy_conjoint);
   }
-  else if (false) {
-    typedef void (*narrow_fn)(narrowOop*, narrowOop*, size_t, arrayOopDesc*);
-    typedef void (*oop_fn)(oop*, oop*, size_t, arrayOopDesc*);
-    switch (rtgc_getOopShift()) {
-      case 0: // fn = CAST_FROM_FN_PTR(address, rtgc_oop_xchg_0); break;
-      case 3: fn = reinterpret_cast<address>((narrow_fn)oop_arraycopy_nocheck); break;
-      case 8: fn = reinterpret_cast<address>((oop_fn)oop_arraycopy_nocheck); break;
-      default: assert(false, "invalid oop shift");
-    }
-  }
-  return fn;
 }
 
 class RTGC_CloneClosure : public BasicOopIterateClosure {
@@ -306,83 +314,48 @@ void RtgcBarrier::clone_post_barrier(oopDesc*  new_array) {
 }
 
 
+#define INIT_BARRIER_METHODS(T, shift) \
+  *(void**)&rt_store = reinterpret_cast<void*>(rtgc_store<T, true, shift>); \
+  *(void**)&rt_xchg = reinterpret_cast<void*>(rtgc_xchg<T, true, shift>); \
+  *(void**)&rt_cmpxchg = reinterpret_cast<void*>(rtgc_cmpxchg<T, true, shift>); \
+  *(void**)&rt_load = reinterpret_cast<void*>(rtgc_load<T, true, shift>); \
+  *(void**)&rt_store_not_in_heap = reinterpret_cast<void*>(rtgc_store_not_in_heap<T, false, shift>); \
+  *(void**)&rt_xchg_not_in_heap = reinterpret_cast<void*>(rtgc_xchg_not_in_heap<T, false, shift>); \
+  *(void**)&rt_cmpxchg_not_in_heap = reinterpret_cast<void*>(rtgc_cmpxchg_not_in_heap<T, false, shift>); \
+  *(void**)&rt_load_not_in_heap = reinterpret_cast<void*>(rtgc_load_not_in_heap<T, false, shift>); \
+  *(void**)&rt_arraycopy_checkcast = reinterpret_cast<void*>(rtgc_arraycopy<T, ARRAYCOPY_CHECKCAST, shift>); \
+  *(void**)&rt_arraycopy_disjoint = reinterpret_cast<void*>(rtgc_arraycopy<T, ARRAYCOPY_DISJOINT, shift>); \
+  *(void**)&rt_arraycopy_conjoint = reinterpret_cast<void*>(rtgc_arraycopy<T, 0, shift>); \
+
+void RtgcBarrier::init_barrier_runtime() {
+  int shift = rtgc_getOopShift();
+  switch(shift) {
+    case 0:
+      INIT_BARRIER_METHODS(narrowOop, 0);
+      break;
+    case 3:
+      INIT_BARRIER_METHODS(narrowOop, 3);
+      break;
+    case 8:
+      INIT_BARRIER_METHODS(oop, 0);
+      break;
+  }
+}
 
 
-
-JRT_LEAF(oopDesc*, rtgc_oop_xchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  narrowOop* addr = (narrowOop*)((address)base + offset);
-  return RtgcBarrier::oop_xchg(base, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_xchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  narrowOop* addr = (narrowOop*)((address)/*base + */offset);
-  printf("xchg3 %p(%p) = %p\n", base, addr, new_value);
-  return RtgcBarrier::oop_xchg(base, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_xchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* new_value))
-  oop* addr = (oop*)((address)base + offset);
-  return RtgcBarrier::oop_xchg(base, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_0(arrayOopDesc* array, size_t index, oopDesc* new_value))
-  size_t offset = index * sizeof(narrowOop) + 16;
-  narrowOop* addr = (narrowOop*)((address)array + offset);
-  return RtgcBarrier::oop_xchg(array, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_3(arrayOopDesc* array, size_t index, oopDesc* new_value))
-  size_t offset = index * sizeof(narrowOop) + 16;
-  narrowOop* addr = (narrowOop*)((address)/*array + offset*/index);
-  printf("array_xchg3 %p(%p) = %p\n", array, addr, new_value);
-  return RtgcBarrier::oop_xchg(array, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_array_xchg_8(arrayOopDesc* array, size_t index, oopDesc* new_value))
-  size_t offset = index * sizeof(narrowOop) + 16;
-  oop* addr = (oop*)((address)array + offset);
-  assert(false, "Not Implemented");
-  return RtgcBarrier::oop_xchg(array, addr, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_0(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  narrowOop* addr = (narrowOop*)((address)base + offset);
-  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_3(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  narrowOop* addr = (narrowOop*)((address)base + offset);
-  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
-JRT_END
-
-JRT_LEAF(oopDesc*, rtgc_oop_cmpxchg_8(oopDesc* base, ptrdiff_t offset, oopDesc* cmp_value, oopDesc* new_value))
-  oop* addr = (oop*)((address)base + offset);
-  return RtgcBarrier::oop_cmpxchg(base, addr, cmp_value, new_value);
-JRT_END
-
-
-template <DecoratorSet ds, class ITEM_T>
-static int rtgc_arraycopy22(arrayOopDesc* dst_array, ITEM_T* dst_p, ITEM_T* src_p,
-                    size_t length) {
-  bool checkcast = ARRAYCOPY_CHECKCAST & ds;
-  Klass* bound = !checkcast ? NULL
-                            : ObjArrayKlass::cast(dst_array->klass())->element_klass();
+template <class ITEM_T, DecoratorSet ds, int shift>
+static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p, 
+                    size_t length, arrayOopDesc* dst_array) {
+  // rtgc_log(VERBOSE, "arraycopy_conjoint (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   bool locked = RTGC::lock_heap(dst_array);                          
-  for (ITEM_T* end_p = src_p + length; src_p < end_p; src_p ++, dst_p ++) {
-    ITEM_T s_raw = src_p[0]; 
+  for (size_t i = 0; i < length; i++) {
+    ITEM_T s_raw = src_p[i]; 
     oopDesc* item = CompressedOops::decode(s_raw);
-    if (checkcast && item != NULL) {
-      Klass* stype = item->klass();
-      if (stype != bound && !stype->is_subtype_of(bound)) {
-        RTGC::unlock_heap(locked);
-        return (end_p - src_p); // returns remain_count;
-      }
-    }
-    oopDesc* old = CompressedOops::decode(dst_p[0]);
-    dst_p[0] = s_raw;
+    oopDesc* old = CompressedOops::decode(dst_p[i]);
     if (item != NULL) RTGC::add_referrer(CompressedOops::decode(item), dst_array);
     if (old != NULL) RTGC::remove_referrer(CompressedOops::decode(old), dst_array);
   } 
+  memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(locked);
   return 0;
 }

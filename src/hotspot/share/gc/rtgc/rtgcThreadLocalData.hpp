@@ -37,7 +37,6 @@ private:
           _last_tlab_time(0) {}
 
   static RtgcThreadLocalData* data(Thread* thread) {
-    assert(UseRTGC, "Sanity");
     return thread->gc_data<RtgcThreadLocalData>();
   }
 
