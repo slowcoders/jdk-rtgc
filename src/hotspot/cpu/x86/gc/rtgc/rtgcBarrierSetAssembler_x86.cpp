@@ -7,6 +7,7 @@
 
 #define __ masm->
 
+static const DecoratorSet AS_NO_REF = AS_RAW | AS_NO_KEEPALIVE;
 
 /*
 MS X64
@@ -72,6 +73,10 @@ void pop_registers(MacroAssembler* masm, bool include_rax, bool include_r12_r15)
   }
 }
 
+RtgcBarrierSetAssembler::RtgcBarrierSetAssembler() {
+  RtgcBarrier::init_barrier_runtime();
+}
+
 void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
   BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
@@ -79,7 +84,7 @@ void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet dec
 
 void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
-  if (is_reference_type(type)) {  
+  if (is_reference_type(type) && !(decorators & AS_NO_REF)) {  
     oop_load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
   }
   else {
@@ -89,7 +94,7 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
-  if (!is_reference_type(type) || (decorators & AS_RAW)) {
+  if (!is_reference_type(type) || (decorators & AS_NO_REF)) {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
     return;
   }
@@ -98,17 +103,15 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
 
-  const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+  //const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   Register obj = dst.base();
 
   push_registers(masm, true, false);
 
-  Register addr_reg = in_heap ? c_rarg1 : c_rarg0;
-  Register  val_reg = in_heap ? c_rarg2 : c_rarg1;
-  assert_different_registers(addr_reg, val_reg);
+  assert_different_registers(c_rarg0, val);
   if (in_heap) {
     assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
-    assert_different_registers(c_rarg0, val);
+    assert_different_registers(c_rarg2, val);
     if (dst.index() == c_rarg2) {
       __ leaq(c_rarg0, dst);
       __ movptr(c_rarg2, obj);
@@ -134,7 +137,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
     }
   }
 
-  address fn = RtgcBarrier::getXchgFunction(in_heap);
+  address fn = RtgcBarrier::getStoreFunction(in_heap);
   __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
   pop_registers(masm, true, false);
 }
@@ -165,8 +168,8 @@ bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, Decorator
   assert(count == c_rarg2, "invalid arg");
   assert(dst_array == c_rarg3, "invalid arg");
 
-  address fn = RtgcBarrier::getArrayCopyFunction(checkcast);
-  if (fn) {
+  address fn = RtgcBarrier::getArrayCopyFunction(decorators);
+  if (checkcast) {
     push_registers(masm, false, false);
     __ MacroAssembler::call_VM_leaf_base(fn, 4);
     pop_registers(masm, false, false);

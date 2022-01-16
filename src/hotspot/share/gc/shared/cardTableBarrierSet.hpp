@@ -28,8 +28,8 @@
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/modRefBarrierSet.hpp"
 #include "utilities/align.hpp"
-
-#if INCLUDE_RTGC
+#include "gc/shared/rtgcConfig.hpp"
+#if USE_RTGC
   #include "gc/rtgc/rtgcBarrierSet.hpp"
   typedef RtgcBarrierSet   _RefBarrierSet;
 #else

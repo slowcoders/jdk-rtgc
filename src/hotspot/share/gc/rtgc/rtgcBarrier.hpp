@@ -6,10 +6,6 @@
 #include "oops/oop.hpp"
 
 class RtgcBarrier : public AllStatic {
-  friend class RtgcBarrierSet;
-
-  static void init_barrier_runtime();
-
   static void (*rt_store)(narrowOop* p, oopDesc* new_value, oopDesc* base);
   static void (*rt_store_not_in_heap)(narrowOop* p, oopDesc* new_value);
 
@@ -27,6 +23,8 @@ class RtgcBarrier : public AllStatic {
   static void (*rt_arraycopy_conjoint )(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
 
 public:
+  static void init_barrier_runtime();
+
   static address getStoreFunction(bool in_heap);
   static address getXchgFunction(bool in_heap);
   static address getCmpXchgFunction(bool in_heap);

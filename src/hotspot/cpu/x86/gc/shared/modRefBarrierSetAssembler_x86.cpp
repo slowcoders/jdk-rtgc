@@ -83,7 +83,7 @@ void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, Decorat
   }
 }
 
-#if !INCLUDE_RTGC
+#if !USE_RTGC_BARRIERSET_ASSEMBLER
 void ModRefBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
   if (is_reference_type(type)) {

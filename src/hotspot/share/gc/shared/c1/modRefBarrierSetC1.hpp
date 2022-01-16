@@ -26,18 +26,19 @@
 #define SHARE_GC_SHARED_C1_MODREFBARRIERSETC1_HPP
 
 #include "gc/shared/c1/barrierSetC1.hpp"
-#if INCLUDE_RTGC
+#include "gc/shared/rtgcConfig.hpp"
+#if USE_RTGC
   #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
-  typedef RtgcBarrierSetC1 RawBarrierSetC1;
+  typedef RtgcBarrierSetC1 _RawBarrierSetC1;
 #else
-  typedef BarrierSetC1 RawBarrierSetC1;
+  typedef BarrierSetC1 _RawBarrierSetC1;
 #endif
 
 // The ModRefBarrierSetC1 filters away accesses on BasicTypes other
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-class ModRefBarrierSetC1 : public RawBarrierSetC1 {
+class ModRefBarrierSetC1 : public _RawBarrierSetC1 {
 
 protected:
   virtual void pre_barrier(LIRAccess& access, LIR_Opr addr_opr,

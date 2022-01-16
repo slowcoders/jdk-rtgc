@@ -29,7 +29,8 @@
 #include "gc/shared/BarrierSetAssembler.hpp"
 
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
-public:    
+public:
+  RtgcBarrierSetAssembler();    
   virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

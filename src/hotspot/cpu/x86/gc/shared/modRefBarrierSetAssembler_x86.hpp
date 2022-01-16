@@ -27,11 +27,12 @@
 
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-#if INCLUDE_RTGC
+#include "gc/shared/rtgcConfig.hpp"
+#if USE_RTGC_BARRIERSET_ASSEMBLER
   #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
   typedef RtgcBarrierSetAssembler   _RawBarrierSetAssembler;
 #else
-  typedef ModRefBarrierSetAssembler _RawBarrierSetAssembler;
+  typedef BarrierSetAssembler _RawBarrierSetAssembler;
 #endif
 
 // The ModRefBarrierSetAssembler filters away accesses on BasicTypes other
@@ -44,7 +45,7 @@ protected:
                                                Register addr, Register count) {}
   virtual void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                 Register addr, Register count, Register tmp) {}
-#if !INCLUDE_RTGC
+#if !USE_RTGC_BARRIERSET_ASSEMBLER
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 #endif                            
@@ -53,7 +54,7 @@ public:
                                   Register src, Register dst, Register count);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
-#if !INCLUDE_RTGC
+#if !USE_RTGC_BARRIERSET_ASSEMBLER
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
 #endif
