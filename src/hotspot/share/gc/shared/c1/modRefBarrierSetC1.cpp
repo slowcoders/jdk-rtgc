@@ -42,10 +42,14 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
                 LIR_OprFact::illegalOpr /* pre_val */, access.patch_emit_info());
   }
 
-  BarrierSetC1::store_at_resolved(access, value);
+  _RawBarrierSetC1::store_at_resolved(access, value);
 
   if (access.is_oop()) {
+#if USE_RTGC_BARRIERSET_C1
+    bool precise = (decorators & (AS_RAW | AS_NO_KEEPALIVE)) == 0;
+#else    
     bool precise = is_array || on_anonymous;
+#endif
     LIR_Opr post_addr = precise ? access.resolved_addr() : access.base().opr();
     post_barrier(access, post_addr, value);
   }
@@ -57,7 +61,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRIte
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+  LIR_Opr result = _RawBarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), new_value.result());
@@ -72,7 +76,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
+  LIR_Opr result = _RawBarrierSetC1::atomic_xchg_at_resolved(access, value);
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), value.result());
@@ -84,12 +88,16 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
 // This overrides the default to resolve the address into a register,
 // assuming it will be used by a write barrier anyway.
 LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
+#if USE_RTGC_BARRIERSET_C1
+  resolve_in_register |= access.is_oop() && (access.decorators() & (AS_RAW | AS_NO_KEEPALIVE)) == 0;
+#else
   DecoratorSet decorators = access.decorators();
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
   bool is_write = (decorators & ACCESS_WRITE) != 0;
   bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool precise = is_array || on_anonymous;
-  resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;
-  return BarrierSetC1::resolve_address(access, resolve_in_register);
+  resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;  
+#endif
+  return _RawBarrierSetC1::resolve_address(access, resolve_in_register);
 }

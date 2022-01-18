@@ -4,4 +4,5 @@
 #define USE_RTGC 0 // INCLUDE_RTGC
 
 #define USE_RTGC_BARRIERSET_ASSEMBLER true
+#define USE_RTGC_BARRIERSET_C1        true
 #endif

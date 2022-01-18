@@ -59,7 +59,7 @@ extern volatile int enable_rtgc_c1_barrier_hook;
 
 using namespace RTGC;
 
-static int g_mv_lock = (0);
+static int g_mv_lock = 0;
 static bool LOG_REF_CHAIN = false;
 
 volatile int RTGC::ENABLE_LOG = true;
@@ -71,7 +71,7 @@ bool RTGC::isPublished(oopDesc* obj) {
 
 bool RTGC::lock_heap(oopDesc* obj) {
   if (!isPublished(obj)) return false;
-  while (Atomic::xchg(&g_mv_lock, 1) != 0) { /* do spin. */ }
+  while (Atomic::cmpxchg(&g_mv_lock, 0, 1) != 0) { /* do spin. */ }
   return true;
 }
 

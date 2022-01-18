@@ -5,8 +5,10 @@
 #include "gc/shared/c1/BarrierSetC1.hpp"
 
 class RtgcBarrierSetC1 : public BarrierSetC1 {
+public:
+  RtgcBarrierSetC1();
+  
 protected:
-
   virtual void load_at_resolved(LIRAccess& access, LIR_Opr result);
 
   virtual void store_at_resolved(LIRAccess& access, LIR_Opr value);

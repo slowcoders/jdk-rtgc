@@ -7,22 +7,25 @@ public class Main {
     static Object sObj2;
     static volatile int sno;
     static volatile int idx;
+    static java.util.concurrent.atomic.AtomicReference atomic = new java.util.concurrent.atomic.AtomicReference();
 
     Main(int sno) {
         System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
         System.arraycopy(new String[16], 0, paras, paras.length - 1, 1);
+        atomic.compareAndSet(null, new Object());
+        atomic.getAndSet(new Object());
 
-        System.out.println("set int member: " + sno);
+        //System.out.println("set int member: " + sno);
         this.id = sno;
-        System.out.println("set obj member");
+        //System.out.println("set obj member");
         this.title = "title-" + sno;
         idx = sno % paras.length;
-        System.out.println("set int array item with volatile idx ");
-        System.out.println("set array item with constant index + constant obj.");
-        System.out.println("set array item with constant index + null.");
-        System.out.println("set array item with variable index + constant obj.");
-        System.out.println("set array item with variable index + null.");
-        System.out.println("set static field.");
+        //System.out.println("set int array item with volatile idx ");
+        //System.out.println("set array item with constant index + constant obj.");
+        //System.out.println("set array item with constant index + null.");
+        //System.out.println("set array item with variable index + constant obj.");
+        //System.out.println("set array item with variable index + null.");
+        //System.out.println("set static field.");
         sObj2 = this;
         this.intArray[idx] = sno * 20 + idx;
         this.paras[8] = "";
@@ -81,7 +84,7 @@ class Foo2 extends Main {
     Foo2(int i) {
         super(i);
         this.id *= 2;
-        System.out.println("set obj field to null.");
+        //System.out.println("set obj field to null.");
         this.title = null;
     }
 }

@@ -27,7 +27,7 @@
 
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "gc/shared/rtgcConfig.hpp"
-#if USE_RTGC
+#if USE_RTGC_BARRIERSET_C1
   #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
   typedef RtgcBarrierSetC1 _RawBarrierSetC1;
 #else
