@@ -56,7 +56,7 @@
 #include "gc/rtgc/RTGC.hpp"
 
 extern volatile int enable_rtgc_c1_barrier_hook;
-
+extern volatile int log_start;
 using namespace RTGC;
 
 static int g_mv_lock = 0;
@@ -78,6 +78,9 @@ bool RTGC::lock_heap(oopDesc* obj) {
 void RTGC::unlock_heap(bool locked) {
   if (locked) {
     Atomic::release_store(&g_mv_lock, 0);
+  }
+  else {
+    log_start = 9999;
   }
 }
 

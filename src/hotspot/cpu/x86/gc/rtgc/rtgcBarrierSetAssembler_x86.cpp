@@ -162,7 +162,7 @@ bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, Decorator
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  printf("oop_arraycopy_hook checkcast %d, disjoint %d\n", checkcast, disjoint);
+  // printf("oop_arraycopy_hook checkcast %d, disjoint %d\n", checkcast, disjoint);
   assert(src == c_rarg0, "invalid arg");
   assert(dst == c_rarg1, "invalid arg");
   assert(count == c_rarg2, "invalid arg");

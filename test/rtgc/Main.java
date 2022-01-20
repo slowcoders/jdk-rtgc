@@ -1,3 +1,8 @@
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.concurrent.atomic.*;
+
 public class Main {
     String title;
     String[] paras = new String[16];
@@ -6,14 +11,25 @@ public class Main {
     static Object sObj;
     static Object sObj2;
     static volatile int sno;
+    static volatile int cnt = 0;
     static volatile int idx;
-    static java.util.concurrent.atomic.AtomicReference atomic = new java.util.concurrent.atomic.AtomicReference();
+    static AtomicReference atomicRef = new AtomicReference();
+    static AtomicLong atomicLong = new AtomicLong();
 
     Main(int sno) {
+        cnt ++;
+        if (cnt > 90000) {
+            atomicLong.compareAndExchange(0x876543DB876543DBL, 0x123456DB123456DBL);
+            Instant instant = Instant.ofEpochMilli(System.currentTimeMillis());
+            LocalDateTime ldt = LocalDateTime.ofInstant(
+                    instant, ZoneId.systemDefault());
+            System.out.println(ldt);
+        }
+
         System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
         System.arraycopy(new String[16], 0, paras, paras.length - 1, 1);
-        atomic.compareAndSet(null, new Object());
-        atomic.getAndSet(new Object());
+        atomicRef.compareAndSet(null, new Object());
+        atomicRef.getAndSet(new Object());
 
         //System.out.println("set int member: " + sno);
         this.id = sno;

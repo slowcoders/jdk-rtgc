@@ -32,6 +32,8 @@
 #define __ gen->lir()->
 #endif
 
+volatile bool use_rtgc_c1 = true;
+
 void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   DecoratorSet decorators = access.decorators();
   bool is_array = (decorators & IS_ARRAY) != 0;
@@ -61,7 +63,12 @@ LIR_Opr ModRefBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRIte
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result = _RawBarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+  LIR_Opr result;
+  if (use_rtgc_c1) {
+    result = _RawBarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+  } else {
+    result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+  }
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), new_value.result());
