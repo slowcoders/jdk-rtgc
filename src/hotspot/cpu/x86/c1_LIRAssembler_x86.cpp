@@ -1246,7 +1246,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       }
       break;
     }
-    // RTGC oop field load in c1_LIRGenerator
+
     case T_OBJECT:  // fall through
     case T_ARRAY:   // fall through
       if (UseCompressedOops && !wide) {
@@ -1255,7 +1255,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
         __ movptr(dest->as_register(), from_addr);
       }
       break;
-    // RTGC oop field load in c1_LIRGenerator ???
+
     case T_ADDRESS:
       if (UseCompressedClassPointers && addr->disp() == oopDesc::klass_offset_in_bytes()) {
         __ movl(dest->as_register(), from_addr);

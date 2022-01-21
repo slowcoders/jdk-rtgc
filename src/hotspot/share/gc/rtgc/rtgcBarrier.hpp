@@ -25,6 +25,10 @@ class RtgcBarrier : public AllStatic {
 public:
   static void init_barrier_runtime();
 
+  static inline bool needBarrier(DecoratorSet decorators) {
+    return ((AS_RAW | AS_NO_KEEPALIVE) & decorators) == 0;
+  }
+
   static address getStoreFunction(bool in_heap);
   static address getXchgFunction(bool in_heap);
   static address getCmpXchgFunction(bool in_heap);

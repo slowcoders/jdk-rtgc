@@ -1691,7 +1691,7 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
 
   return _barrier_set->resolve(this, decorators, obj);
 }
-// RTGC oop field load
+
 void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();

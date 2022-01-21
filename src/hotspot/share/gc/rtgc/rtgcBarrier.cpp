@@ -231,6 +231,11 @@ oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
   return rtgc_load_not_in_heap<oop, false, 0>(addr);
 }
 
+address RtgcBarrier::getLoadFunction(bool in_heap) {
+  return in_heap ? reinterpret_cast<address>(rt_load)
+                 : reinterpret_cast<address>(rt_load_not_in_heap);
+}
+
 //ObjArrayKlass::do_copy -> AccessBarrier::arraycopy_in_heap -> rtgc_arraycopy
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 

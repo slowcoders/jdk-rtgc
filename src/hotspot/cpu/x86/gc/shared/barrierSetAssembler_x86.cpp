@@ -34,7 +34,6 @@
 #include "runtime/thread.hpp"
 
 #define __ masm->
-// RTGC oop field loading // templateTable_x86에서 호출.
 void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register dst, Address src, Register tmp1, Register tmp_thread) {
   bool in_heap = (decorators & IN_HEAP) != 0;

@@ -869,7 +869,6 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
     mem = phase->transform_later(mem_phi);
 
     const char* name = "arraycopy";
-    // rtgc-arraycopy
     call = phase->make_leaf_call(ctrl, mem,
                                  OptoRuntime::fast_arraycopy_Type(),
                                  phase->basictype2arraycopy(T_LONG, NULL, NULL, true, name, true),

@@ -48,7 +48,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   if (access.is_oop()) {
 #if USE_RTGC_BARRIERSET_C1
-    bool precise = (decorators & (AS_RAW | AS_NO_KEEPALIVE)) == 0;
+    bool precise = RtgcBarrierSetC1::needBarrier(access);
 #else    
     bool precise = is_array || on_anonymous;
 #endif
@@ -95,9 +95,6 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
 // This overrides the default to resolve the address into a register,
 // assuming it will be used by a write barrier anyway.
 LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
-#if USE_RTGC_BARRIERSET_C1
-  resolve_in_register |= access.is_oop() && (access.decorators() & (AS_RAW | AS_NO_KEEPALIVE)) == 0;
-#else
   DecoratorSet decorators = access.decorators();
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
   bool is_write = (decorators & ACCESS_WRITE) != 0;
@@ -105,6 +102,5 @@ LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_r
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool precise = is_array || on_anonymous;
   resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;  
-#endif
   return _RawBarrierSetC1::resolve_address(access, resolve_in_register);
 }

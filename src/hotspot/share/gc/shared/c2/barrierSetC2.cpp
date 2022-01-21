@@ -841,7 +841,6 @@ void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac
   assert (dest_offset == NULL, "for clone offsets should be null");
 
   const char* copyfunc_name = "arraycopy";
-  // rtgc-arraycopy
   address     copyfunc_addr =
           phase->basictype2arraycopy(T_LONG, NULL, NULL,
                               true, copyfunc_name, true);

@@ -55,15 +55,14 @@
 
 #include "gc/rtgc/RTGC.hpp"
 
-extern volatile int enable_rtgc_c1_barrier_hook;
-extern volatile int log_start;
+
 using namespace RTGC;
 
 static int g_mv_lock = 0;
 static bool LOG_REF_CHAIN = false;
 
-volatile int RTGC::ENABLE_LOG = true;
-volatile int RTGC::ENABLE_TRACE = false;
+DebugOption debugOption;
+volatile DebugOption* RTGC::debug = &debugOption;
 
 bool RTGC::isPublished(oopDesc* obj) {
   return true;
@@ -78,9 +77,6 @@ bool RTGC::lock_heap(oopDesc* obj) {
 void RTGC::unlock_heap(bool locked) {
   if (locked) {
     Atomic::release_store(&g_mv_lock, 0);
-  }
-  else {
-    log_start = 9999;
   }
 }
 

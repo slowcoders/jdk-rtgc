@@ -916,12 +916,12 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
   }
 } UNSAFE_END
 
-extern volatile int rtgc_log_verbose;
-extern volatile int rtgc_log_trigger;
+#include "gc/rtgc/rtgcDebug.hpp"
+
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
   if (e == (jlong)0x876543DB876543DB && x == (jlong)0x123456DB123456DB) {
-    rtgc_log_trigger = 0;
+    RTGC::debug->logLevel = 1;
   }
   if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);

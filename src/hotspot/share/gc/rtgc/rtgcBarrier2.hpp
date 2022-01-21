@@ -5,9 +5,15 @@
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 
-static const DecoratorSet AS_NO_REF = AS_RAW | AS_NO_KEEPALIVE;
-
 class RtgcBarrier : public AllStatic {
+  static inline bool needBarrier(DecoratorSet decorators) {
+    return ((AS_RAW | AS_NO_KEEPALIVE) & decorators) == 0
+  }
+
+  static inline bool needBarrier(LIRAccess& access) {
+    return access.is_oop() && needBarrier(access.decorators());
+  }
+
   static void (*rt_store)(oopDesc* base, narrowOop* p, oopDesc* new_value);
   static void (*rt_store_not_in_heap)(narrowOop* p, oopDesc* new_value);
 

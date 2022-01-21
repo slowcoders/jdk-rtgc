@@ -7,8 +7,6 @@
 
 #define __ masm->
 
-static const DecoratorSet AS_NO_REF = AS_RAW | AS_NO_KEEPALIVE;
-
 /*
 MS X64
   Args:       RCX/XMM0, RDX/XMM1, R8/XMM2, R9/XMM3
@@ -84,17 +82,17 @@ void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet dec
 
 void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
-  if (is_reference_type(type) && !(decorators & AS_NO_REF)) {  
-    oop_load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
+  if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) {
+    BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
   }
   else {
-    BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
+    oop_load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
   }
 }
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
-  if (!is_reference_type(type) || (decorators & AS_NO_REF)) {
+  if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
     return;
   }
