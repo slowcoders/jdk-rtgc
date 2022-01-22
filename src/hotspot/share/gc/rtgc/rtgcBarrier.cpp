@@ -1,9 +1,15 @@
 #include "precompiled.hpp"
 #include "gc/rtgc/RTGC.hpp"
+#include "oops/klass.hpp"
+#include "oops/method.inline.hpp"
+#include "oops/objArrayKlass.hpp"
+#include "oops/oopsHierarchy.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedOops.hpp"
-#unclude "gc/rtgc/rtgcBarrier.hpp"
-#include "gc/rtgc/rtgc_jrt.hpp"
+#include "memory/iterator.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/rtgc/rtgcBarrier.hpp"
 
 volatile int LOG_VERBOSE = 0;
 
@@ -43,7 +49,7 @@ void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
   rtgc_log(LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
   bool locked = RTGC::lock_heap(base);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*addr) : CompressedOops::decode_raw(*addr);
   rtgc_set_field(addr, new_value);
   RTGC::unlock_heap(locked);
 }
@@ -52,7 +58,7 @@ template<class T, bool inHeap, int shift>
 void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
   rtgc_log(LOG_VERBOSE, "store_ (%p) = %p\n", addr, new_value);
   bool locked = RTGC::lock_heap(NULL);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*addr) : CompressedOops::decode_raw(*addr);
   rtgc_set_volatile_field(addr, new_value);
   RTGC::unlock_heap(locked);
 }
@@ -78,7 +84,8 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
   rtgc_log(LOG_VERBOSE, "xchg %p(%p) = %p\n", base, addr, new_value);
   assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
   bool locked = RTGC::lock_heap(base);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   rtgc_set_volatile_field(addr, new_value);
   RTGC::unlock_heap(locked);
   return old;
@@ -88,7 +95,8 @@ template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
   rtgc_log(LOG_VERBOSE, "xchg__ (%p) = %p\n", addr, new_value);
   bool locked = RTGC::lock_heap(NULL);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   rtgc_set_volatile_field(addr, new_value);
   RTGC::unlock_heap(locked);
   return old;
@@ -115,7 +123,8 @@ oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, 
   rtgc_log(LOG_VERBOSE, "cmpxchg %p(%p) = %p->%p\n", base, addr, cmp_value, new_value);
   assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
   bool locked = RTGC::lock_heap(base);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   if (old == cmp_value) {
     rtgc_set_volatile_field(addr, new_value);
   }
@@ -127,7 +136,8 @@ template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value) {
   rtgc_log(1, "cmpxchg__ (%p) = %p->%p\n", addr, cmp_value, new_value);
   bool locked = RTGC::lock_heap(NULL);
-  oopDesc* old = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   if (old == cmp_value) {
     rtgc_set_volatile_field(addr, new_value);
   }
@@ -155,7 +165,8 @@ oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
   assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
   rtgc_log(LOG_VERBOSE, "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap(base);
-  oopDesc* value = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   // rtgc_set_volatile_field(addr, new_value);
   // RTGC::unlock_heap(locked);
   return value;
@@ -165,7 +176,8 @@ template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load_not_in_heap(volatile T* addr) {
   rtgc_log(LOG_VERBOSE, "load__ (%p)\n", addr);
   // bool locked = RTGC::lock_heap(base);
-  oopDesc* value = CompressedOops::decode(*addr);
+  oopDesc* old = inHeap ? CompressedOops::decode(*(T*)addr)
+                        : CompressedOops::decode_raw(*(T*)addr);
   // rtgc_set_volatile_field(addr, new_value);
   // RTGC::unlock_heap(locked);
   return value;

@@ -24,7 +24,6 @@
 #include "precompiled.hpp"
 #include "runtime/thread.hpp"
 #include "gc/rtgc/rtgcBarrierSet.hpp"
-#include "gc/rtgc/rtgcThreadLocalData.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
@@ -43,19 +42,8 @@ void RtgcBarrierSet::initialize() {
 }
 
 void RtgcBarrierSet::on_thread_create(Thread *thread) {
-  if (UseRTGC) {
-    RtgcThreadLocalData::create(thread);
-  }
 }
 
 void RtgcBarrierSet::on_thread_destroy(Thread *thread) {
-  if (UseRTGC) {
-    RtgcThreadLocalData::destroy(thread);
-  }
 }
 
-oop rtgc_break(const char* file, int line, const char* function) {
-  printf("Error %s:%d %s", file, line, function);
-  assert(false, "illegal barrier access");
-  return NULL;
-} 

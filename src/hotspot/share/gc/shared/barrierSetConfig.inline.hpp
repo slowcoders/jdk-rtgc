@@ -29,12 +29,10 @@
 
 #include "gc/shared/modRefBarrierSet.inline.hpp"
 #include "gc/shared/cardTableBarrierSet.inline.hpp"
+#include "gc/rtgc/rtgcBarrierSet.inline.hpp"
 
 #if INCLUDE_EPSILONGC
 #include "gc/epsilon/epsilonBarrierSet.hpp"
-#endif
-#if INCLUDE_RTGC
-#include "gc/rtgc/rtgcBarrierSet.inline.hpp"
 #endif
 #if INCLUDE_G1GC
 #include "gc/g1/g1BarrierSet.inline.hpp"

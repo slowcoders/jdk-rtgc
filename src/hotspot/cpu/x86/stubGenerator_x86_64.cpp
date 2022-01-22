@@ -55,6 +55,7 @@
 #if INCLUDE_ZGC
 #include "gc/z/zThreadLocalData.hpp"
 #endif
+#include "gc/shared/rtgcConfig.hpp"
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -2293,7 +2294,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_INT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    if (is_oop && INCLUDE_RTGC &&
+    if (is_oop && USE_RTGC &&
           bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
       dword_count = count;
     }
@@ -2406,7 +2407,7 @@ class StubGenerator: public StubCodeGenerator {
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     // no registers are destroyed by this call
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    if (is_oop && INCLUDE_RTGC &&
+    if (is_oop && USE_RTGC &&
           bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
       dword_count = count;
     } else {
@@ -2525,7 +2526,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
-    if (is_oop && INCLUDE_RTGC &&
+    if (is_oop && USE_RTGC &&
         bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, qword_count)) {
     } else {
       {
@@ -2634,7 +2635,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
-    if (is_oop && INCLUDE_RTGC &&
+    if (is_oop && USE_RTGC &&
         bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, qword_count)) {
     } else {
       {
@@ -2712,9 +2713,9 @@ class StubGenerator: public StubCodeGenerator {
   //       c_rarg0   - source array address
   //       c_rarg1   - destination array address
   //       c_rarg2   - element count, treated as ssize_t, can be zero
-  // INCLUDE_RTGC
+  // USE_RTGC
   //       c_rarg3   - dst_array
-  // not INCLUDE_RTGC
+  // not USE_RTGC
   //       c_rarg3   - size_t ckoff (super_check_offset)
   //    not Win64
   //       c_rarg4   - oop ckval (super_klass)
@@ -2776,7 +2777,7 @@ class StubGenerator: public StubCodeGenerator {
                        // ckoff => rcx, ckval => r8
                        // r9 and r10 may be used to save non-volatile registers
 #ifdef _WIN64
-    if (!INCLUDE_RTGC) {
+    if (!USE_RTGC) {
       // last argument (#4) is on stack on Win64
       __ movptr(ckval, Address(rsp, 6 * wordSize));
     }
@@ -2819,10 +2820,10 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    if (INCLUDE_RTGC) {
+    if (USE_RTGC) {
       bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
     }
-    if (INCLUDE_RTGC &&
+    if (USE_RTGC &&
         bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
       // rax = remaining count (0: success)
       __ movptr(r14_length, count);
@@ -2831,8 +2832,8 @@ class StubGenerator: public StubCodeGenerator {
       __ subptr(r14_length, rax);  
       __ movptr(rax, r14_length); // rax, r14_length = copied item_count
     } else {
-      if (INCLUDE_RTGC) {
-        __ load_klass(ckval, c_rarg3);
+      if (USE_RTGC) {
+        __ load_klass(ckval, c_rarg3, ckoff);
         __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
         __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
       }
@@ -2858,7 +2859,7 @@ class StubGenerator: public StubCodeGenerator {
       Address from_element_addr(end_from, count, TIMES_OOP, 0);
       Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-      if (!INCLUDE_RTGC) {
+      if (!USE_RTGC) {
         bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
       }
 
@@ -3287,7 +3288,7 @@ class StubGenerator: public StubCodeGenerator {
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // dst_addr
     __ movl2ptr(count, r11_length); // length
   __ BIND(L_plain_copy);
-    if (INCLUDE_RTGC) {
+    if (USE_RTGC) {
       __ movptr(c_rarg3, dst);
     }
 #ifdef _WIN64
@@ -3326,7 +3327,7 @@ class StubGenerator: public StubCodeGenerator {
       assert_clean_int(sco_temp, rax);
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
-#if INCLUDE_RTGC
+#if USE_RTGC
       __ movptr(c_rarg3, dst);  
 #else
       // Fetch destination element klass from the ObjArrayKlass header.

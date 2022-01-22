@@ -6,14 +6,13 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/build/linux-x86_64-client-fastdebug/images/jdk/bin/java",
-            "args": ["-XX:+UnlockExperimentalVMOptions",
-                "-XX:+UseRTGC", 
-                "-cp", "test/rtgc", "Main", "2", "1000"],
+            "args": ["-cp", "test/rtgc", "Main", "2", "1000"],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
+            //"MIMode": "gdb",
+            "MIMode": "lldb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

@@ -155,19 +155,25 @@ void GenCollectedHeap::collect_generation()
    }
 ```   
 
-Environment Variables:
-CLASSPATH=/workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar
-
-
-jvm_args: -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy 
-java_command: com.sun.javatest.regtest.agent.AgentServer -id 76 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.76.trace -allowSetSecurityManager -port 33845 -timeoutFactor 4.0
-java_class_path (initial): /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar
-Launcher Type: SUN_STANDARD
-
-java -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy \
--cp /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar \
-com.sun.javatest.regtest.agent.AgentServer -id 76 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.76.trace -allowSetSecurityManager -port 33845 -timeoutFactor 4.0
-
-java -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy \
--cp /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar \
-com.sun.javatest.regtest.agent.AgentServer -id 74 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.74.trace -allowSetSecurityManager -port 56435 -timeoutFactor 4.0
+https://code.visualstudio.com/docs/cpp/config-clang-mac
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "clang++ - Build and debug active file",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}/${fileBasenameNoExtension}",
+      "args": [],
+      "stopAtEntry": true,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "clang++ build active file"
+    }
+  ]
+}

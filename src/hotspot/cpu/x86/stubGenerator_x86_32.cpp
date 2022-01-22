@@ -46,6 +46,7 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
+#include "gc/shared/rtgcConfig.hpp"
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -882,7 +883,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
-    if (!is_oop || !INCLUDE_RTGC ||
+    if (!is_oop || !USE_RTGC ||
         !bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
     {
       bool add_entry = (t != T_OBJECT && (!aligned || t == T_INT));
@@ -1074,7 +1075,7 @@ class StubGenerator: public StubCodeGenerator {
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
-    if (!is_oop || !INCLUDE_RTGC ||
+    if (!is_oop || !USE_RTGC ||
         !bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
     {
       bool add_entry = (t != T_OBJECT && (!aligned || t == T_INT));
@@ -1425,7 +1426,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    if (is_oop && INCLUDE_RTGC &&
+    if (is_oop && USE_RTGC &&
           bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
       __ testptr(rax, rax);        
       __ jccb(Assembler::zero, L_do_card_marks);

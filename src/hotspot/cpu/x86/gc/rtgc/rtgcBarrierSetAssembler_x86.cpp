@@ -3,7 +3,6 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
-#include "gc/rtgc/rtgc_jrt.hpp"
 
 #define __ masm->
 

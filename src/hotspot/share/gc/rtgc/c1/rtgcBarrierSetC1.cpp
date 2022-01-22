@@ -87,46 +87,17 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
     return;
   }
 
-  LIRGenerator *gen = access.gen();
-  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-  bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
-  bool in_native = (decorators & IN_NATIVE) != 0;
-  bool in_heap = decorators & IN_HEAP;
-
-  LIRItem base = access.base().item();
-  LIR_Opr addr = get_resolved_addr(access, c_rarg0);
-
-  if (false && is_volatile && support_IRIW_for_not_multiple_copy_atomic_cpu) {
-    gen->lir()->membar();
-  }
-
   BasicTypeList signature;
   signature.append(T_ADDRESS); // addr
-  if (in_heap) signature.append(T_OBJECT); // object
   
   LIR_OprList* args = new LIR_OprList();
-  args->append(addr);
-  if (in_heap) args->append(base.result());
+  args->append(result);
 
-  address fn = RtgcBarrier::getLoadFunction(in_heap);
+  // address fn = RtgcBarrier::getPostLoadFunction(in_heap);
 
-  LIR_Opr res = gen->call_runtime(&signature, args,
-              fn,
-              objectType, NULL);
-  gen->lir()->move(res, result);
-  
-  if (false && is_volatile) {
-    gen->lir()->membar_acquire();
-  }
-
-  /* Normalize boolean value returned by unsafe operation, i.e., value  != 0 ? value = true : value false. */
-  if (mask_boolean) {
-    LabelObj* equalZeroLabel = new LabelObj();
-    gen->lir()->cmp(lir_cond_equal, result, 0);
-    gen->lir()->branch(lir_cond_equal, T_BOOLEAN, equalZeroLabel->label());
-    gen->lir()->move(LIR_OprFact::intConst(1), result);
-    gen->lir()->branch_destination(equalZeroLabel->label());
-  }
+  // LIR_Opr res = gen->call_runtime(&signature, args,
+  //             fn,
+  //             objectType, NULL);
 }
 
 

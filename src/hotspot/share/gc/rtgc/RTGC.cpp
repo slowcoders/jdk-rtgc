@@ -39,4 +39,9 @@ void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
 
 
 
+oop rtgc_break(const char* file, int line, const char* function) {
+  printf("Error %s:%d %s", file, line, function);
+  assert(false, "illegal barrier access");
+  return NULL;
+} 
 
