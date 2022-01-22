@@ -1,12 +1,15 @@
-
+ 1. See doc/building.md 
+    https://github.com/openjdk/jdk/blob/jdk-14%2B36/doc/building.md
 
  2. [Run configure](#running-configure): \
     `bash configure`
 
 bash configure --with-native-debug-symbols=external --with-debug-level=fastdebug \
+  --enable-ccache \
   --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.0
 
 bash configure --with-jvm-variants=client \
+  --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.0
 
@@ -142,3 +145,20 @@ void GenCollectedHeap::collect_generation()
       ZDriveer::Collect()
    }
 ```   
+
+Environment Variables:
+CLASSPATH=/workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar
+
+
+jvm_args: -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy 
+java_command: com.sun.javatest.regtest.agent.AgentServer -id 76 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.76.trace -allowSetSecurityManager -port 33845 -timeoutFactor 4.0
+java_class_path (initial): /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar
+Launcher Type: SUN_STANDARD
+
+java -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy \
+-cp /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar \
+com.sun.javatest.regtest.agent.AgentServer -id 76 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.76.trace -allowSetSecurityManager -port 33845 -timeoutFactor 4.0
+
+java -XX:MaxRAMPercentage=12 --patch-module=java.base=/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/patches/java.base -Djava.security.policy=file:/workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtreg.policy \
+-cp /workspaces/jdk-rtgc/jtreg-6.0/lib/javatest.jar:/workspaces/jdk-rtgc/jtreg-6.0/lib/jtreg.jar \
+com.sun.javatest.regtest.agent.AgentServer -id 74 -logfile /workspaces/jdk-rtgc/build/linux-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/jtData/agentServer.74.trace -allowSetSecurityManager -port 56435 -timeoutFactor 4.0
