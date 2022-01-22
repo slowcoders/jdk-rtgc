@@ -1,17 +1,22 @@
  1. See doc/building.md 
     https://github.com/openjdk/jdk/blob/jdk-14%2B36/doc/building.md
 
+jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
+   git clone https://github.com/openjdk/jtreg.git
+   git checkout -b jtreg-6.1+1
+   bash build.sh --jdk /usr/lib/jvm/adoptopenjdk-14-hotspot-amd64
+
  2. [Run configure](#running-configure): \
     `bash configure`
 
 bash configure --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --enable-ccache \
-  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.0
+  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.1
 
 bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
-  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.0
+  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.1
 
  3. [Run make](#running-make): \
     `make images CONF=client`
@@ -20,7 +25,7 @@ bash configure --with-jvm-variants=client \
     `./build/*/images/jdk/bin/java -version`
 
  5. [Run basic tests](##running-tests): \
-    `make run-test-tier1`
+    `make run-test-tier1 CONF=client`
 
 
 6. Test file build
