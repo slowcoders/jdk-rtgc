@@ -31,65 +31,62 @@
 // Defines all globals flags used by the Rtgc GC.
 //
 
+//
+// Defines all globals flags used by the Rtgc GC.
+//
+
 #define GC_RTGC_FLAGS(develop,                                           \
-                    develop_pd,                                             \
-                    product,                                                \
-                    product_pd,                                             \
-                    diagnostic,                                             \
-                    diagnostic_pd,                                          \
-                    experimental,                                           \
-                    notproduct,                                             \
-                    manageable,                                             \
-                    product_rw,                                             \
-                    lp64_product,                                           \
-                    range,                                                  \
-                    constraint,                                             \
-                    writeable)                                              \
+                         develop_pd,                                        \
+                         product,                                           \
+                         product_pd,                                        \
+                         notproduct,                                        \
+                         range,                                             \
+                         constraint)                                        \
                                                                             \
-  experimental(size_t, RtgcPrintHeapSteps, 20,                           \
+  product(size_t, RtgcPrintHeapSteps, 20, EXPERIMENTAL,                  \
           "Print heap occupancy stats with this number of steps. "          \
           "0 turns the printing off.")                                      \
           range(0, max_intx)                                                \
                                                                             \
-  experimental(size_t, RtgcUpdateCountersStep, 1 * M,                    \
+  product(size_t, RtgcUpdateCountersStep, 1 * M, EXPERIMENTAL,           \
           "Update heap occupancy counters after allocating this much "      \
           "memory. Higher values would make allocations faster at "         \
           "the expense of lower resolution in heap counters.")              \
           range(1, max_intx)                                                \
                                                                             \
-  experimental(size_t, RtgcMaxTLABSize, 4 * M,                           \
+  product(size_t, RtgcMaxTLABSize, 4 * M, EXPERIMENTAL,                  \
           "Max TLAB size to use with Rtgc GC. Larger value improves "    \
           "performance at the expense of per-thread memory waste. This "    \
           "asks TLAB machinery to cap TLAB sizes at this value.")           \
           range(1, max_intx)                                                \
                                                                             \
-  experimental(bool, RtgcElasticTLAB, true,                              \
+  product(bool, RtgcElasticTLAB, true, EXPERIMENTAL,                     \
           "Use elastic policy to manage TLAB sizes. This conserves memory " \
           "for non-actively allocating threads, even when they request "    \
           "large TLABs for themselves. Active threads would experience "    \
           "smaller TLABs until policy catches up.")                         \
                                                                             \
-  experimental(bool, RtgcElasticTLABDecay, true,                         \
-          "Use timed decays to shrik TLAB sizes. This conserves memory "    \
+  product(bool, RtgcElasticTLABDecay, true, EXPERIMENTAL,                \
+          "Use timed decays to shrink TLAB sizes. This conserves memory "   \
           "for the threads that allocate in bursts of different sizes, "    \
           "for example the small/rare allocations coming after the initial "\
           "large burst.")                                                   \
                                                                             \
-  experimental(double, RtgcTLABElasticity, 1.1,                          \
+  product(double, RtgcTLABElasticity, 1.1, EXPERIMENTAL,                 \
           "Multiplier to use when deciding on next TLAB size. Larger value "\
           "improves performance at the expense of per-thread memory waste. "\
           "Lower value improves memory footprint, but penalizes actively "  \
           "allocating threads.")                                            \
           range(1.0, DBL_MAX)                                               \
                                                                             \
-  experimental(size_t, RtgcTLABDecayTime, 1000,                          \
+  product(size_t, RtgcTLABDecayTime, 1000, EXPERIMENTAL,                 \
           "TLAB sizing policy decays to initial size after thread had not " \
           "allocated for this long. Time is in milliseconds. Lower value "  \
           "improves memory footprint, but penalizes actively allocating "   \
           "threads.")                                                       \
           range(1, max_intx)                                                \
                                                                             \
-  experimental(size_t, RtgcMinHeapExpand, 128 * M,                       \
+  product(size_t, RtgcMinHeapExpand, 128 * M, EXPERIMENTAL,              \
           "Min expansion step for heap. Larger value improves performance " \
           "at the potential expense of memory waste.")                      \
           range(1, max_intx)

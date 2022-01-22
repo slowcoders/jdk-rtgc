@@ -66,21 +66,14 @@
     range,                                                                  \
     constraint))                                                            \
                                                                             \
-  RTGC_ONLY(GC_RTGC_FLAGS(                                          \
+  RTGC_ONLY(GC_RTGC_FLAGS(                                                  \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
     product_pd,                                                             \
-    diagnostic,                                                             \
-    diagnostic_pd,                                                          \
-    experimental,                                                           \
     notproduct,                                                             \
-    manageable,                                                             \
-    product_rw,                                                             \
-    lp64_product,                                                           \
     range,                                                                  \
-    constraint,                                                             \
-    writeable))                                                             \
+    constraint))                                                            \
                                                                             \
   G1GC_ONLY(GC_G1_FLAGS(                                                    \
     develop,                                                                \
@@ -141,8 +134,8 @@
   product(bool, UseEpsilonGC, false, EXPERIMENTAL,                          \
           "Use the Epsilon (no-op) garbage collector")                      \
                                                                             \
-  experimental(bool, UseRTGC, false,                                        \
-          "Use the RTGC garbage collector")                                 \
+  product(bool, UseRTGC, false, EXPERIMENTAL,                               \
+          "Use the Epsilon (no-op) garbage collector")                      \
                                                                             \
   product(bool, UseZGC, false,                                              \
           "Use the Z garbage collector")                                    \

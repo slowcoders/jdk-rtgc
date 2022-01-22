@@ -1,5 +1,4 @@
- 1. See doc/building.md 
-    https://github.com/openjdk/jdk/blob/jdk-14%2B36/doc/building.md
+1. Prepare external libraries
 
 jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
    git clone https://github.com/openjdk/jtreg.git
@@ -13,32 +12,25 @@ jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
 -  google test
    git clone https://github.com/google/googletest.git -b release-1.8.1
 
- 2. [Run configure](#running-configure): \
-    `bash configure`
-
-bash configure --with-native-debug-symbols=external --with-debug-level=fastdebug \
-  --enable-ccache \
-  --with-jtreg=./jtreg-6.1
-
+2. Run configure
+```
 bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
   --with-gtest=./googletest
+```
+// --with-toolchain-type=clang \
 
-
-//   --with-toolchain-type=clang \
-
- 3. [Run make](#running-make): \
+3. Make Images
     `make images CONF=client`
     'hotspot-x86' 'hotspot-macosx'
 
- 4. Verify your newly built JDK: \
-    `./build/*/images/jdk/bin/java -version`
+4. Verify your newly built JDK
+   `./build/*/images/jdk/bin/java -version`
 
- 5. [Run basic tests](##running-tests): \
-    `make run-test-tier1 CONF=client`
-
+5. Run basic tests
+   `make run-test-tier1 CONF=client`
 
 6. Test file build
    javac test/rtgc/Main.java

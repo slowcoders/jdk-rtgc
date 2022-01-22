@@ -2,7 +2,7 @@
 #ifndef SHARE_GC_RTGC_C1_RTGCBARRIERSETC1_HPP
 #define SHARE_GC_RTGC_C1_RTGCBARRIERSETC1_HPP
 
-#include "gc/shared/c1/BarrierSetC1.hpp"
+#include "gc/shared/c1/barrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
 
 class RtgcBarrierSetC1 : public BarrierSetC1 {

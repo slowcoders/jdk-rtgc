@@ -26,7 +26,7 @@
 #define CPU_X86_GC_RTGC_RTGCBARRIERSETASSEMBLER_X86_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "gc/shared/BarrierSetAssembler.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:

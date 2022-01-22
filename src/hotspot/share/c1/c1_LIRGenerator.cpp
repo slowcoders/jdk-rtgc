@@ -1717,6 +1717,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (x->check_boolean()) {
     decorators |= C1_MASK_BOOLEAN;
   }
+
   access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
                   NULL, null_check_info);
 }
@@ -3614,6 +3615,7 @@ LIR_Opr LIRGenerator::call_runtime(Value arg1, Value arg2, address entry, ValueT
 
   return call_runtime(&signature, &args, entry, result_type, info);
 }
+
 
 LIR_Opr LIRGenerator::call_runtime(BasicTypeArray* signature, LIR_OprList* args,
                                    address entry, ValueType* result_type, CodeEmitInfo* info) {

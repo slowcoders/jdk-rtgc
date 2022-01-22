@@ -168,9 +168,9 @@
   EPSILONGC_ONLY(VM_TYPES_EPSILONGC(declare_type,                         \
                                     declare_toplevel_type,                \
                                     declare_integer_type))                \
-  RTGC_ONLY(VM_TYPES_RTGC(declare_type,                         \
-                                    declare_toplevel_type,                \
-                                    declare_integer_type))                \
+  RTGC_ONLY(VM_TYPES_RTGC(declare_type,                                   \
+                          declare_toplevel_type,                          \
+                          declare_integer_type))                          \
   G1GC_ONLY(VM_TYPES_G1GC(declare_type,                                   \
                           declare_toplevel_type,                          \
                           declare_integer_type))                          \
@@ -250,8 +250,8 @@
                             declare_constant_with_value)                    \
   EPSILONGC_ONLY(VM_INT_CONSTANTS_EPSILONGC(declare_constant,               \
                                             declare_constant_with_value))   \
-  RTGC_ONLY(VM_INT_CONSTANTS_RTGC(declare_constant,               \
-                                            declare_constant_with_value))   \
+  RTGC_ONLY(VM_INT_CONSTANTS_RTGC(declare_constant,                         \
+                                  declare_constant_with_value))             \
   G1GC_ONLY(VM_INT_CONSTANTS_G1GC(declare_constant,                         \
                                   declare_constant_with_value))             \
   PARALLELGC_ONLY(VM_INT_CONSTANTS_PARALLELGC(declare_constant,             \
