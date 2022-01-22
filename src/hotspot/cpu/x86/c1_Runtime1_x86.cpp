@@ -1619,6 +1619,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
 #undef __
 
+#include "gc/rtgc/rtgcDebug.hpp"
 const char *Runtime1::pd_name_for_address(address entry) {
-  return "<unknown function>";
+  if (RTGC_DEBUG) {
+    return "rtgc method";
+  }
+  else {
+    return "<unknown function>";
+  }
 }
