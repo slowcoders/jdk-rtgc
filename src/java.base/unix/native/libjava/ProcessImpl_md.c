@@ -444,6 +444,9 @@ static int copystrings(char *buf, int offset, const char * const *arg) {
 __attribute_noinline__
 #endif
 
+// Zee Mac OSX (vfork is deprecated)
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 /* vfork(2) is deprecated on Solaris */
 static pid_t
 vforkChild(ChildStuff *c) {

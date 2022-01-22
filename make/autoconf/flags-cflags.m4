@@ -551,7 +551,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 
   # Additional macosx handling
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    OS_CFLAGS="-DMAC_OS_X_VERSION_MIN_REQUIRED=$MACOSX_VERSION_MIN_NODOTS \
+    OS_CFLAGS=" -DMAC_OS_X_VERSION_MIN_REQUIRED=$MACOSX_VERSION_MIN_NODOTS \
         -mmacosx-version-min=$MACOSX_VERSION_MIN"
 
     if test -n "$MACOSX_VERSION_MAX"; then

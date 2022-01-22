@@ -31,6 +31,9 @@
 
 #define LOG_TEST_STRING_LITERAL "a (hopefully) unique log message for testing"
 
+// Zee Mac OSX
+PRAGMA_DISABLE_GCC_WARNING("-Wstring-concatenation")
+
 static const char* invalid_selection_substr[] = {
   "=", "+", " ", "+=", "+=*", "*+", " +", "**", "++", ".", ",", ",," ",+",
   " *", "all+", "all*", "+all", "+all=Warning", "==Info", "=InfoWarning",
