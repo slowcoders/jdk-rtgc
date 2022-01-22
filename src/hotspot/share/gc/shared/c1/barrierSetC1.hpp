@@ -113,7 +113,7 @@ public:
 class BarrierSetC1: public CHeapObj<mtGC> {
 protected:
   virtual LIR_Opr resolve_address(LIRAccess& access, bool resolve_in_register);
- 
+
   virtual void generate_referent_check(LIRAccess& access, LabelObj* cont);
 
   // Accesses with resolved address
@@ -134,10 +134,6 @@ public:
 
   virtual LIR_Opr atomic_xchg_at(LIRAccess& access, LIRItem& value);
   virtual LIR_Opr atomic_add_at(LIRAccess& access, LIRItem& value);
-
-  virtual LIR_Opr resolve(LIRGenerator* gen, DecoratorSet decorators, LIR_Opr obj);
-
-  virtual const char* rtcall_name_for_address(address entry) { return NULL; }
 
   virtual void generate_c1_runtime_stubs(BufferBlob* buffer_blob) {}
 };

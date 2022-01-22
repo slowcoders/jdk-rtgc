@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,10 @@
 #ifndef SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
 #define SHARE_OOPS_ACCESSBACKEND_INLINE_HPP
 
-#include "oops/access.hpp"
 #include "oops/accessBackend.hpp"
+
+#include "oops/access.hpp"
+#include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomic.hpp"
@@ -66,7 +68,7 @@ inline void RawAccessBarrier<decorators>::oop_store(void* addr, T value) {
 }
 
 template <DecoratorSet decorators>
-template <typename T> 
+template <typename T>
 inline void RawAccessBarrier<decorators>::oop_store_at(oop base, ptrdiff_t offset, T value) {
   oop_store(field_addr(base, offset), value);
 }
@@ -292,6 +294,7 @@ public:
             size_t length) {
     src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
     dst_raw = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
+
     // There is only a disjoint optimization for word granularity copying
     if (HasDecorator<decorators, ARRAYCOPY_ATOMIC>::value) {
       AccessInternal::arraycopy_disjoint_words_atomic(src_raw, dst_raw, length);
@@ -361,7 +364,7 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
                                             reinterpret_cast<jlong*>((oopDesc*)dst),
                                             align_object_size(size) / HeapWordsPerLong);
   // Clear the header
-  dst->init_mark_raw();
+  dst->init_mark();
 }
 
 #endif // SHARE_OOPS_ACCESSBACKEND_INLINE_HPP

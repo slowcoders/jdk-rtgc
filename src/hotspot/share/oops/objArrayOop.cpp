@@ -30,7 +30,6 @@
 
 oop objArrayOopDesc::atomic_compare_exchange_oop(int index, oop exchange_value,
                                                  oop compare_value) {
-  // @zee. this function called only from SystemDictionary and ConstantPoolCache
   ptrdiff_t offs;
   if (UseCompressedOops) {
     offs = objArrayOopDesc::obj_at_offset<narrowOop>(index);

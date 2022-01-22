@@ -22,6 +22,7 @@
  */
 
 #include "logging/log.hpp"
+#include "logging/logAsyncWriter.hpp"
 #include "logging/logConfiguration.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
@@ -29,6 +30,9 @@
 #include "unittest.hpp"
 
 #define LOG_TEST_STRING_LITERAL "a (hopefully) unique log message for testing"
+
+// Zee Mac OSX
+PRAGMA_DISABLE_GCC_WARNING("-Wstring-concatenation")
 
 static const char* invalid_selection_substr[] = {
   "=", "+", " ", "+=", "+=*", "*+", " +", "**", "++", ".", ",", ",," ",+",
@@ -46,6 +50,7 @@ static inline bool file_exists(const char* filename) {
 }
 
 static inline void delete_file(const char* filename) {
+  AsyncLogWriter::flush();
   if (!file_exists(filename)) {
     return;
   }
@@ -135,6 +140,7 @@ static inline char* read_line(FILE* fp) {
 }
 
 static bool file_contains_substrings_in_order(const char* filename, const char* substrs[]) {
+  AsyncLogWriter::flush();
   FILE* fp = fopen(filename, "r");
   assert(fp != NULL, "error opening file %s: %s", filename, strerror(errno));
 

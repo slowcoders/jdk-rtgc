@@ -6,20 +6,32 @@ jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
    git checkout -b jtreg-6.1+1
    bash build.sh --jdk /usr/lib/jvm/adoptopenjdk-14-hotspot-amd64
 
+-  jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
+   git clone https://github.com/openjdk/jtreg.git
+   git checkout -b jtreg-6.1+1
+   bash build.sh --jdk /usr/lib/jvm/adoptopenjdk-14-hotspot-amd64
+-  google test
+   git clone https://github.com/google/googletest.git -b release-1.8.1
+
  2. [Run configure](#running-configure): \
     `bash configure`
 
 bash configure --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --enable-ccache \
-  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.1
+  --with-jtreg=./jtreg-6.1
 
 bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
-  --with-jtreg=/workspaces/jdk-rtgc/jtreg-6.1
+  --with-jtreg=./jtreg-6.1 \
+  --with-gtest=./googletest
+
+
+//   --with-toolchain-type=clang \
 
  3. [Run make](#running-make): \
     `make images CONF=client`
+    'hotspot-x86' 'hotspot-macosx'
 
  4. Verify your newly built JDK: \
     `./build/*/images/jdk/bin/java -version`

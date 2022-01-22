@@ -25,6 +25,7 @@
 #define SHARE_GC_SHARED_BARRIERSET_INLINE_HPP
 
 #include "gc/shared/barrierSet.hpp"
+
 #include "oops/accessDecorators.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -50,9 +51,10 @@ inline bool BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in
     const T elem = *src;
     if (!oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass)) {
       return false;
-    } 
+    }
     *dst = elem;
   }
+
   return true;
 }
 
