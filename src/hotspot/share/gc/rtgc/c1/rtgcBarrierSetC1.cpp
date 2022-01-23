@@ -25,6 +25,7 @@
 #include "gc/rtgc/RTGC.hpp"
 
 static int rtgc_log_trigger = 0;
+static const bool ENABLE_CPU_MEMBAR = false;
 
 RtgcBarrierSetC1::RtgcBarrierSetC1() {
   RtgcBarrier::init_barrier_runtime();
@@ -46,12 +47,11 @@ LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
 
   if (addr->is_address()) {
     LIR_Address* address = addr->as_address_ptr();
-    LIR_Opr resolved_addr;
+    LIR_Opr resolved_addr = gen->new_pointer_register();
     if (!address->index()->is_valid() && address->disp() == 0) {
-      resolved_addr = address->base();//   gen->lir()->move(address->base(), resolved_addr);
+      gen->lir()->move(address->base(), resolved_addr);
     } else {
       assert(false && address->disp() != max_jint, "lea doesn't support patched addresses!");
-      resolved_addr = gen->new_pointer_register();
       if (needs_patching) {
         gen->lir()->leal(addr, resolved_addr, lir_patch_normal, access.patch_emit_info());
         access.clear_decorators(C1_NEEDS_PATCHING);
@@ -120,22 +120,20 @@ void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value) {
 }
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
-  DecoratorSet decorators = access.decorators();
   if (!needBarrier(access)) {
     BarrierSetC1::store_at_resolved(access, value);
     return;
   }
 
   LIRGenerator* gen = access.gen();
+  DecoratorSet decorators = access.decorators();
+  bool in_heap = decorators & IN_HEAP;
   bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-  bool in_heap = decorators & IN_HEAP;
 
-  if (mask_boolean) {
-    value = gen->mask_boolean(access.base().opr(), value, access.access_emit_info());
-  }
+  assert(!mask_boolean, "oop can not cast to boolean");
 
-  if (false && is_volatile) {
+  if (ENABLE_CPU_MEMBAR && is_volatile) {
     gen->lir()->membar_release();
   }
 
@@ -153,16 +151,16 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   if (in_heap) args->append(base.result());
 
   address fn = RtgcBarrier::getStoreFunction(in_heap);
-  if (in_heap)
-    fn = reinterpret_cast<address>(__rtgc_store);
-  else 
-    fn = reinterpret_cast<address>(__rtgc_store_nih);
+  // if (in_heap)
+  //   fn = reinterpret_cast<address>(__rtgc_store);
+  // else 
+  //   fn = reinterpret_cast<address>(__rtgc_store_nih);
 
   gen->call_runtime(&signature, args,
               fn,
               voidType, NULL);
 
-  if (false && is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
+  if (ENABLE_CPU_MEMBAR && is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
     gen->lir()->membar();
   }
   return;    

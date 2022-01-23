@@ -46,7 +46,7 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure

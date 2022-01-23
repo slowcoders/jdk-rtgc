@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/modRefBarrierSetAssembler.hpp"
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
 
 #define __ masm->
 

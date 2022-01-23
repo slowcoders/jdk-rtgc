@@ -741,7 +741,7 @@ define SetupRunJtregTestBody
   JTREG_TIMEOUT_FACTOR ?= 4
 
   JTREG_VERBOSE ?= fail,error,summary
-  JTREG_RETAIN ?= fail,error
+  JTREG_RETAIN ?= fail,error,hs_err_pid*
   JTREG_RUN_PROBLEM_LISTS ?= false
   JTREG_RETRY_COUNT ?= 0
 

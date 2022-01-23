@@ -55,7 +55,7 @@
 #if INCLUDE_ZGC
 #include "gc/z/zThreadLocalData.hpp"
 #endif
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -2833,7 +2833,7 @@ class StubGenerator: public StubCodeGenerator {
       __ movptr(rax, r14_length); // rax, r14_length = copied item_count
     } else {
       if (USE_RTGC) {
-        __ load_klass(ckval, c_rarg3, ckoff);
+        __ load_klass(ckval, c_rarg3, rax);
         __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
         __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
       }

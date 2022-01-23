@@ -44,7 +44,12 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
                 LIR_OprFact::illegalOpr /* pre_val */, access.patch_emit_info());
   }
 
-  _RawBarrierSetC1::store_at_resolved(access, value);
+  if (true || use_rtgc_c1) {
+    _RawBarrierSetC1::store_at_resolved(access, value);
+  }
+  else {
+    BarrierSetC1::store_at_resolved(access, value);
+  }
 
   if (access.is_oop()) {
 #if USE_RTGC_BARRIERSET_C1
@@ -83,7 +88,14 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result = _RawBarrierSetC1::atomic_xchg_at_resolved(access, value);
+  LIR_Opr result;
+  if (use_rtgc_c1) {
+    result = _RawBarrierSetC1::atomic_xchg_at_resolved(access, value);
+  }
+  else {
+    result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
+  }
+  
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), value.result());

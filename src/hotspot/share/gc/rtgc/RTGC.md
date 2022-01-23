@@ -23,21 +23,33 @@ bash configure --with-jvm-variants=client \
 // --with-toolchain-type=clang \
 
 3. Make Images
-    `make images CONF=client`
-    'hotspot-x86' 'hotspot-macosx'
+    `make images CONF=linux debug`
+    `make images CONF=macosx debug`
 
-4. Verify your newly built JDK
-   `./build/*/images/jdk/bin/java -version`
+4. precompiled file 삭제
+   ` rm -rf ./build/macosx-x86_64-client-fastdebug/hotspot/variant-client/libjvm/objs/precompiled `
 
 5. Run basic tests
-   `make run-test-tier1 CONF=client`
+   `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
+   `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
+- test codedump 파일 자동삭제 방지<br>
+  RunTests.gmk 파일을 아래와 같이 수정. <br>
+   -> JTREG_RETAIN ?= fail,error,hs_err_pid*
+  
+
+
+make test CONF="macosx" TEST="jtreg:test/hotspot:hotspot_gc:serial"
+
+make test CONF="macosx" \
+  TEST="jtreg:test/hotspot:hotspot_gc compiler/gcbarriers/UnsafeIntrinsicsTest.java"
 
 6. Test file build
    javac test/rtgc/Main.java
 
 7. Test 실행
    // interpreter only
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1 
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -cp test/rtgc Main 2 100000 
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -cp test/rtgc Main 2 1 
    
    // enable c1_LIRGenerator 
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 

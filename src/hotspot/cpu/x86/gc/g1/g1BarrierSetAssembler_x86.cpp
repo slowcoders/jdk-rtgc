@@ -39,6 +39,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "gc/g1/c1/g1BarrierSetC1.hpp"
 #endif
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
 
 #define __ masm->
 

@@ -12,14 +12,26 @@
 #include "gc/rtgc/rtgcBarrier.hpp"
 
 volatile int LOG_VERBOSE = 0;
+static void* _base = 0;
+static int _shift = 0;
 
 int rtgc_getOopShift() {
 #ifdef _LP64
   if (UseCompressedOops) {
-    assert(0 == CompressedOops::base(), "invalid narrowOop base");
-    assert(3 == CompressedOops::shift()
-        || 0 == CompressedOops::shift(), "invalid narrowOop shift");
-    return CompressedOops::shift();
+    if (_base != CompressedOops::base()) {
+      _base = CompressedOops::base();
+      printf("## narrowOop base=%p\n", _base);
+    }
+    if (_shift != CompressedOops::shift()) {
+      _shift = CompressedOops::shift();
+      if (_shift != 0 && _shift != 3) {
+        printf("## narrowOop shift=%d\n", _shift);
+      }
+    }
+    //assert(0 == CompressedOops::base(), "invalid narrowOop base");
+    // assert(3 == CompressedOops::shift()
+    //     || 0 == CompressedOops::shift(), "invalid narrowOop shift");
+    return 0;//CompressedOops::shift();
   }
   else {
     return 8;
@@ -37,19 +49,19 @@ static void rtgc_set_volatile_field(volatile oop* addr, oopDesc* value) {
 }
 
 static void rtgc_set_field(narrowOop* addr, oopDesc* value) {
-  *addr = CompressedOops::encode(value);
+  RawAccess<>::oop_store(addr, value);
 }
 static void rtgc_set_field(oop* addr, oopDesc* value) {
-  *addr = value;
+  RawAccess<>::oop_store(addr, value);
 }
 
 
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
-  rtgc_log(LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
+  rtgc_log(1 || LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
   bool locked = RTGC::lock_heap(base);
-  oop old = RawAccess<>::oop_load(addr);
+  oopDesc* old = CompressedOops::decode(*addr);
   rtgc_set_field(addr, new_value);
   RTGC::unlock_heap(locked);
 }

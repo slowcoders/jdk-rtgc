@@ -34,6 +34,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
 
 #define __ masm->
 

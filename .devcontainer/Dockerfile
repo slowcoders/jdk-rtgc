@@ -19,7 +19,7 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive \
   && apt install -y software-properties-common \
   && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
   && apt update \
-  && apt install -y adoptopenjdk-14-hotspot
+  && apt install -y adoptopenjdk-16-hotspot
 
 # Install dev tools
 RUN apt update && export DEBIAN_FRONTEND=noninteractive \
@@ -29,3 +29,5 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive \
   && apt install -y libcups2-dev libfontconfig1-dev libasound2-dev \
   && apt install -y libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
 
+#  && apt install -y ccache
+# ENV CCACHE_DIR=/workspace/jdk-rtgc/ccache

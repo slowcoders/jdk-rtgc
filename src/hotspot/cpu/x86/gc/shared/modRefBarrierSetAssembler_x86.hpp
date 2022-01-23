@@ -27,7 +27,8 @@
 
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/shared/rtgcConfig.hpp" // RTGC 1
+
 #if USE_RTGC_BARRIERSET_ASSEMBLER
   #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
   typedef RtgcBarrierSetAssembler   _RawBarrierSetAssembler;
