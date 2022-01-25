@@ -32,16 +32,27 @@ bash configure --with-jvm-variants=client \
 5. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
+
+        new java.util.concurrent.atomic.AtomicLong().compareAndExchange(0x876543DB876543DBL, 0x123456DB123456DBL);
+
 - test codedump 파일 자동삭제 방지<br>
   RunTests.gmk 파일을 아래와 같이 수정. <br>
    -> JTREG_RETAIN ?= fail,error,hs_err_pid*
-  
+
+- coredump file 찾기.
+  find build -name "hs_err_pid*"
+
+- coredump file 삭제.<br>
+  find build -name "hs_err_pid*" | xargs rm 
 
 
 make test CONF="macosx" TEST="jtreg:test/hotspot:hotspot_gc:serial"
-
+make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
 make test CONF="macosx" \
   TEST="jtreg:test/hotspot:hotspot_gc compiler/gcbarriers/UnsafeIntrinsicsTest.java"
+
+make test CONF="macosx" \
+   TEST="jtreg:test/hotspot compiler/c1/Test7103261.java"
 
 6. Test file build
    javac test/rtgc/Main.java
@@ -79,12 +90,16 @@ LIR_OpArrayCopy::emit_code()
 - Unsafe::ComapreAndExchageReference
 - JNI jni_SetObjectField jni_SetObjectArrayElement
 
+### null point emplicit check 관련 정리.
+RTGC_EXPLICT_NULL_CHCECK_ALWAYS 를 사용하여 임시 조치.<br>
+-> 이후 assembly 코드를 분석하여 문제 원인을 정확히 파악
+- signal hnadler
+   os_bsd_x86.cpp: pd_hotspot_signal_handler
+- handler 함수 address 반환
+   address CompiledMethod::continuation_for_implicit_exception
+   address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 
-RuntimeDispatch<decorators,..> 를 이용하여 모드 Hook을 처리??
 
-CollectedHeap 을 상속한 genCollectedHeap 가 default 선택
-genCollectedHeap->initialize() 에서 CardTableBarrierSet 을 생성.
-   BarrierSet::set_barrier_set() 호출.
 
 ## What is a Safepoint ?
 A safepoint is a state of your application execution where all references to objects are perfectly reachable by the VM.
@@ -189,3 +204,6 @@ https://code.visualstudio.com/docs/cpp/config-clang-mac
     }
   ]
 }
+
+
+

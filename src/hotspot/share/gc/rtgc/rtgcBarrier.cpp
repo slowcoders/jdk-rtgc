@@ -58,8 +58,8 @@ static void rtgc_set_field(oop* addr, oopDesc* value) {
 
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
-  assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
-  rtgc_log(1 || LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
+  assert(base < (void*)addr && base + 256*1024 > (void*)addr, "invalid address");
+  rtgc_log(LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
   bool locked = RTGC::lock_heap(base);
   oopDesc* old = CompressedOops::decode(*addr);
   rtgc_set_field(addr, new_value);
@@ -94,7 +94,7 @@ address RtgcBarrier::getStoreFunction(bool in_heap) {
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
   rtgc_log(LOG_VERBOSE, "xchg %p(%p) = %p\n", base, addr, new_value);
-  assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
+  assert(base < (void*)addr && base + 256*1024 > (void*)addr, "invalid address");
   bool locked = RTGC::lock_heap(base);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
@@ -131,7 +131,7 @@ address RtgcBarrier::getXchgFunction(bool in_heap) {
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   rtgc_log(LOG_VERBOSE, "cmpxchg %p(%p) = %p->%p\n", base, addr, cmp_value, new_value);
-  assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
+  assert(base < (void*)addr && base + 256*1024 > (void*)addr, "invalid address");
   bool locked = RTGC::lock_heap(base);
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
@@ -170,7 +170,7 @@ address RtgcBarrier::getCmpXchgFunction(bool in_heap) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
-  assert(base < (void*)addr && base + 64*1024 > (void*)addr, "invalid address");
+  assert(base < (void*)addr && base + 256*1024 > (void*)addr, "invalid address");
   rtgc_log(LOG_VERBOSE, "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap(base);
   oop value = RawAccess<>::oop_load(addr);

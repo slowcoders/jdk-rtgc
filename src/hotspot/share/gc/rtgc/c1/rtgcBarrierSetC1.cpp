@@ -14,12 +14,16 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
+#include "classfile/vmClasses.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/RTGC.hpp"
@@ -32,7 +36,11 @@ RtgcBarrierSetC1::RtgcBarrierSetC1() {
 }
 
 LIR_Opr RtgcBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
-  return BarrierSetC1::resolve_address(access, resolve_in_register | needBarrier(access));
+  // bool needs_patching = (access.decorators() & C1_NEEDS_PATCHING) != 0;
+  // if (!needs_patching) {
+    resolve_in_register |= needBarrier(access);
+  // }
+  return BarrierSetC1::resolve_address(access, resolve_in_register);
 }
 
 LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
@@ -51,7 +59,7 @@ LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
     if (!address->index()->is_valid() && address->disp() == 0) {
       gen->lir()->move(address->base(), resolved_addr);
     } else {
-      assert(false && address->disp() != max_jint, "lea doesn't support patched addresses!");
+      // assert(false && address->disp() != max_jint, "lea doesn't support patched addresses!");
       if (needs_patching) {
         gen->lir()->leal(addr, resolved_addr, lir_patch_normal, access.patch_emit_info());
         access.clear_decorators(C1_NEEDS_PATCHING);
@@ -106,18 +114,24 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
      -> LIR_Assembler::move_op()
         -> LIR_Assembler::mem2reg()
 */
-void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base) {
-  if (RTGC::logLevel() > 3) {
+JRT_ENTRY(void, __rtgc_store(JavaThread* current, narrowOop* addr, oopDesc* new_value, oopDesc* base))
+  if (base == NULL) {
+    ResourceMark rm(current);
+    printf("store null %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
+    //JavaThread* __the_thread__ = JavaThread::current();
+    THROW(vmSymbols::java_lang_NullPointerException());
+  }
+  if (false && RTGC::logLevel() > 0 && (rtgc_log_trigger ++) % 1000 == 0) {
     JavaThread* __the_thread__ = JavaThread::current();
-    printf("store %p(%p) = %p th=%p\n", base, addr, new_value, __the_thread__);
+    printf("store %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
   }
   RtgcBarrier::oop_store(addr, new_value, base);
-}
+JRT_END
 
-void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value) {
+JRT_ENTRY(void, __rtgc_store_nih(narrowOop* addr, oopDesc* new_value, JavaThread* current))
   printf("store __(%p) = %p\n", addr, new_value);
   RtgcBarrier::oop_store_not_in_heap(addr, new_value);
-}
+JRT_END
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   if (!needBarrier(access)) {
@@ -125,6 +139,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     return;
   }
 
+  rtgc_log(RTGC::logLevel() > 0, "C1 store_at_resolved\n");
   LIRGenerator* gen = access.gen();
   DecoratorSet decorators = access.decorators();
   bool in_heap = decorators & IN_HEAP;
@@ -139,22 +154,34 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   LIRItem base = access.base().item();
   LIR_Opr addr = get_resolved_addr(access, c_rarg0);
-  
+  // LIR_Opr flags = LIR_OprFact::illegalOpr;
+  // if (in_heap) {
+  //   flags = gen->new_register(T_INT);
+  //   LIR_Address* addr = new LIR_Address(base.result(), 8, T_INT);
+  //   gen->lir()->load(addr, flags);
+  // }
+
   BasicTypeList signature;
+  signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
   signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
-  if (in_heap) signature.append(T_OBJECT); // object
-  
+  if (in_heap) {
+    signature.append(T_OBJECT); // object
+    // signature.append(T_INT); // flags
+  }
   LIR_OprList* args = new LIR_OprList();
+  args->append(gen->getThreadPointer());
   args->append(addr); 
   args->append(value);
-  if (in_heap) args->append(base.result());
-
+  if (in_heap) {
+    args->append(base.result());
+    // args->append(flags);
+  }
   address fn = RtgcBarrier::getStoreFunction(in_heap);
-  // if (in_heap)
-  //   fn = reinterpret_cast<address>(__rtgc_store);
-  // else 
-  //   fn = reinterpret_cast<address>(__rtgc_store_nih);
+  if (in_heap)
+    fn = reinterpret_cast<address>(__rtgc_store);
+  else 
+    fn = reinterpret_cast<address>(__rtgc_store_nih);
 
   gen->call_runtime(&signature, args,
               fn,
