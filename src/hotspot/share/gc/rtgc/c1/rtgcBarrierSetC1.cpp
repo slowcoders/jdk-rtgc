@@ -35,11 +35,16 @@ RtgcBarrierSetC1::RtgcBarrierSetC1() {
   RtgcBarrier::init_barrier_runtime();
 }
 
+bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access) {
+  return access.is_oop() && RtgcBarrier::needBarrier(access.decorators())
+      && !access.resolved_addr()->is_stack();
+}
+
+
 LIR_Opr RtgcBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
-  // bool needs_patching = (access.decorators() & C1_NEEDS_PATCHING) != 0;
-  // if (!needs_patching) {
-    resolve_in_register |= needBarrier(access);
-  // }
+  resolve_in_register |= access.is_oop()
+      && RtgcBarrier::needBarrier(access.decorators())
+      && !access.base().opr()->is_stack();
   return BarrierSetC1::resolve_address(access, resolve_in_register);
 }
 
@@ -59,7 +64,7 @@ LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
     if (!address->index()->is_valid() && address->disp() == 0) {
       gen->lir()->move(address->base(), resolved_addr);
     } else {
-      // assert(false && address->disp() != max_jint, "lea doesn't support patched addresses!");
+      assert(false && address->disp() != max_jint, "lea doesn't support patched addresses!");
       if (needs_patching) {
         gen->lir()->leal(addr, resolved_addr, lir_patch_normal, access.patch_emit_info());
         access.clear_decorators(C1_NEEDS_PATCHING);
@@ -90,7 +95,7 @@ oopDesc* __rtgc_load(narrowOop* addr) {
 
 void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   DecoratorSet decorators = access.decorators();
-  if (true || !needBarrier(access)) {
+  if (true || !needBarrier_onResolvedAddress(access)) {
     BarrierSetC1::load_at_resolved(access, result);
     return;
   }
@@ -114,32 +119,31 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
      -> LIR_Assembler::move_op()
         -> LIR_Assembler::mem2reg()
 */
-JRT_ENTRY(void, __rtgc_store(JavaThread* current, narrowOop* addr, oopDesc* new_value, oopDesc* base))
-  if (base == NULL) {
-    ResourceMark rm(current);
-    printf("store null %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
-    //JavaThread* __the_thread__ = JavaThread::current();
-    THROW(vmSymbols::java_lang_NullPointerException());
-  }
+void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base) {
+  // if (base == NULL) {
+  //   ResourceMark rm(current);
+  //   printf("store null %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
+  //   //JavaThread* __the_thread__ = JavaThread::current();
+  //   THROW(vmSymbols::java_lang_NullPointerException());
+  // }
   if (false && RTGC::logLevel() > 0 && (rtgc_log_trigger ++) % 1000 == 0) {
     JavaThread* __the_thread__ = JavaThread::current();
     printf("store %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
   }
   RtgcBarrier::oop_store(addr, new_value, base);
-JRT_END
+}
 
-JRT_ENTRY(void, __rtgc_store_nih(narrowOop* addr, oopDesc* new_value, JavaThread* current))
+void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value) {
   printf("store __(%p) = %p\n", addr, new_value);
   RtgcBarrier::oop_store_not_in_heap(addr, new_value);
-JRT_END
+}
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
-  if (!needBarrier(access)) {
+  if (!needBarrier_onResolvedAddress(access)) {
     BarrierSetC1::store_at_resolved(access, value);
     return;
   }
 
-  rtgc_log(RTGC::logLevel() > 0, "C1 store_at_resolved\n");
   LIRGenerator* gen = access.gen();
   DecoratorSet decorators = access.decorators();
   bool in_heap = decorators & IN_HEAP;
@@ -148,21 +152,15 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   assert(!mask_boolean, "oop can not cast to boolean");
 
+  LIRItem base = access.base().item();
+  LIR_Opr addr = get_resolved_addr(access, c_rarg0);
+
   if (ENABLE_CPU_MEMBAR && is_volatile) {
     gen->lir()->membar_release();
   }
 
-  LIRItem base = access.base().item();
-  LIR_Opr addr = get_resolved_addr(access, c_rarg0);
-  // LIR_Opr flags = LIR_OprFact::illegalOpr;
-  // if (in_heap) {
-  //   flags = gen->new_register(T_INT);
-  //   LIR_Address* addr = new LIR_Address(base.result(), 8, T_INT);
-  //   gen->lir()->load(addr, flags);
-  // }
-
   BasicTypeList signature;
-  signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
+  //signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
   signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
   if (in_heap) {
@@ -170,7 +168,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     // signature.append(T_INT); // flags
   }
   LIR_OprList* args = new LIR_OprList();
-  args->append(gen->getThreadPointer());
+  //args->append(gen->getThreadPointer());
   args->append(addr); 
   args->append(value);
   if (in_heap) {
@@ -205,7 +203,7 @@ oopDesc* __rtgc_xchg_nih(volatile narrowOop* addr, oopDesc* new_value) {
 
 LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& value) {
   DecoratorSet decorators = access.decorators();
-  if (!needBarrier(access)) {
+  if (!needBarrier_onResolvedAddress(access)) {
     return BarrierSetC1::atomic_xchg_at_resolved(access, value);
   }
 
@@ -269,7 +267,7 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
 
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   DecoratorSet decorators = access.decorators();
-  if (!needBarrier(access)) {
+  if (!needBarrier_onResolvedAddress(access)) {
     return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 

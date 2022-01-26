@@ -47,7 +47,9 @@ bash configure --with-jvm-variants=client \
 
 
 make test CONF="macosx" TEST="jtreg:test/hotspot:hotspot_gc:serial"
+// implicit null check exception.
 make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
 make test CONF="macosx" \
   TEST="jtreg:test/hotspot:hotspot_gc compiler/gcbarriers/UnsafeIntrinsicsTest.java"
 

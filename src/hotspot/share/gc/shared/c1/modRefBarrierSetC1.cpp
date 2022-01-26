@@ -53,7 +53,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   if (access.is_oop()) {
 #if USE_RTGC_BARRIERSET_C1
-    bool precise = RtgcBarrierSetC1::needBarrier(access);
+    bool precise = RtgcBarrierSetC1::needBarrier_onResolvedAddress(access);
 #else    
     bool precise = is_array || on_anonymous;
 #endif

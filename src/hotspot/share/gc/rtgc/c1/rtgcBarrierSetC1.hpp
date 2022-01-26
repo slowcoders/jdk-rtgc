@@ -9,9 +9,7 @@ class RtgcBarrierSetC1 : public BarrierSetC1 {
 public:
   RtgcBarrierSetC1();
 
-  static inline bool needBarrier(LIRAccess& access) {
-    return access.is_oop() && RtgcBarrier::needBarrier(access.decorators());
-  }
+  static bool needBarrier_onResolvedAddress(LIRAccess& access);
 
 protected:
   virtual void load_at_resolved(LIRAccess& access, LIR_Opr result);
