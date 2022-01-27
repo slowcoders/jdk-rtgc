@@ -32,8 +32,26 @@ bash configure --with-jvm-variants=client \
 5. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
+   - logTrigger
+   `new java.util.concurrent.atomic.AtomicLong().compareAndExchange(
+      0x876543DB876543DBL, 0x123456DB123456DBL);` 
 
-        new java.util.concurrent.atomic.AtomicLong().compareAndExchange(0x876543DB876543DBL, 0x123456DB123456DBL);
+   - narrowOop shift test (0,1,2,3,4)
+   make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
+
+   - implicit null check exception.
+   make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+
+        bug 8181143 driver
+        bug 8143628 othervm testng -> JdkInternalMiscUnsafeAccessTestxxx
+            test/hotspot/jtreg/compiler/unsafe/
+make test CONF="macosx" TEST=" \
+   compiler/unsafe/SunMiscUnsafeAccessTestObject.java \
+   compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject.java "
+
+        bug 8141141 + bug 8141278 driver -> 
+make test CONF="macosx" TEST="gc/g1/plab/TestPLABPromotion.java"
+make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
 
 - test codedump 파일 자동삭제 방지<br>
   RunTests.gmk 파일을 아래와 같이 수정. <br>
@@ -47,14 +65,13 @@ bash configure --with-jvm-variants=client \
 
 
 make test CONF="macosx" TEST="jtreg:test/hotspot:hotspot_gc:serial"
-// implicit null check exception.
-make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
-make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
 make test CONF="macosx" \
   TEST="jtreg:test/hotspot:hotspot_gc compiler/gcbarriers/UnsafeIntrinsicsTest.java"
 
-make test CONF="macosx" \
-   TEST="jtreg:test/hotspot compiler/c1/Test7103261.java"
+// implicit null check exception.
+make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
+
 
 6. Test file build
    javac test/rtgc/Main.java

@@ -33,8 +33,8 @@ namespace RTGC {
   }
 };
 
-#define rtgc_log(cond, ...) \
-  if ((cond) && RTGC_DEBUG && RTGC::logLevel() > 0) { \
+#define rtgc_log(_logLevel, cond, ...) \
+  if ((cond) && RTGC_DEBUG && RTGC::logLevel() >= _logLevel) { \
     printf("%s:%d ", RTGC::baseFileName(__FILE__), __LINE__); \
     printf(__VA_ARGS__); \
   }

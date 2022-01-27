@@ -1,7 +1,8 @@
 #include "precompiled.hpp"
 
-#include "gc/rtgc/RTGC.hpp"
 
+#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 using namespace RTGC;
 
@@ -28,12 +29,12 @@ void RTGC::unlock_heap(bool locked) {
 }
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(LOG_REF_CHAIN, "add_ref: obj=%p(%s), referrer=%p\n", 
+    rtgc_log(5, LOG_REF_CHAIN, "add_ref: obj=%p(%s), referrer=%p\n", 
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(LOG_REF_CHAIN, "remove_ref: obj=%p(%s), referrer=%p\n",
+    rtgc_log(5, LOG_REF_CHAIN, "remove_ref: obj=%p(%s), referrer=%p\n",
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 

@@ -1,7 +1,6 @@
 #ifndef SHARE_GC_RTGC_RTGC_HPP
 #define SHARE_GC_RTGC_RTGC_HPP
 
-#include "gc/rtgc/rtgcDebug.hpp"
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedOops.hpp"
 #include "oops/oop.inline.hpp"

@@ -27,6 +27,7 @@
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 static int rtgc_log_trigger = 0;
 static const bool ENABLE_CPU_MEMBAR = false;
@@ -238,6 +239,8 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
 bool __rtgc_cmpxchg(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg(addr, cmp_value, new_value, base);
+  rtgc_log(0, cmp_value != NULL, "cmpxchg %p.%p = %p->%p %d\n", 
+    base, addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
   if (false) {
     narrowOop cmp_v = CompressedOops::encode(cmp_value);
@@ -262,6 +265,8 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
   // res = Atomic::cmpxchg(addr, cmp_v, new_v);
   // oopDesc* old_value = CompressedOops::decode(res);
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg_not_in_heap(addr, cmp_value, new_value);
+  rtgc_log(0, cmp_value != NULL, "cmpxchg @.%p = %p->%p %d\n", 
+    addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
 }
 
