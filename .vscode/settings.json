@@ -53,6 +53,7 @@
         "mutex": "cpp",
         "thread": "cpp",
         "regex": "cpp",
-        "bitset": "cpp"
+        "bitset": "cpp",
+        "__functional_03": "cpp"
     }
 }

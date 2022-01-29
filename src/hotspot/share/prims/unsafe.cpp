@@ -758,8 +758,8 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
 
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
-  if (e == (jlong)0x876543DB876543DB && x == (jlong)0x123456DB123456DB) {
-    RTGC::debug->logLevel = 1;
+  if (e == (jlong)0x876543DB876543DB && (x >> 32) == (jlong)0x123456DB) {
+    RTGC::enableLog((int)x / RTGC::LOG_CATEGORY_BASE, (int)x & RTGC::LOG_FUNCTION_MASK);
   }
   if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);

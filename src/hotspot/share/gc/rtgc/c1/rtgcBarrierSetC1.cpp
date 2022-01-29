@@ -32,6 +32,11 @@
 static int rtgc_log_trigger = 0;
 static const bool ENABLE_CPU_MEMBAR = false;
 
+static const int LOG_BARRIER_C1(int function) {
+  return RTGC::LOG_OPTION(2, function);
+}
+
+
 RtgcBarrierSetC1::RtgcBarrierSetC1() {
   RtgcBarrier::init_barrier_runtime();
 }
@@ -84,12 +89,9 @@ oopDesc* __rtgc_load(narrowOop* addr) {
   RTGC::lock_heap(NULL);
   narrowOop res = *addr;
   oopDesc* result = CompressedOops::decode(res);
-  if (RTGC::logLevel() > 3) {
-    JavaThread* __the_thread__ = JavaThread::current();
-    printf("load (%p) => (%p:%s) th=%p\n",
+  rtgc_log(LOG_BARRIER_C1(1), "load (%p) => (%p:%s) th=%p\n",
       addr, result, 
-      result ? result->klass()->name()->bytes() : NULL, __the_thread__);
-  }
+      result ? result->klass()->name()->bytes() : NULL, JavaThread::current());
   RTGC::unlock_heap(true);
   return result;
 }
@@ -120,26 +122,26 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
      -> LIR_Assembler::move_op()
         -> LIR_Assembler::mem2reg()
 */
-void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base) {
-  // if (base == NULL) {
-  //   ResourceMark rm(current);
-  //   printf("store null %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
-  //   //JavaThread* __the_thread__ = JavaThread::current();
-  //   THROW(vmSymbols::java_lang_NullPointerException());
-  // }
-  if (false && RTGC::logLevel() > 0 && (rtgc_log_trigger ++) % 1000 == 0) {
-    JavaThread* __the_thread__ = JavaThread::current();
-    printf("store %d] %p(%p) = %p th=%p\n", rtgc_log_trigger, base, addr, new_value, __the_thread__);
-  }
+void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base, oopDesc* old_value) {
+  assert((address)addr <= (address)base + oopDesc::klass_offset_in_bytes(), "klass");
+  // if (new_value == old_value) return;
+  rtgc_log(LOG_BARRIER_C1(2), "store %d] %p(%p) = %p th=%p\n", 
+    rtgc_log_trigger, base, addr, new_value, JavaThread::current());
   RtgcBarrier::oop_store(addr, new_value, base);
 }
 
-void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value) {
+void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value, oopDesc* old_value) {
+  //assert(addr == base, "klass");
+  // if (new_value == old_value) return;
   printf("store __(%p) = %p\n", addr, new_value);
   RtgcBarrier::oop_store_not_in_heap(addr, new_value);
 }
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
+  LIR_Opr offset = access.offset().opr();
+  bool setKlass = offset->is_constant() //|| offset->is_address())
+     ? offset->as_jint() >= 0 && offset->as_jint() <= oopDesc::klass_offset_in_bytes() : false;
+  if (setKlass) rtgc_log(0, "setKlass\n");
   if (!needBarrier_onResolvedAddress(access)) {
     BarrierSetC1::store_at_resolved(access, value);
     return;
@@ -150,6 +152,8 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   bool in_heap = decorators & IN_HEAP;
   bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+  bool implicit_null_check = false && access.access_emit_info() != NULL
+        && access.access_emit_info()->deoptimize_on_exception();
 
   assert(!mask_boolean, "oop can not cast to boolean");
 
@@ -160,13 +164,18 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     gen->lir()->membar_release();
   }
 
+  LIR_Opr oldValue = LIR_OprFact::illegalOpr;
   BasicTypeList signature;
-  //signature.append(LP64_ONLY(T_LONG) NOT_LP64(T_INT));    // thread
   signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
   if (in_heap) {
     signature.append(T_OBJECT); // object
-    // signature.append(T_INT); // flags
+  }
+  if (implicit_null_check) {
+    signature.append(T_OBJECT); // object
+    oldValue = gen->new_pointer_register();
+    BarrierSetC1::load_at_resolved(access, oldValue);
+    printf("implicit_null_check on store\n");
   }
   LIR_OprList* args = new LIR_OprList();
   //args->append(gen->getThreadPointer());
@@ -174,13 +183,19 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   args->append(value);
   if (in_heap) {
     args->append(base.result());
-    // args->append(flags);
   }
-  address fn = RtgcBarrier::getStoreFunction(in_heap);
-  if (in_heap)
+  if (implicit_null_check) {
+    args->append(oldValue);
+  }
+
+  address fn;
+  if (!setKlass) {
+    fn = RtgcBarrier::getStoreFunction(in_heap);
+  } else if (in_heap) {
     fn = reinterpret_cast<address>(__rtgc_store);
-  else 
+  } else { 
     fn = reinterpret_cast<address>(__rtgc_store_nih);
+  }
 
   gen->call_runtime(&signature, args,
               fn,
@@ -239,33 +254,14 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
 bool __rtgc_cmpxchg(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg(addr, cmp_value, new_value, base);
-  rtgc_log(0, cmp_value != NULL, "cmpxchg %p.%p = %p->%p %d\n", 
+  if (cmp_value != NULL) rtgc_log(0, "cmpxchg %p.%p = %p->%p %d\n", 
     base, addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
-  if (false) {
-    narrowOop cmp_v = CompressedOops::encode(cmp_value);
-    narrowOop new_v = CompressedOops::encode(new_value);
-    narrowOop res;
-    res = Atomic::cmpxchg(addr, cmp_v, new_v);
-    oopDesc* result = CompressedOops::decode(res);
-    JavaThread* __the_thread__ = JavaThread::current();
-    if (++rtgc_log_trigger > RTGC::opt1()) {
-      printf("cmpxchg %d) %p(%p) = %p(%p)/%p th=%p \n", rtgc_log_trigger, base, 
-        addr, cmp_value, result, new_value, __the_thread__);
-    }
-    return result;
-  }
 }
 
 bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value) {
-  // printf("cmpxchg __(%p) = %p/%p\n", addr, cmp_value, new_value);
-  // narrowOop cmp_v = CompressedOops::encode(cmp_value);
-  // narrowOop new_v = CompressedOops::encode(new_value);
-  // narrowOop res;
-  // res = Atomic::cmpxchg(addr, cmp_v, new_v);
-  // oopDesc* old_value = CompressedOops::decode(res);
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg_not_in_heap(addr, cmp_value, new_value);
-  rtgc_log(0, cmp_value != NULL, "cmpxchg @.%p = %p->%p %d\n", 
+  if (cmp_value != NULL) rtgc_log(0, "cmpxchg @.%p = %p->%p %d\n", 
     addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
 }
@@ -296,11 +292,11 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   args->append(new_value.result());
   if (in_heap) args->append(base.result());
 
-  address fn = RtgcBarrier::getCmpXchgFunction(in_heap);
-  if (in_heap)
-    fn = reinterpret_cast<address>(__rtgc_cmpxchg);
-  else 
-    fn = reinterpret_cast<address>(__rtgc_cmpxchg_nih);
+  address fn = RtgcBarrier::getCmpSetFunction(in_heap);
+  // if (in_heap)
+  //   fn = reinterpret_cast<address>(__rtgc_cmpxchg);
+  // else 
+  //   fn = reinterpret_cast<address>(__rtgc_cmpxchg_nih);
 
   LIR_Opr res = gen->call_runtime(&signature, args,
               fn,

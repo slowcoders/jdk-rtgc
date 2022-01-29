@@ -22,6 +22,9 @@ class RtgcBarrier : public AllStatic {
   static void (*rt_arraycopy_disjoint )(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
   static void (*rt_arraycopy_conjoint )(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
 
+  static bool rt_cmpset(volatile narrowOop* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
+  static bool rt_cmpset_not_in_heap(volatile narrowOop* p, oopDesc* cmp_value, oopDesc* new_value);
+
 public:
   static void init_barrier_runtime();
 
@@ -31,7 +34,7 @@ public:
 
   static address getStoreFunction(bool in_heap);
   static address getXchgFunction(bool in_heap);
-  static address getCmpXchgFunction(bool in_heap);
+  static address getCmpSetFunction(bool in_heap);
   static address getLoadFunction(bool in_heap);
   static address getArrayCopyFunction(DecoratorSet decorators);
 

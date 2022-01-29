@@ -17,17 +17,26 @@ static void* _base = 0;
 static int _shift = 0;
 static const int MAX_OBJ_SIZE = 256*1024*1024;
 
+static const int LOG_BARRIER(int function) {
+  return RTGC::LOG_OPTION(1, function);
+}
+
+static void check_field_addr(void* base, volatile void* addr) {
+  assert(addr > (address)base + oopDesc::klass_offset_in_bytes(), "invalid field addr");
+  assert(addr < (address)base + MAX_OBJ_SIZE, "invalid field addr");
+}
+
 int rtgc_getOopShift() {
 #ifdef _LP64
   if (UseCompressedOops) {
     if (_base != CompressedOops::base()) {
       _base = CompressedOops::base();
-      rtgc_log(1, true, "## narrowOop base=%p\n", _base);
+      rtgc_log(LOG_BARRIER(1), "## narrowOop base=%p\n", _base);
     }
     if (_shift != CompressedOops::shift()) {
       _shift = CompressedOops::shift();
       if (_shift != 0 && _shift != 3) {
-        rtgc_log(1, true, "## narrowOop shift=%d\n", _shift);
+        rtgc_log(LOG_BARRIER(1), "## narrowOop shift=%d\n", _shift);
       }
     }
     //assert(0 == CompressedOops::base(), "invalid narrowOop base");
@@ -60,9 +69,8 @@ static void rtgc_set_field(oop* addr, oopDesc* value) {
 
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
-  assert(base < (void*)addr, "invalid address");
-  assert((address)base + MAX_OBJ_SIZE > (void*)addr, "invalid address");
-  rtgc_log(5, LOG_VERBOSE, "store %p(%p) = %p\n", base, addr, new_value);
+  check_field_addr(base, addr);
+  rtgc_log(LOG_BARRIER(2), "store %p(%p) = %p\n", base, addr, new_value);
   bool locked = RTGC::lock_heap(base);
   oopDesc* old = CompressedOops::decode(*addr);
   rtgc_set_field(addr, new_value);
@@ -71,7 +79,7 @@ void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
 
 template<class T, bool inHeap, int shift>
 void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
-  rtgc_log(5, LOG_VERBOSE, "store_ (%p) = %p\n", addr, new_value);
+  rtgc_log(LOG_BARRIER(2), "store_ (%p) = %p\n", addr, new_value);
   bool locked = RTGC::lock_heap(NULL);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
@@ -96,9 +104,8 @@ address RtgcBarrier::getStoreFunction(bool in_heap) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
-  rtgc_log(5, LOG_VERBOSE, "xchg %p(%p) = %p\n", base, addr, new_value);
-  assert(base < (void*)addr, "invalid address");
-  assert((address)base + MAX_OBJ_SIZE > (void*)addr, "invalid address");
+  rtgc_log(LOG_BARRIER(3), "xchg %p(%p) = %p\n", base, addr, new_value);
+  check_field_addr(base, addr);
   bool locked = RTGC::lock_heap(base);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
@@ -108,7 +115,7 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
-  rtgc_log(5, LOG_VERBOSE, "xchg__ (%p) = %p\n", addr, new_value);
+  rtgc_log(LOG_BARRIER(3), "xchg__ (%p) = %p\n", addr, new_value);
   bool locked = RTGC::lock_heap(NULL);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
@@ -134,22 +141,21 @@ address RtgcBarrier::getXchgFunction(bool in_heap) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
-  assert(base < (void*)addr, "invalid address");
-  assert((address)base + MAX_OBJ_SIZE > (void*)addr, "invalid address");
+  check_field_addr(base, addr);
   bool locked = RTGC::lock_heap(base);
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
     rtgc_set_volatile_field(addr, new_value);
   }
   // RTGC::debug->logLevel = 1;
-  rtgc_log(5, cmp_value != NULL, "cmpxchg %p(%p) = %p[%p]->%p\n", base, addr, cmp_value, (void*)old, new_value);
+  rtgc_log(LOG_BARRIER(8), "cmpxchg %p(%p) = %p[%p]->%p\n", base, addr, cmp_value, (void*)old, new_value);
   RTGC::unlock_heap(locked);
   return old;
 }
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value) {
-  rtgc_log(5, true, "cmpxchg__ (%p) = %p->%p\n", addr, cmp_value, new_value);
+  rtgc_log(LOG_BARRIER(8), "cmpxchg__ (%p) = %p->%p\n", addr, cmp_value, new_value);
   bool locked = RTGC::lock_heap(NULL);
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
@@ -169,16 +175,22 @@ oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_v
   return rtgc_cmpxchg_not_in_heap<oop, false, 0>(addr, cmp_value, new_value);
 }
 
-address RtgcBarrier::getCmpXchgFunction(bool in_heap) {
-  return in_heap ? reinterpret_cast<address>(rt_cmpxchg)
-                 : reinterpret_cast<address>(rt_cmpxchg_not_in_heap);
+bool RtgcBarrier::rt_cmpset(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  return rt_cmpxchg(addr, cmp_value, new_value, base) == cmp_value;
+}
+bool RtgcBarrier::rt_cmpset_not_in_heap(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value) {
+  return rt_cmpxchg_not_in_heap(addr, cmp_value, new_value) == cmp_value;
+}
+
+address RtgcBarrier::getCmpSetFunction(bool in_heap) {
+  return in_heap ? reinterpret_cast<address>(rt_cmpset)
+                 : reinterpret_cast<address>(rt_cmpset_not_in_heap);
 }
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
-  assert(base < (void*)addr, "invalid address");
-  assert((address)base + MAX_OBJ_SIZE > (void*)addr, "invalid address");
-  rtgc_log(5, LOG_VERBOSE, "load %p(%p)\n", base, addr);
+  check_field_addr(base, addr);
+  rtgc_log(LOG_BARRIER(4), "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap(base);
   oop value = RawAccess<>::oop_load(addr);
   // rtgc_set_volatile_field(addr, new_value);
@@ -188,7 +200,7 @@ oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load_not_in_heap(volatile T* addr) {
-  rtgc_log(5, LOG_VERBOSE, "load__ (%p)\n", addr);
+  rtgc_log(LOG_BARRIER(4), "load__ (%p)\n", addr);
   // bool locked = RTGC::lock_heap(base);
   oop value = RawAccess<>::oop_load(addr);
   // rtgc_set_volatile_field(addr, new_value);
@@ -214,7 +226,7 @@ address RtgcBarrier::getLoadFunction(bool in_heap) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  rtgc_log(5, LOG_VERBOSE, "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  rtgc_log(LOG_BARRIER(5), "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
@@ -336,7 +348,7 @@ void RtgcBarrier::init_barrier_runtime() {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  rtgc_log(5, LOG_VERBOSE, "arraycopy_conjoint (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  rtgc_log(LOG_BARRIER(5), "arraycopy_conjoint (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   bool locked = RTGC::lock_heap(dst_array);                          
   for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 

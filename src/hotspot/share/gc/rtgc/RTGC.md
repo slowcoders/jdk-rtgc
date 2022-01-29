@@ -1,61 +1,47 @@
-1. Prepare external libraries
-
-jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
-   git clone https://github.com/openjdk/jtreg.git
-   git checkout -b jtreg-6.1+1
+## 1. Prepare external libraries
+-  jtreg 
+```sh
+   git clone https://github.com/openjdk/jtreg.git -b jtreg-6.1+1
    bash build.sh --jdk /usr/lib/jvm/adoptopenjdk-14-hotspot-amd64
+```
 
--  jtreg https://github.com/openjdk/jtreg/tree/jtreg-6.1+1
-   git clone https://github.com/openjdk/jtreg.git
-   git checkout -b jtreg-6.1+1
-   bash build.sh --jdk /usr/lib/jvm/adoptopenjdk-14-hotspot-amd64
--  google test
+-  google test (소스만 필요)
+```sh
    git clone https://github.com/google/googletest.git -b release-1.8.1
+```
 
-2. Run configure
+- VS Code C++ in Macosx
+   https://code.visualstudio.com/docs/cpp/config-clang-mac
+
+## 2. Run configure
 ```
 bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
+  --with-toolchain-type=clang \
   --with-gtest=./googletest
 ```
-// --with-toolchain-type=clang \
 
-3. Make Images
+## 3. Make Images
     `make images CONF=linux debug`
     `make images CONF=macosx debug`
 
-4. precompiled file 삭제
-   ` rm -rf ./build/macosx-x86_64-client-fastdebug/hotspot/variant-client/libjvm/objs/precompiled `
-
-5. Run basic tests
+## 4. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
-   - logTrigger
-   `new java.util.concurrent.atomic.AtomicLong().compareAndExchange(
-      0x876543DB876543DBL, 0x123456DB123456DBL);` 
 
-   - narrowOop shift test (0,1,2,3,4)
-   make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
-
-   - implicit null check exception.
-   make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
-
-        bug 8181143 driver
-        bug 8143628 othervm testng -> JdkInternalMiscUnsafeAccessTestxxx
-            test/hotspot/jtreg/compiler/unsafe/
-make test CONF="macosx" TEST=" \
-   compiler/unsafe/SunMiscUnsafeAccessTestObject.java \
-   compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject.java "
-
-        bug 8141141 + bug 8141278 driver -> 
-make test CONF="macosx" TEST="gc/g1/plab/TestPLABPromotion.java"
-make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
-
+## 5. Test tips
 - test codedump 파일 자동삭제 방지<br>
   RunTests.gmk 파일을 아래와 같이 수정. <br>
+```  
    -> JTREG_RETAIN ?= fail,error,hs_err_pid*
+```
+
+- precompiled file 삭제
+```sh 
+   rm -rf ./build/macosx-x86_64-client-fastdebug/hotspot/variant-client/libjvm/objs/precompiled 
+```
 
 - coredump file 찾기.
   find build -name "hs_err_pid*"
@@ -64,14 +50,40 @@ make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
   find build -name "hs_err_pid*" | xargs rm 
 
 
-make test CONF="macosx" TEST="jtreg:test/hotspot:hotspot_gc:serial"
-make test CONF="macosx" \
-  TEST="jtreg:test/hotspot:hotspot_gc compiler/gcbarriers/UnsafeIntrinsicsTest.java"
+- logTrigger
+```
+   new java.util.concurrent.atomic.AtomicLong().compareAndExchange(
+      0x876543DB876543DBL, 0x123456DB00000000L + (category << 24) + functions));` 
+```
 
-// implicit null check exception.
-make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
-make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
+- narrowOop shift test (0,1,2,3,4)
+```
+   make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
+```
+   
+## 5. Tests   
+- implicit null check exception.
+```
+   make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+```
 
+- unsafeAccess
+```
+   make test CONF="macosx" TEST=" \
+      compiler/unsafe/SunMiscUnsafeAccessTestObject.java \
+      compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject.java "
+```
+
+- Huge object (size > 256K)
+```
+   make test CONF="macosx" TEST="gc/g1/plab/TestPLABPromotion.java"
+   make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
+```
+
+- Single stack check
+```
+   make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
+```
 
 6. Test file build
    javac test/rtgc/Main.java

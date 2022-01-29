@@ -6,11 +6,16 @@
 
 using namespace RTGC;
 
-static int g_mv_lock = 0;
-static bool LOG_REF_CHAIN = false;
+static const int LOG_REF_CHAIN(int function) {
+  return LOG_OPTION(1, function);
+}
 
-DebugOption debugOption;
-volatile DebugOption* RTGC::debug = &debugOption;
+static int g_mv_lock = 0;
+
+namespace RTGC {
+  static int debugOptions[256];
+  volatile int* logOptions = debugOptions;
+}
 
 bool RTGC::isPublished(oopDesc* obj) {
   return true;
@@ -29,16 +34,30 @@ void RTGC::unlock_heap(bool locked) {
 }
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(5, LOG_REF_CHAIN, "add_ref: obj=%p(%s), referrer=%p\n", 
+    rtgc_log(LOG_REF_CHAIN(1), "add_ref: obj=%p(%s), referrer=%p\n", 
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(5, LOG_REF_CHAIN, "remove_ref: obj=%p(%s), referrer=%p\n",
+    rtgc_log(LOG_REF_CHAIN(1), "remove_ref: obj=%p(%s), referrer=%p\n",
       obj, obj->klass()->name()->bytes(), referrer); 
 }
 
+const char* RTGC::baseFileName(const char* filePath) {
+  const char* name = strrchr(filePath, '/');
+  return name ? name + 1: filePath;
+}
 
+void RTGC::enableLog(int category, int functions) {
+  logOptions[category] = functions;
+}
+
+bool RTGC::logEnabled(int logOption) {
+  if (logOption == 0) return true;
+  int category = LOG_CATEGORY(logOption);
+  int function = LOG_FUNCTION(logOption);
+  return logOptions[category] & function;
+}
 
 oop rtgc_break(const char* file, int line, const char* function) {
   printf("Error %s:%d %s", file, line, function);

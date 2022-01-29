@@ -35,7 +35,7 @@ public:
 
   static address getStoreFunction(bool in_heap);
   static address getXchgFunction(bool in_heap);
-  static address getCmpXchgFunction(bool in_heap);
+  static address getCmpSetFunction(bool in_heap);
   static address getLoadFunction(bool in_heap);
   static address getArrayCopyFunction(DecoratorSet decorators);
 
