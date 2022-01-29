@@ -22,7 +22,8 @@ static const int LOG_BARRIER(int function) {
 }
 
 static void check_field_addr(void* base, volatile void* addr) {
-  assert(addr > (address)base + oopDesc::klass_offset_in_bytes(), "invalid field addr");
+  assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
+      , "invalid field addr");
   assert(addr < (address)base + MAX_OBJ_SIZE, "invalid field addr");
 }
 

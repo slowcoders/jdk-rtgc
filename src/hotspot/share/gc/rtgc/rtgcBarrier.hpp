@@ -28,8 +28,9 @@ class RtgcBarrier : public AllStatic {
 public:
   static void init_barrier_runtime();
 
-  static inline bool needBarrier(DecoratorSet decorators) {
-    return ((AS_RAW | AS_NO_KEEPALIVE) & decorators) == 0;
+  static inline bool needBarrier(DecoratorSet decorators, ptrdiff_t offset = (ptrdiff_t)-1) {
+    return ((AS_RAW | AS_NO_KEEPALIVE) & decorators) == 0
+      && offset > oopDesc::klass_offset_in_bytes();
   }
 
   static address getStoreFunction(bool in_heap);
