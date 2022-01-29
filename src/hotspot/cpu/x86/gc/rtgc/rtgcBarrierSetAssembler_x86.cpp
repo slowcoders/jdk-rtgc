@@ -74,18 +74,23 @@ RtgcBarrierSetAssembler::RtgcBarrierSetAssembler() {
   RtgcBarrier::init_barrier_runtime();
 }
 
-static bool needBarrier(BasicType type, DecoratorSet decorators, Register dst) {
+static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst) {
   if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) return false;
+  bool is_array = dst.index() != noreg;
+  return is_array || dst.disp() > oopDesc::klass_offset_in_bytes();
 }
 
 void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
   BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
+  if (__needBarrier(type, decorators, src)) {
+    /// ...
+  }
 }
 
 void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
-  if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) {
+  if (is_reference_type(type)) {
     BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
   }
   else {
@@ -95,7 +100,7 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
-  if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) {
+  if (!__needBarrier(type, decorators, dst)) {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
     return;
   }
@@ -111,6 +116,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
 
   assert_different_registers(c_rarg0, val);
   if (in_heap) {
+    assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
     assert_different_registers(c_rarg2, val);
     if (dst.index() == c_rarg2) {
       __ leaq(c_rarg0, dst);

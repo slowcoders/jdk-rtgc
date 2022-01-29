@@ -303,9 +303,8 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   verify_oop(receiver);
   // explicit NULL check not needed since load from [klass_offset] causes a trap
   // check against inline cache
-  if (!RTGC_EXPLICT_NULL_CHCECK_ALWAYS) {
-    assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
-  }
+  assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
+
   int start_offset = offset();
   Register tmp_load_klass = LP64_ONLY(rscratch2) NOT_LP64(noreg);
 

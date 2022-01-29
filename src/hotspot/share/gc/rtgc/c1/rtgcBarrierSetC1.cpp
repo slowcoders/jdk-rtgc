@@ -23,6 +23,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+#include "asm/assembler.hpp"
 
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
@@ -123,10 +124,10 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
         -> LIR_Assembler::mem2reg()
 */
 void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base, oopDesc* old_value) {
+  rtgc_log(/*LOG_BARRIER_C1(2)*/0, "store %d] %p(%p) = %p th=%p\n", 
+    rtgc_log_trigger, base, addr, new_value, (address)base + oopDesc::klass_offset_in_bytes());
   assert((address)addr <= (address)base + oopDesc::klass_offset_in_bytes(), "klass");
   // if (new_value == old_value) return;
-  rtgc_log(LOG_BARRIER_C1(2), "store %d] %p(%p) = %p th=%p\n", 
-    rtgc_log_trigger, base, addr, new_value, JavaThread::current());
   RtgcBarrier::oop_store(addr, new_value, base);
 }
 
@@ -138,24 +139,34 @@ void __rtgc_store_nih(narrowOop* addr, oopDesc* new_value, oopDesc* old_value) {
 }
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
+  DecoratorSet decorators = access.decorators();
+  bool is_array = (decorators & IS_ARRAY) != 0;
+  bool in_heap = decorators & IN_HEAP;
+
   LIR_Opr offset = access.offset().opr();
-  bool setKlass = offset->is_constant() //|| offset->is_address())
-     ? offset->as_jint() >= 0 && offset->as_jint() <= oopDesc::klass_offset_in_bytes() : false;
-  if (setKlass) rtgc_log(0, "setKlass\n");
-  if (!needBarrier_onResolvedAddress(access)) {
+  bool setKlass = in_heap && !is_array && 
+              offset->is_constant() &&
+              offset->as_jint() >= 0 &&
+              offset->as_jint() <= oopDesc::klass_offset_in_bytes();
+
+  if (!needBarrier_onResolvedAddress(access) || setKlass) {
     BarrierSetC1::store_at_resolved(access, value);
     return;
   }
 
   LIRGenerator* gen = access.gen();
-  DecoratorSet decorators = access.decorators();
-  bool in_heap = decorators & IN_HEAP;
-  bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-  bool implicit_null_check = false && access.access_emit_info() != NULL
-        && access.access_emit_info()->deoptimize_on_exception();
+  bool implicit_null_check = false && in_heap 
+        && access.access_emit_info() != NULL
+        && offset->is_constant()
+        && !MacroAssembler::needs_explicit_null_check(offset->as_jint());
 
-  assert(!mask_boolean, "oop can not cast to boolean");
+  LIR_Opr oldValue = LIR_OprFact::illegalOpr;
+  if (implicit_null_check) {
+    oldValue = gen->new_pointer_register();
+    BarrierSetC1::load_at_resolved(access, oldValue);
+    printf("implicit_null_check on store\n");
+  }
 
   LIRItem base = access.base().item();
   LIR_Opr addr = get_resolved_addr(access, c_rarg0);
@@ -164,7 +175,6 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     gen->lir()->membar_release();
   }
 
-  LIR_Opr oldValue = LIR_OprFact::illegalOpr;
   BasicTypeList signature;
   signature.append(T_ADDRESS); // addr
   signature.append(T_OBJECT); // new_value
@@ -173,9 +183,6 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
   if (implicit_null_check) {
     signature.append(T_OBJECT); // object
-    oldValue = gen->new_pointer_register();
-    BarrierSetC1::load_at_resolved(access, oldValue);
-    printf("implicit_null_check on store\n");
   }
   LIR_OprList* args = new LIR_OprList();
   //args->append(gen->getThreadPointer());
@@ -189,7 +196,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   address fn;
-  if (!setKlass) {
+  if (!implicit_null_check) {
     fn = RtgcBarrier::getStoreFunction(in_heap);
   } else if (in_heap) {
     fn = reinterpret_cast<address>(__rtgc_store);
