@@ -236,7 +236,7 @@ bool MacroAssembler::uses_implicit_null_check(void* address) {
   return addr < page_size;
 }
 
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
   // The offset -1 is used (hardcoded) in a number of places in C1 and MacroAssembler
   // to indicate an unknown offset. For example, TemplateTable::pop_and_check_object(Register r)

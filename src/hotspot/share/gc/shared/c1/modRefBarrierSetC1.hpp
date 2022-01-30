@@ -26,7 +26,7 @@
 #define SHARE_GC_SHARED_C1_MODREFBARRIERSETC1_HPP
 
 #include "gc/shared/c1/barrierSetC1.hpp"
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 #if USE_RTGC_BARRIERSET_C1
   #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
   typedef RtgcBarrierSetC1 _RawBarrierSetC1;

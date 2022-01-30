@@ -1,5 +1,5 @@
-#ifndef SHARE_GC_RTGCCONFIG_HPP
-#define SHARE_GC_RTGCCONFIG_HPP
+#ifndef SHARE_GC_RTGC_RTGCCONFIG_HPP
+#define SHARE_GC_RTGC_RTGCCONFIG_HPP
 
 #define USE_RTGC                      true
 
@@ -8,4 +8,4 @@
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
 
 #define RTGC_EXPLICT_NULL_CHCECK_ALWAYS true
-#endif
+#endif // SHARE_GC_RTGC_

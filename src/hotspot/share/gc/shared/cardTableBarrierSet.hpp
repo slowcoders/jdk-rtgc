@@ -28,7 +28,7 @@
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/modRefBarrierSet.hpp"
 #include "utilities/align.hpp"
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 #if USE_RTGC_BARRIERSET
   #include "gc/rtgc/rtgcBarrierSet.hpp"
   typedef RtgcBarrierSet   _RefBarrierSet;

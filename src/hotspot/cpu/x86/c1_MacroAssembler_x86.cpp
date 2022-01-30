@@ -298,7 +298,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 }
 
 
-#include "gc/shared/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   verify_oop(receiver);
   // explicit NULL check not needed since load from [klass_offset] causes a trap
