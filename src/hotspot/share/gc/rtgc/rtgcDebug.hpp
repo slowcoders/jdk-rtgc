@@ -9,13 +9,13 @@
 namespace RTGC {
   static const int LOG_CATEGORY_BASE = 0x1000000;
   static const int LOG_FUNCTION_MASK = (LOG_CATEGORY_BASE-1);
-  static const int LOG_OPTION(int category, int function) {
+  inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);
   }
-  static const int LOG_CATEGORY(int option) {
+  inline int LOG_CATEGORY(int option) {
     return option / LOG_CATEGORY_BASE;
   }
-  static const int LOG_FUNCTION(int option) {
+  inline int LOG_FUNCTION(int option) {
     return option & (LOG_CATEGORY_BASE - 1);
   }
 
@@ -23,6 +23,14 @@ namespace RTGC {
   void enableLog(int category, int functions);
 
   const char* baseFileName(const char* filePath);
+
+  struct DebugOptions {
+    int opt1;
+    int opt2;
+    int opt3;
+  };
+
+  extern volatile DebugOptions* debugOptions;
 };
 
 #define rtgc_log(logOption, ...) \

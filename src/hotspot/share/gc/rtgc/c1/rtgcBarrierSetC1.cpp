@@ -87,7 +87,7 @@ LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
 }
 
 oopDesc* __rtgc_load(narrowOop* addr) {
-  RTGC::lock_heap(NULL);
+  RTGC::lock_heap();
   narrowOop res = *addr;
   oopDesc* result = CompressedOops::decode(res);
   rtgc_log(LOG_BARRIER_C1(1), "load (%p) => (%p:%s) th=%p\n",

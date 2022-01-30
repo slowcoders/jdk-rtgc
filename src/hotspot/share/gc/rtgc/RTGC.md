@@ -14,12 +14,20 @@
    https://code.visualstudio.com/docs/cpp/config-clang-mac
 
 ## 2. Run configure
+* for macosx
 ```
 bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
   --with-toolchain-type=clang \
+  --with-gtest=./googletest
+```
+* for linux container
+```
+bash configure --with-jvm-variants=client \
+  --with-native-debug-symbols=external --with-debug-level=fastdebug \
+  --with-jtreg=./jtreg-6.1 \
   --with-gtest=./googletest
 ```
 
@@ -238,3 +246,35 @@ https://code.visualstudio.com/docs/cpp/config-clang-mac
 
 
 
+* MemAllocator
+oop MemAllocator::allocate();
+
+* displaced mark_helper
+markWord markWord::displaced_mark_helper()
+   ObjectMonitor, BasicLock 은 별도로 markWord 보관
+   must_be_preserved() GC 수행 도중 보관 여부.
+   copy_set_hash() 를 사용하는 곳이 3곳 있음. (해당 문제 해결해야 RTGC 사용 가능)
+
+lock_bits: 2
+biased_lock_bits: 1
+age_bits: 4
+unused_gap_shift : LP64_ONLY(1) NOT_LP64(0);
+epoch_bits : 2
+hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
+
+  static const int age_bits                       = 4;
+  static const int lock_bits                      = 2;
+  static const int biased_lock_bits               = 1;
+  static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - biased_lock_bits;
+  static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
+  static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0);
+  static const int epoch_bits                     = 2;
+
+  // The biased locking code currently requires that the age bits be
+  // contiguous to the lock bits.
+  static const int lock_shift                     = 0;
+  static const int biased_lock_shift              = lock_bits;
+  static const int age_shift                      = lock_bits + biased_lock_bits;
+  static const int unused_gap_shift               = age_shift + age_bits;
+  static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
+  static const int epoch_shift                    = hash_shift;

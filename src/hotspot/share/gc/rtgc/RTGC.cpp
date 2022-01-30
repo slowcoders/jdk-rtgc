@@ -1,30 +1,45 @@
 #include "precompiled.hpp"
 
-
+#include "oops/oop.inline.hpp"
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/impl/GCRuntime.hpp"
 
 using namespace RTGC;
 
-static const int LOG_REF_CHAIN(int function) {
-  return LOG_OPTION(1, function);
-}
+// static const int LOG_REF_CHAIN(int function) {
+//   return LOG_OPTION(1, function);
+// }
 
 static int g_mv_lock = 0;
 
 namespace RTGC {
-  static int debugOptions[256];
-  volatile int* logOptions = debugOptions;
+  static int _logOptions[256];
+  volatile int* logOptions = _logOptions;
+
+  static DebugOptions _debugOptions;
+  volatile DebugOptions* debugOptions = &_debugOptions;
 }
 
-bool RTGC::isPublished(oopDesc* obj) {
+bool RTGC::isPublished(GCObject* obj) {
   return true;
 }
 
-bool RTGC::lock_heap(oopDesc* obj) {
-  if (!isPublished(obj)) return false;
+void RTGC::lock_heap() {
   while (Atomic::cmpxchg(&g_mv_lock, 0, 1) != 0) { /* do spin. */ }
+}
+
+bool RTGC::lock_if_published(GCObject* obj) {
+  if (!isPublished(obj)) return false;
+  lock_heap();
   return true;
+}
+
+void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
+  if (doPublish && obj != NULL && !isPublished(obj)) {
+    // obj->publishInstance();
+  }
+  lock_heap();
 }
 
 void RTGC::unlock_heap(bool locked) {
@@ -34,14 +49,23 @@ void RTGC::unlock_heap(bool locked) {
 }
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(LOG_REF_CHAIN(1), "add_ref: obj=%p(%s), referrer=%p\n", 
-      obj, obj->klass()->name()->bytes(), referrer); 
+  if (debugOptions->opt1) {
+    rtgc_log(0, "add_referrer (%p)->%p\n", obj, referrer);
+    GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
+  }
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-    rtgc_log(LOG_REF_CHAIN(1), "remove_ref: obj=%p(%s), referrer=%p\n",
-      obj, obj->klass()->name()->bytes(), referrer); 
+  if (debugOptions->opt1) {
+    rtgc_log(0, "remove_referrer (%p)->%p\n", obj, referrer);
+    GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));
+  }
 }
+
+void RTGC::initialize() {
+  RTGC::_rtgc.initialize();
+}
+
 
 const char* RTGC::baseFileName(const char* filePath) {
   const char* name = strrchr(filePath, '/');

@@ -1,18 +1,31 @@
 #ifndef SHARE_GC_RTGC_RTGC_HPP
 #define SHARE_GC_RTGC_RTGC_HPP
 
-#include "oops/accessDecorators.hpp"
-#include "oops/compressedOops.hpp"
-#include "oops/oop.inline.hpp"
-#include "runtime/atomic.hpp"
-#include <string.h>
-
 
 namespace RTGC {
+  class GCObject;
 
-  bool isPublished(oopDesc* obj);
+  inline static GCObject* to_obj(oopDesc* obj) {
+    return reinterpret_cast<GCObject*>(obj);
+  }
 
-  bool lock_heap(oopDesc* obj);
+  void initialize();
+
+  bool isPublished(GCObject* obj);
+
+  void publish_and_lock_heap(GCObject* obj, bool doPublish);
+
+  inline void publish_and_lock_heap(oopDesc* obj, oopDesc* base) {
+    publish_and_lock_heap(to_obj(obj), isPublished(to_obj(base)));
+  }
+
+  inline void publish_and_lock_heap(oopDesc* obj) {
+    publish_and_lock_heap(to_obj(obj), true);
+  }
+
+  bool lock_if_published(GCObject* obj);
+
+  void lock_heap();
 
   void unlock_heap(bool locked);
 
