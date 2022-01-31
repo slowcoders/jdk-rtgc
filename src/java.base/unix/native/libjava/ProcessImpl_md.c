@@ -436,6 +436,11 @@ static int copystrings(char *buf, int offset, const char * const *arg) {
     return offset+count;
 }
 
+// Zee Mac OSX (vfork is deprecated)
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 /**
  * We are unusually paranoid; use of vfork is
  * especially likely to tickle gcc/glibc bugs.
@@ -443,9 +448,6 @@ static int copystrings(char *buf, int offset, const char * const *arg) {
 #ifdef __attribute_noinline__  /* See: sys/cdefs.h */
 __attribute_noinline__
 #endif
-
-// Zee Mac OSX (vfork is deprecated)
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 /* vfork(2) is deprecated on Solaris */
 static pid_t

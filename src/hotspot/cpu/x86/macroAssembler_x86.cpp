@@ -53,6 +53,7 @@
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
 #include "crc32c.h"
+#include "gc/rtgc/rtgcConfig.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -4747,6 +4748,19 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
   } else
 #endif
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
+
+#if USE_RTGC
+    xorptr(tmp, tmp);
+#ifdef _LP64    
+    movq(Address(dst, 8), tmp);
+    movq(Address(dst, 16), tmp);
+#else
+    movl(Address(dst, 8), tmp);
+    movl(Address(dst, 12), tmp);
+    movl(Address(dst, 16), tmp);
+    movl(Address(dst, 20), tmp);
+#endif    
+#endif
 }
 
 void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,

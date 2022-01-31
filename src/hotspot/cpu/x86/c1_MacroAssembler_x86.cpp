@@ -37,6 +37,7 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
   const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
@@ -186,6 +187,18 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     xorptr(t1, t1);
     store_klass_gap(obj, t1);
   }
+#endif
+#if USE_RTGC
+    xorptr(t1, t1);
+#ifdef _LP64    
+    movq(Address(obj, 8), t1);
+    movq(Address(obj, 16), t1);
+#else
+    movl(Address(obj, 8), t1);
+    movl(Address(obj, 12), t1);
+    movl(Address(obj, 16), t1);
+    movl(Address(obj, 20), t1);
+#endif    
 #endif
 }
 
