@@ -396,7 +396,6 @@ public:
     T* allocate() {
         T* ptr;
         if (_free == nullptr) {
-        rtgc_log(0, "no _free\n");
             if (_idxAlloc >= _maxAlloc) {
                 SysMem::commit_memory(_items + indexOffset, (_maxAlloc - indexOffset) * sizeof(T), 4096 * sizeof(T));
                 _maxAlloc += 4096;
@@ -405,7 +404,6 @@ public:
             return ptr;
         }
         else {
-        rtgc_log(0, "_free\n");
             ptr = _free;
             #if GC_DEBUG
             _cntFree --;
@@ -415,7 +413,6 @@ public:
                 memset((char*)ptr + clearOffset, 0, sizeof(T) - clearOffset);
             }
         }
-        rtgc_log(0, "_free ptr\n");
         return ptr;
     }
 

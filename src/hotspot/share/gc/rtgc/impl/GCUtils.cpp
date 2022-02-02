@@ -116,13 +116,14 @@ void* SysMem::reserve_memory(size_t bytes) {
 
 void SysMem::commit_memory(void* addr, size_t offset, size_t bytes) {
 #if _USE_JVM
-    rtgc_log(0, "commit_memory\n");
+    rtgc_log(true, "commit_memory\n");
     return;
 #elif defined(_MSC_VER)
     addr = VirtualAlloc((char*)addr + offset, bytes, MEM_COMMIT, PAGE_READWRITE);
     if (addr != 0) return;
 #elif _USE_MMAP
-    int res = mprotect(addr, bytes, PROT_READ|PROT_WRITE);
+    int res = mprotect((char*)addr + offset, bytes, PROT_READ|PROT_WRITE);
+    rtgc_log(true, "commit_memory mprotect %p\n", addr);
     if (res == 0) return;
 #elif _ULIMIT    
     void* mem = ::realloc(addr, offset + bytes);

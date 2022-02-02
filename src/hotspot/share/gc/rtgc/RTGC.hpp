@@ -33,6 +33,9 @@ namespace RTGC {
 
   void remove_referrer(oopDesc* obj, oopDesc* referrer);
 
+  void add_global_reference(oopDesc* obj);
+
+  void remove_global_reference(oopDesc* obj);
 };
 
 

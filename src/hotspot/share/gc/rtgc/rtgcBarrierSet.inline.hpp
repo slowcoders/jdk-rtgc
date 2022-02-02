@@ -35,6 +35,7 @@ inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_store_in_heap(T* addr, oop value) {
   assert(!RtgcBarrier::needBarrier(decorators), "illegal access decorators");
 
+  precond((decorators & IS_DEST_UNINITIALIZED) == 0);
   Raw::oop_store_in_heap(addr, value);
 }
 
@@ -121,10 +122,12 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw, 
   if (!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
     bs->write_ref_array_pre(dst_raw, length,
                             HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value);
-    if (HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value) {
-      RtgcBarrier::oop_arraycopy_disjoint(src_raw, dst_raw, length, dst_obj);
-    } else {
+    if (!HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value) {
       RtgcBarrier::oop_arraycopy_conjoint(src_raw, dst_raw, length, dst_obj);
+    } else if (HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
+      RtgcBarrier::oop_arraycopy_uninitialized(src_raw, dst_raw, length, dst_obj);
+    } else {
+      RtgcBarrier::oop_arraycopy_disjoint(src_raw, dst_raw, length, dst_obj);
     }
     bs->write_ref_array((HeapWord*)dst_raw, length);
     return true;
@@ -176,6 +179,9 @@ inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_store_not_in_heap(T* addr, oop new_value) {
   if (!RtgcBarrier::needBarrier(decorators)) {
     Raw::oop_store_not_in_heap(addr, new_value);
+  }
+  else if (decorators & IS_DEST_UNINITIALIZED) {
+    RtgcBarrier::oop_store_not_in_heap_uninitialized(addr, new_value);
   }
   else {
     RtgcBarrier::oop_store_not_in_heap(addr, new_value);

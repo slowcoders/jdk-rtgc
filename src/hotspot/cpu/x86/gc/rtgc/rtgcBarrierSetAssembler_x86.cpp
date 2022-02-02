@@ -3,6 +3,7 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 #define __ masm->
 
@@ -143,7 +144,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
     }
   }
 
-  address fn = RtgcBarrier::getStoreFunction(in_heap);
+  address fn = RtgcBarrier::getStoreFunction(decorators);
   __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
   pop_registers(masm, true, false);
 }

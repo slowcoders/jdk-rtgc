@@ -98,8 +98,8 @@ bash configure --with-jvm-variants=client \
 
 7. Test 실행
    // interpreter only
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -cp test/rtgc Main 2 100000 
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -cp test/rtgc Main 2 1 
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -cp test/rtgc Main 2 100000 
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -cp test/rtgc Main 2 1 
    
    // enable c1_LIRGenerator 
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 

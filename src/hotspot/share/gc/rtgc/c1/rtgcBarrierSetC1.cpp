@@ -124,7 +124,7 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
         -> LIR_Assembler::mem2reg()
 */
 void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base, oopDesc* old_value) {
-  rtgc_log(/*LOG_BARRIER_C1(2)*/0, "store %d] %p(%p) = %p th=%p\n", 
+  rtgc_log(LOG_BARRIER_C1(2), "store %d] %p(%p) = %p th=%p\n", 
     rtgc_log_trigger, base, addr, new_value, (address)base + oopDesc::klass_offset_in_bytes());
   assert((address)addr <= (address)base + oopDesc::klass_offset_in_bytes(), "klass");
   // if (new_value == old_value) return;
@@ -150,6 +150,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
               offset->as_jint() <= oopDesc::klass_offset_in_bytes();
 
   if (!needBarrier_onResolvedAddress(access) || setKlass) {
+    assert(!setKlass, "just check");
     BarrierSetC1::store_at_resolved(access, value);
     return;
   }
@@ -197,7 +198,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   address fn;
   if (!implicit_null_check) {
-    fn = RtgcBarrier::getStoreFunction(in_heap);
+    fn = RtgcBarrier::getStoreFunction(decorators);
   } else if (in_heap) {
     fn = reinterpret_cast<address>(__rtgc_store);
   } else { 
@@ -261,14 +262,14 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
 bool __rtgc_cmpxchg(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg(addr, cmp_value, new_value, base);
-  if (cmp_value != NULL) rtgc_log(0, "cmpxchg %p.%p = %p->%p %d\n", 
+  rtgc_log(cmp_value != NULL, "cmpxchg %p.%p = %p->%p %d\n", 
     base, addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
 }
 
 bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value) {
   oopDesc* old_value = RtgcBarrier::oop_cmpxchg_not_in_heap(addr, cmp_value, new_value);
-  if (cmp_value != NULL) rtgc_log(0, "cmpxchg @.%p = %p->%p %d\n", 
+  rtgc_log(cmp_value != NULL, "cmpxchg @.%p = %p->%p %d\n", 
     addr, cmp_value, new_value, old_value == cmp_value);
   return old_value == cmp_value;
 }

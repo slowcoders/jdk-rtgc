@@ -69,16 +69,16 @@ public:
 
 	static void disconnectReferenceLink(GCObject* erased, GCObject* owner);
 
+	static void onAssignRootVariable_internal(GCObject* assigned);
+
+	static void onEraseRootVariable_internal(GCObject* assigned);
+
 private:
 	#if GC_DEBUG
 	static int getCircuitCount();
 	static int getTinyChunkCount();
 	static int getReferrerListCount();
 	#endif
-
-	static void onAssignRootVariable_internal(GCObject* assigned);
-
-	static void onEraseRootVariable_internal(GCObject* assigned);
 
 	static void reclaimGarbage(GCObject* garbage, GCObject* garbageNode);
 

@@ -8,6 +8,7 @@
 class RtgcBarrier : public AllStatic {
   static void (*rt_store)(narrowOop* p, oopDesc* new_value, oopDesc* base);
   static void (*rt_store_not_in_heap)(narrowOop* p, oopDesc* new_value);
+  static void (*rt_store_not_in_heap_uninitialized)(narrowOop* p, oopDesc* new_value);
 
   static oopDesc* (*rt_xchg)(volatile narrowOop* p, oopDesc* new_value, oopDesc* base);
   static oopDesc* (*rt_xchg_not_in_heap)(volatile narrowOop* p, oopDesc* new_value);
@@ -20,6 +21,7 @@ class RtgcBarrier : public AllStatic {
 
   static int  (*rt_arraycopy_checkcast)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
   static void (*rt_arraycopy_disjoint )(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static void (*rt_arraycopy_uninitialized)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
   static void (*rt_arraycopy_conjoint )(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
 
   static bool rt_cmpset(volatile narrowOop* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
@@ -33,7 +35,7 @@ public:
       && offset > oopDesc::klass_offset_in_bytes();
   }
 
-  static address getStoreFunction(bool in_heap);
+  static address getStoreFunction(DecoratorSet decorators);
   static address getXchgFunction(bool in_heap);
   static address getCmpSetFunction(bool in_heap);
   static address getLoadFunction(bool in_heap);
@@ -47,6 +49,11 @@ public:
   static void oop_store_not_in_heap(oop* p, oopDesc* new_value);
   static void oop_store_not_in_heap(narrowOop* p, oopDesc* new_value) {
     rt_store_not_in_heap(p, new_value);
+  }
+
+  static void oop_store_not_in_heap_uninitialized(oop* p, oopDesc* new_value);
+  static void oop_store_not_in_heap_uninitialized(narrowOop* p, oopDesc* new_value) {
+    rt_store_not_in_heap_uninitialized(p, new_value);
   }
 
   static oopDesc* oop_xchg(volatile oop* p, oopDesc* new_value, oopDesc* base);
@@ -91,6 +98,12 @@ public:
   static void oop_arraycopy_disjoint(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);
   static void oop_arraycopy_disjoint(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
     rt_arraycopy_disjoint(src_p, dst_p, length, dst_array);
+  }
+
+  static void oop_arraycopy_uninitialized(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);
+  static void oop_arraycopy_uninitialized(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);
+  static void oop_arraycopy_uninitialized(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array) {
+    rt_arraycopy_uninitialized(src_p, dst_p, length, dst_array);
   }
 
   static void oop_arraycopy_conjoint(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);

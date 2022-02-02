@@ -72,7 +72,7 @@ int GCRuntime::getReferrerListCount() {
 
 void GCRuntime::detectUnsafeObject(GCObject* erased) {
     if (erased->isUnsafe()) {
-        GCRuntime::detectGarbages(erased);
+        // GCRuntime::detectGarbages(erased);
         //earlyDetectedUnsafeObjects.add(erased);
     }
 }

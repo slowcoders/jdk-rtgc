@@ -1,6 +1,8 @@
 #include "precompiled.hpp"
 
 #include "oops/oop.inline.hpp"
+#include "runtime/globals.hpp"
+
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
@@ -50,20 +52,43 @@ void RTGC::unlock_heap(bool locked) {
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
   if (debugOptions->opt1) {
-    rtgc_log(0, "add_referrer (%p)->%p\n", obj, referrer);
+    //rtgc_log(true, "add_referrer (%p)->%p\n", obj, referrer);
     GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
   }
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
   if (debugOptions->opt1) {
-    rtgc_log(0, "remove_referrer (%p)->%p\n", obj, referrer);
+    //rtgc_log(true, "remove_referrer (%p)->%p\n", obj, referrer);
     GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));
+  }
+}
+
+void* last_log = 0;
+void RTGC::add_global_reference(oopDesc* obj) {
+  if (debugOptions->opt1) {
+    // if (obj < (void*)0x7f00d8dFF && obj >=   (void*)0x7f00d8d00) {
+    //   precond(last_log != obj);
+    //   last_log = obj;
+    // } 
+    //rtgc_log(true, "add_global_ref %p\n", obj);
+    precond(obj != NULL);  
+    GCRuntime::onAssignRootVariable_internal(to_obj(obj));
+  }
+}
+
+void RTGC::remove_global_reference(oopDesc* obj) {
+  if (debugOptions->opt1) {
+    //rtgc_log(true, "remove_global_ref %p\n", obj);
+    precond(obj != NULL);  
+    GCRuntime::onEraseRootVariable_internal(to_obj(obj));
   }
 }
 
 void RTGC::initialize() {
   RTGC::_rtgc.initialize();
+  debugOptions->opt1 = UnlockExperimentalVMOptions;
+  logOptions[0] = -1;
 }
 
 
@@ -77,7 +102,6 @@ void RTGC::enableLog(int category, int functions) {
 }
 
 bool RTGC::logEnabled(int logOption) {
-  if (logOption == 0) return true;
   int category = LOG_CATEGORY(logOption);
   int function = LOG_FUNCTION(logOption);
   return logOptions[category] & function;

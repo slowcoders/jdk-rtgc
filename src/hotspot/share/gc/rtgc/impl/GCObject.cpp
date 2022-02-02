@@ -5,10 +5,10 @@ using namespace RTGC;
 
 
 void GCObject::addReferrer(GCObject* referrer) {
-    rtgc_log(0, "addReferrer %p<-%p\n", this, referrer);
+    //rtgc_log(true, "addReferrer %p<-%p hasRef=%d hasMulti=%d\n", 
+    //        this, referrer, hasReferrer(), _hasMultiRef);
     if (!hasReferrer()) {
         precond(!_hasMultiRef);
-        rtgc_log(0, "addReferrer 00 %lu\n", sizeof(GCNode));
         this->_refs = _pointer2offset(referrer, &_refs);
         postcond(referrer == _offset2Object(_refs, &_refs));
         postcond(!_hasMultiRef);
@@ -16,11 +16,8 @@ void GCObject::addReferrer(GCObject* referrer) {
     else {
         ReferrerList* referrers;
         if (!_hasMultiRef) {
-        rtgc_log(0, "addReferrer 1-0\n");
             referrers = _rtgc.gRefListPool.allocate();
-        rtgc_log(0, "addReferrer 1-1\n");
             referrers->init(2);
-        rtgc_log(0, "addReferrer 1-2\n");
             GCObject* front = _offset2Object(_refs, &_refs);
             referrers->at(0) = front;
             referrers->at(1) = referrer;
@@ -28,12 +25,10 @@ void GCObject::addReferrer(GCObject* referrer) {
             _hasMultiRef = true;
         }
         else {
-        rtgc_log(0, "addReferrer 2\n");
             referrers = getReferrerList();
             referrers->push_back(referrer);
         }
     }
-    rtgc_log(0, "addReferrer E\n");
 }
 
 
