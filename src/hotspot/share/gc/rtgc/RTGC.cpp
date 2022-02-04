@@ -24,7 +24,7 @@ namespace RTGC {
 }
 
 bool RTGC::isPublished(GCObject* obj) {
-  return true;
+  return to_obj(obj)->isPublished();
 }
 
 void RTGC::lock_heap() {
@@ -39,7 +39,7 @@ bool RTGC::lock_if_published(GCObject* obj) {
 
 void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
   if (doPublish && obj != NULL && !isPublished(obj)) {
-    // obj->publishInstance();
+    RTGC::scanInstance(obj, GCRuntime::markPublished);
   }
   lock_heap();
 }

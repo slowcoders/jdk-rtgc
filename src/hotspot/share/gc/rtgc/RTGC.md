@@ -178,8 +178,16 @@ Generation
 ### SerialGC 처리 과정.
 ```
 void GenCollectedHeap::collect_generation()
-   -> TenuredGeneration::collect // old gen 
-   or DefNewGenration::collect // young gen
+   -> DefNewGeneration::collect // young gen
+         SerialHeap::young_process_roots
+            GenCollectedHeap::process_roots
+               Threads::oops_do(strong_roots, roots_from_code_p)
+                  Thread::oops_do(f, cf)
+                     JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf)
+                     JavaThread::oops_do_frames(OopClosure* f, CodeBlobClosure* cf)
+                        frame::oops_do()
+
+   or TenuredGeneration::collect // old gen 
       -> GenMarkSweep::invoke_at_safepoint()
          -> GenMarkSweep::mark_sweep_phase1()
             -> GenCollectedHeap::full_process_roots
@@ -221,33 +229,37 @@ void GenCollectedHeap::collect_generation()
    }
 ```   
 
-https://code.visualstudio.com/docs/cpp/config-clang-mac
-{
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "clang++ - Build and debug active file",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${fileDirname}/${fileBasenameNoExtension}",
-      "args": [],
-      "stopAtEntry": true,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "lldb",
-      "preLaunchTask": "clang++ build active file"
-    }
-  ]
-}
 
 
 
 * MemAllocator
-oop MemAllocator::allocate();
+void LIR_Lis::allocate_object(LIR_Opr dst..) 
+   solw_path = new NewInstanceStub(klass_reg, Runtime1::fast_new_instance_id : ..)
+   append(new LIR_OpAllocObj..., slow_path = 
+   void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op, slow_path)
+      void C1_MacroAssembler::allocate_object(..,, slow_path)
+         C1_MacroAssembler::try_allocate(... , slow_path)
+      
+      NewInstanceStub with Runtime1::fast_new_instance_id
+         JVMCIRuntime::new_instance
+            JVMCIRuntime::new_instance_common
+               InstanceKlass::allocate_instance !!!
+
+void TemplateTable::_new()
+   BarrierSetAssembler::tlab_allocate(.., slow_path=InterpreterRuntime::_new) 
+   and jni alloc functions...
+   InterpreterRuntime::_new   
+      klass->allocate_instance !!!
+         Universe::heap()->obj_allocate  
+            ObjAllocator.allocate()
+            = oop MemAllocator::allocate();
+               HeapWord* MemAllocator::allocate_inside_tlab()
+               HeapWord* mem = _thread->tlab().allocate(_word_size);
+               if (mem != NULL) {
+                  return mem;
+               }
+               HeapWord* MemAllocator::allocate_inside_tlab_slow() 
+                  -> Universe::heap()->allocate_new_tlab()
 
 * displaced mark_helper
 markWord markWord::displaced_mark_helper()

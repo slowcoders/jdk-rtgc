@@ -59,7 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
-
+#include "gc/rtgc/rtgcDebug.hpp"
 //
 // DefNewGeneration functions.
 

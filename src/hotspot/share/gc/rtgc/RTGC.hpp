@@ -4,6 +4,9 @@
 
 namespace RTGC {
   class GCObject;
+  typedef bool (*RefTracer)(GCObject* obj);
+  
+  void scanInstance(GCObject* obj, RefTracer trace);
 
   inline static GCObject* to_obj(oopDesc* obj) {
     return reinterpret_cast<GCObject*>(obj);
@@ -36,6 +39,7 @@ namespace RTGC {
   void add_global_reference(oopDesc* obj);
 
   void remove_global_reference(oopDesc* obj);
+
 };
 
 

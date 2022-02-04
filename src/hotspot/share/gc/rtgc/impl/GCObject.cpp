@@ -147,27 +147,6 @@ bool GCObject::visitLinks(LinkVisitor visitor, void* callbackParam) {
 }
 
 
-void GCObject::publishInstance() {
-    if (this->markPublished()) return;
-
-    // TODO Thread 로컬로 변경
-    SimpleVector<LinkIterator> _traceStack;
-    _traceStack.push_back(this);    
-    LinkIterator* it = &_traceStack.back();
-    while (true) {
-        GCObject* link = it->next();
-        if (link == nullptr) {
-            _traceStack.pop_back();
-            if (_traceStack.empty()) break;
-            it = &_traceStack.back();
-        }
-        else if (link->markPublished()) {
-            _traceStack.push_back(link);
-            it = &_traceStack.back();
-        }
-    }    
-}
-
 void GCObject::initIterator(AnchorIterator* iterator) {
     if (!hasReferrer()) {
         iterator->_current = iterator->_end = nullptr;

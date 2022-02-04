@@ -39,6 +39,7 @@
 #include "services/lowMemoryDetector.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 class MemAllocator::Allocation: StackObj {
   friend class MemAllocator;
@@ -270,6 +271,11 @@ HeapWord* MemAllocator::allocate_inside_tlab(Allocation& allocation) const {
 
   // Try allocating from an existing TLAB.
   HeapWord* mem = _thread->tlab().allocate(_word_size);
+  if (mem != NULL) {
+    return mem;
+  }
+
+  mem = RTGC::allocate_tlab(_thread, _word_size);
   if (mem != NULL) {
     return mem;
   }

@@ -3,6 +3,7 @@
 
 namespace RTGC {
 
+
 typedef SimpleVector<GCObject*> NodeList;
 
 class ShortcutPool : public MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> {
@@ -65,6 +66,14 @@ public:
 
 	static void NO_INLINE detectGarbages(GCObject* unsafeObject);
 
+	static bool markPublished(GCObject* obj) {
+		if (!obj->isPublished()) {
+			obj->_isPublished = true;
+			return true;
+		}
+		return false;
+	}
+	
 	static void connectReferenceLink(GCObject* assigned, GCObject* owner);
 
 	static void disconnectReferenceLink(GCObject* erased, GCObject* owner);

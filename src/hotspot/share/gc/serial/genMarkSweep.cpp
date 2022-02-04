@@ -59,6 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
@@ -229,7 +230,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     // Clean JVMCI metadata handles.
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
   }
-
   gc_tracer()->report_object_count_after_gc(&is_alive);
 }
 

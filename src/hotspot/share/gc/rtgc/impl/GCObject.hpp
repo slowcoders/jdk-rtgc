@@ -71,14 +71,6 @@ public:
 		return this->_isPublished;
 	}
 
-	bool markPublished() {
-		if (!this->isPublished()) {
-			this->_isPublished = true;
-			return true;
-		}
-		return false;
-	}
-
 	TraceState getTraceState() {
 		return (TraceState)_traceState;
 	}
@@ -138,8 +130,6 @@ public:
 
 	bool visitLinks(LinkVisitor visitor, void* callbackParam);
 
-	void publishInstance();
-	
 	void addReferrer(GCObject* referrer);
 
 	int removeReferrer(GCObject* referrer);
