@@ -223,6 +223,11 @@ public abstract class Reference<T> {
     private static native Reference<?> getAndClearReferencePendingList();
 
     /*
+     * Safely clear discovered with AS_NO_KEEPALIVE in RTGC collector.
+     */
+    private native Reference<?> getAndClearDiscovered();
+
+    /*
      * Test whether the VM's pending-Reference list contains any entries.
      */
     private static native boolean hasReferencePendingList();
@@ -258,8 +263,9 @@ public abstract class Reference<T> {
         }
         while (pendingList != null) {
             Reference<?> ref = pendingList;
-            pendingList = ref.discovered;
-            ref.discovered = null;
+            pendingList = ref.getAndClearDiscovered();
+            // pendingList = ref.discovered;
+            // ref.discovered = null;
 
             if (ref instanceof Cleaner) {
                 ((Cleaner)ref).clean();

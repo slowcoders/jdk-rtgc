@@ -55,6 +55,17 @@
         "regex": "cpp",
         "bitset": "cpp",
         "__functional_03": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "__string": "cpp",
+        "filesystem": "cpp",
+        "locale": "cpp",
+        "__bit_reference": "cpp",
+        "__hash_table": "cpp",
+        "__tree": "cpp",
+        "forward_list": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp",
+        "*.inc": "cpp",
+        "java_lang_ref_reference.h": "c"
     }
 }

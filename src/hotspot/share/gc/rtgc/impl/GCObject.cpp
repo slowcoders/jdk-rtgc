@@ -1,3 +1,6 @@
+#include "precompiled.hpp"
+#include "oops/klass.inline.hpp"
+
 #include "GCObject.hpp"
 #include "GCRuntime.hpp"
 
@@ -34,15 +37,29 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 
 int GCObject::removeReferrer(GCObject* referrer) {
-    precond(hasReferrer());
+    assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
+        referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
+        this, cast_to_oop(this)->klass()->name()->bytes());
 
     if (!_hasMultiRef) {
-        precond(_refs == _pointer2offset(referrer, &_refs));
+        assert(_refs == _pointer2offset(referrer, &_refs), 
+            "referrer %p(%s) != %p in %p(%s) \n", 
+            referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
+            _offset2Object(_refs, &_refs),
+            this, cast_to_oop(this)->klass()->name()->bytes());
         this->_refs = 0;
     }
     else {
         ReferrerList* referrers = getReferrerList();
         int idx = referrers->indexOf(referrer);
+        rtgc_log(idx < 0, "referrer %p(%s) is not found in %p(%s) \n", 
+            referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
+            this, cast_to_oop(this)->klass()->name()->bytes());
+        if (idx < 0) {
+            for (int i = 0; i < referrers->size(); i ++) {
+                rtgc_log(true, "at[%d] %p\n", i, referrers->at(i));
+            }
+        }
         precond(idx >= 0);
         if (referrers->size() == 2) {
             GCObject* remained = referrers->at(1 - idx);

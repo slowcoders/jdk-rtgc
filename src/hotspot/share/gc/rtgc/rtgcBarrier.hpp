@@ -31,8 +31,9 @@ public:
   static void init_barrier_runtime();
 
   static inline bool needBarrier(DecoratorSet decorators, ptrdiff_t offset = (ptrdiff_t)0xFFFF) {
-    return ((AS_RAW | AS_NO_KEEPALIVE) & decorators) == 0
-      && offset > oopDesc::klass_offset_in_bytes();
+    DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
+    return (no_barrier & decorators) == 0
+        && offset > oopDesc::klass_offset_in_bytes();
   }
 
   static address getStoreFunction(DecoratorSet decorators);

@@ -1,3 +1,13 @@
+## RTGC 장점.
+   소량의 객체가 Garbage 상태인 경우에 적합
+   Old Generation GC 에 적합
+   Compact GC 시 추가적인 Overhead 발생
+
+## Mark & Compact GC의 장점.
+   소량의 객체가 Strong-reachable 상태인 경우, 즉 Younger Generation에 적합.
+   TLAB 활용성 극대화.
+
+
 ## 1. Prepare external libraries
 -  jtreg 
 ```sh
@@ -97,9 +107,9 @@ bash configure --with-jvm-variants=client \
    javac test/rtgc/Main.java
 
 7. Test 실행
-   // interpreter only
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -cp test/rtgc Main 2 100000 
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -cp test/rtgc Main 2 1 
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 2 100000 
+
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -XX:-ScavengeBeforeFullGC -cp test/rtgc Main 2 1 
    
    // enable c1_LIRGenerator 
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 
@@ -179,13 +189,16 @@ Generation
 ```
 void GenCollectedHeap::collect_generation()
    -> DefNewGeneration::collect // young gen
-         SerialHeap::young_process_roots
+         SerialHeap::young_process_roots 
+            // younger_gen 중의 root(stack또는 old_gen에 의 해 참조) 만 old_gen 으로 이동.
             GenCollectedHeap::process_roots
                Threads::oops_do(strong_roots, roots_from_code_p)
                   Thread::oops_do(f, cf)
                      JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf)
                      JavaThread::oops_do_frames(OopClosure* f, CodeBlobClosure* cf)
                         frame::oops_do()
+            old_gen()->younger_refs_iterate(old_gen_closure);
+         FastEvacuateFollowersClosure::do_void() -> 나머지 younger_gen 이동.
 
    or TenuredGeneration::collect // old gen 
       -> GenMarkSweep::invoke_at_safepoint()
@@ -197,6 +210,8 @@ void GenCollectedHeap::collect_generation()
                -> Generation::prepare_for_compaction(CompactPoint* cp) {
                   -> for_each Space::prepare_for_compaction
                      -> CompactibleSpace::scan_and_forward() 
+         -> GenMarkSweep::mark_sweep_phase3
+            ... -> MarkSweep::adjust_pointers() -> marking 된 forwarded ref 처리. 
 ```
 
 ### CollectedHeap::collect()
@@ -266,6 +281,8 @@ markWord markWord::displaced_mark_helper()
    ObjectMonitor, BasicLock 은 별도로 markWord 보관
    must_be_preserved() GC 수행 도중 보관 여부.
    copy_set_hash() 를 사용하는 곳이 3곳 있음. (해당 문제 해결해야 RTGC 사용 가능)
+<<중요>>markWord 는 compact phase 에서 이동할 주소를 저장하기 위하여 사용된다.
+
 
 lock_bits: 2
 biased_lock_bits: 1

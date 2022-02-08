@@ -33,6 +33,10 @@
 #include "jvm_constants.h"
 #include "jvm_io.h"
 
+#ifndef USE_RTGC
+#define USE_RTGC 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -317,6 +321,11 @@ JVM_GetSystemPackages(JNIEnv *env);
  */
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearReferencePendingList(JNIEnv *env);
+
+#if USE_RTGC
+JNIEXPORT jobject JNICALL
+JVM_GetAndClearDiscovered(JNIEnv *env, jobject ref);
+#endif
 
 JNIEXPORT jboolean JNICALL
 JVM_HasReferencePendingList(JNIEnv *env);

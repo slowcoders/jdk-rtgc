@@ -16,6 +16,10 @@ namespace RTGC {
 
   bool isPublished(GCObject* obj);
 
+  inline bool isPublished(oopDesc* obj) {
+    return isPublished(to_obj(obj));
+  }
+
   void publish_and_lock_heap(GCObject* obj, bool doPublish);
 
   inline void publish_and_lock_heap(oopDesc* obj, oopDesc* base) {
@@ -40,6 +44,7 @@ namespace RTGC {
 
   void remove_global_reference(oopDesc* obj);
 
+  bool collectGarbage(oopDesc* obj);
 };
 
 

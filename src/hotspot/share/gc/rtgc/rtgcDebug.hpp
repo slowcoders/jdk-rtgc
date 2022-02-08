@@ -9,14 +9,12 @@
 namespace RTGC {
   static const int LOG_CATEGORY_BASE = 0x1000000;
   static const int LOG_FUNCTION_MASK = (LOG_CATEGORY_BASE-1);
+  static const int LOG_BARRIER    = 1;
+  static const int LOG_BARRIER_C1 = 2;
+  static const int LOG_HEAP       = 3;
+
   inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);
-  }
-  inline int LOG_CATEGORY(int option) {
-    return option / LOG_CATEGORY_BASE;
-  }
-  inline int LOG_FUNCTION(int option) {
-    return option & (LOG_CATEGORY_BASE - 1);
   }
 
   bool logEnabled(int logOption);

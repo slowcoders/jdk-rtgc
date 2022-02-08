@@ -5,7 +5,7 @@ namespace RTGC {
 
 class GCNode {
 	int64_t _klass[1];
-protected:
+public:
 	uint32_t _refs;
 	int32_t _shortcutId;
 	struct {

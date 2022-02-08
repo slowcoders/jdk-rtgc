@@ -262,6 +262,23 @@ public:
   }
 };
 
+#if USE_RTGC
+class AdjustRootPointerClosure: public BasicOopIterateClosure {
+ public:
+  template <typename T> void do_oop_work(T* p) { 
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop obj = CompressedOops::decode_not_null(heap_oop);
+      RTGC::adjust_pointers(obj, (void*)-1);
+    }
+    MarkSweep::adjust_pointer(p); 
+  }
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+};
+#endif
+
 void GenMarkSweep::mark_sweep_phase3() {
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
@@ -270,6 +287,12 @@ void GenMarkSweep::mark_sweep_phase3() {
 
   // Need new claim bits for the pointer adjustment tracing.
   ClassLoaderDataGraph::clear_claimed_marks();
+
+#if USE_RTGC_COMPACT_0 
+  AdjustRootPointerClosure adjust_pointer_closure;
+  CLDToOopClosure    adjust_cld_closure(&adjust_pointer_closure, ClassLoaderData::_claim_strong);
+
+#endif
 
   {
     StrongRootsScope srs(0);

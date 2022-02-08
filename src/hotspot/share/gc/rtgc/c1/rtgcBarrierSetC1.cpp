@@ -33,8 +33,8 @@
 static int rtgc_log_trigger = 0;
 static const bool ENABLE_CPU_MEMBAR = false;
 
-static const int LOG_BARRIER_C1(int function) {
-  return RTGC::LOG_OPTION(2, function);
+static const int LOG_OPT(int function) {
+  return RTGC::LOG_OPTION(RTGC::LOG_BARRIER_C1, function);
 }
 
 
@@ -90,7 +90,7 @@ oopDesc* __rtgc_load(narrowOop* addr) {
   RTGC::lock_heap();
   narrowOop res = *addr;
   oopDesc* result = CompressedOops::decode(res);
-  rtgc_log(LOG_BARRIER_C1(1), "load (%p) => (%p:%s) th=%p\n",
+  rtgc_log(LOG_OPT(1), "load (%p) => (%p:%s) th=%p\n",
       addr, result, 
       result ? result->klass()->name()->bytes() : NULL, JavaThread::current());
   RTGC::unlock_heap(true);
@@ -124,7 +124,7 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
         -> LIR_Assembler::mem2reg()
 */
 void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base, oopDesc* old_value) {
-  rtgc_log(LOG_BARRIER_C1(2), "store %d] %p(%p) = %p th=%p\n", 
+  rtgc_log(LOG_OPT(2), "store %d] %p(%p) = %p th=%p\n", 
     rtgc_log_trigger, base, addr, new_value, (address)base + oopDesc::klass_offset_in_bytes());
   assert((address)addr <= (address)base + oopDesc::klass_offset_in_bytes(), "klass");
   // if (new_value == old_value) return;

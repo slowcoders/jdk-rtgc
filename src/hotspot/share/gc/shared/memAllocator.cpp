@@ -40,6 +40,7 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 
 class MemAllocator::Allocation: StackObj {
   friend class MemAllocator;
@@ -275,11 +276,14 @@ HeapWord* MemAllocator::allocate_inside_tlab(Allocation& allocation) const {
     return mem;
   }
 
+#if USE_RTGC_TLAB_ALLOC
+  // new_instance() 가 호출되는 시점의 모든 register 는 저장된 상태이다.
+  // 즉 current-thread 는 safe-point 상태이다. 
   mem = RTGC::allocate_tlab(_thread, _word_size);
   if (mem != NULL) {
     return mem;
   }
-
+#endif
   // Try refilling the TLAB and allocating the object in it.
   return allocate_inside_tlab_slow(allocation);
 }
