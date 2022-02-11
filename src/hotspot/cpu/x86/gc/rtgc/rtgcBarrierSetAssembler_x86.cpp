@@ -1,9 +1,12 @@
 
 #include "precompiled.hpp"
+#include "asm/assembler.hpp"
+#include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 
 #define __ masm->
 
@@ -99,6 +102,7 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
   }
 }
 
+
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
   if (!__needBarrier(type, decorators, dst)) {
@@ -112,6 +116,20 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
 
   //const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   Register obj = dst.base();
+
+  Label not_old, _done;
+  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
+  RTGC::GCFlags _flags;
+  *(int*)&_flags = 0;
+  _flags.isPublished = true;
+
+  rtgc_log(true, "reg %p, %p\n", tmp1, tmp2);
+  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+
+  __ movl(tmp3, Address(obj, offset_gc_flags));
+  __ andl(tmp3, *(int*)&_flags);
+  // notZero 바꿔서 test.
+  __ jcc(Assembler::zero, not_old);
 
   push_registers(masm, true, false);
 
@@ -147,6 +165,10 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   address fn = RtgcBarrier::getStoreFunction(decorators);
   __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
   pop_registers(masm, true, false);
+  __ jmp(_done);
+  __ bind(not_old);
+  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+  __ bind(_done);
 }
 
 void RtgcBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

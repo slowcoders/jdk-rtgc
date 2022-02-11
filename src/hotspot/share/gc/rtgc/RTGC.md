@@ -1,7 +1,13 @@
-## RTGC 장점.
-   소량의 객체가 Garbage 상태인 경우에 적합
-   Old Generation GC 에 적합
-   Compact GC 시 추가적인 Overhead 발생
+## RTGC 1차 구현
+1. Old-Generation 에 대해서만 RTGC 적용.
+   소량의 객체가 빈번하게 가비지로 변경되는 Older Generation 에 RTGC 가 적합.
+   RefLink 관리 부담 감소
+   (다량의 객체가 빈번하게 가비지로 변경되는 Younger Generation 은 TLAB + Compact-GC 가 유리).
+2. Compact GC Overhead 처리
+   별도 Mem-Manager 구현?
+3. YG의 root가 되는 old 객체에 대한 Garbage 여부를 판별하여 YG GC 효율성 높이기 
+   Age 가 MinAge 이상인 YG 객체에 대한 GC 판별
+     
 
 ## Mark & Compact GC의 장점.
    소량의 객체가 Strong-reachable 상태인 경우, 즉 Younger Generation에 적합.

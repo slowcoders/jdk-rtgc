@@ -57,6 +57,7 @@ class OopIterator {
     }
     return nullptr;
   }
+
   void setOopMap(OopMapBlock* map) {
     _map = map;
     _field = (T*)_obj->obj_field_addr<T>(map->offset());
@@ -65,6 +66,14 @@ class OopIterator {
 
 public:
   OopIterator() {}
+
+  static void iterateReferents(oopDesc* obj, RTGC::RefTracer2 trace, void* param) {
+    OopIterator it(obj);
+    for (oopDesc* oop; (oop = it.next()) != NULL; ) {
+      trace(to_obj(oop), param);
+    }  
+  }
+
   static void scanInstance(oopDesc* obj, RTGC::RefTracer trace) {
     GrowableArrayCHeap<OopIterator, mtGC> stack;
     stack.append(OopIterator(obj));
@@ -189,6 +198,19 @@ void RTGC::scanInstance(GCObject* root, RTGC::RefTracer trace) {
 #endif
 }
 
+void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
+  oopDesc* obj = cast_to_oop(root);
+#ifdef _LP64
+  if (UseCompressedOops) {
+    OopIterator<narrowOop>::iterateReferents(obj, trace, param);
+  } else {
+    OopIterator<oop>::iterateReferents(obj, trace, param);
+  }
+#else
+  OopIterator<oop>::iterateReferents(obj, trace, param);
+#endif
+}
+
 void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   if (!RTGC::debugOptions->opt1) return;
   if (!((GenCollectedHeap*)Universe::heap())->is_in_young(ref)) {
@@ -208,7 +230,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
     rtgc_log(LOG_OPT(1), "no ref in %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
     return;
   }
-  if (obj->_hasMultiRef) {
+  if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
       oopDesc* oop = cast_to_oop(referrers->at(idx));
@@ -227,7 +249,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
     }
 
     if (referrers->size() < 2) {
-      obj->_hasMultiRef = false;
+      obj->setHasMultiRef(false);
       if (referrers->size() == 0) {
         obj->_refs = 0;
       }
@@ -255,3 +277,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   }
 }
 
+void RTGC::register_old_object(oopDesc* youngOop, void* oldOop) {
+  RTGC::iterateReferents(
+    to_obj(youngOop), (RefTracer2)RTGC::add_referrer, oldOop);
+}

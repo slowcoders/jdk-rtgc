@@ -5,8 +5,10 @@
 namespace RTGC {
   class GCObject;
   typedef bool (*RefTracer)(GCObject* obj);
+  typedef bool (*RefTracer2)(GCObject* obj, void* param);
   
   void scanInstance(GCObject* obj, RefTracer trace);
+  void iterateReferents(GCObject* obj, RefTracer2 trace, void* param);
 
   inline static GCObject* to_obj(oopDesc* obj) {
     return reinterpret_cast<GCObject*>(obj);

@@ -3,18 +3,20 @@
 
 namespace RTGC {
 
+struct GCFlags {
+	int32_t rootRefCount: 26;
+	uint32_t traceState: 2;
+	uint32_t isPublished: 1;
+	uint32_t hasMultiRef: 1;
+	uint32_t nodeType: 2;
+};
+
 class GCNode {
 	int64_t _klass[1];
 public:
 	uint32_t _refs;
 	int32_t _shortcutId;
-	struct {
-		int32_t _rootRefCount: 26;
-		uint32_t _traceState: 2;
-		uint32_t _isPublished: 1;
-		uint32_t _hasMultiRef: 1;
-		uint32_t _nodeType: 2;
-	};
+	GCFlags _flags;
 public:
 	void clear() { 
 		((int64_t*)this)[0] = 0; 

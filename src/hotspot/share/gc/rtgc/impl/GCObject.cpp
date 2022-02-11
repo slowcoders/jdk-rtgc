@@ -11,21 +11,21 @@ void GCObject::addReferrer(GCObject* referrer) {
     //rtgc_log(true, "addReferrer %p<-%p hasRef=%d hasMulti=%d\n", 
     //        this, referrer, hasReferrer(), _hasMultiRef);
     if (!hasReferrer()) {
-        precond(!_hasMultiRef);
+        precond(!_flags.hasMultiRef);
         this->_refs = _pointer2offset(referrer, &_refs);
         postcond(referrer == _offset2Object(_refs, &_refs));
-        postcond(!_hasMultiRef);
+        postcond(!_flags.hasMultiRef);
     }
     else {
         ReferrerList* referrers;
-        if (!_hasMultiRef) {
+        if (!_flags.hasMultiRef) {
             referrers = _rtgc.gRefListPool.allocate();
             referrers->init(2);
             GCObject* front = _offset2Object(_refs, &_refs);
             referrers->at(0) = front;
             referrers->at(1) = referrer;
             _refs = _rtgc.gRefListPool.getIndex(referrers);
-            _hasMultiRef = true;
+            _flags.hasMultiRef = true;
         }
         else {
             referrers = getReferrerList();
@@ -41,7 +41,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
         referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
         this, cast_to_oop(this)->klass()->name()->bytes());
 
-    if (!_hasMultiRef) {
+    if (!_flags.hasMultiRef) {
         assert(_refs == _pointer2offset(referrer, &_refs), 
             "referrer %p(%s) != %p in %p(%s) \n", 
             referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
@@ -65,7 +65,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
             GCObject* remained = referrers->at(1 - idx);
             _rtgc.gRefListPool.delete_(referrers);
             this->_refs = _pointer2offset(remained, &_refs);
-            _hasMultiRef = false;
+            _flags.hasMultiRef = false;
         }
         else {
             referrers->removeFast(idx);
@@ -79,7 +79,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
 }
 
 bool GCObject::removeAllReferrer(GCObject* referrer) {
-    if (!_hasMultiRef) {
+    if (!_flags.hasMultiRef) {
         if (_refs != 0 && _refs == _pointer2offset(referrer, &_refs)) {
             this->_refs = 0;
             return true;
@@ -98,7 +98,7 @@ bool GCObject::removeAllReferrer(GCObject* referrer) {
                     _rtgc.gRefListPool.delete_(referrers);
                     this->_refs = _pointer2offset(remained, &_refs);
                 }
-                this->_hasMultiRef = false;
+                _flags.hasMultiRef = false;
             }
             return true;
         }
@@ -109,7 +109,7 @@ bool GCObject::removeAllReferrer(GCObject* referrer) {
 GCObject* GCObject::getSafeAnchor() {
     precond(hasReferrer()); 
     GCObject* front;
-    if (this->_hasMultiRef) {
+    if (_flags.hasMultiRef) {
         ReferrerList* referrers = getReferrerList();
         front = referrers->front();
     }
@@ -123,7 +123,7 @@ void GCObject::setSafeAnchor(GCObject* anchor) {
     precond(hasReferrer()); 
     precond(!this->getShortcut()->isValid());
 
-    if (this->_hasMultiRef) {
+    if (_flags.hasMultiRef) {
         ReferrerList* referrers = getReferrerList();
         int idx = referrers->indexOf(anchor);
         precond(idx >= 0);
@@ -168,7 +168,7 @@ void GCObject::initIterator(AnchorIterator* iterator) {
     if (!hasReferrer()) {
         iterator->_current = iterator->_end = nullptr;
     }
-    else if (!_hasMultiRef) {
+    else if (!_flags.hasMultiRef) {
         iterator->_temp = _offset2Object(_refs, &_refs);
         iterator->_current = &iterator->_temp;
         iterator->_end = iterator->_current + 1;
@@ -182,7 +182,7 @@ void GCObject::initIterator(AnchorIterator* iterator) {
 
 
 ReferrerList* GCObject::getReferrerList() {
-    precond(_hasMultiRef);
+    precond(_flags.hasMultiRef);
     return _rtgc.gRefListPool.getPointer(_refs);
 }
 

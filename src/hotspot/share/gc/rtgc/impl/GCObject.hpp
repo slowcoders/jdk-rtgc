@@ -56,31 +56,31 @@ public:
 	// virtual ~GCObject();
 
 	NodeType getNodeType() {
-		return (NodeType)_nodeType;
+		return (NodeType)_flags.nodeType;
 	}
 
 	bool isGarbage() {
-		return this->_rootRefCount <= ZERO_ROOT_REF && !this->hasReferrer();
+		return _flags.rootRefCount <= ZERO_ROOT_REF && !this->hasReferrer();
 	}
 
 	bool isUnsafe() {
-		return this->_rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == 0;
+		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == 0;
 	}
 
 	bool isPublished() {
-		return this->_isPublished;
+		return _flags.isPublished;
 	}
 
 	TraceState getTraceState() {
-		return (TraceState)_traceState;
+		return (TraceState)_flags.traceState;
 	}
 
 	void setTraceState(TraceState state) {
-		_traceState = (int)state;
+		_flags.traceState = (int)state;
 	}
 
 	void markGarbage() {
-		_nodeType = (int)NodeType::Garbage;
+		_flags.nodeType = (int)NodeType::Garbage;
 	}
 
 
@@ -88,28 +88,45 @@ public:
 		return this->_refs != 0;
 	}
 
+	bool hasMultiRef() {
+		return _flags.hasMultiRef != 0;
+	}
+
+	void setHasMultiRef(bool multiRef) {
+		_flags.hasMultiRef = multiRef;
+	}
+
 	int getRootRefCount() {
-		return this->_rootRefCount;
+		return _flags.rootRefCount;
 	}
 
 	int incrementRootRefCount() {
-		return ++this->_rootRefCount;
+		return ++_flags.rootRefCount;
 	}
 
 	int decrementRootRefCount() {
-		return --this->_rootRefCount;
+		return --_flags.rootRefCount;
 	}
 
 	void initIterator(AnchorIterator* iterator);
 
 	ReferrerList* getReferrerList();
 
+	bool isOld() {
+		return _flags.isPublished;
+	}
+
+	void markOld() {
+		precond(!this->isOld());
+		_flags.isPublished = true;
+	}
+
 	void markDestroyed() {
-		this->_nodeType = (int)NodeType::Destroyed;
+		_flags.nodeType = (int)NodeType::Destroyed;
 	}
 
 	bool isDestroyed() {
-		return this->_nodeType == (int)NodeType::Destroyed;;
+		return _flags.nodeType == (int)NodeType::Destroyed;;
 	}
 
 	SafeShortcut* getShortcut();

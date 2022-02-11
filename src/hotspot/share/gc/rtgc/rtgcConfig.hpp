@@ -17,7 +17,8 @@ class oopDesc;
 
 namespace RTGC {
   HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
-  void adjust_pointers(oopDesc* obj, void* young_gen_end);
+  void adjust_pointers(oopDesc* obj, void* newOop);
+  void register_old_object(oopDesc* obj, void* newOop);
 };
 
 #endif // SHARE_GC_RTGC_

@@ -68,7 +68,7 @@ public:
 
 	static bool markPublished(GCObject* obj) {
 		if (!obj->isPublished()) {
-			obj->_isPublished = true;
+			obj->_flags.isPublished = true;
 			return true;
 		}
 		return false;

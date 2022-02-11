@@ -52,7 +52,9 @@ void RTGC::unlock_heap(bool locked) {
   }
 }
 
+
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
+  //precond(to_obj(referrer)->isOld());
   if (ENABLE_REF_LINK && debugOptions->opt1) {
     //rtgc_log(true, "add_referrer (%p)->%p\n", obj, referrer);
     GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
@@ -60,6 +62,7 @@ void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
+  //precond(to_obj(referrer)->isOld());
   if (ENABLE_REF_LINK && debugOptions->opt1) {
     //rtgc_log(true, "remove_referrer (%p)->%p\n", obj, referrer);
     GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));

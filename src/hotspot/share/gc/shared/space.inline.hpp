@@ -210,6 +210,8 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   } else {
     space->_first_dead = end_of_live;
   }
+  printf("RTGC scan_and_forward %p:%ld\n", space->bottom(), 
+    ((address)space->end() - (address)space->bottom())/1024);
 
   // save the compaction_top of the compaction space.
   cp->space->set_compaction_top(compact_top);
