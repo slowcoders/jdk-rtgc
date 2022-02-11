@@ -278,6 +278,8 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
 }
 
 void RTGC::register_old_object(oopDesc* youngOop, void* oldOop) {
+  // oldOop 는 아직 복사되지 않은 상태이다.
+  to_obj(youngOop)->markOld();
   RTGC::iterateReferents(
-    to_obj(youngOop), (RefTracer2)RTGC::add_referrer, oldOop);
+    to_obj(youngOop), (RefTracer2)RTGC::add_referrer_unsafe, oldOop);
 }

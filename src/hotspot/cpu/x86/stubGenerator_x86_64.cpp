@@ -2264,7 +2264,7 @@ class StubGenerator: public StubCodeGenerator {
     const Register from        = rdi;  // source array address
     const Register to          = rsi;  // destination array address
     const Register count       = rdx;  // elements count
-    /*const*/ Register dword_count = rcx;
+    const Register dword_count = rcx;
     const Register qword_count = count;
     const Register end_from    = from; // source array end address
     const Register end_to      = to;   // destination array end address
@@ -2293,39 +2293,33 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_INT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    if (is_oop && USE_RTGC &&
-          bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
-      dword_count = count;
-    }
-    else {
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
-        // 'from', 'to' and 'count' are now valid
-        __ movptr(dword_count, count);
-        __ shrptr(count, 1); // count => qword_count
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_exit, dword_count);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(dword_count, count);
+      __ shrptr(count, 1); // count => qword_count
 
-        // Copy from low to high addresses.  Use 'to' as scratch.
-        __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-        __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-        __ negptr(qword_count);
-        __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count);
+      __ jmp(L_copy_bytes);
 
-        // Copy trailing qwords
-      __ BIND(L_copy_8_bytes);
-        __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-        __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-        __ increment(qword_count);
-        __ jcc(Assembler::notZero, L_copy_8_bytes);
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
 
-        // Check for and copy trailing dword
-      __ BIND(L_copy_4_bytes);
-        __ testl(dword_count, 1); // Only byte test since the value is 0 or 1
-        __ jccb(Assembler::zero, L_exit);
-        __ movl(rax, Address(end_from, 8));
-        __ movl(Address(end_to, 8), rax);
-      }
+      // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(dword_count, 1); // Only byte test since the value is 0 or 1
+      __ jccb(Assembler::zero, L_exit);
+      __ movl(rax, Address(end_from, 8));
+      __ movl(Address(end_to, 8), rax);
     }
   __ BIND(L_exit);
     address ucme_exit_pc = __ pc();
@@ -2379,7 +2373,7 @@ class StubGenerator: public StubCodeGenerator {
     const Register from        = rdi;  // source array address
     const Register to          = rsi;  // destination array address
     const Register count       = rdx;  // elements count
-    /*const*/ Register dword_count = rcx;
+    const Register dword_count = rcx;
     const Register qword_count = count;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
@@ -2406,52 +2400,48 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_INT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     // no registers are destroyed by this call
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    if (is_oop && USE_RTGC &&
-          bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
-      dword_count = count;
-    } else {
-      assert_clean_int(count, rax); // Make sure 'count' is clean int.
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
-        // 'from', 'to' and 'count' are now valid
-        __ movptr(dword_count, count);
-        __ shrptr(count, 1); // count => qword_count
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_exit, dword_count);
+    assert_clean_int(count, rax); // Make sure 'count' is clean int.
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(dword_count, count);
+      __ shrptr(count, 1); // count => qword_count
 
-        // Copy from high to low addresses.  Use 'to' as scratch.
+      // Copy from high to low addresses.  Use 'to' as scratch.
 
-        // Check for and copy trailing dword
-        __ testl(dword_count, 1);
-        __ jcc(Assembler::zero, L_copy_bytes);
-        __ movl(rax, Address(from, dword_count, Address::times_4, -4));
-        __ movl(Address(to, dword_count, Address::times_4, -4), rax);
-        __ jmp(L_copy_bytes);
+      // Check for and copy trailing dword
+      __ testl(dword_count, 1);
+      __ jcc(Assembler::zero, L_copy_bytes);
+      __ movl(rax, Address(from, dword_count, Address::times_4, -4));
+      __ movl(Address(to, dword_count, Address::times_4, -4), rax);
+      __ jmp(L_copy_bytes);
 
-        // Copy trailing qwords
-      __ BIND(L_copy_8_bytes);
-        __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-        __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-        __ decrement(qword_count);
-        __ jcc(Assembler::notZero, L_copy_8_bytes);
-      }
-      if (is_oop) {
-        __ jmp(L_exit);
-      }
-      restore_arg_regs_using_thread();
-      inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
-      __ xorptr(rax, rax); // return 0
-      __ vzeroupper();
-      __ leave(); // required for proper stackwalking of RuntimeStub frame
-      __ ret(0);
-
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
-        // Copy in multi-bytes chunks
-        copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-      }
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
     }
+    if (is_oop) {
+      __ jmp(L_exit);
+    }
+    restore_arg_regs_using_thread();
+    inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
+    __ xorptr(rax, rax); // return 0
+    __ vzeroupper();
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(0);
+
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
+
   __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, dword_count);
     restore_arg_regs_using_thread();
@@ -2525,45 +2515,42 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
-    if (is_oop && USE_RTGC &&
-        bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, qword_count)) {
-    } else {
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, qword_count, c_rarg3, L_exit);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
 
-        // Copy from low to high addresses.  Use 'to' as scratch.
-        __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-        __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-        __ negptr(qword_count);
-        __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count);
+      __ jmp(L_copy_bytes);
 
-        // Copy trailing qwords
-      __ BIND(L_copy_8_bytes);
-        __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-        __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-        __ increment(qword_count);
-        __ jcc(Assembler::notZero, L_copy_8_bytes);
-      }
-      if (is_oop) {
-        __ jmp(L_exit);
-      } else {
-        restore_arg_regs_using_thread();
-        inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
-        __ xorptr(rax, rax); // return 0
-        __ vzeroupper();
-        __ leave(); // required for proper stackwalking of RuntimeStub frame
-        __ ret(0);
-      }
-
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
-        // Copy in multi-bytes chunks
-        copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-      }
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
     }
+    if (is_oop) {
+      __ jmp(L_exit);
+    } else {
+      restore_arg_regs_using_thread();
+      inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
+      __ xorptr(rax, rax); // return 0
+      __ vzeroupper();
+      __ leave(); // required for proper stackwalking of RuntimeStub frame
+      __ ret(0);
+    }
+
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
+
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
     restore_arg_regs_using_thread();
@@ -2634,40 +2621,36 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
-    if (is_oop && USE_RTGC &&
-        bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, qword_count)) {
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, qword_count, c_rarg3, L_exit);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+
+      __ jmp(L_copy_bytes);
+
+      // Copy trailing qwords
+      __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
+    if (is_oop) {
+      __ jmp(L_exit);
     } else {
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      restore_arg_regs_using_thread();
+      inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
+      __ xorptr(rax, rax); // return 0
+      __ vzeroupper();
+      __ leave(); // required for proper stackwalking of RuntimeStub frame
+      __ ret(0);
+    }
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
 
-        __ jmp(L_copy_bytes);
-
-        // Copy trailing qwords
-        __ BIND(L_copy_8_bytes);
-        __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-        __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-        __ decrement(qword_count);
-        __ jcc(Assembler::notZero, L_copy_8_bytes);
-      }
-      if (is_oop) {
-        __ jmp(L_exit);
-      } else {
-        restore_arg_regs_using_thread();
-        inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
-        __ xorptr(rax, rax); // return 0
-        __ vzeroupper();
-        __ leave(); // required for proper stackwalking of RuntimeStub frame
-        __ ret(0);
-      }
-      {
-        // UnsafeCopyMemory page error: continue after ucm
-        UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
-
-        // Copy in multi-bytes chunks
-        copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-      }
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
     }
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
@@ -2713,9 +2696,9 @@ class StubGenerator: public StubCodeGenerator {
   //       c_rarg0   - source array address
   //       c_rarg1   - destination array address
   //       c_rarg2   - element count, treated as ssize_t, can be zero
-  // USE_RTGC
+  // ENABLE_ARRAY_COPY_HOOK
   //       c_rarg3   - dst_array
-  // not USE_RTGC
+  // not ENABLE_ARRAY_COPY_HOOK
   //       c_rarg3   - size_t ckoff (super_check_offset)
   //    not Win64
   //       c_rarg4   - oop ckval (super_klass)
@@ -2730,7 +2713,7 @@ class StubGenerator: public StubCodeGenerator {
                                   bool dest_uninitialized = false) {
 
     Label L_load_element, L_store_element, L_do_card_marks, L_done;
-    Label L_post_barrier, L_check_copy_length;
+    Label L_copy_done;
 
     // Input registers (after setup_arg_regs)
     const Register from        = rdi;   // source array address
@@ -2777,7 +2760,7 @@ class StubGenerator: public StubCodeGenerator {
                        // ckoff => rcx, ckval => r8
                        // r9 and r10 may be used to save non-volatile registers
 #ifdef _WIN64
-    if (!USE_RTGC) {
+    if (!ENABLE_ARRAY_COPY_HOOK) {
       // last argument (#4) is on stack on Win64
       __ movptr(ckval, Address(rsp, 6 * wordSize));
     }
@@ -2820,92 +2803,82 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    if (USE_RTGC) {
-      bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+    if (ENABLE_ARRAY_COPY_HOOK) {
+      bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_copy_done);
+      __ load_klass(ckval, c_rarg3, rax);
+      __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
+      __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
     }
-    if (USE_RTGC &&
-        bs->oop_arraycopy_hook(_masm, decorators, c_rarg3, from, to, count)) {
-      // rax = remaining count (0: success)
-      __ movptr(r14_length, count);
-      __ testptr(rax, rax);        
-      __ jccb(Assembler::zero, L_do_card_marks);
-      __ subptr(r14_length, rax);  
-      __ movptr(rax, r14_length); // rax, r14_length = copied item_count
-    } else {
-      if (USE_RTGC) {
-        __ load_klass(ckval, c_rarg3, rax);
-        __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
-        __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
-      }
-      assert_clean_int(ckoff, rax);
+    assert_clean_int(ckoff, rax);
 
 #ifdef ASSERT
-      BLOCK_COMMENT("assert consistent ckoff/ckval");
-      // The ckoff and ckval must be mutually consistent,
-      // even though caller generates both.
-      { Label L;
-        int sco_offset = in_bytes(Klass::super_check_offset_offset());
-        __ cmpl(ckoff, Address(ckval, sco_offset));
-        __ jcc(Assembler::equal, L);
-        __ stop("super_check_offset inconsistent");
-        __ bind(L);
-      }
+    BLOCK_COMMENT("assert consistent ckoff/ckval");
+    // The ckoff and ckval must be mutually consistent,
+    // even though caller generates both.
+    { Label L;
+      int sco_offset = in_bytes(Klass::super_check_offset_offset());
+      __ cmpl(ckoff, Address(ckval, sco_offset));
+      __ jcc(Assembler::equal, L);
+      __ stop("super_check_offset inconsistent");
+      __ bind(L);
+    }
 #endif //ASSERT
 
-      // Loop-invariant addresses.  They are exclusive end pointers.
-      Address end_from_addr(from, length, TIMES_OOP, 0);
-      Address   end_to_addr(to,   length, TIMES_OOP, 0);
-      // Loop-variant addresses.  They assume post-incremented count < 0.
-      Address from_element_addr(end_from, count, TIMES_OOP, 0);
-      Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
+    // Loop-invariant addresses.  They are exclusive end pointers.
+    Address end_from_addr(from, length, TIMES_OOP, 0);
+    Address   end_to_addr(to,   length, TIMES_OOP, 0);
+    // Loop-variant addresses.  They assume post-incremented count < 0.
+    Address from_element_addr(end_from, count, TIMES_OOP, 0);
+    Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-      if (!USE_RTGC) {
-        bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-      }
-
-      // Copy from low to high addresses, indexed from the end of each array.
-      __ lea(end_from, end_from_addr);
-      __ lea(end_to,   end_to_addr);
-      __ movptr(r14_length, length);        // save a copy of the length
-      assert(length == count, "");          // else fix next line:
-      __ negptr(count);                     // negate and test the length
-      __ jcc(Assembler::notZero, L_load_element);
-
-      // Empty array:  Nothing to do.
-      __ xorptr(rax, rax);                  // return 0 on (trivial) success
-      __ jmp(L_done);
-
-      // ======== begin loop ========
-      // (Loop is rotated; its entry is L_load_element.)
-      // Loop control:
-      //   for (count = -count; count != 0; count++)
-      // Base pointers src, dst are biased by 8*(count-1),to last element.
-      __ align(OptoLoopAlignment);
-
-      __ BIND(L_store_element);
-      __ store_heap_oop(to_element_addr, rax_oop, noreg, noreg, AS_RAW);  // store the oop
-      __ increment(count);               // increment the count toward zero
-      __ jcc(Assembler::zero, L_do_card_marks);
-
-      // ======== loop entry is here ========
-      __ BIND(L_load_element);
-      __ load_heap_oop(rax_oop, from_element_addr, noreg, noreg, AS_RAW); // load the oop
-      __ testptr(rax_oop, rax_oop);
-      __ jcc(Assembler::zero, L_store_element);
-
-      __ load_klass(r11_klass, rax_oop, rscratch1);// query the object klass
-      generate_type_check(r11_klass, ckoff, ckval, L_store_element);
-      // ======== end loop ========
-
-      // It was a real error; we must depend on the caller to finish the job.
-      // Register rdx = -1 * number of *remaining* oops, r14 = *total* oops.
-      // Emit GC store barriers for the oops we have copied (r14 + rdx),
-      // and report their number to the caller.
-      assert_different_registers(rax, r14_length, count, to, end_to, rcx, rscratch1);
-      Label L_post_barrier;
-      __ addptr(r14_length, count);     // K = (original - remaining) oops
-      __ movptr(rax, r14_length);       // save the value
+    if (!ENABLE_ARRAY_COPY_HOOK) {
+      bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
     }
+
+    // Copy from low to high addresses, indexed from the end of each array.
+    __ lea(end_from, end_from_addr);
+    __ lea(end_to,   end_to_addr);
+    __ movptr(r14_length, length);        // save a copy of the length
+    assert(length == count, "");          // else fix next line:
+    __ negptr(count);                     // negate and test the length
+    __ jcc(Assembler::notZero, L_load_element);
+
+    // Empty array:  Nothing to do.
+    __ xorptr(rax, rax);                  // return 0 on (trivial) success
+    __ jmp(L_done);
+
+    // ======== begin loop ========
+    // (Loop is rotated; its entry is L_load_element.)
+    // Loop control:
+    //   for (count = -count; count != 0; count++)
+    // Base pointers src, dst are biased by 8*(count-1),to last element.
+    __ align(OptoLoopAlignment);
+
+    __ BIND(L_store_element);
+    __ store_heap_oop(to_element_addr, rax_oop, noreg, noreg, AS_RAW);  // store the oop
+    __ increment(count);               // increment the count toward zero
+    __ jcc(Assembler::zero, L_do_card_marks);
+
+    // ======== loop entry is here ========
+    __ BIND(L_load_element);
+    __ load_heap_oop(rax_oop, from_element_addr, noreg, noreg, AS_RAW); // load the oop
+    __ testptr(rax_oop, rax_oop);
+    __ jcc(Assembler::zero, L_store_element);
+
+    __ load_klass(r11_klass, rax_oop, rscratch1);// query the object klass
+    generate_type_check(r11_klass, ckoff, ckval, L_store_element);
+    // ======== end loop ========
+
+    // It was a real error; we must depend on the caller to finish the job.
+    // Register rdx = -1 * number of *remaining* oops, r14 = *total* oops.
+    // Emit GC store barriers for the oops we have copied (r14 + rdx),
+    // and report their number to the caller.
+    assert_different_registers(rax, r14_length, count, to, end_to, rcx, rscratch1);
+    Label L_post_barrier;
+    __ addptr(r14_length, count);     // K = (original - remaining) oops
+    __ movptr(rax, r14_length);       // save the value
+
+    __ BIND(L_copy_done);
     __ notptr(rax);                   // report (-1^K) to caller (does not affect flags)
     __ jccb(Assembler::notZero, L_post_barrier);
     __ jmp(L_done); // K == 0, nothing was copied, skip post barrier
@@ -3288,7 +3261,7 @@ class StubGenerator: public StubCodeGenerator {
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // dst_addr
     __ movl2ptr(count, r11_length); // length
   __ BIND(L_plain_copy);
-    if (USE_RTGC) {
+    if (ENABLE_ARRAY_COPY_HOOK) {
       __ movptr(c_rarg3, dst);
     }
 #ifdef _WIN64
@@ -3327,7 +3300,7 @@ class StubGenerator: public StubCodeGenerator {
       assert_clean_int(sco_temp, rax);
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
-#if USE_RTGC
+#if ENABLE_ARRAY_COPY_HOOK
       __ movptr(c_rarg3, dst);  
 #else
       // Fetch destination element klass from the ObjArrayKlass header.

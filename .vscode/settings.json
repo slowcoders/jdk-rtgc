@@ -67,5 +67,6 @@
         "unordered_set": "cpp",
         "*.inc": "cpp",
         "java_lang_ref_reference.h": "c"
-    }
+    },
+    "terminal.integrated.defaultProfile.osx": "bash"
 }

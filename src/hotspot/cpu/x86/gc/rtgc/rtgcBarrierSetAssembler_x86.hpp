@@ -41,8 +41,9 @@ public:
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
 
-  virtual bool oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
-                                  Register src, Register dst, Register count);
+  virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                                  Register src, Register dst, Register count, 
+                                  Register dst_array, Label& copy_done, Register saved_count);
 };
 
 #endif // CPU_X86_GC_RTGC_MODREFBARRIERSETASSEMBLER_X86_HPP

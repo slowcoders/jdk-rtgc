@@ -4,6 +4,7 @@
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 
 class RtgcBarrier : public AllStatic {
   static void (*rt_store)(narrowOop* p, oopDesc* new_value, oopDesc* base);
@@ -30,10 +31,17 @@ class RtgcBarrier : public AllStatic {
 public:
   static void init_barrier_runtime();
 
-  static inline bool needBarrier(DecoratorSet decorators, ptrdiff_t offset = (ptrdiff_t)0xFFFF) {
+  static inline bool is_raw_access(DecoratorSet decorators) {
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
-    return (no_barrier & decorators) == 0
-        && offset > oopDesc::klass_offset_in_bytes();
+    return (no_barrier & decorators) != 0;
+  }
+
+  static inline bool needBarrier(DecoratorSet decorators, oopDesc* base,
+                                 ptrdiff_t offset) {
+    DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
+    return !is_raw_access(decorators)
+        && offset > oopDesc::klass_offset_in_bytes()
+        && reinterpret_cast<RTGC::GCNode*>(base)->isReverseTrackable();
   }
 
   static address getStoreFunction(DecoratorSet decorators);

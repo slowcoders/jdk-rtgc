@@ -43,19 +43,19 @@ RtgcBarrierSetC1::RtgcBarrierSetC1() {
 }
 
 bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access) {
-  return access.is_oop() && RtgcBarrier::needBarrier(access.decorators())
+  return access.is_oop() && !RtgcBarrier::is_raw_access(access.decorators())
       && !access.resolved_addr()->is_stack();
 }
 
 
 LIR_Opr RtgcBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
   resolve_in_register |= access.is_oop()
-      && RtgcBarrier::needBarrier(access.decorators())
+      && !RtgcBarrier::is_raw_access(access.decorators())
       && !access.base().opr()->is_stack();
   return BarrierSetC1::resolve_address(access, resolve_in_register);
 }
 
-LIR_Opr get_resolved_addr(LIRAccess& access, Register reg) {
+static LIR_Opr get_resolved_addr(LIRAccess& access) {
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();
   bool is_array = (decorators & IS_ARRAY) != 0;
@@ -235,7 +235,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   LIRItem base = access.base().item();
   bool in_heap = decorators & IN_HEAP;
   if (in_heap) base.load_item();
-  LIR_Opr addr = get_resolved_addr(access, c_rarg0);
+  LIR_Opr addr = get_resolved_addr(access);
   value.load_item();
 
   BasicTypeList signature;
@@ -283,7 +283,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   LIRGenerator* gen = access.gen();
   bool in_heap = decorators & IN_HEAP;
   LIRItem base = access.base().item();
-  LIR_Opr addr = get_resolved_addr(access, c_rarg0);;
+  LIR_Opr addr = get_resolved_addr(access);
   cmp_value.load_item();
   new_value.load_item();
   if (in_heap) base.load_item();

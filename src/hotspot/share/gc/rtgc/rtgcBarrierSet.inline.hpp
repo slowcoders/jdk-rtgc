@@ -11,7 +11,7 @@
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_load_in_heap(T* addr) {
-  assert(!RtgcBarrier::needBarrier(decorators), "illegal access decorators");
+  assert(RtgcBarrier::is_raw_access(decorators), "illegal access decorators");
 
   return Raw::oop_load_in_heap(addr);
 }
@@ -22,7 +22,7 @@ oop_load_in_heap_at(oop base, ptrdiff_t offset) {
   typedef typename HeapOopType<decorators>::type oop_type;
   oop_type* addr = AccessInternal::oop_field_addr<decorators>(base, offset);
 
-  if (!RtgcBarrier::needBarrier(decorators, offset)) {
+  if (!RtgcBarrier::needBarrier(decorators, base, offset)) {
     return Raw::oop_load_in_heap(addr);
   }
   const oop o = RtgcBarrier::oop_load(addr, base);
@@ -33,7 +33,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_store_in_heap(T* addr, oop value) {
-  assert(!RtgcBarrier::needBarrier(decorators), "illegal access decorators");
+  assert(RtgcBarrier::is_raw_access(decorators), "illegal access decorators");
 
   precond((decorators & IS_DEST_UNINITIALIZED) == 0);
   Raw::oop_store_in_heap(addr, value);
@@ -45,7 +45,7 @@ oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
   typedef typename HeapOopType<decorators>::type oop_type;
   oop_type* addr = AccessInternal::oop_field_addr<decorators>(base, offset);
 
-  if (!RtgcBarrier::needBarrier(decorators, offset)) {
+  if (!RtgcBarrier::needBarrier(decorators, base, offset)) {
     Raw::oop_store_in_heap(addr, value);
     return;
   }
@@ -59,7 +59,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_cmpxchg_in_heap(T* addr, oop compare_value, oop new_value) {
-  assert(!RtgcBarrier::needBarrier(decorators), "illegal access decorators");
+  assert(RtgcBarrier::is_raw_access(decorators), "illegal access decorators");
 
   return Raw::oop_atomic_cmpxchg_in_heap(addr, compare_value, new_value);
 }
@@ -70,7 +70,7 @@ oop_atomic_cmpxchg_in_heap_at(oop base, ptrdiff_t offset, oop compare_value, oop
   typedef typename HeapOopType<decorators>::type oop_type;
   oop_type* addr = AccessInternal::oop_field_addr<decorators>(base, offset);
 
-  if (!RtgcBarrier::needBarrier(decorators, offset)) {
+  if (!RtgcBarrier::needBarrier(decorators, base, offset)) {
     return Raw::oop_atomic_cmpxchg_in_heap(addr, compare_value, new_value);
   }
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
@@ -86,7 +86,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_xchg_in_heap(T* addr, oop new_value) {
-  assert(!RtgcBarrier::needBarrier(decorators), "illegal access decorators");
+  assert(RtgcBarrier::is_raw_access(decorators), "illegal access decorators");
 
   return Raw::oop_atomic_xchg_in_heap(addr, new_value);
 }
@@ -97,7 +97,7 @@ oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value) {
   typedef typename HeapOopType<decorators>::type oop_type;
   oop_type* addr = AccessInternal::oop_field_addr<decorators>(base, offset);
 
-  if (!RtgcBarrier::needBarrier(decorators, offset)) {
+  if (!RtgcBarrier::needBarrier(decorators, base, offset)) {
     return Raw::oop_atomic_xchg_in_heap(addr, new_value);
   }
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
@@ -114,6 +114,8 @@ template <typename T>
 inline bool RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,                                                                                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                       size_t length) {
+  bool need_barrier = RtgcBarrier::needBarrier(decorators, dst_obj, 0xFFFF);
+
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
 
   src_raw = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
@@ -122,7 +124,9 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw, 
   if (!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
     bs->write_ref_array_pre(dst_raw, length,
                             HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value);
-    if (!HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value) {
+    if (!need_barrier) {
+      Raw::oop_arraycopy(NULL, 0, src_raw, NULL, 0, dst_raw, length);
+    } else if (!HasDecorator<decorators, ARRAYCOPY_DISJOINT>::value) {
       RtgcBarrier::oop_arraycopy_conjoint(src_raw, dst_raw, length, dst_obj);
     } else if (HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
       RtgcBarrier::oop_arraycopy_uninitialized(src_raw, dst_raw, length, dst_obj);
@@ -144,7 +148,11 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw, 
     }
     bs->write_ref_array_pre(dst_raw, count, 
                             HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value);;
-    RtgcBarrier::oop_arraycopy_disjoint(src_raw, dst_raw, count, dst_obj);
+    if (!need_barrier) {
+      Raw::oop_arraycopy(NULL, 0, src_raw, NULL, 0, dst_raw, count);
+    } else {
+      RtgcBarrier::oop_arraycopy_disjoint(src_raw, dst_raw, count, dst_obj);
+    }
     bs->write_ref_array((HeapWord*)dst_raw, count);
     return count == length;
   }
@@ -154,9 +162,9 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 clone_in_heap(oop src, oop dst, size_t size) {
   Raw::clone_in_heap(src, dst, size);
-  RtgcBarrier::clone_post_barrier(dst);
-  //BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
-  //bs->write_region(MemRegion((HeapWord*)(void*)dst, size));
+  if (!RTGC_NO_TRACE_YOUNGER_GENERATION) {
+    RtgcBarrier::clone_post_barrier(dst);
+  }
 }
 
 //
@@ -166,7 +174,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_load_not_in_heap(T* addr) {
-  if (!RtgcBarrier::needBarrier(decorators)) {
+  if (RtgcBarrier::is_raw_access(decorators)) {
     return Raw::oop_load_not_in_heap(addr);
   }
   const oop o = RtgcBarrier::oop_load_not_in_heap(addr);
@@ -177,7 +185,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_store_not_in_heap(T* addr, oop new_value) {
-  if (!RtgcBarrier::needBarrier(decorators)) {
+  if (RtgcBarrier::is_raw_access(decorators)) {
     Raw::oop_store_not_in_heap(addr, new_value);
   }
   else if (decorators & IS_DEST_UNINITIALIZED) {
@@ -192,7 +200,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_cmpxchg_not_in_heap(T* addr, oop compare_value, oop new_value) {
-  if (!RtgcBarrier::needBarrier(decorators)) {
+  if (RtgcBarrier::is_raw_access(decorators)) {
     return Raw::oop_atomic_cmpxchg_not_in_heap(addr, compare_value, new_value);
   }
   return RtgcBarrier::oop_cmpxchg_not_in_heap(addr, compare_value, new_value);
@@ -202,7 +210,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_xchg_not_in_heap(T* addr, oop new_value) {
-  if (!RtgcBarrier::needBarrier(decorators)) {
+  if (RtgcBarrier::is_raw_access(decorators)) {
     return Raw::oop_atomic_xchg_not_in_heap(addr, new_value);
   }
   return RtgcBarrier::oop_xchg_not_in_heap(addr, new_value);

@@ -268,7 +268,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       if (stype != bound && !stype->is_subtype_of(bound)) {
         memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(true);
-        return length - i;//(end_p - src_p); // returns remain_count;
+        return i;//(end_p - src_p); // returns remain_count;
       }
     }
     oopDesc* old = CompressedOops::decode(dst_p[i]);

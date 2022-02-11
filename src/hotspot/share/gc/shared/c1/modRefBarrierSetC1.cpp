@@ -32,7 +32,7 @@
 #define __ gen->lir()->
 #endif
 
-static const bool use_rtgc_c1 = true;
+static const bool use_rtgc_c1 = false;
 
 void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   DecoratorSet decorators = access.decorators();

@@ -15,18 +15,6 @@
 
 namespace RTGC {
 
-enum class TraceState : int {
-	NOT_TRACED,
-	IN_TRACING,
-	TRACE_FINISHED,
-};
-
-enum class NodeType : int {
-	Reachable,
-	Garbage,
-	Destroyed,
-};
-
 
 class GCObject;
 class SafeShortcut;
@@ -40,7 +28,6 @@ public:
 };
 
 static const int INVALID_SHORTCUT = 1;
-static const int ZERO_ROOT_REF = -1;
 
 class GCObject : public GCNode {
 	friend class GCRuntime;
@@ -55,79 +42,9 @@ public:
 
 	// virtual ~GCObject();
 
-	NodeType getNodeType() {
-		return (NodeType)_flags.nodeType;
-	}
-
-	bool isGarbage() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && !this->hasReferrer();
-	}
-
-	bool isUnsafe() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == 0;
-	}
-
-	bool isPublished() {
-		return _flags.isPublished;
-	}
-
-	TraceState getTraceState() {
-		return (TraceState)_flags.traceState;
-	}
-
-	void setTraceState(TraceState state) {
-		_flags.traceState = (int)state;
-	}
-
-	void markGarbage() {
-		_flags.nodeType = (int)NodeType::Garbage;
-	}
-
-
-	bool hasReferrer() {
-		return this->_refs != 0;
-	}
-
-	bool hasMultiRef() {
-		return _flags.hasMultiRef != 0;
-	}
-
-	void setHasMultiRef(bool multiRef) {
-		_flags.hasMultiRef = multiRef;
-	}
-
-	int getRootRefCount() {
-		return _flags.rootRefCount;
-	}
-
-	int incrementRootRefCount() {
-		return ++_flags.rootRefCount;
-	}
-
-	int decrementRootRefCount() {
-		return --_flags.rootRefCount;
-	}
-
 	void initIterator(AnchorIterator* iterator);
 
 	ReferrerList* getReferrerList();
-
-	bool isOld() {
-		return _flags.isPublished;
-	}
-
-	void markOld() {
-		precond(!this->isOld());
-		_flags.isPublished = true;
-	}
-
-	void markDestroyed() {
-		_flags.nodeType = (int)NodeType::Destroyed;
-	}
-
-	bool isDestroyed() {
-		return _flags.nodeType == (int)NodeType::Destroyed;;
-	}
 
 	SafeShortcut* getShortcut();
 

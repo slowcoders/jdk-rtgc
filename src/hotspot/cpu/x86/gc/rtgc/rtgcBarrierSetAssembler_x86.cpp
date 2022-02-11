@@ -79,7 +79,7 @@ RtgcBarrierSetAssembler::RtgcBarrierSetAssembler() {
 }
 
 static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst) {
-  if (!is_reference_type(type) || !RtgcBarrier::needBarrier(decorators)) return false;
+  if (!is_reference_type(type) || RtgcBarrier::is_raw_access(decorators)) return false;
   bool is_array = dst.index() != noreg;
   return is_array || dst.disp() > oopDesc::klass_offset_in_bytes();
 }
@@ -102,6 +102,20 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
   }
 }
 
+static void __checkRawAccess(MacroAssembler* masm, Register obj, Label& rawAccess) {
+  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
+  RTGC::GCFlags _flags;
+  *(int*)&_flags = 0;
+  _flags.isPublished = true;
+
+  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+
+  __ movl(tmp3, Address(obj, offset_gc_flags));
+  __ andl(tmp3, *(int*)&_flags);
+  // notZero 바꿔서 test.
+  __ jcc(Assembler::zero, rawAccess);
+
+}
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
@@ -118,18 +132,8 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   Register obj = dst.base();
 
   Label not_old, _done;
-  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-  RTGC::GCFlags _flags;
-  *(int*)&_flags = 0;
-  _flags.isPublished = true;
 
-  rtgc_log(true, "reg %p, %p\n", tmp1, tmp2);
-  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
-
-  __ movl(tmp3, Address(obj, offset_gc_flags));
-  __ andl(tmp3, *(int*)&_flags);
-  // notZero 바꿔서 test.
-  __ jcc(Assembler::zero, not_old);
+  __checkRawAccess(masm, obj, not_old);
 
   push_registers(masm, true, false);
 
@@ -185,8 +189,12 @@ int rtgc_arraycopy_hook_checkcast(narrowOop* src, narrowOop* dst, int count, arr
   return RtgcBarrier::oop_arraycopy_checkcast(src, dst, count, dst_array);
 }
 
-bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, DecoratorSet decorators, Register dst_array,
-                                Register src, Register dst, Register count) {
+void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                                  Register src, Register dst, Register count, 
+                                  Register dst_array, Label& copy_done, Register saved_count) {
+  this->arraycopy_prologue(masm, decorators, type, src, dst, count); 
+  if (true || type != T_OBJECT) return;
+
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
@@ -198,12 +206,17 @@ bool RtgcBarrierSetAssembler::oop_arraycopy_hook(MacroAssembler* masm, Decorator
   assert(dst_array == c_rarg3, "invalid arg");
 
   address fn = RtgcBarrier::getArrayCopyFunction(decorators);
-  if (checkcast) {
-    push_registers(masm, false, false);
-    __ MacroAssembler::call_VM_leaf_base(fn, 4);
-    pop_registers(masm, false, false);
-    return checkcast;
+  Label raw_access;
+
+  __checkRawAccess(masm, dst_array, raw_access);
+  push_registers(masm, false, false);
+  __ MacroAssembler::call_VM_leaf_base(fn, 4);
+  pop_registers(masm, false, false);
+  if (saved_count != noreg) {
+    __ movptr(saved_count, count);
   }
-  return false;
+  __ jmp(copy_done);
+  __ bind(raw_access);
+  return;
 }
 
