@@ -44,7 +44,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
                 LIR_OprFact::illegalOpr /* pre_val */, access.patch_emit_info());
   }
 
-  if (use_rtgc_c1) {
+  if (true || use_rtgc_c1) {
     _RawBarrierSetC1::store_at_resolved(access, value);
   }
   else {
