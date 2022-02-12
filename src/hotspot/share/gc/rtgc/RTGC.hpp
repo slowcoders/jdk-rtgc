@@ -16,6 +16,8 @@ namespace RTGC {
 
   void initialize();
 
+  bool needTrack(oopDesc* obj);
+
   bool isPublished(GCObject* obj);
 
   inline bool isPublished(oopDesc* obj) {

@@ -24,12 +24,6 @@
 #include "utilities/macros.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "asm/assembler.hpp"
-#include "asm/macroAssembler.inline.hpp"
-#ifdef COMPILER1
-#include "c1/c1_LIRAssembler.hpp"
-#include "c1/c1_MacroAssembler.hpp"
-#include "gc/z/c1/zBarrierSetC1.hpp"
-#endif // COMPILER1
 
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
@@ -42,87 +36,6 @@ static const bool ENABLE_CPU_MEMBAR = false;
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER_C1, function);
 }
-
-// class OpOppStore : public LIR_Op1 {
-//   OpRawStore(LIR_Code code, LIR_Opr src, LIR_Address* addr, 
-//             LIR_Opr result, LIR_PatchCode patch = lir_patch_none)
-//   : LIR_Op1(code, src, LIR_OprFact::address(addr),
-//             T_OBJECT, patch_code, NULL) {}
-//   virtual void emit_code(LIR_Assembler* masm) {
-//     masm->bind(_entry);
-//     LIR_Op1::emit_code();
-//   }
-// };
-
-class OopStoreStub : public CodeStub {
-private:
-  LIRAccess*  _access;
-  LIR_Opr     _ref_addr;
-  LIR_Opr     _value, _tmp;
-  address     _runtime_stub;
-
-public:
-  OopStoreStub(LIRAccess* access, LIR_Opr value, address runtime_stub) :
-      _access(access),
-      _ref_addr(access->resolved_addr()),
-      _value(value),
-      _tmp(LIR_OprFact::illegalOpr),
-      _runtime_stub(runtime_stub) {
-
-    assert(_ref_addr->is_address(), "Must be an address");
-    assert(_value->is_register(), "Must be a register");
-
-  }  
-
-  virtual void visit(LIR_OpVisitState* visitor) {
-    //visitor->do_slow_case();
-    visitor->do_input(_value);
-    visitor->do_output(_ref_addr);
-    if (_tmp->is_valid()) {
-      visitor->do_temp(_tmp);
-    }
-  }
-
-  virtual void emit_code(LIR_Assembler* ce) {
-    ce->masm()->bind(*entry());
-    DecoratorSet decorators = _access->decorators();
-    bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-    bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
-    if (is_volatile) {
-      // __ membar_release();
-      LIR_Op0 op(lir_membar_release);
-      ce->emit_op0(&op);
-    }
-
-  LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
-  // if (is_volatile && !needs_patching) {
-  //   gen->volatile_field_store(value, access.resolved_addr()->as_address_ptr(), access.access_emit_info());
-  // } else {
-    //gen->lir()->store(value, access.resolved_addr()->as_address_ptr(), access.access_emit_info(), patch_code);
-  // }
-    LIR_Op1 op(
-            lir_move,
-            _value,
-            LIR_OprFact::address(_ref_addr->as_address_ptr()),
-            _access->type(),
-            patch_code,
-            NULL);
-    ce->emit_op1(&op);
-
-    if (is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      // __ membar();
-      LIR_Op0 op(lir_membar);
-      ce->emit_op0(&op);
-    }
-
-    ce->masm()->jmp(*continuation());
-  }
-#ifndef PRODUCT
-  virtual void print_name(outputStream* out) const {
-    out->print("OopStoreStub");
-  }
-#endif // PRODUCT
-};
 
 
 RtgcBarrierSetC1::RtgcBarrierSetC1() {
@@ -229,8 +142,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   DecoratorSet decorators = access.decorators();
   bool is_array = (decorators & IS_ARRAY) != 0;
   bool in_heap = decorators & IN_HEAP;
-  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-  
+
   LIR_Opr offset = access.offset().opr();
   bool setKlass = in_heap && !is_array && 
               offset->is_constant() &&
@@ -244,25 +156,8 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   LIRGenerator* gen = access.gen();
+  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
   LIRItem base = access.base().item();
-
-  LIR_Opr tmpValue = gen->new_register(T_INT);
-  LabelObj* L_raw_access = new LabelObj();
-  LabelObj* L_done = new LabelObj();
-
-  LIR_Opr flags_offset = LIR_OprFact::intConst(offset_of(RTGC::GCNode, _flags));
-  RTGC::GCFlags _flags;
-  *(int*)&_flags = 0;
-  // _flags.isPublished = true;
-  LIR_Opr flag_old = LIR_OprFact::intConst(*(int*)&_flags);
-
-  OopStoreStub* stub = new OopStoreStub(&access, value, NULL);
-  LIRAccess load_flag_access(gen, decorators, access.base(), flags_offset, T_INT, 
-        NULL/*access.patch_emit_info()*/, access.access_emit_info());  
-  BarrierSetC1::load_at(load_flag_access, tmpValue);
-  gen->lir()->logical_and(tmpValue, flag_old, tmpValue);
-  gen->lir()->branch(lir_cond_equal, stub);
-
   LIR_Opr addr = get_resolved_addr(access);
 
   if (ENABLE_CPU_MEMBAR && is_volatile) {
@@ -275,7 +170,6 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   if (in_heap) {
     signature.append(T_OBJECT); // object
   }
-
   LIR_OprList* args = new LIR_OprList();
   //args->append(gen->getThreadPointer());
   args->append(addr); 
@@ -292,17 +186,12 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   // }
 
   gen->call_runtime(&signature, args,
-              fn, voidType, NULL);
+              fn,
+              voidType, NULL);
 
   if (ENABLE_CPU_MEMBAR && is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
     gen->lir()->membar();
   }
-
-  //gen->lir()->branch(lir_cond_always, L_done->label());
-  gen->lir()->branch_destination(stub->continuation());
-  //access.clear_access_emit_info();
-BarrierSetC1::store_at_resolved(access, value);
-  gen->lir()->branch_destination(stub->continuation());
   return;    
 }
 

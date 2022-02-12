@@ -71,6 +71,10 @@ static void rtgc_set_field(oop* addr, oopDesc* value) {
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   check_field_addr(base, addr);
+  if (!RTGC::needTrack(base)) {
+    RawAccess<>::oop_store(addr, new_value);
+    return;
+  }
   rtgc_log(LOG_OPT(2), "store %p(%p) := %p\n", base, addr, new_value);
   RTGC::publish_and_lock_heap(new_value, base);
   oopDesc* old = CompressedOops::decode(*addr);

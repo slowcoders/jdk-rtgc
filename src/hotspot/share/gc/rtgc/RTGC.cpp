@@ -52,6 +52,10 @@ void RTGC::unlock_heap(bool locked) {
   }
 }
 
+bool RTGC::needTrack(oopDesc* obj) {
+  return to_obj(obj)->isReverseTrackable();
+}
+
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
   if (ENABLE_REF_LINK && debugOptions->opt1) {
     //rtgc_log(true, "add_referrer (%p)->%p\n", obj, referrer);
