@@ -24,7 +24,9 @@
 #include "utilities/macros.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "asm/assembler.hpp"
+#include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -165,43 +167,41 @@ public:
     // visitor->do_temp(_loc2);
   }
 
+static void __checkRawAccess(MacroAssembler* masm, Register obj, Label& rawAccess) {
+  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
+  RTGC::GCFlags _flags;
+  *(int*)&_flags = 0;
+  _flags.isPublished = true;
+
+  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+
+  masm->movl(tmp3, Address(obj, offset_gc_flags));
+  masm->andl(tmp3, *(int*)&_flags);
+  // notZero 바꿔서 test.
+  masm->jcc(Assembler::zero, rawAccess);
+
+}
+
   virtual void emit_code(LIR_Assembler* ce) {
     ce->masm()->bind(*entry());
     bool in_heap = _decorators & IN_HEAP;
 
-    // Register r_base = _base->as_register();
-    // Register r_addr = _addr->as_register();
-    // Register r_value = _value->as_register();
-    // if (in_heap) {
-    //   LIR_Op1 op_3(lir_move, _base, _loc2, 
-    //     _base->type(), lir_patch_none, NULL);
-    //   ce->emit_op1(&op_3);
-    // }
-
-    // if (_loc0->is_register()) {
-    //   LIR_Op1 op_1(lir_move, _addr, _loc0, 
-    //       _addr->type(), lir_patch_none, NULL);
-    //   ce->emit_op1(&op_1);
-    // }
-    // else {
-    //   LIR_Address* addr = _loc0->as_address_ptr();
-    //   if (addr->type() == T_LONG || addr->type() == T_DOUBLE) {
-    //     _move_kind = lir_move_unaligned; 
-    //   } else {
-    //     _move_kind = lir_move_normal;
-    //   }
-    //   LIR_Op1 op_1(lir_move, _addr, LIR_OprFact::address(addr), 
-    //       _addr->type(), lir_patch_none, NULL, _move_kind);
-    //   ce->emit_op1(&op_1);
-    // }
-
-    // LIR_Op1 op_2(lir_move, _new_value, _loc1, 
-    //     _new_value->type(), lir_patch_none, NULL);
-    // ce->emit_op1(&op_2);
-
     address fn = RtgcBarrier::getStoreFunction(_decorators);
-    ce->masm()->call(RuntimeAddress(fn));
 
+    if (in_heap) {
+      Label L_rawAccess, L_done;
+      __checkRawAccess(ce->masm(), c_rarg2, L_rawAccess);
+      ce->masm()->call(RuntimeAddress(fn));
+      ce->masm()->jmp(L_done);
+      ce->masm()->bind(L_rawAccess);
+      BarrierSet::barrier_set()->barrier_set_assembler()->oop_store_at(      
+          ce->masm(), _decorators | AS_RAW, T_OBJECT, Address(_loc0->as_register(), 0), 
+          _loc1->as_register(), noreg, noreg);
+      ce->masm()->bind(L_done);
+    }
+    else {
+      ce->masm()->call(RuntimeAddress(fn));
+    }
     ce->masm()->jmp(*continuation());
   }
 #ifndef PRODUCT
@@ -285,29 +285,29 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   LIRGenerator* gen = access.gen();
 
 
-  LIR_Opr flags_offset = LIR_OprFact::intConst(offset_of(RTGC::GCNode, _flags));
-  RTGC::GCFlags _flags;
-  *(int*)&_flags = 0;
-  _flags.isPublished = true;
-  LIR_Opr flag_old = LIR_OprFact::intConst(*(int*)&_flags);
+  // LIR_Opr flags_offset = LIR_OprFact::intConst(offset_of(RTGC::GCNode, _flags));
+  // RTGC::GCFlags _flags;
+  // *(int*)&_flags = 0;
+  // _flags.isPublished = true;
+  // LIR_Opr flag_old = LIR_OprFact::intConst(*(int*)&_flags);
 
-  LabelObj* L_trace = new LabelObj();
-  LabelObj* L_done = new LabelObj();
+  // LabelObj* L_trace = new LabelObj();
+  // LabelObj* L_done = new LabelObj();
   OopStoreStub* stub = new OopStoreStub(access, value);
-  LIR_Opr tmpValue = gen->new_register(T_INT);
-  LIRAccess load_flag_access(gen, decorators, access.base(), flags_offset, T_INT, 
-        NULL/*access.patch_emit_info()*/, NULL);//access.access_emit_info());  
-  BarrierSetC1::load_at(load_flag_access, tmpValue);
-  gen->lir()->logical_and(tmpValue, flag_old, tmpValue);
-  // gen->lir()->branch(lir_cond_equal, stub);
-   gen->lir()->cmp(lir_cond_notEqual, tmpValue, LIR_OprFact::intConst(0));
-  gen->lir()->branch(lir_cond_notEqual, L_trace->label());
-  BarrierSetC1::store_at_resolved(access, value);
-  gen->lir()->branch(lir_cond_always, L_done->label());
-  gen->lir()->branch_destination(L_trace->label());
+
+  // LIR_Opr tmpValue = gen->new_register(T_INT);
+  // LIRAccess load_flag_access(gen, decorators, access.base(), flags_offset, T_INT, 
+  //       NULL/*access.patch_emit_info()*/, NULL);//access.access_emit_info());  
+  // BarrierSetC1::load_at(load_flag_access, tmpValue);
+  // gen->lir()->logical_and(tmpValue, flag_old, tmpValue);
+
+  // gen->lir()->cmp(lir_cond_equal, tmpValue, LIR_OprFact::intConst(0));
   gen->lir()->branch(lir_cond_always, stub);
+    // BarrierSetC1::store_at_resolved(access, value);
+    // gen->lir()->branch(lir_cond_always, L_done->label());
   gen->lir()->branch_destination(stub->continuation());
-  gen->lir()->branch_destination(L_done->label());
+  //   BarrierSetC1::store_at_resolved(access, value);
+  // gen->lir()->branch_destination(L_done->label());
   return;    
 }
 
