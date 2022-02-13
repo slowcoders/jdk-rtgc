@@ -97,7 +97,6 @@ public:
     
     LIRGenerator* gen = access.gen();
     if (result_type->tag() != voidTag) {
-      _result = gen->new_register(result_type);
       _phys_reg = gen->result_register_for(result_type);
     }
     else {
@@ -133,9 +132,27 @@ public:
     
   }  
 
-  LIR_Opr get_result(LIRGenerator* gen) {
+  LIR_Opr get_result(LIRGenerator* gen, ValueType* result_type) {
+    _phys_reg = gen->result_register_for(result_type);
+    _result = gen->new_register(result_type);
     gen->lir()->move(_phys_reg, _result);
     return _result;
+  }
+
+  virtual void visit(LIR_OpVisitState* visitor) {
+    int n = _args->length();
+    for (int i = 0; i < n; i++) {
+      if (!_args->at(i)->is_pointer()) {
+        visitor->do_input(*_args->adr_at(i));
+      }
+    }
+    // visitor->do_input(_addr);
+    // visitor->do_input(_value);
+    // if (_cmp_value->is_valid()) visitor->do_input(_cmp_value); 
+    // if (_base->is_valid()) visitor->do_input(_base); 
+    visitor->do_slow_case();
+    visitor->do_call();
+    if (_phys_reg->is_valid()) visitor->do_output(_phys_reg);
   }
 
   bool genConditionalAccessBranch(LIRGenerator* gen, BarrierSetC1* c1) {
@@ -186,18 +203,6 @@ public:
     }
     assert(addr->is_register(), "must be a register at this point");
     return addr;
-  }
-
-  virtual void visit(LIR_OpVisitState* visitor) {
-    int n = _args->length();
-    for (int i = 0; i < n; i++) {
-      if (!_args->at(i)->is_pointer()) {
-        visitor->do_input(*_args->adr_at(i));
-      }
-    }
-    visitor->do_slow_case();
-    visitor->do_call();
-    if (_phys_reg->is_valid()) visitor->do_output(_phys_reg);
   }
 
   virtual void emit_code(LIR_Assembler* ce) {
@@ -297,21 +302,60 @@ oopDesc* __rtgc_xchg_nih(volatile narrowOop* addr, oopDesc* new_value) {
 }
 
 LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& value) {
-  DecoratorSet decorators = access.decorators();
   if (!needBarrier_onResolvedAddress(access)) {
     return BarrierSetC1::atomic_xchg_at_resolved(access, value);
   }
 
-  // access.base().item().load_item();
-  value.load_item();
-  LIRGenerator* gen = access.gen();
-  address fn = RtgcBarrier::getXchgFunction(access.decorators());
-  OopStoreStub* stub = new OopStoreStub(fn, objectType, access, value.result());
-  if (stub->genConditionalAccessBranch(gen, this)) {
-    BarrierSetC1::atomic_xchg_at_resolved(access, value);
+  if (false) {
+    LIRGenerator* gen = access.gen();
+    DecoratorSet decorators = access.decorators();
+    bool in_heap = decorators & IN_HEAP;
+    LIRItem base = access.base().item();
+    if (in_heap) base.load_item();
+    LIR_Opr addr = OopStoreStub::get_resolved_addr(access);
+    value.load_item();
+
+    BasicTypeList signature;
+    signature.append(T_INT); // addr
+    signature.append(T_OBJECT); // new_value
+    if (in_heap) signature.append(T_OBJECT);    // object
+    
+    LIR_OprList* args = new LIR_OprList();
+    args->append(addr);//.result());
+    args->append(value.result());
+    if (in_heap) args->append(base.result());
+
+    address fn = RtgcBarrier::getXchgFunction(in_heap);
+    // if (in_heap)
+    //   fn = reinterpret_cast<address>(__rtgc_xchg);
+    // else 
+    //   fn = reinterpret_cast<address>(__rtgc_xchg_nih);
+
+    LIR_Opr res = gen->call_runtime(&signature, args,
+                  fn,
+                  objectType, NULL);
+    return res;    
+
+  } else {
+    LIRGenerator* gen = access.gen();
+    address fn = RtgcBarrier::getXchgFunction(access.decorators());
+    DecoratorSet decorators = access.decorators();
+    bool in_heap = decorators & IN_HEAP;
+    LIRItem base = access.base().item();
+    if (in_heap) base.load_item();
+    LIR_Opr addr = OopStoreStub::get_resolved_addr(access);
+    value.load_item();
+    OopStoreStub* stub = new OopStoreStub(fn, objectType, access, value.result());
+    LIR_Opr res = LIR_OprFact::illegalOpr;
+    if (stub->genConditionalAccessBranch(gen, this)) {
+      res = BarrierSetC1::atomic_xchg_at_resolved(access, value);
+      gen->lir()->branch_destination(stub->continuation());
+    } else {
+      gen->lir()->branch_destination(stub->continuation());
+      res = stub->get_result(gen, objectType);   
+    }
+    return res;
   }
-  gen->lir()->branch_destination(stub->continuation());
-  return stub->get_result(gen);    
 }
 
 bool __rtgc_cmpxchg(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
@@ -344,7 +388,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
     BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
   gen->lir()->branch_destination(stub->continuation());
-  return stub->get_result(gen);    
+  return stub->get_result(gen, intType);    
 }
 
 const char* RtgcBarrierSetC1::rtcall_name_for_address(address entry) {
