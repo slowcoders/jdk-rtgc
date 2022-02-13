@@ -40,8 +40,8 @@ bool RTGC::lock_if_published(GCObject* obj) {
 
 void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
   if (doPublish && obj != NULL && !isPublished(obj)) {
-    if (RTGC::debugOptions->opt1)
-    RTGC::scanInstance(obj, GCRuntime::markPublished);
+    //if (RTGC::debugOptions->opt1)
+    //RTGC::scanInstance(obj, GCRuntime::markPublished);
   }
   lock_heap();
 }
@@ -53,7 +53,7 @@ void RTGC::unlock_heap(bool locked) {
 }
 
 bool RTGC::needTrack(oopDesc* obj) {
-  return to_obj(obj)->isReverseTrackable();
+  return to_obj(obj)->isTrackable();
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
@@ -64,12 +64,12 @@ void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
 }
 
 void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
-  precond(to_obj(referrer)->isReverseTrackable());
+  precond(to_obj(referrer)->isTrackable());
   add_referrer_unsafe(obj, referrer);
 }
 
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-  precond(to_obj(referrer)->isReverseTrackable());
+  precond(to_obj(referrer)->isTrackable());
   if (ENABLE_REF_LINK && debugOptions->opt1) {
     //rtgc_log(true, "remove_referrer (%p)->%p\n", obj, referrer);
     GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));

@@ -102,16 +102,12 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
   }
 }
 
-static void __checkRawAccess(MacroAssembler* masm, Register obj, Label& rawAccess) {
+static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAccess) {
   ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-  RTGC::GCFlags _flags;
-  *(int*)&_flags = 0;
-  _flags.isPublished = true;
-
   Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
 
   __ movl(tmp3, Address(obj, offset_gc_flags));
-  __ andl(tmp3, *(int*)&_flags);
+  __ andl(tmp3, (int)RTGC::TRACKABLE_BIT);
   // notZero 바꿔서 test.
   __ jcc(Assembler::zero, rawAccess);
 
@@ -133,7 +129,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
 
   Label not_old, _done;
 
-  __checkRawAccess(masm, obj, not_old);
+  __checkTrackable(masm, obj, not_old);
 
   push_registers(masm, true, false);
 
@@ -208,7 +204,7 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
   address fn = RtgcBarrier::getArrayCopyFunction(decorators);
   Label raw_access;
 
-  __checkRawAccess(masm, dst_array, raw_access);
+  __checkTrackable(masm, dst_array, raw_access);
   push_registers(masm, false, false);
   __ MacroAssembler::call_VM_leaf_base(fn, 4);
   pop_registers(masm, false, false);

@@ -70,7 +70,8 @@
         "__functional_base": "cpp",
         "__node_handle": "cpp",
         "__memory": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "ios": "cpp"
     },
     "terminal.integrated.defaultProfile.osx": "bash"
 }

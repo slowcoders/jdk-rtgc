@@ -157,7 +157,8 @@ oopDesc* RtgcBarrier::oop_xchg_not_in_heap(volatile oop* addr, oopDesc* new_valu
   return rtgc_xchg_not_in_heap<oop, false, 0>(addr, new_value);
 }
 
-address RtgcBarrier::getXchgFunction(bool in_heap) {
+address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
+  bool in_heap = (decorators & IN_HEAP) != 0;
   return in_heap ? reinterpret_cast<address>(rt_xchg)
                  : reinterpret_cast<address>(rt_xchg_not_in_heap);
 }
@@ -211,7 +212,8 @@ bool RtgcBarrier::rt_cmpset_not_in_heap(volatile narrowOop* addr, oopDesc* cmp_v
   return rt_cmpxchg_not_in_heap(addr, cmp_value, new_value) == cmp_value;
 }
 
-address RtgcBarrier::getCmpSetFunction(bool in_heap) {
+address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
+  bool in_heap = (decorators & IN_HEAP) != 0;
   return in_heap ? reinterpret_cast<address>(rt_cmpset)
                  : reinterpret_cast<address>(rt_cmpset_not_in_heap);
 }
@@ -246,7 +248,8 @@ oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
   return rtgc_load_not_in_heap<oop, false, 0>(addr);
 }
 
-address RtgcBarrier::getLoadFunction(bool in_heap) {
+address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
+  bool in_heap = (decorators & IN_HEAP) != 0;
   return in_heap ? reinterpret_cast<address>(rt_load)
                  : reinterpret_cast<address>(rt_load_not_in_heap);
 }

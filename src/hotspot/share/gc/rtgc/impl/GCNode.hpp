@@ -4,25 +4,20 @@
 namespace RTGC {
 
 static const int ZERO_ROOT_REF = -1;
-
+static const int TRACKABLE_BIT = 1;
 enum class TraceState : int {
 	NOT_TRACED,
 	IN_TRACING,
 	TRACE_FINISHED,
 };
 
-enum class NodeType : int {
-	Reachable,
-	Garbage,
-	Destroyed,
-};
-
 struct GCFlags {
-	int32_t rootRefCount: 26;
+	uint32_t isTrackable: 1;
+	uint32_t isGarbage: 1;
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
-	uint32_t nodeType: 2;
+	int32_t rootRefCount: 26;
 };
 
 class GCNode {
@@ -38,25 +33,22 @@ public:
 		((int32_t*)this)[2] = 0; 
 	}
 
-	bool isOld() {
-		return _flags.isPublished;
+	bool isTrackable() {
+		return _flags.isTrackable;
 	}
 
-	bool isReverseTrackable() {
-		return this->isOld();
-	}
-
-	void markOld() {
-		precond(!this->isOld());
-		_flags.isPublished = true;
+	void markTrackable() {
+		precond(!this->isTrackable());
+		_flags.isTrackable = true;
 	}
 
 	void markDestroyed() {
-		_flags.nodeType = (int)NodeType::Destroyed;
+		precond(_flags.isGarbage);
+		_flags.isTrackable = false;
 	}
 
 	bool isDestroyed() {
-		return _flags.nodeType == (int)NodeType::Destroyed;;
+		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
 	TraceState getTraceState() {
@@ -68,7 +60,7 @@ public:
 	}
 
 	void markGarbage() {
-		_flags.nodeType = (int)NodeType::Garbage;
+		_flags.isGarbage = true;
 	}
 
 
@@ -96,8 +88,8 @@ public:
 		return --_flags.rootRefCount;
 	}
 
-	NodeType getNodeType() {
-		return (NodeType)_flags.nodeType;
+	bool isGarbageMarked() {
+		return _flags.isGarbage;
 	}
 
 	bool isGarbage() {

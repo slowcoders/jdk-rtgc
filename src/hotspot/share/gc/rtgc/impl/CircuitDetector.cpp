@@ -123,7 +123,7 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
             }
             unsafeObj = _unsafeObjects.back();
             _unsafeObjects.pop_back();
-            if (unsafeObj->getNodeType() == NodeType::Reachable) break;
+            if (!unsafeObj->isGarbageMarked()) break;
         }
     }
 
@@ -149,7 +149,7 @@ void GarbageProcessor::destroyObject(GCObject* garbage) {
             it = &_traceStack.back();
         }
         else if (!link->isDestroyed()) {
-            if (link->getNodeType() == NodeType::Reachable) {
+            if (!link->isGarbageMarked()) {
                 if (link->removeReferrer(it->getContainerObject()) > 0
                 ||  !link->isGarbage()) {
                     if (link->isUnsafe()) {

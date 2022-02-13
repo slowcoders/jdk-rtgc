@@ -41,13 +41,13 @@ public:
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
     return !is_raw_access(decorators)
         && offset > oopDesc::klass_offset_in_bytes()
-        && reinterpret_cast<RTGC::GCNode*>(base)->isReverseTrackable();
+        && reinterpret_cast<RTGC::GCNode*>(base)->isTrackable();
   }
 
   static address getStoreFunction(DecoratorSet decorators);
-  static address getXchgFunction(bool in_heap);
-  static address getCmpSetFunction(bool in_heap);
-  static address getLoadFunction(bool in_heap);
+  static address getXchgFunction(DecoratorSet decorators);
+  static address getCmpSetFunction(DecoratorSet decorators);
+  static address getLoadFunction(DecoratorSet decorators);
   static address getArrayCopyFunction(DecoratorSet decorators);
 
   static void oop_store(oop* p, oopDesc* new_value, oopDesc* base);
