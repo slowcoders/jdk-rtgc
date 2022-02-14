@@ -373,19 +373,21 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
     assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
-#if USE_RTGC    
+#if USE_RTGC  // register_old_object
     if (cp->gen == GenCollectedHeap::heap()->old_gen()) {
       if (GenCollectedHeap::heap()->is_in_young(q)) {
         RTGC::register_old_object(q, compact_top);
       } else {
-        RTGC::adjust_pointers(q, compact_top);
+        // RTGC::adjust_pointers(q, compact_top);
       }
     }
 #endif
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
+#if true // || !USE_RTGC    
     q->init_mark();
+#endif
     assert(q->forwardee() == NULL, "should be forwarded to NULL");
   }
 

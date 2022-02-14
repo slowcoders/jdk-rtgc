@@ -322,7 +322,7 @@ JVM_GetSystemPackages(JNIEnv *env);
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearReferencePendingList(JNIEnv *env);
 
-#if USE_RTGC
+#if USE_RTGC  // JVM_GetAndClearDiscovered
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearDiscovered(JNIEnv *env, jobject ref);
 #endif

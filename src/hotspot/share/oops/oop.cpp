@@ -148,7 +148,7 @@ void oopDesc::set_narrow_klass(narrowKlass nk) {
   assert(DumpSharedSpaces, "Used by CDS only. Do not abuse!");
   assert(UseCompressedClassPointers, "must be");
   _metadata._compressed_klass = nk;
-#if USE_RTGC  
+#if USE_RTGC  // clear _rtNode 
   _rtNode[0] = _rtNode[1] = 0;
 #endif
 }

@@ -53,7 +53,7 @@ class oopDesc {
   friend class JVMCIVMStructs;
  private:
   volatile markWord _mark;
-#if USE_RTGC
+#if USE_RTGC  // _rtNode
   int64_t _rtNode[2];
 #endif
   union _metadata {

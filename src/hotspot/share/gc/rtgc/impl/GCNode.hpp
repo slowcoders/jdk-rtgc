@@ -29,8 +29,9 @@ public:
 
 public:
 	void clear() { 
-		((int64_t*)this)[0] = 0; 
-		((int32_t*)this)[2] = 0; 
+		_refs = 0; 
+		_shortcutId = 0; 
+		*(int*)&_flags = 0;
 	}
 
 	bool isTrackable() {

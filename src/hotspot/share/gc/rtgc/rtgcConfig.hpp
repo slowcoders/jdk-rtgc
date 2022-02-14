@@ -3,6 +3,7 @@
 
 #define USE_RTGC                      true
 #define USE_RTGC_COMPACT_0            false
+#define USE_RTGC_COMPACT_1            true
 #define USE_RTGC_TLAB_ALLOC           false
 #define RTGC_NO_TRACE_YOUNGER_GENERATION  true
 

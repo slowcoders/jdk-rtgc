@@ -707,6 +707,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Otherwise try allocating obj tenured
   if (obj == NULL) {
+    // USE_RTGC RTGC::register_old_ref
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
       handle_promotion_failure(old);

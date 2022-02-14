@@ -60,7 +60,7 @@ public:
   template <DecoratorSet decorators, typename BarrierSetT = RtgcBarrierSet>
   class AccessBarrier: public ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> {
   private:
-    typedef ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> Raw;
+    typedef ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> ModRef;
 
   public:
     //

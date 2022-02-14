@@ -110,7 +110,7 @@ void oopDesc::set_klass(Klass* k) {
   } else {
     _metadata._klass = k;
   }
-#if USE_RTGC  
+#if USE_RTGC  // clear _rtNode
   _rtNode[0] = _rtNode[1] = 0;
 #endif
 }
@@ -118,7 +118,7 @@ void oopDesc::set_klass(Klass* k) {
 void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
   assert(Universe::is_bootstrapping() || (k != NULL && k->is_klass()), "incorrect Klass");
   char* raw_mem = ((char*)mem + klass_offset_in_bytes());
-#if USE_RTGC  
+#if USE_RTGC  // clear _rtNode
   ((oopDesc*)mem)->_rtNode[0] = 0;
   ((oopDesc*)mem)->_rtNode[1] = 0;
 #endif

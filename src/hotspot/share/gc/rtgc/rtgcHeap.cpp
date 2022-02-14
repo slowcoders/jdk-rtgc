@@ -214,7 +214,7 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
 void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   precond(ref->is_gc_marked());
 
-  // if (!RTGC::debugOptions->opt1) return;
+  if (!RTGC::debugOptions->opt1) return;
 
   GCObject* obj = to_obj(ref);
   void* moved_to = ref->mark().decode_pointer();
