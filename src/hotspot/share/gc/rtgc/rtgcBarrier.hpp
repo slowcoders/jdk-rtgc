@@ -95,7 +95,7 @@ public:
     return rt_load_not_in_heap(p);
   }
 
-  static void clone_post_barrier(oopDesc* array);
+  static void clone_post_barrier(oopDesc* new_obj);
 
   static int oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);
   static int oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);

@@ -262,7 +262,7 @@ public:
   }
 };
 
-#if USE_RTGC
+#if USE_RTGC_COMPACT_0
 class AdjustRootPointerClosure: public BasicOopIterateClosure {
  public:
   template <typename T> void do_oop_work(T* p) { 

@@ -76,51 +76,45 @@ class OopStoreStub : public CodeStub {
   address _fn;
   LIR_OprList* _args;
   LIRAddressOpr _base_addr;
-  LIR_Opr _addr, _value, _cmp_value, _base, _result;
-  LIR_Opr _phys_reg;
+  bool _in_heap;
 public:
+
   OopStoreStub(address fn, LIRAccess& access, LIR_Opr value, 
                LIR_Opr cmp_value = LIR_OprFact::illegalOpr)
                 : _fn(fn), _base_addr(access.base()) {
     DecoratorSet decorators = access.decorators();
-    bool in_heap = decorators & IN_HEAP;
+    bool _in_heap = decorators & IN_HEAP;
     bool compare = cmp_value->is_valid();
 
     BasicTypeList signature;
     signature.append(T_ADDRESS); // addr
     signature.append(T_OBJECT); // new_value
     if (compare) signature.append(T_OBJECT); // cmp_value
-    if (in_heap) {
+    if (_in_heap) {
       signature.append(T_OBJECT); // object
       _base_addr.item().load_item();
     }
     
     LIRGenerator* gen = access.gen();
     CallingConvention* cc = gen->frame_map()->c_calling_convention(&signature);
-    _args = cc->args();
-    int idx = 0;
-    _addr = cc->at(idx++);
-    _value = cc->at(idx++);
-    _cmp_value = compare ? cc->at(idx++) : LIR_OprFact::illegalOpr;
-    _base = in_heap ? cc->at(idx++) : LIR_OprFact::illegalOpr;
-    
-    precond(_base->is_valid() == in_heap);
+    this->_args = cc->args();
     LIR_List* lir = gen->lir();
     LIR_Opr p = get_resolved_addr(access);
-    if (_addr->is_register()) {
-      lir->move(p, _addr);
+    if (cc->at(0)->is_register()) {
+      lir->move(p, cc->at(0));
     } else {
       LIR_Address* addr = p->as_address_ptr();
       if (addr->type() == T_LONG || addr->type() == T_DOUBLE) {
-        lir->unaligned_move(addr, _addr);
+        lir->unaligned_move(addr, cc->at(0));
       } else {
-        lir->move(addr, _addr);
+        lir->move(addr, cc->at(0));
       }
     }
 
-    lir->move(value, _value);
-    if (compare) lir->move(cmp_value, _cmp_value);
-    if (in_heap) lir->move(_base_addr.item().result(), _base);    
+    lir->move(value, cc->at(1));
+    int idx = 2;
+    if (compare) lir->move(cmp_value, cc->at(idx++));
+    if (_in_heap) lir->move(_base_addr.item().result(), cc->at(idx++));    
   }  
 
   LIR_Opr get_result(LIRGenerator* gen, ValueType* result_type) {
@@ -137,17 +131,13 @@ public:
         visitor->do_input(*_args->adr_at(i));
       }
     }
-    // visitor->do_input(_addr);
-    // visitor->do_input(_value);
-    // if (_cmp_value->is_valid()) visitor->do_input(_cmp_value); 
-    // if (_base->is_valid()) visitor->do_input(_base); 
     visitor->do_slow_case();
     visitor->do_call();
-    if (_phys_reg->is_valid()) visitor->do_output(_phys_reg);
+    // if (_phys_reg->is_valid()) visitor->do_output(_phys_reg);
   }
 
   bool genConditionalAccessBranch(LIRGenerator* gen, BarrierSetC1* c1) {
-    if (!_base->is_valid()) {
+    if (!_in_heap) {
       gen->lir()->branch(lir_cond_always, this->entry());
       return false;
     }
@@ -301,15 +291,12 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   LIRGenerator* gen = access.gen();
   address fn = RtgcBarrier::getXchgFunction(access.decorators());
   OopStoreStub* stub = new OopStoreStub(fn, access, value.result());
-  LIR_Opr result = LIR_OprFact::illegalOpr;
   if (stub->genConditionalAccessBranch(gen, this)) {
-    result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
-    gen->lir()->branch_destination(stub->continuation());
-  } else {
-    gen->lir()->branch_destination(stub->continuation());
-    result = stub->get_result(gen, objectType);   
+    LIR_Opr tmp = BarrierSetC1::atomic_xchg_at_resolved(access, value);
+    gen->lir()->move(tmp, gen->result_register_for(objectType));
   }
-  return result;
+  gen->lir()->branch_destination(stub->continuation());
+  return stub->get_result(gen, objectType);   
 }
 
 bool __rtgc_cmpxchg(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
@@ -337,15 +324,12 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   LIRGenerator* gen = access.gen();
   address fn = RtgcBarrier::getCmpSetFunction(access.decorators());
   OopStoreStub* stub = new OopStoreStub(fn, access, new_value.result(), cmp_value.result());
-  LIR_Opr result = LIR_OprFact::illegalOpr;
   if (stub->genConditionalAccessBranch(gen, this)) {
-    result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
-    gen->lir()->branch_destination(stub->continuation());
-  } else {
-    gen->lir()->branch_destination(stub->continuation());
-    result = stub->get_result(gen, objectType);   
-  }
-  return result;
+    LIR_Opr tmp = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+    gen->lir()->move(tmp, gen->result_register_for(intType));
+  } 
+  gen->lir()->branch_destination(stub->continuation());
+  return stub->get_result(gen, intType);   
 }
 
 const char* RtgcBarrierSetC1::rtcall_name_for_address(address entry) {

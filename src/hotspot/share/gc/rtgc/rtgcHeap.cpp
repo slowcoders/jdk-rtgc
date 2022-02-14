@@ -212,18 +212,12 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
 }
 
 void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
-  if (!RTGC::debugOptions->opt1) return;
-  if (!((GenCollectedHeap*)Universe::heap())->is_in_young(ref)) {
-    rtgc_log(LOG_OPT(1), "not young obj %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
-    return;
-  }
-  GCObject* obj = to_obj(ref);
+  precond(ref->is_gc_marked());
 
+  // if (!RTGC::debugOptions->opt1) return;
+
+  GCObject* obj = to_obj(ref);
   void* moved_to = ref->mark().decode_pointer();
-  if (!ref->is_gc_marked() || moved_to == NULL) {
-    rtgc_log(LOG_OPT(1), "not marked %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
-    return;
-  }
   const bool CHECK_GARBAGE = true;
 
   if (!obj->hasReferrer()) {
@@ -234,8 +228,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
       oopDesc* oop = cast_to_oop(referrers->at(idx));
-      if (CHECK_GARBAGE && // new_obj == (void*)0xbaadbabebaadbabc) {
-          !oop->is_gc_marked() && ((GenCollectedHeap*)Universe::heap())->is_in_young(oop)) {// && oop < young_gen_end) {
+      if (CHECK_GARBAGE && !oop->is_gc_marked()) {
         rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(%p)\n", oop, obj, moved_to);
         referrers->removeFast(idx);
         continue;
@@ -262,8 +255,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   }
   else {
     oopDesc* oop = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
-    if (CHECK_GARBAGE && // new_obj == (void*)0xbaadbabebaadbabc) {//
-        !oop->is_gc_marked()  && ((GenCollectedHeap*)Universe::heap())->is_in_young(oop)) {// && oop < young_gen_end) {
+    if (CHECK_GARBAGE && !oop->is_gc_marked()) {
       rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p\n", oop, obj);
       obj->_refs = 0;
     }
@@ -279,7 +271,12 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
 
 void RTGC::register_old_object(oopDesc* youngOop, void* oldOop) {
   // oldOop 는 아직 복사되지 않은 상태이다.
-  to_obj(youngOop)->markTrackable();
-  RTGC::iterateReferents(
-    to_obj(youngOop), (RefTracer2)RTGC::add_referrer_unsafe, oldOop);
+    to_obj(youngOop)->markTrackable();
+  // if (!to_obj(youngOop)->isTrackable()) {
+    RTGC::iterateReferents(
+      to_obj(youngOop), (RefTracer2)RTGC::add_referrer_unsafe, oldOop);
+  // }
+  // else {
+  //   /// MAYBE Something wrong!!!
+  // }
 }

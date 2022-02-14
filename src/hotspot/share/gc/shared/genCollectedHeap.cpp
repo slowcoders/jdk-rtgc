@@ -137,7 +137,7 @@ jint GenCollectedHeap::initialize() {
   old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
 
-  rtgc_log(true, "heap max_size young=%p old=%p\n", 
+  rtgc_log(false, "heap max_size young=%p old=%p\n", 
     (void*)(_young_gen_spec->max_size() / 1024),
     (void*)(_old_gen_spec->max_size() / 1024))
 
@@ -1123,11 +1123,11 @@ GenCollectedHeap* GenCollectedHeap::heap() {
 void GenCollectedHeap::prepare_for_compaction() {
   // Start by compacting into same gen.
   CompactPoint cp(_old_gen);
-  rtgc_log(true, "prepare_for_compaction _old_gen started\n")
+  rtgc_log(false, "prepare_for_compaction _old_gen started\n")
   _old_gen->prepare_for_compaction(&cp);
-  rtgc_log(true, "prepare_for_compaction _young_gen started\n")
+  rtgc_log(false, "prepare_for_compaction _young_gen started\n")
   _young_gen->prepare_for_compaction(&cp);
-  rtgc_log(true, "prepare_for_compaction finished\n")
+  rtgc_log(false, "prepare_for_compaction finished\n")
 }
 #endif // INCLUDE_SERIALGC
 

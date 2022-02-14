@@ -162,9 +162,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 clone_in_heap(oop src, oop dst, size_t size) {
   Raw::clone_in_heap(src, dst, size);
-  if (!RTGC_NO_TRACE_YOUNGER_GENERATION) {
-    RtgcBarrier::clone_post_barrier(dst);
-  }
+  RtgcBarrier::clone_post_barrier(dst);
 }
 
 //
