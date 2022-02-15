@@ -221,7 +221,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   const bool CHECK_GARBAGE = true;
 
   if (!obj->hasReferrer()) {
-    rtgc_log(LOG_OPT(1), "no ref in %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
+    // rtgc_log(LOG_OPT(1), "no ref in %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
     return;
   }
   if (obj->hasMultiRef()) {
@@ -229,7 +229,7 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
     for (int idx = 0; idx < referrers->size(); ) {
       oopDesc* oop = cast_to_oop(referrers->at(idx));
       if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-        rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(%p)\n", oop, obj, moved_to);
+        rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
         referrers->removeFast(idx);
         continue;
       }
@@ -256,7 +256,8 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   else {
     oopDesc* oop = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
     if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-      rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p\n", oop, obj);
+      rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
+      //rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p\n", oop, obj);
       obj->_refs = 0;
     }
     else {
@@ -269,14 +270,10 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
   }
 }
 
-void RTGC::register_old_object(oopDesc* youngOop, void* oldOop) {
+void RTGC::register_trackable(oopDesc* youngOop, void* oldOop) {
   // oldOop 는 아직 복사되지 않은 상태이다.
-    to_obj(youngOop)->markTrackable();
-  // if (!to_obj(youngOop)->isTrackable()) {
-    RTGC::iterateReferents(
+  rtgc_log(false && LOG_OPT(5), "register_trackable %p\n", oldOop);
+  to_obj(youngOop)->markTrackable();
+  RTGC::iterateReferents(
       to_obj(youngOop), (RefTracer2)RTGC::add_referrer_unsafe, oldOop);
-  // }
-  // else {
-  //   /// MAYBE Something wrong!!!
-  // }
 }

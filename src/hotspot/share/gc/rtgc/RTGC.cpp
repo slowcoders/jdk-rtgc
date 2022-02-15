@@ -9,10 +9,10 @@
 
 using namespace RTGC;
 
-const static bool ENABLE_REF_LINK = false;
-// static const int LOG_OPT(int function) {
-//   return LOG_OPTION(1, function);
-// }
+const static bool ENABLE_REF_LINK = true;
+static const int LOG_OPT(int function) {
+  return LOG_OPTION(RTGC::LOG_REF_LINK, function);
+}
 
 static int g_mv_lock = 0;
 
@@ -58,7 +58,7 @@ bool RTGC::needTrack(oopDesc* obj) {
 
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
   if (ENABLE_REF_LINK && debugOptions->opt1) {
-    //rtgc_log(true, "add_referrer (%p)->%p\n", obj, referrer);
+    rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, obj);
     GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
   }
 }
@@ -71,7 +71,7 @@ void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
 void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
   precond(to_obj(referrer)->isTrackable());
   if (ENABLE_REF_LINK && debugOptions->opt1) {
-    //rtgc_log(true, "remove_referrer (%p)->%p\n", obj, referrer);
+    rtgc_log(LOG_OPT(1), "remove_referrer %p -> %p\n", referrer, obj);
     GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));
   }
 }
@@ -83,7 +83,7 @@ void RTGC::add_global_reference(oopDesc* obj) {
     //   precond(last_log != obj);
     //   last_log = obj;
     // } 
-    //rtgc_log(true, "add_global_ref %p\n", obj);
+    rtgc_log(LOG_OPT(2), "add_global_ref %p\n", obj);
     precond(obj != NULL);  
     GCRuntime::onAssignRootVariable_internal(to_obj(obj));
   }
@@ -91,7 +91,7 @@ void RTGC::add_global_reference(oopDesc* obj) {
 
 void RTGC::remove_global_reference(oopDesc* obj) {
   if (ENABLE_REF_LINK && debugOptions->opt1) {
-    //rtgc_log(true, "remove_global_ref %p\n", obj);
+    rtgc_log(LOG_OPT(2), "remove_global_ref %p\n", obj);
     precond(obj != NULL);  
     GCRuntime::onEraseRootVariable_internal(to_obj(obj));
   }
@@ -102,7 +102,8 @@ void RTGC::initialize() {
   debugOptions->opt1 = UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   if (UnlockExperimentalVMOptions) {
-    //logOptions[1] = -1;
+    logOptions[LOG_HEAP] = -1;
+    logOptions[LOG_REF_LINK] = -1;
   }
   rtgc_log(true, "UseTLAB=%d, ScavengeBeforeFullGC=%d\n", UseTLAB, ScavengeBeforeFullGC);
 }

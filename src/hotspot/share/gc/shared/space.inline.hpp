@@ -35,6 +35,8 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/markSweep.inline.hpp"
 #endif
@@ -332,13 +334,17 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       // size and destination
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
+      if (USE_RTGC_COMPACT_1 && compaction_top == NULL) {
+        compaction_top = cur_obj;
+      }
+      else {
+        // prefetch beyond compaction_top
+        Prefetch::write(compaction_top, copy_interval);
 
-      // prefetch beyond compaction_top
-      Prefetch::write(compaction_top, copy_interval);
-
-      // copy object and reinit its mark
-      assert(cur_obj != compaction_top, "everything in this pass should be moving");
-      Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
+        // copy object and reinit its mark
+        assert(cur_obj != compaction_top, "everything in this pass should be moving");
+        Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
+      }
       cast_to_oop(compaction_top)->init_mark();
       assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");
 

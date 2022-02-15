@@ -530,7 +530,7 @@ void GenCollectedHeap::do_collection(bool           full,
                                      GenerationType max_generation) {
   ResourceMark rm;
   DEBUG_ONLY(Thread* my_thread = Thread::current();)
-#if USE_RTGC_COMPACT_0
+#if USE_RTGC_COMPACT_0 || true
   full = true;
   max_generation = OldGen;
 #endif 

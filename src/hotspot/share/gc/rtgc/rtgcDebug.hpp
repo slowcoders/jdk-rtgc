@@ -12,6 +12,7 @@ namespace RTGC {
   static const int LOG_BARRIER    = 1;
   static const int LOG_BARRIER_C1 = 2;
   static const int LOG_HEAP       = 3;
+  static const int LOG_REF_LINK   = 4;
 
   inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);

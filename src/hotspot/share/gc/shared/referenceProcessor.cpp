@@ -449,7 +449,7 @@ size_t ReferenceProcessor::process_phantom_refs_work(DiscoveredList&    refs_lis
       iter.move_to_next();
     } else {
       iter.clear_referent();
-      iter.enqueue();
+      iter.enqueue(); /// ZZZ check
       log_enqueued_ref(iter, "cleared Phantom");
       iter.next();
     }

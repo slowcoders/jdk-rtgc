@@ -83,11 +83,13 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
 
     oop new_obj = cast_to_oop(obj->mark().decode_pointer());
 
+#if !USE_RTGC_COMPACT_1 
     assert(new_obj != NULL ||                      // is forwarding ptr?
            obj->mark() == markWord::prototype() || // not gc marked?
            (UseBiasedLocking && obj->mark().has_bias_pattern()),
            // not gc marked?
            "should be forwarded");
+#endif
 
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned");
@@ -104,7 +106,7 @@ inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
 inline int MarkSweep::adjust_pointers(oop obj) {
-#if USE_RTGC_COMPACT_0
+#if USE_RTGC_COMPACT_0 || USE_RTGC_COMPACT_1
   RTGC::adjust_pointers(obj, (void*)-1);
 #endif
   return obj->oop_iterate_size(&MarkSweep::adjust_pointer_closure);

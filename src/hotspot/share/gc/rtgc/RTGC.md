@@ -1,9 +1,12 @@
 ## RTGC 1차 구현
-1. Old-Generation 에 대해서만 RTGC 적용.
+1. Ref Counting 방식의 단점.
+   가비지 제거 전에 refCount 및 refSet 을 update 하는 과정이 필요하다.
+   refSet 은 Compact GC 에 적합하지 않다. 
+   - 다량의 객체가 빈번하게 가비지로 변경되는 Younger Generation 은 TLAB + Compact-GC 가 유리
+2. Old-Generation 에 대해서만 RTGC 적용.
    소량의 객체가 빈번하게 가비지로 변경되는 Older Generation 에 RTGC 가 적합.
-   RefLink 관리 부담 감소
-   (다량의 객체가 빈번하게 가비지로 변경되는 Younger Generation 은 TLAB + Compact-GC 가 유리).
-2. Compact GC Overhead 처리
+   RefLink 관리 부담 감소  
+3. Compact GC Overhead 처리
    별도 Mem-Manager 구현?
 3. YG의 root가 되는 old 객체에 대한 Garbage 여부를 판별하여 YG GC 효율성 높이기 
    Age 가 MinAge 이상인 YG 객체에 대한 GC 판별
@@ -154,6 +157,9 @@ RTGC_EXPLICT_NULL_CHCECK_ALWAYS 를 사용하여 임시 조치.<br>
    address CompiledMethod::continuation_for_implicit_exception
    address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 
+## ON_UNKNOWN_OOP_REF 처리
+DecoratorSet AccessBarrierSupport::resolve_unknown_oop_ref_strength(
+   DecoratorSet decorators, oop base, ptrdiff_t offset);
 
 
 ## What is a Safepoint ?

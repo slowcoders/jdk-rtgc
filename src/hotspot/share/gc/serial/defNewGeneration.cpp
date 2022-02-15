@@ -707,12 +707,14 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Otherwise try allocating obj tenured
   if (obj == NULL) {
-    // USE_RTGC RTGC::register_old_ref
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
       handle_promotion_failure(old);
       return old;
     }
+#if USE_RTGC && false 
+    RTGC::register_trackable(obj, obj);
+#endif  
   } else {
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;

@@ -282,6 +282,8 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     oopDesc* old = CompressedOops::decode(dst_p[i]);
     // 사용불가 memmove 필요
     // dst_p[i] = s_raw;
+    rtgc_log(LOG_OPT(5), "arr_copy %p(%p) <-> %p\n", dst_array, dst_p, item);
+
     if (item != NULL) RTGC::add_referrer(item, dst_array);
     if (!dest_uninitialized && old != NULL) RTGC::remove_referrer(old, dst_array);
   } 
