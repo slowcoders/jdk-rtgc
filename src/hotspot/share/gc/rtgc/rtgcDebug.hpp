@@ -30,6 +30,8 @@ namespace RTGC {
   };
 
   extern volatile DebugOptions* debugOptions;
+  extern volatile void* debug_obj;
+
 };
 
 #define rtgc_log(logOption, ...) \

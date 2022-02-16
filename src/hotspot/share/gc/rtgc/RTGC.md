@@ -1,3 +1,8 @@
+## TODO
+- Young Roots 에 대한 adjust_points()
+- finalize 처리
+- ref.queue 관련 오류 처리.
+
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.
    가비지 제거 전에 refCount 및 refSet 을 update 하는 과정이 필요하다.

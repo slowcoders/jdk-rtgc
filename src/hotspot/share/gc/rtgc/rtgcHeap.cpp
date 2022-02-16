@@ -272,8 +272,9 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
 
 void RTGC::register_trackable(oopDesc* youngOop, void* oldOop) {
   // oldOop 는 아직 복사되지 않은 상태이다.
-  rtgc_log(false && LOG_OPT(5), "register_trackable %p\n", oldOop);
-  to_obj(youngOop)->markTrackable();
+  rtgc_log(LOG_OPT(5), "register_trackable %p (move to -> %p)\n", youngOop, oldOop);
+  GCObject* obj = to_obj(youngOop);
+  obj->markTrackable();
   RTGC::iterateReferents(
-      to_obj(youngOop), (RefTracer2)RTGC::add_referrer_unsafe, oldOop);
+      obj, (RefTracer2)RTGC::add_referrer_unsafe, obj);
 }

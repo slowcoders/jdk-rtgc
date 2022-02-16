@@ -22,6 +22,7 @@ namespace RTGC {
 
   static DebugOptions _debugOptions;
   volatile DebugOptions* debugOptions = &_debugOptions;
+  volatile void* debug_obj = (void*)-1;
 }
 
 bool RTGC::isPublished(GCObject* obj) {
@@ -57,6 +58,7 @@ bool RTGC::needTrack(oopDesc* obj) {
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
+  // assert(!debugOptions->opt1 || obj != debug_obj, "ref %p\n", obj);
   if (ENABLE_REF_LINK && debugOptions->opt1) {
     rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, obj);
     GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
