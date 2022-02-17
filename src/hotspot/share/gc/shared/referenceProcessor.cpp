@@ -1132,7 +1132,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   if (rt == REF_PHANTOM) {
     RTGC::debug_obj = obj;
   }
-  rtgc_log(rt == REF_PHANTOM, "phantom ref discovered %p %d\n", 
+  rtgc_log(false && rt == REF_PHANTOM, "phantom ref discovered %p %d\n", 
       (void*)obj, obj->is_gc_marked());
 
   if (_discovery_is_mt) {

@@ -57,59 +57,32 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer) {
-  // assert(!debugOptions->opt1 || obj != debug_obj, "ref %p\n", obj);
-  if (ENABLE_REF_LINK && debugOptions->opt1) {
-    rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, obj);
-    GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
-  }
-}
-
-void RTGC::add_referrer(oopDesc* obj, oopDesc* referrer) {
+void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* addr, const char* fn) {
   precond(to_obj(referrer)->isTrackable());
-  add_referrer_unsafe(obj, referrer);
+  if (!debugOptions->opt1) return;
+  rtgc_log(LOG_OPT(1), "add_referrer(%s) %p[%p] : ? -> %p\n", 
+      fn, referrer, addr, obj);
+  GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
 }
 
-void RTGC::remove_referrer(oopDesc* obj, oopDesc* referrer) {
-  precond(to_obj(referrer)->isTrackable());
-  if (ENABLE_REF_LINK && debugOptions->opt1) {
-    rtgc_log(LOG_OPT(1), "remove_referrer %p -> %p\n", referrer, obj);
-    GCRuntime::disconnectReferenceLink(to_obj(obj), to_obj(referrer));
-  }
+void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  precond(to_obj(base)->isTrackable());
+  if (oldValue == newValue) return;
+  if (!debugOptions->opt1) return;
+
+  rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
+    fn, base, (int)((address)addr - (address)base), oldValue, newValue);
+  if (newValue != NULL) GCRuntime::connectReferenceLink(to_obj(newValue), to_obj(base));
+  if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
 }
 
-void* last_log = 0;
-void RTGC::add_global_reference(oopDesc* obj) {
-  if (ENABLE_REF_LINK && debugOptions->opt1) {
-    // if (obj < (void*)0x7f00d8dFF && obj >=   (void*)0x7f00d8d00) {
-    //   precond(last_log != obj);
-    //   last_log = obj;
-    // } 
-    rtgc_log(LOG_OPT(2), "add_global_ref %p\n", obj);
-    precond(obj != NULL);  
-    GCRuntime::onAssignRootVariable_internal(to_obj(obj));
-  }
+void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  if (!debugOptions->opt1) return;
+  rtgc_log(LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
+      fn, addr, oldValue, newValue);
+  if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
+  if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
 }
-
-void RTGC::remove_global_reference(oopDesc* obj) {
-  if (ENABLE_REF_LINK && debugOptions->opt1) {
-    rtgc_log(LOG_OPT(2), "remove_global_ref %p\n", obj);
-    precond(obj != NULL);  
-    GCRuntime::onEraseRootVariable_internal(to_obj(obj));
-  }
-}
-
-void RTGC::initialize() {
-  RTGC::_rtgc.initialize();
-  debugOptions->opt1 = UnlockExperimentalVMOptions;
-  logOptions[0] = -1;
-  if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = -1;
-    logOptions[LOG_REF_LINK] = -1;
-  }
-  rtgc_log(true, "UseTLAB=%d, ScavengeBeforeFullGC=%d\n", UseTLAB, ScavengeBeforeFullGC);
-}
-
 
 const char* RTGC::baseFileName(const char* filePath) {
   const char* name = strrchr(filePath, '/');
@@ -137,4 +110,15 @@ oop rtgc_break(const char* file, int line, const char* function) {
   assert(false, "illegal barrier access");
   return NULL;
 } 
+
+void RTGC::initialize() {
+  RTGC::_rtgc.initialize();
+  debugOptions->opt1 = UnlockExperimentalVMOptions;
+  logOptions[0] = -1;
+  if (UnlockExperimentalVMOptions) {
+    logOptions[LOG_HEAP] = 1 << 5;
+    logOptions[LOG_REF_LINK] = -1;
+  }
+  rtgc_log(true, "UseTLAB=%d, ScavengeBeforeFullGC=%d\n", UseTLAB, ScavengeBeforeFullGC);
+}
 

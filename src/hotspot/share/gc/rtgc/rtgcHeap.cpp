@@ -2,7 +2,9 @@
 
 #include "oops/oop.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
@@ -62,6 +64,7 @@ class OopIterator {
     _map = map;
     _field = (T*)_obj->obj_field_addr<T>(map->offset());
     _cntOop = map->count();
+    rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _obj, _field, _cntOop);
   }
 
 public:
@@ -71,6 +74,24 @@ public:
     OopIterator it(obj);
     for (oopDesc* oop; (oop = it.next()) != NULL; ) {
       trace(to_obj(oop), param);
+    }
+    if (obj->klass() == vmClasses::Class_klass()) {
+      InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(obj);
+      if (klass != NULL && klass->is_loaded()) {
+        rtgc_log(true || LOG_OPT(5), "tracing klass %p\n", obj);
+        for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
+          if (fs.access_flags().is_static()) {
+            fieldDescriptor& fd = fs.field_descriptor();
+            if (fd.field_type() == T_OBJECT) {
+              T* field = obj->obj_field_addr<T>(fd.offset());
+              oopDesc* ref = CompressedOops::decode(*field);
+              if (ref != NULL) {
+                trace(to_obj(ref), param);
+              }
+            }
+          }
+        }
+      }
     }  
   }
 
@@ -234,8 +255,9 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
         continue;
       }
       GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
+        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", 
+          oop, new_obj == NULL ? (void*)oop : new_obj, obj);
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", oop, new_obj, obj);
         referrers->at(idx) = new_obj;
       }
       idx ++;
@@ -262,19 +284,36 @@ void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
     }
     else {
       GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
+        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", 
+          oop, new_obj == NULL ? (void*)oop : new_obj, obj);
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", oop, new_obj, obj);
         obj->_refs = _pointer2offset(new_obj, &obj->_refs);
       }
     }
   }
 }
 
-void RTGC::register_trackable(oopDesc* youngOop, void* oldOop) {
+
+struct TraceInfo {
+  void* move_to;
+  oopDesc* marked;
+};
+
+static void register_referrer(oopDesc* obj, TraceInfo* ti) {
+  RTGC::add_referrer_unsafe(obj, ti->marked, ti->move_to, "regr");
+}
+
+void RTGC::register_trackable(oopDesc* marked, void* move_to) {
   // oldOop 는 아직 복사되지 않은 상태이다.
-  rtgc_log(LOG_OPT(5), "register_trackable %p (move to -> %p)\n", youngOop, oldOop);
-  GCObject* obj = to_obj(youngOop);
+  rtgc_log(LOG_OPT(5), "register_trackable %p (move to -> %p)\n", marked, move_to);
+  GCObject* obj = to_obj(marked);
   obj->markTrackable();
+  TraceInfo ti;
+  ti.move_to = move_to;
+  ti.marked = marked;
+  RTGC::iterateReferents(obj, (RefTracer2)register_referrer, &ti);
+#if 0
   RTGC::iterateReferents(
       obj, (RefTracer2)RTGC::add_referrer_unsafe, obj);
+#endif
 }

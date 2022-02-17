@@ -40,15 +40,11 @@ namespace RTGC {
 
   void unlock_heap(bool locked);
 
-  void add_referrer(oopDesc* obj, oopDesc* referrer);
+  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* addr, const char* fn);
 
-  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer);
+  void on_field_changed(oopDesc* obj, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
-  void remove_referrer(oopDesc* obj, oopDesc* referrer);
-
-  void add_global_reference(oopDesc* obj);
-
-  void remove_global_reference(oopDesc* obj);
+  void on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
   bool collectGarbage(oopDesc* obj);
 };

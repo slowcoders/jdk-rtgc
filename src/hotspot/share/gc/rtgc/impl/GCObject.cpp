@@ -34,11 +34,18 @@ void GCObject::addReferrer(GCObject* referrer) {
     }
 }
 
-
+const char* __getClassName(GCObject* obj) {
+    Klass* klass = cast_to_oop(obj)->klass();
+    if (vmClasses::Class_klass() == klass) {
+        printf("Class of class\n");
+        cast_to_oop(obj)->print_on(tty);
+    }
+    return (const char*)klass->name()->bytes();
+}
 
 int GCObject::removeReferrer(GCObject* referrer) {
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
-        referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
+        referrer, __getClassName(referrer),
         this, cast_to_oop(this)->klass()->name()->bytes());
 
     if (!hasMultiRef()) {

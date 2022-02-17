@@ -72,16 +72,10 @@ static void rtgc_set_field(oop* addr, oopDesc* value) {
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   check_field_addr(base, addr);
-  // if (!RTGC::needTrack(base)) {
-  //   RawAccess<>::oop_store(addr, new_value);
-  //   return;
-  // }
-  rtgc_log(LOG_OPT(2), "store %p(%p) := %p\n", base, addr, new_value);
   RTGC::publish_and_lock_heap(new_value, base);
   oopDesc* old = CompressedOops::decode(*addr);
   rtgc_set_field(addr, new_value);
-  if (new_value != NULL) RTGC::add_referrer(new_value, base);
-  if (old != NULL) RTGC::remove_referrer(old, base);
+  RTGC::on_field_changed(base, old, new_value, addr, "stor");
   RTGC::unlock_heap(true);
 }
 
@@ -89,10 +83,9 @@ template<class T, bool dest_uninitialized, int shift>
 void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
   rtgc_log(LOG_OPT(2), "store_nh (%p) := %p\n", addr, new_value);
   RTGC::publish_and_lock_heap(new_value);
-  oop old = RawAccess<>::oop_load(addr);
+  oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
-  if (new_value != NULL) RTGC::add_global_reference(new_value);
-  if (!dest_uninitialized && old != NULL) RTGC::remove_global_reference(old);
+  RTGC::on_root_changed(old, new_value, addr, "stor");
   RTGC::unlock_heap(true);
 }
 
@@ -130,8 +123,7 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
   RTGC::publish_and_lock_heap(new_value, base);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
-  if (new_value != NULL) RTGC::add_referrer(new_value, base);
-  if (old != NULL) RTGC::remove_referrer(old, base);
+  RTGC::on_field_changed(base, old, new_value, addr, "xchg");
   RTGC::unlock_heap(true);
   return old;
 }
@@ -142,8 +134,7 @@ oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
   RTGC::publish_and_lock_heap(new_value);
   oop old = RawAccess<>::oop_load(addr);
   rtgc_set_volatile_field(addr, new_value);
-  if (new_value != NULL) RTGC::add_global_reference(new_value);
-  if (old != NULL) RTGC::remove_global_reference(old);
+  RTGC::on_root_changed(old, new_value, addr, "xchg");
   RTGC::unlock_heap(true);
   return old;
 }
@@ -172,8 +163,7 @@ oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, 
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
     rtgc_set_volatile_field(addr, new_value);
-    if (new_value != NULL) RTGC::add_referrer(new_value, base);
-    if (old != NULL) RTGC::remove_referrer(old, base);
+    RTGC::on_field_changed(base, old, new_value, addr, "cmpx");
   }
   RTGC::unlock_heap(true);
   rtgc_log(LOG_OPT(8), "cmpxchg %p(%p)=%p <-> %p r=%d\n", 
@@ -187,12 +177,9 @@ oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc*
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
     rtgc_set_volatile_field(addr, new_value);
-    if (new_value != NULL) RTGC::add_global_reference(new_value);
-    if (old != NULL) RTGC::remove_global_reference(old);
+    RTGC::on_root_changed(old, new_value, addr, "cmpx");
   }
   RTGC::unlock_heap(true);
-  rtgc_log(LOG_OPT(8), "cmpxchg_nh (%p)=%p <-> %p r=%d\n", 
-        addr, cmp_value, new_value, (oopDesc*)old == cmp_value);
   return old;
 }
 
@@ -270,22 +257,19 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     ITEM_T s_raw = src_p[i]; 
   // for (ITEM_T* end_p = src_p + length; src_p < end_p; src_p ++, dst_p ++) {
   //   ITEM_T s_raw = src_p[0]; 
-    oopDesc* item = CompressedOops::decode(s_raw);
-    if (checkcast && item != NULL) {
-      Klass* stype = item->klass();
+    oopDesc* new_value = CompressedOops::decode(s_raw);
+    if (checkcast && new_value != NULL) {
+      Klass* stype = new_value->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
         memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(true);
         return i;//(end_p - src_p); // returns remain_count;
       }
     }
-    oopDesc* old = CompressedOops::decode(dst_p[i]);
+    oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
     // 사용불가 memmove 필요
     // dst_p[i] = s_raw;
-    rtgc_log(LOG_OPT(5), "arr_copy %p(%p) <-> %p\n", dst_array, dst_p, item);
-
-    if (item != NULL) RTGC::add_referrer(item, dst_array);
-    if (!dest_uninitialized && old != NULL) RTGC::remove_referrer(old, dst_array);
+    RTGC::on_field_changed(dst_array, old, new_value, dst_p, "arry");
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);
@@ -344,15 +328,17 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
 
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
-  void do_work(oopDesc* ref){
-    if (ref != NULL) RTGC::add_referrer(ref, _rookie);
+  template <class T>
+  void do_work(T* p){
+    oop obj = CompressedOops::decode(*p);
+    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie, p, "clon");
   }
 
 public:
   RTGC_CloneClosure(oopDesc* rookie) { this->_rookie = rookie; }
 
-  virtual void do_oop(narrowOop* p) { do_work(CompressedOops::decode(*p)); }
-  virtual void do_oop(oop*       p) { do_work(*p); }
+  virtual void do_oop(narrowOop* p) { do_work(p); }
+  virtual void do_oop(oop*       p) { do_work(p); }
 };
 
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
@@ -410,22 +396,22 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
     int cp_len = MIN(diff, length);
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(*(--src_end));
-      if (item != NULL) RTGC::add_referrer(src_item, dst_array);
+      if (item != NULL) RTGC::add_referrer_unsafe(src_item, dst_array);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(dst_p[i]);
-      if (erased != NULL) RTGC::remove_referrer(erased, dst_array);
+      if (erased != NULL) RTGC::remove_referrer_unsafe(erased, dst_array);
     }
   } else {
     int cp_len = MIN(-diff, length);
     ITEM_T* dst_end = dst_p + length;    
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(src_p[i]);
-      if (item != NULL) RTGC::add_referrer(src_item, dst_array);
+      if (item != NULL) RTGC::add_referrer_unsafe(src_item, dst_array);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(*(--dst_end));
-      if (erased != NULL) RTGC::remove_referrer(erased, dst_array);
+      if (erased != NULL) RTGC::remove_referrer_unsafe(erased, dst_array);
     }
   }
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
