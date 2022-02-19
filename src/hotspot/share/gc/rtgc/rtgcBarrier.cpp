@@ -343,7 +343,7 @@ public:
 
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
   ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clear();
-  if (!RTGC_NO_TRACE_YOUNGER_GENERATION) {
+  if (RTGC_TRACK_ALL_GENERATION) {
     RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);
     new_obj->oop_iterate(&c);

@@ -167,7 +167,7 @@ class ParallelScavengeHeap : public CollectedHeap {
   bool is_in_young(oop p);  // reserved part
   bool is_in_old(oop p);    // reserved part
 
-#if USE_RTGC
+#if USE_RTGC // is_in_trackable_space
   virtual bool is_in_trackable_space(const void* p) const;
 #endif
 

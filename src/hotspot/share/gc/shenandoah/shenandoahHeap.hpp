@@ -470,7 +470,7 @@ public:
 
   bool is_in(const void* p) const;
 
-#if USE_RTGC
+#if USE_RTGC  // is_in_trackable_space
   virtual bool is_in_trackable_space(const void* p) const;
 #endif
 

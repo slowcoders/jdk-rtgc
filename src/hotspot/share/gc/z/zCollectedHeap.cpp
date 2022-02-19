@@ -122,7 +122,7 @@ bool ZCollectedHeap::is_in(const void* p) const {
   return _heap.is_in((uintptr_t)p);
 }
 
-#if USE_RTGC
+#if USE_RTGC  // is_in_trackable_space
 bool ZCollectedHeap::is_in_trackable_space(const void* p) const {
   fatal("not implemented");
   return false;

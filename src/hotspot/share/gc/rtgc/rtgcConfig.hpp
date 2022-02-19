@@ -7,8 +7,9 @@
 #define USE_RTGC_COMPACT_0            false
 #define USE_RTGC_COMPACT_1            true
 #define USE_RTGC_TLAB_ALLOC           false
-#define RTGC_NO_TRACE_YOUNGER_GENERATION  true
+#define RTGC_TRACK_ALL_GENERATION     false
 
+#define RTGC_OPTIMIZED_YOUNGER_GENERATION_GC  false
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)

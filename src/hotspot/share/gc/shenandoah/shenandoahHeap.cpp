@@ -714,7 +714,7 @@ bool ShenandoahHeap::is_in(const void* p) const {
   return p >= heap_base && p < last_region_end;
 }
 
-#if USE_RTGC
+#if USE_RTGC  // is_in_trackable_space
 bool ShenandoahHeap::is_in_trackable_space(const void* p) const {
   fatal("not implemented");
   return false;

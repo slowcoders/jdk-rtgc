@@ -219,7 +219,7 @@ bool ParallelScavengeHeap::is_in_reserved(const void* p) const {
   return young_gen()->is_in_reserved(p) || old_gen()->is_in_reserved(p);
 }
 
-#if USE_RTGC
+#if USE_RTGC // is_in_trackable_space
 bool ParallelScavengeHeap::is_in_trackable_space(const void* p) const {
   bool is_young = p >= young_gen()->reserved().start();
   return !is_young;
