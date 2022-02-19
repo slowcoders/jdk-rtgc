@@ -1,6 +1,8 @@
 #ifndef SHARE_GC_RTGC_RTGCCONFIG_HPP
 #define SHARE_GC_RTGC_RTGCCONFIG_HPP
 
+#include "utilities/macros.hpp"
+
 #define USE_RTGC                      true
 #define USE_RTGC_COMPACT_0            false
 #define USE_RTGC_COMPACT_1            true
@@ -19,8 +21,9 @@ class oopDesc;
 namespace RTGC {
   HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
   void adjust_pointers_of_young_roots();
-  void adjust_pointers(oopDesc* obj, void* newOop);
+  void adjust_pointers(oopDesc* obj, bool is_tenured);
   void register_trackable(oopDesc* obj, void* newOop);
+  void unregister_trackable(oopDesc* obj);
 };
 
 #endif // SHARE_GC_RTGC_

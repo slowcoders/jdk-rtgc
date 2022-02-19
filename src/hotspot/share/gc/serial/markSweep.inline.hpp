@@ -106,9 +106,6 @@ inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
 inline int MarkSweep::adjust_pointers(oop obj) {
-#if USE_RTGC_COMPACT_0 || USE_RTGC_COMPACT_1
-  RTGC::adjust_pointers(obj, (void*)-1);
-#endif
   return obj->oop_iterate_size(&MarkSweep::adjust_pointer_closure);
 }
 

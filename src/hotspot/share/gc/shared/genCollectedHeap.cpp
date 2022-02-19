@@ -935,6 +935,13 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
   }
 }
 
+#if USE_RTGC
+bool GenCollectedHeap::is_in_trackable_space(const void* p) const {
+  bool is_young = p < _old_gen->reserved().start();
+  return !is_young;
+}
+#endif
+
 bool GenCollectedHeap::is_in_young(oop p) {
   bool result = cast_from_oop<HeapWord*>(p) < _old_gen->reserved().start();
   assert(result == _young_gen->is_in_reserved(p),

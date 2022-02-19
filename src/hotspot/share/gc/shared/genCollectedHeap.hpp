@@ -212,6 +212,10 @@ public:
   // Assumes the the young gen address range is less than that of the old gen.
   bool is_in_young(oop p);
 
+#if USE_RTGC
+  virtual bool is_in_trackable_space(const void* p) const;
+#endif
+
 #ifdef ASSERT
   bool is_in_partial_collection(const void* p);
 #endif

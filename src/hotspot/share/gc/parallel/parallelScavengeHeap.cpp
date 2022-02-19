@@ -219,6 +219,13 @@ bool ParallelScavengeHeap::is_in_reserved(const void* p) const {
   return young_gen()->is_in_reserved(p) || old_gen()->is_in_reserved(p);
 }
 
+#if USE_RTGC
+bool ParallelScavengeHeap::is_in_trackable_space(const void* p) const {
+  bool is_young = p >= young_gen()->reserved().start();
+  return !is_young;
+}
+#endif
+
 // There are two levels of allocation policy here.
 //
 // When an allocation request fails, the requesting thread must invoke a VM

@@ -470,6 +470,10 @@ public:
 
   bool is_in(const void* p) const;
 
+#if USE_RTGC
+  virtual bool is_in_trackable_space(const void* p) const;
+#endif
+
   MemRegion reserved_region() const { return _reserved; }
   bool is_in_reserved(const void* addr) const { return _reserved.contains(addr); }
 

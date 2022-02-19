@@ -232,17 +232,27 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
 
   const intx interval = PrefetchScanIntervalInBytes;
 
+#if USE_RTGC_COMPACT_1  
+  bool is_tenured = Universe::heap()->is_in_trackable_space(cur_obj);
+#endif  
+
   debug_only(HeapWord* prev_obj = NULL);
   while (cur_obj < end_of_live) {
     Prefetch::write(cur_obj, interval);
     if (cur_obj < first_dead || cast_to_oop(cur_obj)->is_gc_marked()) {
       // cur_obj is alive
       // point all the oops to the new location
+#if USE_RTGC_COMPACT_1
+      RTGC::adjust_pointers(cast_to_oop(cur_obj), is_tenured);
+#endif
       size_t size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
       size = space->adjust_obj_size(size);
       debug_only(prev_obj = cur_obj);
       cur_obj += size;
     } else {
+#if USE_RTGC_COMPACT_1
+      RTGC::unregister_trackable(cast_to_oop(cur_obj));
+#endif
       debug_only(prev_obj = cur_obj);
       // cur_obj is not a live object, instead it points at the next live object
       cur_obj = *(HeapWord**)cur_obj;

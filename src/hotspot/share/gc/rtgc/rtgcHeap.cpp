@@ -243,11 +243,13 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
 #endif
 }
 
-void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
+void RTGC::adjust_pointers(oopDesc* ref, bool is_tenured) {
   GCObject* obj = to_obj(ref);
 
   precond(ref->is_gc_marked());
-  precond(obj->isTrackable() || (obj->hasReferrer() && obj->_nextUntrackable != NULL));
+  // assert(obj->isTrackable() == is_tenured, "unknown tracable %p(%s) %d\n", 
+  //       ref, ref->klass()->name()->bytes(), !is_tenured);
+  // precond(obj->isTrackable() || obj->hasReferrer());
 
   if (!RTGC::debugOptions->opt1) return;
 
@@ -379,4 +381,11 @@ void RTGC::register_trackable(oopDesc* marked, void* move_to) {
   RTGC::iterateReferents(
       obj, (RefTracer2)RTGC::add_referrer_unsafe, obj);
 #endif
+}
+
+void RTGC::unregister_trackable(oopDesc* ptr) {
+  GCObject* obj = to_obj(ptr);
+  if (obj->isTrackable()) {
+    obj->removeAllReferrer();
+  }
 }
