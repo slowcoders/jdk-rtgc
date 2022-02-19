@@ -68,6 +68,8 @@ public:
 
 	int removeReferrer(GCObject* referrer);
 
+	void removeAllReferrer();
+
 	bool removeAllReferrer(GCObject* referrer);
 };
 

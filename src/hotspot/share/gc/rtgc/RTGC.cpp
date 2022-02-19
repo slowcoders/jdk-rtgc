@@ -116,8 +116,8 @@ void RTGC::initialize() {
   debugOptions->opt1 = UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 1 << 5;
-    logOptions[LOG_REF_LINK] = -1;
+    logOptions[LOG_HEAP] = 1 << 6;
+    logOptions[LOG_REF_LINK] = 0;
   }
   rtgc_log(true, "UseTLAB=%d, ScavengeBeforeFullGC=%d\n", UseTLAB, ScavengeBeforeFullGC);
 }

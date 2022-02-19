@@ -1,7 +1,6 @@
 ## TODO
-- Young Roots 에 대한 adjust_points()
-- finalize 처리
-- ref.queue 관련 오류 처리.
+- adjust_points - thread-safety 처리, 
+- DefNewGeneration::copy_to_survivor_space() -> _old_gen->promote(old, s) 처리
 
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.
@@ -285,13 +284,22 @@ void TemplateTable::_new()
          Universe::heap()->obj_allocate  
             ObjAllocator.allocate()
             = oop MemAllocator::allocate();
-               HeapWord* MemAllocator::allocate_inside_tlab()
-               HeapWord* mem = _thread->tlab().allocate(_word_size);
-               if (mem != NULL) {
-                  return mem;
-               }
-               HeapWord* MemAllocator::allocate_inside_tlab_slow() 
-                  -> Universe::heap()->allocate_new_tlab()
+               1. HeapWord* MemAllocator::allocate_inside_tlab()
+                  HeapWord* mem = _thread->tlab().allocate(_word_size);
+                  if (mem != NULL) {
+                     return mem;
+                  }
+                  HeapWord* MemAllocator::allocate_inside_tlab_slow() 
+                     -> Universe::heap()->allocate_new_tlab()
+               2. MemAllocator::allocate_outside_tlab
+                  GenCollectedHeap::mem_allocate
+                     GenCollectedHeap::mem_allocate_work
+                        try yong->par_allocate()
+                        try GenCollectedHeap::attempt_allocation()
+                        try GenCollectedHeap::expand_heap_and_allocate()
+                        VM_GenCollectForAllocation
+                           GenCollectedHeap::satisfy_failed_allocation()
+                              GenCollectedHeap::do_collection
 
 * displaced mark_helper
 markWord markWord::displaced_mark_helper()
@@ -300,6 +308,12 @@ markWord markWord::displaced_mark_helper()
    copy_set_hash() 를 사용하는 곳이 3곳 있음. (해당 문제 해결해야 RTGC 사용 가능)
 <<중요>>markWord 는 compact phase 에서 이동할 주소를 저장하기 위하여 사용된다.
 
+## Finalizer 처리.
+   InstanceKlass::register_finalizer
+      if (klass->has_finalizer())
+      -> Universe::finalizer_register_method()
+            Finalizer(extends FinalReference).register()
+               new Finalizer(boj);
 
 lock_bits: 2
 biased_lock_bits: 1

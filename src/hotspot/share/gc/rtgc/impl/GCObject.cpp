@@ -85,6 +85,14 @@ int GCObject::removeReferrer(GCObject* referrer) {
     return 0;
 }
 
+void GCObject::removeAllReferrer() {
+    if (hasMultiRef()) {
+        ReferrerList* referrers = getReferrerList();
+        _rtgc.gRefListPool.delete_(referrers);
+    }
+    this->_refs = 0;
+}
+
 bool GCObject::removeAllReferrer(GCObject* referrer) {
     if (!hasMultiRef()) {
         if (_refs != 0 && _refs == _pointer2offset(referrer, &_refs)) {

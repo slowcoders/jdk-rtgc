@@ -293,6 +293,9 @@ void GenMarkSweep::mark_sweep_phase3() {
   CLDToOopClosure    adjust_cld_closure(&adjust_pointer_closure, ClassLoaderData::_claim_strong);
 
 #endif
+#if USE_RTGC_COMPACT_1
+  RTGC::adjust_pointers_of_young_roots();
+#endif
 
   {
     StrongRootsScope srs(0);

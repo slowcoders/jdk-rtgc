@@ -12,6 +12,17 @@
 #include "gc/shared/genCollectedHeap.hpp"
 
 
+namespace RTGC {
+  class PsuedoYoungRoot : public GCNode {
+  public:
+    PsuedoYoungRoot() {
+      clear();
+    }
+  } g_young_root_tail;
+  static Thread* gcThread = NULL;
+	static int cnt_young_root = 0;
+  static GCNode* volatile g_young_root_q = &g_young_root_tail;
+};
 using namespace RTGC;
 
 static const int LOG_OPT(int function) {
@@ -78,7 +89,7 @@ public:
     if (obj->klass() == vmClasses::Class_klass()) {
       InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(obj);
       if (klass != NULL && klass->is_loaded()) {
-        rtgc_log(true || LOG_OPT(5), "tracing klass %p\n", obj);
+        rtgc_log(LOG_OPT(5), "tracing klass %p\n", obj);
         for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
           if (fs.access_flags().is_static()) {
             fieldDescriptor& fd = fs.field_descriptor();
@@ -233,16 +244,17 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
 }
 
 void RTGC::adjust_pointers(oopDesc* ref, void* young_gen_end) {
+  GCObject* obj = to_obj(ref);
+
   precond(ref->is_gc_marked());
+  precond(obj->isTrackable() || (obj->hasReferrer() && obj->_nextUntrackable != NULL));
 
   if (!RTGC::debugOptions->opt1) return;
 
-  GCObject* obj = to_obj(ref);
   void* moved_to = ref->mark().decode_pointer();
   const bool CHECK_GARBAGE = true;
 
   if (!obj->hasReferrer()) {
-    // rtgc_log(LOG_OPT(1), "no ref in %p\n", ref);// || (obj->hasReferrer() && !obj->_hasMultiRef));
     return;
   }
   if (obj->hasMultiRef()) {
@@ -299,8 +311,58 @@ struct TraceInfo {
   oopDesc* marked;
 };
 
-static void register_referrer(oopDesc* obj, TraceInfo* ti) {
-  RTGC::add_referrer_unsafe(obj, ti->marked, ti->move_to, "regr");
+static void register_referrer(oopDesc* ref, TraceInfo* ti) {
+  GCObject* obj = to_obj(ref);
+  if (debugOptions->opt1 && !obj->isTrackable() && !obj->hasReferrer()) {
+	  debug_only(cnt_young_root++;)
+    obj->_nextUntrackable = g_young_root_q;
+    g_young_root_q = obj;
+  }
+  RTGC::add_referrer_unsafe(ref, ti->marked, ti->move_to, "regr");
+  postcond(!debugOptions->opt1 || obj->hasReferrer());
+}
+
+static GCObject* findNextUntrackable(GCNode* obj) {
+  precond(!obj->isTrackable());
+  obj = obj->_nextUntrackable;
+  while (obj->isTrackable()) {
+    GCNode* next = obj->_nextUntrackable;
+    obj->_nextUntrackable = NULL;
+    obj = next;
+  }
+  return (GCObject*)obj;
+}
+
+void RTGC::adjust_pointers_of_young_roots() {
+  if (!debugOptions->opt1) return;
+  debug_only(if (gcThread == NULL) gcThread = Thread::current();)
+  precond(gcThread == Thread::current());
+	int young_root = 0;
+  int cnt_garbage = 0;
+  rtgc_log(LOG_OPT(6), "adjust_pointers_of_young_roots started %d\n", cnt_young_root);
+
+  PsuedoYoungRoot header;
+  header._nextUntrackable = g_young_root_q;
+  GCNode* prev = &header;
+  GCObject* obj = findNextUntrackable(prev);
+  while ((GCNode*)obj != &g_young_root_tail) {
+    if (!cast_to_oop(obj)->is_gc_marked()) {
+      debug_only(cnt_garbage++;)
+      obj->removeAllReferrer();
+    }
+    else {
+      RTGC::adjust_pointers(cast_to_oop(obj), (void*)-1);
+      if (obj->hasReferrer()) {
+        debug_only(young_root++;)
+        prev->_nextUntrackable = obj;
+        prev = obj;
+      }
+    }
+    obj = findNextUntrackable(obj);
+  }
+  prev->_nextUntrackable = &g_young_root_tail;
+  g_young_root_q = header._nextUntrackable;
+  rtgc_log(LOG_OPT(6), "young roots %d -> garabge = %d, young = %d\n", cnt_young_root, cnt_garbage, young_root);
 }
 
 void RTGC::register_trackable(oopDesc* marked, void* move_to) {
@@ -308,6 +370,7 @@ void RTGC::register_trackable(oopDesc* marked, void* move_to) {
   rtgc_log(LOG_OPT(5), "register_trackable %p (move to -> %p)\n", marked, move_to);
   GCObject* obj = to_obj(marked);
   obj->markTrackable();
+  // obj->_nextUntrackable = 0;
   TraceInfo ti;
   ti.move_to = move_to;
   ti.marked = marked;

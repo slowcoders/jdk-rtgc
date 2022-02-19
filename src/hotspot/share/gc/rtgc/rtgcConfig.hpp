@@ -18,6 +18,7 @@ class oopDesc;
 
 namespace RTGC {
   HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
+  void adjust_pointers_of_young_roots();
   void adjust_pointers(oopDesc* obj, void* newOop);
   void register_trackable(oopDesc* obj, void* newOop);
 };

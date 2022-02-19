@@ -24,14 +24,17 @@ class GCNode {
 	int64_t _klass[1];
 public:
 	uint32_t _refs;
-	int32_t _shortcutId;
 	GCFlags _flags;
+	union {
+		int32_t _shortcutId;
+		GCNode* _nextUntrackable;
+	};
 
 public:
 	void clear() { 
 		_refs = 0; 
-		_shortcutId = 0; 
 		*(int*)&_flags = 0;
+		_nextUntrackable = NULL; 
 	}
 
 	bool isTrackable() {
