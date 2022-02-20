@@ -246,8 +246,7 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  //LOG_OPT(5)                    
-  // rtgc_log(!RTGC::debugOptions->opt1, "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  // rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
   Klass* bound = !checkcast ? NULL
@@ -273,7 +272,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);
-  //rtgc_log(!RTGC::debugOptions->opt1, "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  //rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   return 0;
 }
 

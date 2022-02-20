@@ -249,7 +249,7 @@ void RTGC::adjust_pointers(oopDesc* ref) {
 
   precond(ref->is_gc_marked());
 
-  if (!RTGC::debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
 
   void* moved_to = ref->mark().decode_pointer();
   const bool CHECK_GARBAGE = true;
@@ -320,7 +320,7 @@ static GCObject* findNextUntrackable(GCNode* obj) {
 }
 
 void RTGC::refresh_young_roots() {
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
 
@@ -366,14 +366,14 @@ struct TraceInfo {
 
 static void register_referrer(oopDesc* ref, TraceInfo* ti) {
   GCObject* obj = to_obj(ref);
-  if (debugOptions->opt1 && !obj->isTrackable() && !obj->hasReferrer()) {
+  if (!obj->isTrackable() && !obj->hasReferrer()) {
 	  debug_only(cnt_young_root++;)
     rtgc_log(LOG_OPT(8), "add young root %p root=%p\n", ref, g_young_root_q);
     obj->_nextUntrackable = g_young_root_q;
     g_young_root_q = obj;
   }
   RTGC::add_referrer_unsafe(ref, ti->marked, ti->move_to, "regr");
-  postcond(!debugOptions->opt1 || obj->hasReferrer());
+  postcond(obj->hasReferrer());
 }
 
 void RTGC::unmark_trackable(oopDesc* ptr) {
@@ -384,7 +384,7 @@ void RTGC::unmark_trackable(oopDesc* ptr) {
 }
 
 void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(5), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);
   precond((void*)marked->forwardee() == move_to);
   GCObject* obj = to_obj(marked);
@@ -393,7 +393,7 @@ void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
 }
 
 void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
   // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
@@ -404,6 +404,8 @@ void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
 }
 
 void RTGC::flush_trackables() {
+  if (!REF_LINK_ENABLED) return;
+
   const int count = g_promted_trackables.length();
   if (count == 0) return;
 

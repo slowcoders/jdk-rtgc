@@ -13,6 +13,7 @@ namespace RTGC {
   static const int LOG_BARRIER_C1 = 2;
   static const int LOG_HEAP       = 3;
   static const int LOG_REF_LINK   = 4;
+  static const int LOG_GCNODE     = 5;
 
   inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);
@@ -23,16 +24,10 @@ namespace RTGC {
 
   const char* baseFileName(const char* filePath);
 
-  struct DebugOptions {
-    int opt1;
-    int opt2;
-    int opt3;
-  };
-
   extern volatile int* logOptions;
-  extern volatile DebugOptions* debugOptions;
+  extern volatile int* debugOptions;
   extern volatile void* debug_obj;
-
+  extern bool REF_LINK_ENABLED;
 };
 
 #define rtgc_log(logOption, ...) \

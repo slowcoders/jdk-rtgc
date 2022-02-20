@@ -6,6 +6,9 @@
 
 using namespace RTGC;
 
+static const int LOG_OPT(int function) {
+  return LOG_OPTION(RTGC::LOG_GCNODE, function);
+}
 
 void GCObject::addReferrer(GCObject* referrer) {
     //rtgc_log(true, "addReferrer %p<-%p hasRef=%d hasMulti=%d\n", 
@@ -86,7 +89,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
 }
 
 void GCObject::removeAllReferrer() {
-    rtgc_log(true, "refList of garbage cleaned %p\n", this);
+    rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         _rtgc.gRefListPool.delete_(referrers);

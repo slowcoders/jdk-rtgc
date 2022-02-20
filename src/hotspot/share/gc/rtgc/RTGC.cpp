@@ -9,7 +9,6 @@
 
 using namespace RTGC;
 
-const static bool ENABLE_REF_LINK = true;
 static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
@@ -18,11 +17,12 @@ static int g_mv_lock = 0;
 
 namespace RTGC {
   static int _logOptions[256];
-  volatile int* logOptions = _logOptions;
+  static int _debugOptions[256];
 
-  static DebugOptions _debugOptions;
-  volatile DebugOptions* debugOptions = &_debugOptions;
+  volatile int* logOptions = _logOptions;
+  volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
+  bool REF_LINK_ENABLED = true;
 }
 
 bool RTGC::isPublished(GCObject* obj) {
@@ -41,7 +41,7 @@ bool RTGC::lock_if_published(GCObject* obj) {
 
 void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
   if (doPublish && obj != NULL && !isPublished(obj)) {
-    //if (RTGC::debugOptions->opt1)
+    //if (RTGC::debugOptions[0])
     //RTGC::scanInstance(obj, GCRuntime::markPublished);
   }
   lock_heap();
@@ -59,7 +59,7 @@ bool RTGC::needTrack(oopDesc* obj) {
 
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* addr, const char* fn) {
   precond(to_obj(referrer)->isTrackable());
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer(%s) %p[%p] : ? -> %p\n", 
       fn, referrer, addr, obj);
   GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
@@ -68,7 +68,7 @@ void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* a
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
   precond(to_obj(base)->isTrackable());
   if (oldValue == newValue) return;
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
@@ -77,7 +77,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
 }
 
 void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
-  if (!debugOptions->opt1) return;
+  if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
       fn, addr, oldValue, newValue);
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
@@ -113,11 +113,11 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 void RTGC::initialize() {
   RTGC::_rtgc.initialize();
-  debugOptions->opt1 = UnlockExperimentalVMOptions;
+  REF_LINK_ENABLED = UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = -1;
-    logOptions[LOG_REF_LINK] = -1;
+    logOptions[LOG_HEAP] = 0;
+    logOptions[LOG_REF_LINK] = 0;
   }
 }
 
