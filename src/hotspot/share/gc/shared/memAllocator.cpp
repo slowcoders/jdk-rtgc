@@ -40,7 +40,7 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class MemAllocator::Allocation: StackObj {
   friend class MemAllocator;

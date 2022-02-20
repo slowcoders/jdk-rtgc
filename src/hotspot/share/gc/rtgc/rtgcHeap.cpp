@@ -23,7 +23,6 @@ namespace RTGC {
   static Thread* gcThread = NULL;
 	static int cnt_young_root = 0;
   static GCNode* volatile g_young_root_q = &g_young_root_tail;
-  void adjust_pointers_of_young_roots(bool full_gc);
 };
 using namespace RTGC;
 
@@ -245,13 +244,10 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
 #endif
 }
 
-void RTGC::adjust_pointers(oopDesc* ref, bool is_tenured) {
+void RTGC::adjust_pointers(oopDesc* ref) {
   GCObject* obj = to_obj(ref);
 
   precond(ref->is_gc_marked());
-  // assert(obj->isTrackable() == is_tenured, "unknown tracable %p(%s) %d\n", 
-  //       ref, ref->klass()->name()->bytes(), !is_tenured);
-  // precond(obj->isTrackable() || obj->hasReferrer());
 
   if (!RTGC::debugOptions->opt1) return;
 
@@ -323,23 +319,15 @@ static GCObject* findNextUntrackable(GCNode* obj) {
   return (GCObject*)obj;
 }
 
-void RTGC::adjust_pointers_of_young_roots(bool full_gc) {
+void RTGC::refresh_young_roots() {
   if (!debugOptions->opt1) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
-  // precond(!full_gc || g_promted_trackables.length() == 0);
 
-  if (full_gc) {
-    RTGC::logOptions[LOG_HEAP] |= 1 << 8;
-  }
-  /**
-   *  full_gc: trackable 등록 및 adjust_point 완료된 상태. 
-   * !full_gc: trackable 등록 전 상태.
-   */
 	int young_root = 0;
   int cnt_garbage = 0;
-  rtgc_log(LOG_OPT(6), "adjust_pointers_of_young_roots started %d %s\n", 
-    cnt_young_root, full_gc ? "full gc" : "young gc");
+  rtgc_log(LOG_OPT(6), "refresh_young_roots started %d\n", 
+    cnt_young_root);
 
   PsuedoYoungRoot header;
   GCNode* prev = &header;
@@ -352,19 +340,12 @@ void RTGC::adjust_pointers_of_young_roots(bool full_gc) {
       debug_only(cnt_garbage++;)
       ((GCObject*)obj)->removeAllReferrer();
     }
-    else if (!obj->isTrackable()) {
-      //if (!full_gc) RTGC::adjust_pointers(ptr, false);
-      if (obj->hasReferrer()) {
-        debug_only(young_root++;)
-        if (!full_gc) {
-          // YG gc의 경우, compaction 과 marking 이 동시에  완료된다.
-          obj = to_obj(ptr->forwardee());
-          postcond(obj != NULL);
-        }
-        rtgc_log(LOG_OPT(6), "young root %p moved to %p\n", ptr, obj);
-        prev->_nextUntrackable = obj;
-        prev = obj;
-      }
+    else if (!obj->isTrackable() && obj->hasReferrer()) {
+      debug_only(young_root++;)
+      obj = to_obj(ptr->forwardee());
+      postcond(obj != NULL);
+      prev->_nextUntrackable = obj;
+      prev = obj;
     }
     obj = obj->_nextUntrackable;
   }
@@ -373,11 +354,7 @@ void RTGC::adjust_pointers_of_young_roots(bool full_gc) {
   postcond(g_young_root_q != NULL);
 
   rtgc_log(LOG_OPT(6), "young roots %d -> garbage = %d, young = %d\n", cnt_young_root, cnt_garbage, young_root);
-  cnt_young_root = young_root;
-}
-
-void RTGC::adjust_pointers_of_young_roots() {
-  adjust_pointers_of_young_roots(true);
+  debug_only(cnt_young_root = young_root);
 }
 
 
@@ -399,40 +376,38 @@ static void register_referrer(oopDesc* ref, TraceInfo* ti) {
   postcond(!debugOptions->opt1 || obj->hasReferrer());
 }
 
-void RTGC::unregister_trackable(oopDesc* ptr) {
+void RTGC::unmark_trackable(oopDesc* ptr) {
   GCObject* obj = to_obj(ptr);
   if (obj->isTrackable()) {
     obj->removeAllReferrer();
   }
 }
 
-void RTGC::register_trackable(oopDesc* marked, void* move_to) {
+void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
   if (!debugOptions->opt1) return;
-  rtgc_log(LOG_OPT(5), "register_trackable %p (move to -> %p)\n", marked, move_to);
+  rtgc_log(LOG_OPT(5), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);
   precond((void*)marked->forwardee() == move_to);
   GCObject* obj = to_obj(marked);
   obj->markTrackable();
   g_promted_trackables.append((oopDesc*)move_to);
 }
 
-void RTGC::register_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
+void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
   if (!debugOptions->opt1) return;
   // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
   to_obj(old_p)->markTrackable();
   to_obj(new_p)->markTrackable();
-  rtgc_log(LOG_OPT(6), "register_promoted_trackable %p(moved to %p)\n", old_p, new_p);
+  rtgc_log(LOG_OPT(6), "mark_promoted_trackable %p(moved to %p)\n", old_p, new_p);
   g_promted_trackables.append(new_p);
 }
 
-void RTGC::adjust_pointers_of_promoted_trackables(bool full_gc) {
+void RTGC::flush_trackables() {
   const int count = g_promted_trackables.length();
   if (count == 0) return;
 
-  if (!full_gc) adjust_pointers_of_young_roots(full_gc);
-  
-  rtgc_log(LOG_OPT(6), "adjust_pointers_of_promoted_trackables %d\n", count);
+  rtgc_log(LOG_OPT(6), "flush_trackables %d\n", count);
   oopDesc** pOop = &g_promted_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* ptr = *pOop++;

@@ -35,7 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away

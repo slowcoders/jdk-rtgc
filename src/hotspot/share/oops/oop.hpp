@@ -32,7 +32,7 @@
 #include "oops/metadata.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
 // the format of Java objects so the fields can be accessed from C++.

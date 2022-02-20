@@ -37,7 +37,7 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
   const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
@@ -311,7 +311,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 }
 
 
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   verify_oop(receiver);
   // explicit NULL check not needed since load from [klass_offset] causes a trap

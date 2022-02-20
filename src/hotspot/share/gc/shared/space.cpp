@@ -43,7 +43,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcConfig.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/defNewGeneration.hpp"
 #endif
@@ -373,10 +373,10 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
     assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
-#if USE_RTGC  // register_trackable
+#if USE_RTGC  // mark_pending_trackable
     if (cp->gen == GenCollectedHeap::heap()->old_gen() && 
         GenCollectedHeap::heap()->is_in_young(q)) {
-      RTGC::register_trackable(q, compact_top);
+      RTGC::mark_pending_trackable(q, compact_top);
     }
 #endif
   } else {

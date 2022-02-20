@@ -102,7 +102,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 #if USE_RTGC_COMPACT_1
-  RTGC::adjust_pointers_of_young_roots();
+  RTGC::refresh_young_roots();
 #endif
 
   mark_sweep_phase3();
@@ -118,7 +118,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   deallocate_stacks();
 
 #if USE_RTGC_COMPACT_1
-  RTGC::adjust_pointers_of_promoted_trackables(true);
+  RTGC::flush_trackables();
 #endif
 
   // If compaction completely evacuated the young generation then we
@@ -276,7 +276,7 @@ class AdjustRootPointerClosure: public BasicOopIterateClosure {
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
-      RTGC::adjust_pointers(obj, (void*)-1);
+      RTGC::adjust_pointers(obj);
     }
     MarkSweep::adjust_pointer(p); 
   }
