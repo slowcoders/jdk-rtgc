@@ -1054,6 +1054,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
   // the mirror.
   if (vmClasses::Class_klass_loaded()) {
     // Allocate mirror (java.lang.Class instance)
+// #if USE_RTGC_OPTIMIZED_CLD 
     oop mirror_oop = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(k, CHECK);
     Handle mirror(THREAD, mirror_oop);
     Handle comp_mirror;

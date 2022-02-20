@@ -601,6 +601,10 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+#if USE_RTGC  // adjust_pointers_of_promoted_trackables
+  RTGC::adjust_pointers_of_promoted_trackables(false);
+#endif
+
   if (!_promotion_failed) {
     // Swap the survivor spaces.
     eden()->clear(SpaceDecorator::Mangle);
@@ -712,8 +716,8 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#if USE_RTGC && false 
-    RTGC::register_trackable(obj, obj);
+#if USE_RTGC // register_promoted_trackable
+    RTGC::register_promoted_trackable(old, obj);
 #endif  
   } else {
     // Prefetch beyond obj

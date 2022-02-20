@@ -86,10 +86,12 @@ int GCObject::removeReferrer(GCObject* referrer) {
 }
 
 void GCObject::removeAllReferrer() {
+    rtgc_log(true, "refList of garbage cleaned %p\n", this);
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         _rtgc.gRefListPool.delete_(referrers);
-    }
+        setHasMultiRef(false);
+    }    
     this->_refs = 0;
 }
 

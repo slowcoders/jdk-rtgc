@@ -29,12 +29,17 @@
 
 #include "gc/serial/defNewGeneration.inline.hpp"
 #include "gc/serial/tenuredGeneration.inline.hpp"
+#include "gc/rtgc/rtgcConfig.hpp"
 
 template <typename OopClosureType1, typename OopClosureType2>
 void SerialHeap::oop_since_save_marks_iterate(OopClosureType1* cur,
                                               OopClosureType2* older) {
   young_gen()->oop_since_save_marks_iterate(cur);
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+  RTGC::iterate_young_roots(older);
+#else
   old_gen()->oop_since_save_marks_iterate(older);
+#endif
 }
 
 #endif // SHARE_GC_SERIAL_SERIALHEAP_INLINE_HPP

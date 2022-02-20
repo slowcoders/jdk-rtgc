@@ -101,6 +101,9 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   assert(DerivedPointerTable::is_active(), "Sanity");
   DerivedPointerTable::set_active(false);
 #endif
+#if USE_RTGC_COMPACT_1
+  RTGC::adjust_pointers_of_young_roots();
+#endif
 
   mark_sweep_phase3();
 
@@ -113,6 +116,10 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   gch->save_marks();
 
   deallocate_stacks();
+
+#if USE_RTGC_COMPACT_1
+  RTGC::adjust_pointers_of_promoted_trackables(true);
+#endif
 
   // If compaction completely evacuated the young generation then we
   // can clear the card table.  Otherwise, we must invalidate
@@ -292,9 +299,6 @@ void GenMarkSweep::mark_sweep_phase3() {
   AdjustRootPointerClosure adjust_pointer_closure;
   CLDToOopClosure    adjust_cld_closure(&adjust_pointer_closure, ClassLoaderData::_claim_strong);
 
-#endif
-#if USE_RTGC_COMPACT_1
-  RTGC::adjust_pointers_of_young_roots();
 #endif
 
   {

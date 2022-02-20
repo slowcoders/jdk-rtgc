@@ -29,6 +29,7 @@ namespace RTGC {
     int opt3;
   };
 
+  extern volatile int* logOptions;
   extern volatile DebugOptions* debugOptions;
   extern volatile void* debug_obj;
 

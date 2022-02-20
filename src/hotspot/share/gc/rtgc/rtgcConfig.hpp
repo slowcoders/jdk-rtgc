@@ -18,13 +18,17 @@
 
 class Thread;
 class oopDesc;
+class DefNewYoungerGenClosure;
 
 namespace RTGC {
   HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
   void adjust_pointers_of_young_roots();
+  void adjust_pointers_of_promoted_trackables(bool full_gc);
   void adjust_pointers(oopDesc* obj, bool is_tenured);
-  void register_trackable(oopDesc* obj, void* newOop);
+  void register_trackable(oopDesc* old_p, void* new_p);
+  void register_promoted_trackable(oopDesc* old_p, oopDesc* new_p);
   void unregister_trackable(oopDesc* obj);
+  void iterate_young_roots(DefNewYoungerGenClosure* closer);
 };
 
 #endif // SHARE_GC_RTGC_

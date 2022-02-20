@@ -530,7 +530,7 @@ void GenCollectedHeap::do_collection(bool           full,
                                      GenerationType max_generation) {
   ResourceMark rm;
   DEBUG_ONLY(Thread* my_thread = Thread::current();)
-#if USE_RTGC_COMPACT_0 || true
+#if false && USE_RTGC_COMPACT_1
   full = true;
   max_generation = OldGen;
 #endif 
@@ -935,7 +935,7 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
   }
 }
 
-#if USE_RTGC
+#if USE_RTGC  // is_in_trackable_space
 bool GenCollectedHeap::is_in_trackable_space(const void* p) const {
   bool is_young = p < _old_gen->reserved().start();
   return !is_young;
