@@ -21,6 +21,7 @@ class oopDesc;
 class DefNewYoungerGenClosure;
 
 namespace RTGC {
+  void mark_empty_trackable(oopDesc* p);
   void mark_pending_trackable(oopDesc* old_p, void* new_p);
   void mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p);
   void unmark_trackable(oopDesc* obj);

@@ -188,7 +188,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     store_klass_gap(obj, t1);
   }
 #endif
-#if USE_RTGC  // clear _rtNode
+#if USE_RTGC  // clear _rtNode in tlab 
     xorptr(t1, t1);
 #ifdef _LP64    
     movq(Address(obj, 8), t1);

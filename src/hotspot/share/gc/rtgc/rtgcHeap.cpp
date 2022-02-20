@@ -383,6 +383,11 @@ void RTGC::unmark_trackable(oopDesc* ptr) {
   }
 }
 
+void RTGC::mark_empty_trackable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  obj->markTrackable();
+}
+
 void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(5), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);

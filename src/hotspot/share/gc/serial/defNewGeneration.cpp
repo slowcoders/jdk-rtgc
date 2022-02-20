@@ -717,7 +717,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#if USE_RTGC // mark_promoted_trackable
+#if USE_RTGC_COMPACT_1 // mark_promoted_trackable
     RTGC::mark_promoted_trackable(old, obj);
 #endif  
   } else {

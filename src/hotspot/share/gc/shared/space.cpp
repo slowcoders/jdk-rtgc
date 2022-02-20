@@ -373,7 +373,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
     assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
-#if USE_RTGC  // mark_pending_trackable
+#if USE_RTGC_COMPACT_1  // mark_pending_trackable
     if (cp->gen == GenCollectedHeap::heap()->old_gen() && 
         GenCollectedHeap::heap()->is_in_young(q)) {
       RTGC::mark_pending_trackable(q, compact_top);
