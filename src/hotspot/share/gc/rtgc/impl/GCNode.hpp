@@ -29,6 +29,7 @@ public:
 		int32_t _shortcutId;
 		GCNode* _nextUntrackable;
 	};
+	static int _cntTrackable;
 
 public:
 	void clear() { 
@@ -43,11 +44,17 @@ public:
 
 	void markTrackable() {
 		precond(!this->isTrackable());
+#ifdef ASSERT		
+		_cntTrackable++;
+#endif		
 		_flags.isTrackable = true;
 	}
 
 	void markDestroyed() {
 		precond(_flags.isGarbage);
+#ifdef ASSERT		
+		_cntTrackable--;
+#endif		
 		_flags.isTrackable = false;
 	}
 

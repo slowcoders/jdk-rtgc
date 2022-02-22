@@ -6,7 +6,6 @@
 using namespace RTGC;
 namespace RTGC {
     GCRuntime _rtgc;
-    volatile int g_mv_lock = (0);
 }
 
 const static bool USE_TINY_MEM_POOL = true;

@@ -670,6 +670,11 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
+#ifdef ASSERT
+#if USE_RTGC
+  rtHeap::print_heap_after_gc();
+#endif  
+#endif
 }
 
 bool GenCollectedHeap::should_do_full_collection(size_t size, bool full, bool is_tlab,

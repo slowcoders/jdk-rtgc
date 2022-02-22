@@ -602,8 +602,8 @@ void DefNewGeneration::collect(bool   full,
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
 #if USE_RTGC  // flush_trackables
-  RTGC::refresh_young_roots();
-  RTGC::flush_trackables();
+  rtHeap::refresh_young_roots();
+  rtHeap::flush_trackables();
 #endif
 
   if (!_promotion_failed) {
@@ -706,7 +706,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   oop obj = NULL;
 
   // Try allocating obj in to-space (unless too old)
-  if (old->age() < tenuring_threshold()) {
+  if (old->age() < tenuring_threshold() && !rtHeap::is_trackable(old)) {
     obj = cast_to_oop(to()->allocate(s));
   }
 
@@ -718,7 +718,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       return old;
     }
 #if USE_RTGC_COMPACT_1 // mark_promoted_trackable
-    RTGC::mark_promoted_trackable(old, obj);
+    rtHeap::mark_promoted_trackable(old, obj);
 #endif  
   } else {
     // Prefetch beyond obj

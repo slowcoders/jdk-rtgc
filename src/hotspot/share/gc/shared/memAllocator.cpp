@@ -279,7 +279,7 @@ HeapWord* MemAllocator::allocate_inside_tlab(Allocation& allocation) const {
 #if USE_RTGC_TLAB_ALLOC
   // new_instance() 가 호출되는 시점의 모든 register 는 저장된 상태이다.
   // 즉 current-thread 는 safe-point 상태이다. 
-  mem = RTGC::allocate_tlab(_thread, _word_size);
+  mem = rtHeap::allocate_tlab(_thread, _word_size);
   if (mem != NULL) {
     return mem;
   }

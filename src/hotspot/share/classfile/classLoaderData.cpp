@@ -77,6 +77,7 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -192,6 +193,9 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
     Chunk* next = new Chunk(_head);
     Atomic::release_store(&_head, next);
   }
+#if USE_RTGC
+  rtHeap::mark_active_trackable(o);
+#endif  
   oop* handle = &_head->_data[_head->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&_head->_size, _head->_size + 1);

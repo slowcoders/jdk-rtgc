@@ -374,7 +374,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   template <class T>
   void do_work(T* p){
     oop obj = CompressedOops::decode(*p);
-    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie, p, "clon");
+    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie);
   }
 
 public:
@@ -387,6 +387,7 @@ public:
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
   ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clear();
   if (RTGC_TRACK_ALL_GENERATION) {
+    rtgc_log(RTGC::LOG_OPTION(RTGC::LOG_HEAP, 11), "clone_post_barrier %p\n", new_obj); 
     RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);
     new_obj->oop_iterate(&c);

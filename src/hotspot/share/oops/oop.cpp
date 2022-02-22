@@ -151,7 +151,7 @@ void oopDesc::set_narrow_klass(narrowKlass nk) {
 #if USE_RTGC  // clear _rtNode 
   _rtNode[0] = _rtNode[1] = 0;
   if (Universe::heap()->is_in_trackable_space(this)) {
-    RTGC::mark_empty_trackable(this);
+    rtHeap::mark_empty_trackable(this);
   }
 #endif
 }

@@ -376,7 +376,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
 #if USE_RTGC_COMPACT_1  // mark_pending_trackable
     if (cp->gen == GenCollectedHeap::heap()->old_gen() && 
         GenCollectedHeap::heap()->is_in_young(q)) {
-      RTGC::mark_pending_trackable(q, compact_top);
+      rtHeap::mark_pending_trackable(q, compact_top);
     }
 #endif
   } else {

@@ -113,7 +113,7 @@ void oopDesc::set_klass(Klass* k) {
 #if USE_RTGC  // clear _rtNode
   _rtNode[0] = _rtNode[1] = 0;
   if (Universe::heap()->is_in_trackable_space(this)) {
-    RTGC::mark_empty_trackable(this);
+    rtHeap::mark_empty_trackable(this);
   }
 #endif
 }
@@ -125,7 +125,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
   cast_to_oop(mem)->_rtNode[0] = 0;
   cast_to_oop(mem)->_rtNode[1] = 0;
   if (Universe::heap()->is_in_trackable_space(mem)) {
-    RTGC::mark_empty_trackable(cast_to_oop(mem));
+    rtHeap::mark_empty_trackable(cast_to_oop(mem));
   }
 #endif
   if (UseCompressedClassPointers) {

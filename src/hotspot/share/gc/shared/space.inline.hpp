@@ -239,7 +239,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
       // cur_obj is alive
       // point all the oops to the new location
 #if USE_RTGC_COMPACT_1
-      RTGC::adjust_pointers(cast_to_oop(cur_obj));
+      rtHeap::adjust_pointers(cast_to_oop(cur_obj));
 #endif
       size_t size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
       size = space->adjust_obj_size(size);
@@ -247,7 +247,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
       cur_obj += size;
     } else {
 #if USE_RTGC_COMPACT_1
-      RTGC::unmark_trackable(cast_to_oop(cur_obj));
+      rtHeap::destrory_trackable(cast_to_oop(cur_obj));
 #endif
       debug_only(prev_obj = cur_obj);
       // cur_obj is not a live object, instead it points at the next live object

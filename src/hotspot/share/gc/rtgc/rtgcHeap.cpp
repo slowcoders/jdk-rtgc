@@ -32,18 +32,18 @@ static const int LOG_OPT(int function) {
 
 template <class T>
 class OopIterator {
-  oopDesc* _obj;
+  oopDesc* _p;
   OopMapBlock* _map;
   T* _field;
   int _cntMap;
   int _cntOop;
 
-  OopIterator(oopDesc* obj) : _obj(obj) {
-    Klass* klass = obj->klass();
+  OopIterator(oopDesc* p) : _p(p) {
+    Klass* klass = p->klass();
     if (klass->is_objArray_klass()) {
-      arrayOopDesc* array = (arrayOopDesc*)obj;
+      arrayOopDesc* array = (arrayOopDesc*)p;
       _cntOop = array->length();
-      _field = (T*)(((address)obj) + array->base_offset_in_bytes(T_OBJECT));
+      _field = (T*)(((address)p) + array->base_offset_in_bytes(T_OBJECT));
       _cntMap = 0;
     }
     else if (klass->is_instance_klass()) {
@@ -63,8 +63,8 @@ class OopIterator {
   oopDesc* next() {
     while (true) {
       while (--_cntOop >= 0) {
-        oopDesc* obj = CompressedOops::decode(*_field++);
-        if (obj != nullptr) return obj;
+        oopDesc* p = CompressedOops::decode(*_field++);
+        if (p != nullptr) return p;
       }
       if (--_cntMap < 0) break;
       setOopMap(_map + 1);
@@ -74,28 +74,28 @@ class OopIterator {
 
   void setOopMap(OopMapBlock* map) {
     _map = map;
-    _field = (T*)_obj->obj_field_addr<T>(map->offset());
+    _field = (T*)_p->obj_field_addr<T>(map->offset());
     _cntOop = map->count();
-    //rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _obj, _field, _cntOop);
+    //rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _p, _field, _cntOop);
   }
 
 public:
   OopIterator() {}
 
-  static void iterateReferents(oopDesc* obj, RTGC::RefTracer2 trace, void* param) {
-    OopIterator it(obj);
+  static void iterateReferents(oopDesc* p, RTGC::RefTracer2 trace, void* param) {
+    OopIterator it(p);
     for (oopDesc* oop; (oop = it.next()) != NULL; ) {
       trace(to_obj(oop), param);
     }
-    if (obj->klass() == vmClasses::Class_klass()) {
-      InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(obj);
+    if (p->klass() == vmClasses::Class_klass()) {
+      InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(p);
       if (klass != NULL && klass->is_loaded()) {
-        rtgc_log(LOG_OPT(5), "tracing klass %p\n", obj);
+        rtgc_log(LOG_OPT(5), "tracing klass %p\n", p);
         for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
           if (fs.access_flags().is_static()) {
             fieldDescriptor& fd = fs.field_descriptor();
             if (fd.field_type() == T_OBJECT) {
-              T* field = obj->obj_field_addr<T>(fd.offset());
+              T* field = p->obj_field_addr<T>(fd.offset());
               oopDesc* ref = CompressedOops::decode(*field);
               if (ref != NULL) {
                 trace(to_obj(ref), param);
@@ -107,9 +107,9 @@ public:
     }  
   }
 
-  static void scanInstance(oopDesc* obj, RTGC::RefTracer trace) {
+  static void scanInstance(oopDesc* p, RTGC::RefTracer trace) {
     GrowableArrayCHeap<OopIterator, mtGC> stack;
-    stack.append(OopIterator(obj));
+    stack.append(OopIterator(p));
     OopIterator* it = &stack.at(0);
     while (true) {
       oopDesc* link = it->next();
@@ -136,14 +136,14 @@ public:
 
   RTGC_MarkClosure() : _cnt(0), _cntLocal(0) {}
 
-  void do_work(oopDesc* obj) {
-    if (obj != NULL) {
-      ref_stak.append(obj);
+  void do_work(oopDesc* p) {
+    if (p != NULL) {
+      ref_stak.append(p);
       _cnt ++;
-      if (!RTGC::isPublished(obj)) {
+      if (!RTGC::isPublished(p)) {
         _cntLocal ++;
       }
-      // rtgc_log(LOG_OPT(0x100), "mark stack %d %p\n", _cnt++, obj);
+      // rtgc_log(LOG_OPT(0x100), "mark stack %d %p\n", _cnt++, p);
     }
     //if (ref != NULL) RTGC::add_referrer(ref, _rookie);
   }
@@ -164,17 +164,17 @@ public:
   }
 
   void registerLocalRookies(ThreadLocalAllocBuffer& tlab) {
-    HeapWord* p = tlab.start();
+    HeapWord* t_p = tlab.start();
     HeapWord* end = tlab.top();
     int cnt = 0;
-    while (p < end) {
-      oopDesc* obj = cast_to_oop(p);
-      if (!RTGC::collectGarbage(obj)
-      &&  !RTGC::isPublished(obj)) {
-        localObjects.append(obj);
+    while (t_p < end) {
+      oopDesc* p = cast_to_oop(t_p);
+      if (!RTGC::collectGarbage(p)
+      &&  !RTGC::isPublished(p)) {
+        localObjects.append(p);
       }
-      rtgc_log(LOG_OPT(0x100), "rookie %d, %s\n", ++cnt, obj->klass()->name()->bytes());
-      p += obj->size();  // size() == sizeInBytes / sizeof(HeapWord);
+      rtgc_log(LOG_OPT(0x100), "rookie %d, %s\n", ++cnt, p->klass()->name()->bytes());
+      t_p += p->size();  // size() == sizeInBytes / sizeof(HeapWord);
     }
   }
 
@@ -189,10 +189,10 @@ public:
     int end = localObjects.length();
     int dst = 0;
     for (int idx = 0; idx < end; idx ++) {
-      oopDesc* obj = localObjects.at(idx);
-      if (!RTGC::collectGarbage(obj) && dst != idx
-      &&  !RTGC::isPublished(obj)) {
-        localObjects.at(dst++) = obj;
+      oopDesc* p = localObjects.at(idx);
+      if (!RTGC::collectGarbage(p) && dst != idx
+      &&  !RTGC::isPublished(p)) {
+        localObjects.at(dst++) = p;
       }
     }
     if (dst != end) {
@@ -208,7 +208,7 @@ public:
 };
 
 
-HeapWord* RTGC::allocate_tlab(Thread* thread, const size_t word_size) {
+HeapWord* rtHeap::allocate_tlab(Thread* thread, const size_t word_size) {
   RtgcThreadLocalData* tld = RtgcThreadLocalData::data(thread);
   HeapWord* mem = tld->try_alloc_tlab(word_size);
   if (mem == nullptr) {
@@ -219,32 +219,32 @@ HeapWord* RTGC::allocate_tlab(Thread* thread, const size_t word_size) {
 }
 
 void RTGC::scanInstance(GCObject* root, RTGC::RefTracer trace) {
-  oopDesc* obj = cast_to_oop(root);
+  oopDesc* p = cast_to_oop(root);
 #ifdef _LP64
   if (UseCompressedOops) {
-    OopIterator<narrowOop>::scanInstance(obj, trace);
+    OopIterator<narrowOop>::scanInstance(p, trace);
   } else {
-    OopIterator<oop>::scanInstance(obj, trace);
+    OopIterator<oop>::scanInstance(p, trace);
   }
 #else
-  OopIterator<oop>::scanInstance(obj, trace);
+  OopIterator<oop>::scanInstance(p, trace);
 #endif
 }
 
 void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
-  oopDesc* obj = cast_to_oop(root);
+  oopDesc* p = cast_to_oop(root);
 #ifdef _LP64
   if (UseCompressedOops) {
-    OopIterator<narrowOop>::iterateReferents(obj, trace, param);
+    OopIterator<narrowOop>::iterateReferents(p, trace, param);
   } else {
-    OopIterator<oop>::iterateReferents(obj, trace, param);
+    OopIterator<oop>::iterateReferents(p, trace, param);
   }
 #else
-  OopIterator<oop>::iterateReferents(obj, trace, param);
+  OopIterator<oop>::iterateReferents(p, trace, param);
 #endif
 }
 
-void RTGC::adjust_pointers(oopDesc* ref) {
+void rtHeap::adjust_pointers(oopDesc* ref) {
   GCObject* obj = to_obj(ref);
 
   precond(ref->is_gc_marked());
@@ -319,7 +319,7 @@ static GCObject* findNextUntrackable(GCNode* obj) {
   return (GCObject*)obj;
 }
 
-void RTGC::refresh_young_roots() {
+void rtHeap::refresh_young_roots() {
   if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
@@ -333,16 +333,16 @@ void RTGC::refresh_young_roots() {
   GCNode* prev = &header;
   GCNode* obj = g_young_root_q;
   while ((GCNode*)obj != &g_young_root_tail) {
-    oopDesc* ptr = cast_to_oop(obj);
+    oopDesc* p = cast_to_oop(obj);
     rtgc_log(LOG_OPT(6), "check young root %p\n", obj);
-    if (!ptr->is_gc_marked()) {
-      rtgc_log(LOG_OPT(8), "young garbage %p\n", ptr);
+    if (!p->is_gc_marked()) {
+      rtgc_log(LOG_OPT(8), "young garbage %p\n", p);
       debug_only(cnt_garbage++;)
       ((GCObject*)obj)->removeAllReferrer();
     }
     else if (!obj->isTrackable() && obj->hasReferrer()) {
       debug_only(young_root++;)
-      obj = to_obj(ptr->forwardee());
+      obj = to_obj(p->forwardee());
       postcond(obj != NULL);
       prev->_nextUntrackable = obj;
       prev = obj;
@@ -357,48 +357,52 @@ void RTGC::refresh_young_roots() {
   debug_only(cnt_young_root = young_root);
 }
 
-
-
-struct TraceInfo {
-  void* move_to;
-  oopDesc* marked;
-};
-
-static void register_referrer(oopDesc* ref, TraceInfo* ti) {
-  GCObject* obj = to_obj(ref);
-  if (!obj->isTrackable() && !obj->hasReferrer()) {
-	  debug_only(cnt_young_root++;)
-    rtgc_log(LOG_OPT(8), "add young root %p root=%p\n", ref, g_young_root_q);
-    obj->_nextUntrackable = g_young_root_q;
-    g_young_root_q = obj;
-  }
-  RTGC::add_referrer_unsafe(ref, ti->marked, ti->move_to, "regr");
-  postcond(obj->hasReferrer());
+void RTGC::add_young_root(GCObject* obj) {
+  precond(!obj->isTrackable() && !obj->hasReferrer());
+  debug_only(cnt_young_root++;)
+  rtgc_log(LOG_OPT(8), "add young root %p root=%p\n", obj, g_young_root_q);
+  obj->_nextUntrackable = g_young_root_q;
+  g_young_root_q = obj;
 }
 
-void RTGC::unmark_trackable(oopDesc* ptr) {
-  GCObject* obj = to_obj(ptr);
+bool rtHeap::is_trackable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  return obj->isTrackable();
+}
+
+void rtHeap::destrory_trackable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
   if (obj->isTrackable()) {
     obj->removeAllReferrer();
   }
 }
 
-void RTGC::mark_empty_trackable(oopDesc* p) {
+void rtHeap::mark_active_trackable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  if (obj->isTrackable()) return;
+
+  RTGC::lock_heap();
+  obj->markTrackable();
+  RTGC::iterateReferents(obj, (RefTracer2)add_referrer_unsafe, obj);
+  RTGC::unlock_heap(true);
+}
+
+void rtHeap::mark_empty_trackable(oopDesc* p) {
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
   obj->markTrackable();
 }
 
-void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
+void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);
-  precond((void*)marked->forwardee() == move_to);
-  GCObject* obj = to_obj(marked);
+  rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
+  precond((void*)old_p->forwardee() == new_p);
+  GCObject* obj = to_obj(old_p);
   obj->markTrackable();
-  g_promted_trackables.append((oopDesc*)move_to);
+  g_promted_trackables.append((oopDesc*)new_p);
 }
 
-void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
+void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
   if (!REF_LINK_ENABLED) return;
   // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
@@ -409,7 +413,7 @@ void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
   g_promted_trackables.append(new_p);
 }
 
-void RTGC::flush_trackables() {
+void rtHeap::flush_trackables() {
   if (!REF_LINK_ENABLED) return;
 
   const int count = g_promted_trackables.length();
@@ -418,12 +422,13 @@ void RTGC::flush_trackables() {
   rtgc_log(LOG_OPT(9), "flush_trackables %d\n", count);
   oopDesc** pOop = &g_promted_trackables.at(0);
   for (int i = count; --i >= 0; ) {
-    oopDesc* ptr = *pOop++;
-    TraceInfo ti;
-    ti.move_to = ptr->forwardee();
-    ti.marked = ptr;
-    RTGC::iterateReferents(to_obj(ptr), (RefTracer2)register_referrer, &ti);
+    oopDesc* p = *pOop++;
+    RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_unsafe, p);
   }
   g_promted_trackables.trunc_to(0);
 }
 
+void rtHeap::print_heap_after_gc() {  
+  rtgc_log(true, "trackables = %d, young_roots= %d\n", 
+      GCNode::_cntTrackable, cnt_young_root) 
+}

@@ -13,24 +13,38 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
-static int g_mv_lock = 0;
-
+static int _logOptions[256];
+static int _debugOptions[256];
 namespace RTGC {
-  static int _logOptions[256];
-  static int _debugOptions[256];
 
+  Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
   bool REF_LINK_ENABLED = true;
 }
+int GCNode::_cntTrackable = 0;
 
 bool RTGC::isPublished(GCObject* obj) {
   return obj->isPublished();
 }
 
 void RTGC::lock_heap() {
-  while (Atomic::cmpxchg(&g_mv_lock, 0, 1) != 0) { /* do spin. */ }
+#ifdef ASSERT
+  Thread* self = Thread::current();
+#else 
+  Thread* self = (Thread*)1;
+#endif
+  while (Atomic::cmpxchg(&g_mv_lock, (Thread*)NULL, self) != 0) { /* do spin. */ }
+}
+
+bool RTGC::heap_locked_bySelf() {
+#ifdef ASSERT
+  Thread* self = Thread::current();
+#else 
+  Thread* self = (Thread*)1;
+#endif
+  return g_mv_lock == self;
 }
 
 bool RTGC::lock_if_published(GCObject* obj) {
@@ -49,7 +63,7 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
 
 void RTGC::unlock_heap(bool locked) {
   if (locked) {
-    Atomic::release_store(&g_mv_lock, 0);
+    Atomic::release_store(&g_mv_lock, (Thread*)NULL);
   }
 }
 
@@ -57,17 +71,28 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* addr, const char* fn) {
+void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* referrer) {
+  assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
   if (!REF_LINK_ENABLED) return;
   precond(to_obj(referrer)->isTrackable());
-  rtgc_log(LOG_OPT(1), "add_referrer(%s) %p[%p] : ? -> %p\n", 
-      fn, referrer, addr, obj);
-  GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
+
+  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, p);
+  GCObject* obj = to_obj(p);
+  if (!obj->isTrackable() && !obj->hasReferrer()) {
+    RTGC::add_young_root(obj);
+  }
+  GCRuntime::connectReferenceLink(obj, to_obj(referrer));
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
   if (!REF_LINK_ENABLED) return;
   precond(REF_LINK_ENABLED || to_obj(base)->isTrackable());
+
   if (oldValue == newValue) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
@@ -77,9 +102,13 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
 }
 
 void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
       fn, addr, oldValue, newValue);
+
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
 }
