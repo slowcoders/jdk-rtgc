@@ -169,6 +169,8 @@ class ParallelScavengeHeap : public CollectedHeap {
 
 #if USE_RTGC // is_in_trackable_space
   virtual bool is_in_trackable_space(const void* p) const;
+  virtual HeapWord* mem_allocate_klass(size_t size,
+                                 bool* gc_overhead_limit_was_exceeded);
 #endif
 
   MemRegion reserved_region() const { return _reserved; }

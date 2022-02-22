@@ -356,6 +356,15 @@ HeapWord* MemAllocator::allocate_inside_tlab_slow(Allocation& allocation) const 
 }
 
 HeapWord* MemAllocator::mem_allocate(Allocation& allocation) const {
+#if USE_RTGC
+  if (_klass == vmClasses::Class_klass()) {
+    HeapWord* result = Universe::heap()->mem_allocate_klass(_word_size, &allocation._overhead_limit_exceeded);
+    if (result != NULL) {
+      return result;
+    }
+  }
+#endif
+
   if (UseTLAB) {
     HeapWord* result = allocate_inside_tlab(allocation);
     if (result != NULL) {

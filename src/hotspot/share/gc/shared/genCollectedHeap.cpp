@@ -940,6 +940,19 @@ bool GenCollectedHeap::is_in_trackable_space(const void* p) const {
   bool is_young = p < _old_gen->reserved().start();
   return !is_young;
 }
+
+HeapWord* GenCollectedHeap::mem_allocate_klass(size_t size, bool* gc_overhead_limit_was_exceeded) {
+  HeapWord* mem;
+  {
+    MutexLocker ml(Heap_lock);
+    mem = _old_gen->allocate(size, false);
+  }
+  if (mem == NULL) {
+    mem = mem_allocate(size, gc_overhead_limit_was_exceeded);
+  }
+  return mem;
+}
+
 #endif
 
 bool GenCollectedHeap::is_in_young(oop p) {

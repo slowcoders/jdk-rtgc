@@ -58,17 +58,17 @@ bool RTGC::needTrack(oopDesc* obj) {
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, volatile void* addr, const char* fn) {
-  precond(to_obj(referrer)->isTrackable());
   if (!REF_LINK_ENABLED) return;
+  precond(to_obj(referrer)->isTrackable());
   rtgc_log(LOG_OPT(1), "add_referrer(%s) %p[%p] : ? -> %p\n", 
       fn, referrer, addr, obj);
   GCRuntime::connectReferenceLink(to_obj(obj), to_obj(referrer));
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
-  precond(to_obj(base)->isTrackable());
-  if (oldValue == newValue) return;
   if (!REF_LINK_ENABLED) return;
+  precond(REF_LINK_ENABLED || to_obj(base)->isTrackable());
+  if (oldValue == newValue) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
@@ -118,6 +118,7 @@ void RTGC::initialize() {
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
+    logOptions[LOG_BARRIER] = 0;//1 << 11;
   }
 }
 

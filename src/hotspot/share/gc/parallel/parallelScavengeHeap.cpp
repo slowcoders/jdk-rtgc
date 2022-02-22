@@ -224,6 +224,18 @@ bool ParallelScavengeHeap::is_in_trackable_space(const void* p) const {
   bool is_young = p >= young_gen()->reserved().start();
   return !is_young;
 }
+
+HeapWord* ParallelScavengeHeap::mem_allocate_klass(size_t size, bool* gc_overhead_limit_was_exceeded) {
+  HeapWord* mem;
+  {
+    MutexLocker ml(Heap_lock);
+    mem = old_gen()->allocate(size);
+  }
+  if (mem == NULL) {
+    mem = mem_allocate(size, gc_overhead_limit_was_exceeded);
+  }
+  return mem;
+}
 #endif
 
 // There are two levels of allocation policy here.

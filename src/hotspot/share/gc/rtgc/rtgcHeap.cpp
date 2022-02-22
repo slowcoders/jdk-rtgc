@@ -384,13 +384,14 @@ void RTGC::unmark_trackable(oopDesc* ptr) {
 }
 
 void RTGC::mark_empty_trackable(oopDesc* p) {
+  rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
   obj->markTrackable();
 }
 
 void RTGC::mark_pending_trackable(oopDesc* marked, void* move_to) {
   if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(5), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);
+  rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", marked, move_to);
   precond((void*)marked->forwardee() == move_to);
   GCObject* obj = to_obj(marked);
   obj->markTrackable();
@@ -402,9 +403,9 @@ void RTGC::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
   // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
+  rtgc_log(LOG_OPT(9), "mark_promoted_trackable %p(moved to %p)\n", old_p, new_p);
   to_obj(old_p)->markTrackable();
   to_obj(new_p)->markTrackable();
-  rtgc_log(LOG_OPT(6), "mark_promoted_trackable %p(moved to %p)\n", old_p, new_p);
   g_promted_trackables.append(new_p);
 }
 
@@ -414,7 +415,7 @@ void RTGC::flush_trackables() {
   const int count = g_promted_trackables.length();
   if (count == 0) return;
 
-  rtgc_log(LOG_OPT(6), "flush_trackables %d\n", count);
+  rtgc_log(LOG_OPT(9), "flush_trackables %d\n", count);
   oopDesc** pOop = &g_promted_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* ptr = *pOop++;

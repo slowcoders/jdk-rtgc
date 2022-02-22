@@ -12,11 +12,14 @@
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
+#include "runtime/atomic.hpp"
+
 
 volatile int LOG_VERBOSE = 0;
 static void* _base = 0;
 static int _shift = 0;
 static const int MAX_OBJ_SIZE = 256*1024*1024;
+static const bool SKIP_UNTRACKABLE = false;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER, function);
@@ -54,27 +57,56 @@ int rtgc_getOopShift() {
 #endif
 }
 
-static void rtgc_set_volatile_field(volatile narrowOop* addr, oopDesc* value) {
+static void raw_set_volatile_field(volatile narrowOop* addr, oopDesc* value) {
   Atomic::release_store(addr, CompressedOops::encode(value));
 }
-static void rtgc_set_volatile_field(volatile oop* addr, oopDesc* value) {
+static void raw_set_volatile_field(volatile oop* addr, oopDesc* value) {
   Atomic::release_store((volatile oopDesc**)addr, value);
 }
 
-static void rtgc_set_field(narrowOop* addr, oopDesc* value) {
+static void raw_set_field(narrowOop* addr, oopDesc* value) {
   RawAccess<>::oop_store(addr, value);
 }
-static void rtgc_set_field(oop* addr, oopDesc* value) {
+static void raw_set_field(oop* addr, oopDesc* value) {
   RawAccess<>::oop_store(addr, value);
+}
+
+static oopDesc* raw_atomic_xchg(volatile narrowOop* addr, oopDesc* value) {
+  narrowOop n_v = CompressedOops::encode(value);
+  narrowOop res = Atomic::xchg(addr, n_v);
+  return CompressedOops::decode(res);
+}
+static oopDesc* raw_atomic_xchg(volatile oop* addr, oopDesc* value) {
+  oop n_v = value;
+  oop res = Atomic::xchg(addr, n_v);
+  return res;
+}
+
+static oopDesc* raw_atomic_cmpxchg(volatile narrowOop* addr, oopDesc* compare, oopDesc* value) {
+  narrowOop c_v = CompressedOops::encode(compare);
+  narrowOop n_v = CompressedOops::encode(value);
+  narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
+  return CompressedOops::decode(res);
+}
+static oopDesc* raw_atomic_cmpxchg(volatile oop* addr, oopDesc* compare, oopDesc* value) {
+  oop c_v = compare;
+  oop n_v = value;  
+  oop res = Atomic::cmpxchg(addr, c_v, n_v);
+  return res;
 }
 
 
 template<class T, bool inHeap, int shift>
 void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
+  if (SKIP_UNTRACKABLE && !((RTGC::GCNode*)RTGC::to_obj(base))->isTrackable()) {
+    raw_set_field(addr, new_value);
+    rtgc_log(LOG_OPT(11), "skip rtgc_store %p[] <= %p\n", base, new_value);
+    return;
+  }
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
   oopDesc* old = CompressedOops::decode(*addr);
-  rtgc_set_field(addr, new_value);
+  raw_set_field(addr, new_value);
   RTGC::on_field_changed(base, old, new_value, addr, "stor");
   RTGC::unlock_heap(true);
 }
@@ -84,7 +116,7 @@ void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
   rtgc_log(LOG_OPT(2), "store_nh (%p) := %p\n", addr, new_value);
   RTGC::publish_and_lock_heap(new_value);
   oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
-  rtgc_set_volatile_field(addr, new_value);
+  raw_set_volatile_field(addr, new_value);
   RTGC::on_root_changed(old, new_value, addr, "stor");
   RTGC::unlock_heap(true);
 }
@@ -118,11 +150,16 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
-  rtgc_log(LOG_OPT(3), "xchg %p(%p) <-> %p\n", base, addr, new_value);
+  if (SKIP_UNTRACKABLE && !((RTGC::GCNode*)RTGC::to_obj(base))->isTrackable()) {
+    oopDesc* res = raw_atomic_xchg(addr, new_value);
+    rtgc_log(LOG_OPT(11), "skip rtgc_xchg %p[] <= %p\n", base, new_value);
+    return res;
+  }
+  rtgc_log(LOG_OPT(11), "xchg %p(%p) <-> %p\n", base, addr, new_value);
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
   oop old = RawAccess<>::oop_load(addr);
-  rtgc_set_volatile_field(addr, new_value);
+  raw_set_volatile_field(addr, new_value);
   RTGC::on_field_changed(base, old, new_value, addr, "xchg");
   RTGC::unlock_heap(true);
   return old;
@@ -130,10 +167,10 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
-  rtgc_log(LOG_OPT(3), "xchg_nh (%p) <-> %p\n", addr, new_value);
+  rtgc_log(LOG_OPT(11), "xchg_nh (%p) <-> %p\n", addr, new_value);
   RTGC::publish_and_lock_heap(new_value);
   oop old = RawAccess<>::oop_load(addr);
-  rtgc_set_volatile_field(addr, new_value);
+  raw_set_volatile_field(addr, new_value);
   RTGC::on_root_changed(old, new_value, addr, "xchg");
   RTGC::unlock_heap(true);
   return old;
@@ -158,25 +195,32 @@ address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  if (SKIP_UNTRACKABLE && !((RTGC::GCNode*)RTGC::to_obj(base))->isTrackable()) {
+    oopDesc* res = raw_atomic_cmpxchg(addr, cmp_value, new_value);
+    rtgc_log(LOG_OPT(11), "skip rtgc_xchg %p[] <= %p\n", base, new_value);
+    return res;
+  }
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
-    rtgc_set_volatile_field(addr, new_value);
+    raw_set_volatile_field(addr, new_value);
     RTGC::on_field_changed(base, old, new_value, addr, "cmpx");
   }
   RTGC::unlock_heap(true);
-  rtgc_log(LOG_OPT(8), "cmpxchg %p(%p)=%p <-> %p r=%d\n", 
-        base, addr, cmp_value, new_value, (oopDesc*)old == cmp_value);
+  rtgc_log(LOG_OPT(11), "cmpxchg %p[%p]=%p <-> %p r=%d\n", 
+        base, addr, cmp_value, new_value, ((void*)old == cmp_value));
   return old;
 }
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value) {
+  rtgc_log(LOG_OPT(11), "cmpxchg *(%p)=%p <-> %p\n", 
+        addr, cmp_value, new_value);
   RTGC::publish_and_lock_heap(new_value);
   oop old = RawAccess<>::oop_load(addr);
   if ((oopDesc*)old == cmp_value) {
-    rtgc_set_volatile_field(addr, new_value);
+    raw_set_volatile_field(addr, new_value);
     RTGC::on_root_changed(old, new_value, addr, "cmpx");
   }
   RTGC::unlock_heap(true);
@@ -194,10 +238,10 @@ oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_v
 }
 
 bool RtgcBarrier::rt_cmpset(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
-  return rt_cmpxchg(addr, cmp_value, new_value, base) == cmp_value;
+  return cmp_value == rt_cmpxchg(addr, cmp_value, new_value, base);
 }
 bool RtgcBarrier::rt_cmpset_not_in_heap(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value) {
-  return rt_cmpxchg_not_in_heap(addr, cmp_value, new_value) == cmp_value;
+  return cmp_value == rt_cmpxchg_not_in_heap(addr, cmp_value, new_value);
 }
 
 address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
@@ -212,7 +256,7 @@ oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
   //rtgc_log(LOG_OPT(4), "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap();
   oop value = RawAccess<>::oop_load(addr);
-  // rtgc_set_volatile_field(addr, new_value);
+  // raw_set_volatile_field(addr, new_value);
   // RTGC::unlock_heap(true);
   return value;
 }
@@ -222,7 +266,7 @@ oopDesc* rtgc_load_not_in_heap(volatile T* addr) {
   //rtgc_log(LOG_OPT(4), "load__ (%p)\n", addr);
   // bool locked = RTGC::lock_heap();
   oop value = RawAccess<>::oop_load(addr);
-  // rtgc_set_volatile_field(addr, new_value);
+  // raw_set_volatile_field(addr, new_value);
   // RTGC::unlock_heap(true);
   return value;
 }

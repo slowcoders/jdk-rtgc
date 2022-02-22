@@ -109,8 +109,9 @@ static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAcces
   __ movl(tmp3, Address(obj, offset_gc_flags));
   __ andl(tmp3, (int)RTGC::TRACKABLE_BIT);
   // notZero 바꿔서 test.
+#if 1
   __ jcc(Assembler::zero, rawAccess);
-
+#endif 
 }
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
@@ -189,7 +190,7 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
                                   Register src, Register dst, Register count, 
                                   Register dst_array, Label& copy_done, Register saved_count) {
   this->arraycopy_prologue(masm, decorators, type, src, dst, count); 
-  if (true || type != T_OBJECT) return;
+  if (type != T_OBJECT) return;
 
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
