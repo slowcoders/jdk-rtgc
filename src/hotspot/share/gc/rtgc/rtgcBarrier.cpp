@@ -290,7 +290,9 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  // rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  rtgc_log(true || LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+      src_p, dst_array, dst_p, (int)length,
+      (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
   Klass* bound = !checkcast ? NULL
@@ -298,15 +300,14 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   RTGC::lock_heap();                          
   for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
-  // for (ITEM_T* end_p = src_p + length; src_p < end_p; src_p ++, dst_p ++) {
-  //   ITEM_T s_raw = src_p[0]; 
     oopDesc* new_value = CompressedOops::decode(s_raw);
     if (checkcast && new_value != NULL) {
       Klass* stype = new_value->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
         memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(true);
-        return i;//(end_p - src_p); // returns remain_count;
+        rtgc_log(true || LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
+        return i;
       }
     }
     oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
@@ -316,8 +317,8 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);
-  //rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
-  return 0;
+  rtgc_log(true || LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  return length;
 }
 
 int (*RtgcBarrier::rt_arraycopy_checkcast)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);

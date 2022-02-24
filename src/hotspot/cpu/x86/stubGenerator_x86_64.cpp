@@ -2804,7 +2804,7 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     if (ENABLE_ARRAY_COPY_HOOK) {
-      bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_copy_done);
+      bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_copy_done, r14_length);
       __ load_klass(ckval, c_rarg3, rax);
       __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
       __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
