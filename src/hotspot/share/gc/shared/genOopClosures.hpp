@@ -53,6 +53,10 @@ protected:
   FastScanClosure(DefNewGeneration* g);
 
 public:
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+  DefNewGeneration* young_gen() { return _young_gen; }
+#endif 
+
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 };

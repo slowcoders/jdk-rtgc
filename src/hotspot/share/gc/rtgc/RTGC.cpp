@@ -91,7 +91,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   if (!REF_LINK_ENABLED) return;
-  precond(REF_LINK_ENABLED || to_obj(base)->isTrackable());
+  precond(to_obj(base)->isTrackable());
 
   if (oldValue == newValue) return;
 

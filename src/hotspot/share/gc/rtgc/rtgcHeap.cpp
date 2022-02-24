@@ -22,7 +22,7 @@ namespace RTGC {
   GrowableArrayCHeap<oopDesc*, mtGC> g_promted_trackables;
   static Thread* gcThread = NULL;
 	static int cnt_young_root = 0;
-  static GCNode* volatile g_young_root_q = &g_young_root_tail;
+  static GCNode* volatile g_young_root_q = NULL;
 };
 using namespace RTGC;
 
@@ -248,15 +248,13 @@ void rtHeap::adjust_pointers(oopDesc* ref) {
   GCObject* obj = to_obj(ref);
 
   precond(ref->is_gc_marked());
-
-  if (!REF_LINK_ENABLED) return;
+  if (!obj->hasReferrer()) {
+    return;
+  }
 
   void* moved_to = ref->mark().decode_pointer();
   const bool CHECK_GARBAGE = true;
 
-  if (!obj->hasReferrer()) {
-    return;
-  }
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
@@ -320,7 +318,7 @@ static GCObject* findNextUntrackable(GCNode* obj) {
 }
 
 void rtHeap::refresh_young_roots() {
-  if (!REF_LINK_ENABLED) return;
+  //if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
 
@@ -332,7 +330,7 @@ void rtHeap::refresh_young_roots() {
   PsuedoYoungRoot header;
   GCNode* prev = &header;
   GCNode* obj = g_young_root_q;
-  while ((GCNode*)obj != &g_young_root_tail) {
+  while (obj != NULL) {
     oopDesc* p = cast_to_oop(obj);
     rtgc_log(LOG_OPT(6), "check young root %p\n", obj);
     if (!p->is_gc_marked()) {
@@ -349,9 +347,8 @@ void rtHeap::refresh_young_roots() {
     }
     obj = obj->_nextUntrackable;
   }
-  prev->_nextUntrackable = &g_young_root_tail;
+  prev->_nextUntrackable = NULL;
   g_young_root_q = header._nextUntrackable;
-  postcond(g_young_root_q != NULL);
 
   rtgc_log(LOG_OPT(6), "young roots %d -> garbage = %d, young = %d\n", cnt_young_root, cnt_garbage, young_root);
   debug_only(cnt_young_root = young_root);
@@ -374,6 +371,7 @@ void rtHeap::destrory_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   if (obj->isTrackable()) {
     obj->removeAllReferrer();
+    GCNode::_cntTrackable --;
   }
 }
 
@@ -394,7 +392,7 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
 }
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
-  if (!REF_LINK_ENABLED) return;
+  //if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p);
   GCObject* obj = to_obj(old_p);
@@ -403,7 +401,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
 }
 
 void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
-  if (!REF_LINK_ENABLED) return;
+  //if (!REF_LINK_ENABLED) return;
   // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
@@ -414,7 +412,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
 }
 
 void rtHeap::flush_trackables() {
-  if (!REF_LINK_ENABLED) return;
+  //if (!REF_LINK_ENABLED) return;
 
   const int count = g_promted_trackables.length();
   if (count == 0) return;
@@ -426,6 +424,31 @@ void rtHeap::flush_trackables() {
     RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_unsafe, p);
   }
   g_promted_trackables.trunc_to(0);
+}
+
+void rtHeap::iterate_young_roots(OopIterateClosure* closer) {
+  /**
+   * 참고) promoted object 의 ref-field 는 아직 pointer 변경이 되지않은 상태이다.
+   */
+  flush_trackables();
+
+  PsuedoYoungRoot header;
+  GCNode* prev = &header;
+  prev->_nextUntrackable = g_young_root_q;
+  while (true) {
+    GCNode* next = prev->_nextUntrackable;
+    if (next == NULL) break;
+    if (next->isTrackable()) continue;
+
+    closer->do_oop((oop*)&prev->_nextUntrackable);
+    if (next->isTrackable()) {
+      prev->_nextUntrackable = next->_nextUntrackable;
+    } else {
+      prev = next;
+    }
+  }
+  prev->_nextUntrackable = NULL;
+  g_young_root_q = header._nextUntrackable;
 }
 
 void rtHeap::print_heap_after_gc() {  

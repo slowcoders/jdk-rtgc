@@ -73,7 +73,8 @@
         "complex": "cpp",
         "ios": "cpp",
         "__split_buffer": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "version": "cpp"
     },
     "terminal.integrated.defaultProfile.osx": "bash"
 }

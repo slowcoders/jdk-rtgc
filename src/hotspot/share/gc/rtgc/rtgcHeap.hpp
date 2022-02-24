@@ -10,7 +10,7 @@
 #define USE_RTGC_TLAB_ALLOC           false
 #define RTGC_TRACK_ALL_GENERATION     false
 
-#define RTGC_OPTIMIZED_YOUNGER_GENERATION_GC  false
+#define RTGC_OPTIMIZED_YOUNGER_GENERATION_GC  true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
@@ -19,7 +19,7 @@
 
 class Thread;
 class oopDesc;
-class DefNewYoungerGenClosure;
+class OopIterateClosure;
 
 class rtHeap : AllStatic {
 public:
@@ -43,7 +43,7 @@ public:
   static void print_heap_after_gc();
 
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
-  static void iterate_young_roots(DefNewYoungerGenClosure* closer);
+  static void iterate_young_roots(OopIterateClosure* closer);
 };
 
 

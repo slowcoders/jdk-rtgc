@@ -32,6 +32,7 @@
 #include "runtime/mutex.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_JFR
 #include "jfr/support/jfrTraceIdExtension.hpp"
 #endif
@@ -80,11 +81,20 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     };
 
     Chunk* volatile _head;
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+    Chunk* volatile _tail;
+    Chunk* _last_chunk;
+    juint _last_idx;
+#endif
 
     void oops_do_chunk(OopClosure* f, Chunk* c, const juint size);
 
    public:
-    ChunkedHandleList() : _head(NULL) {}
+    ChunkedHandleList() : _head(NULL)
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+      , _tail(NULL), _last_chunk(NULL), _last_idx(0) 
+#endif      
+      {}
     ~ChunkedHandleList();
 
     // Only one thread at a time can add, guarded by ClassLoaderData::metaspace_lock().
@@ -93,7 +103,9 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     bool contains(oop p);
     NOT_PRODUCT(bool owner_of(oop* p);)
     void oops_do(OopClosure* f);
-
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+    void promotable_oops_do(OopClosure* f);
+#endif
     int count() const;
   };
 
@@ -204,7 +216,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     _claim_none         = 0,
     _claim_finalizable  = 2,
     _claim_strong       = 3,
-    _claim_other        = 4
+    _claim_other        = 4,
   };
   void clear_claim() { _claim = 0; }
   void clear_claim(int claim);
@@ -269,6 +281,9 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   void initialize_holder(Handle holder);
 
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+  void promotable_oops_do(OopClosure* f, bool clear_modified_oops = false);
+#endif
   void oops_do(OopClosure* f, int claim_value, bool clear_modified_oops = false);
 
   void classes_do(KlassClosure* klass_closure);

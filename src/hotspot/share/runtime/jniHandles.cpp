@@ -37,6 +37,7 @@
 #include "runtime/thread.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 OopStorage* JNIHandles::global_handles() {
   return _global_handles;
@@ -93,6 +94,9 @@ jobject JNIHandles::make_global(Handle obj, AllocFailType alloc_failmode) {
     // Return NULL on allocation failure.
     if (ptr != NULL) {
       assert(*ptr == NULL, "invariant");
+#if USE_RTGC && false // make_gloval
+      RTGC::mark_active_trackable(obj());
+#endif    
       NativeAccess<>::oop_store(ptr, obj());
       res = reinterpret_cast<jobject>(ptr);
     } else {

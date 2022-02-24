@@ -189,16 +189,31 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 }
 
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
-  if (_head == NULL || _head->_size == Chunk::CAPACITY) {
-    Chunk* next = new Chunk(_head);
-    Atomic::release_store(&_head, next);
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+  Chunk* c = Atomic::load_acquire(&_tail);
+  if (c == NULL || c->_size == Chunk::CAPACITY) {
+    Chunk* next = new Chunk(NULL);
+    if (c == NULL) {
+      Atomic::release_store(&_head, next);
+    } else {
+      c->_next = next;
+    }
+    Atomic::release_store(&_tail, next);
+    c = next;
   }
-#if USE_RTGC
+#else
+  Chunk* c = Atomic::load_acquire(&_head);
+  if (c == NULL || c->_size == Chunk::CAPACITY) {
+    c = new Chunk(c);
+    Atomic::release_store(&_head, c);
+  }
+#endif  
+#if USE_RTGC && 0
   rtHeap::mark_active_trackable(o);
 #endif  
-  oop* handle = &_head->_data[_head->_size];
+  oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
-  Atomic::release_store(&_head->_size, _head->_size + 1);
+  Atomic::release_store(&c->_size, c->_size + 1);
   return OopHandle(handle);
 }
 
@@ -230,6 +245,53 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
     }
   }
 }
+
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+void ClassLoaderData::ChunkedHandleList::promotable_oops_do(OopClosure* f) {
+  assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
+         "not gc thread");
+
+  Chunk* c = _last_chunk;
+  juint idx;
+  if (c == NULL) {
+    c = Atomic::load_acquire(&_head);
+    idx = 0;
+  } else {
+    idx = _last_idx;
+  }
+  _last_chunk = NULL;
+
+  for (; c != NULL; c = c->_next, idx = 0) {
+    juint size = c->_size;
+    for (; idx < size; idx++) {
+      if (c->_data[idx] != NULL) {
+        oop* p = &c->_data[idx];
+        oop old = *p;
+        f->do_oop(p);
+        // check on old_p. new_p may not copyed yet;
+        if (!rtHeap::is_trackable(old)) {
+          _last_chunk = c;
+          _last_idx = idx++;
+          break;
+        }
+      }
+    }
+  }
+  for (; c != NULL; c = c->_next, idx = 0) {
+    juint size = c->_size;
+    for (; idx < size; idx++) {
+      if (c->_data[idx] != NULL) {
+        f->do_oop(&c->_data[idx]);
+      }
+    }
+  }
+
+  if (_last_chunk == NULL) {
+    _last_chunk = _tail;
+    _last_idx = _tail->_size;
+  }
+}
+#endif
 
 class VerifyContainsOopClosure : public OopClosure {
   oop  _target;
@@ -319,6 +381,16 @@ void ClassLoaderData::dec_keep_alive() {
     _keep_alive--;
   }
 }
+
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+void ClassLoaderData::promotable_oops_do(OopClosure* f, bool clear_mod_oops) {
+  if (clear_mod_oops) {
+    clear_modified_oops();
+  }
+
+  _handles.promotable_oops_do(f);
+}
+#endif
 
 void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oops) {
   if (claim_value != ClassLoaderData::_claim_none && !try_claim(claim_value)) {

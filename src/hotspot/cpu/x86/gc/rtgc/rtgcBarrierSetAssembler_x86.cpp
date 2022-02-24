@@ -109,9 +109,7 @@ static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAcces
   __ movl(tmp3, Address(obj, offset_gc_flags));
   __ andl(tmp3, (int)RTGC::TRACKABLE_BIT);
   // notZero 바꿔서 test.
-#if 1
   __ jcc(Assembler::zero, rawAccess);
-#endif 
 }
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

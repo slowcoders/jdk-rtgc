@@ -97,5 +97,11 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
+#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+  if (RTGC::debugOptions[0]) {
+    rtHeap::iterate_young_roots(old_gen_closure);
+    return;
+  }
+#endif
   old_gen()->younger_refs_iterate(old_gen_closure);
 }
