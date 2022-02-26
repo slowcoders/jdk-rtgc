@@ -288,7 +288,6 @@ address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool is_trackable = (decorators & AS_RAW) == 0;
   bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  precond(!in_heap || !is_unknown);
   if (!in_heap) {
     return reinterpret_cast<address>(rt_xchg_not_in_heap);
   }
@@ -392,7 +391,6 @@ address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool is_trackable = (decorators & AS_RAW) == 0;
   bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  precond(!in_heap || !is_unknown);
   if (!in_heap) {
     return reinterpret_cast<address>(rt_cmpset_not_in_heap);
   }
