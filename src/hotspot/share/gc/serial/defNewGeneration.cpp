@@ -611,7 +611,7 @@ void DefNewGeneration::collect(bool   full,
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
 #if USE_RTGC  // flush_trackables
-  rtHeap::refresh_young_roots();
+  rtHeap::refresh_young_roots(true);
   rtHeap::flush_trackables();
 #endif
 

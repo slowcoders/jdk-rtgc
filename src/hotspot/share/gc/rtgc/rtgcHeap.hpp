@@ -32,7 +32,7 @@ public:
   static void destrory_trackable(oopDesc* p);
 
   // should be called before pointer adjusting
-  static void refresh_young_roots();
+  static void refresh_young_roots(bool is_object_moved);
 
   // should be called for each marked object
   static void adjust_pointers(oopDesc* p);
@@ -40,7 +40,7 @@ public:
   // should be called after heap compaction finished
   static void flush_trackables();
 
-  static void print_heap_after_gc();
+  static void print_heap_after_gc(bool full_gc);
 
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
   static void iterate_young_roots(OopIterateClosure* closer);

@@ -63,6 +63,11 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
 
 void RTGC::unlock_heap(bool locked) {
   if (locked) {
+#ifdef ASSERT
+    Thread* self = Thread::current();
+    precond(g_mv_lock == self);
+#endif
+
     Atomic::release_store(&g_mv_lock, (Thread*)NULL);
   }
 }
@@ -75,9 +80,9 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* referrer) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  if (!REF_LINK_ENABLED) return;
   precond(to_obj(referrer)->isTrackable());
 
+  if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, p);
   GCObject* obj = to_obj(p);
   if (!obj->isTrackable() && !obj->hasReferrer()) {
@@ -90,13 +95,13 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  if (!REF_LINK_ENABLED) return;
   precond(to_obj(base)->isTrackable());
 
   if (oldValue == newValue) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
+  if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::connectReferenceLink(to_obj(newValue), to_obj(base));
   if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
 }
@@ -105,10 +110,10 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
+  rtgc_log(false && LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
       fn, addr, oldValue, newValue);
 
+  if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
 }
@@ -116,6 +121,10 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
 const char* RTGC::baseFileName(const char* filePath) {
   const char* name = strrchr(filePath, '/');
   return name ? name + 1: filePath;
+}
+
+const void* RTGC::currentThreadId() {
+  return Thread::current();
 }
 
 void RTGC::enableLog(int category, int functions) {
@@ -142,12 +151,12 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 void RTGC::initialize() {
   RTGC::_rtgc.initialize();
-  REF_LINK_ENABLED = UnlockExperimentalVMOptions;
+  REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 0;
-    logOptions[LOG_REF_LINK] = 0;
-    logOptions[LOG_BARRIER] = 0;//1 << 11;
+  if (false && UnlockExperimentalVMOptions) {
+    logOptions[LOG_HEAP] = -1;
+    logOptions[LOG_REF_LINK] = -1;
+    logOptions[LOG_BARRIER] = -1;//1 << 11;
   }
 }
 

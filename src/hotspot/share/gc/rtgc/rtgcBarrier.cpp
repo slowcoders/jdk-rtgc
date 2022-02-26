@@ -31,6 +31,19 @@ static void check_field_addr(void* base, volatile void* addr) {
       , "invalid field addr %p of base %p\n", addr, base);
 }
 
+static bool is_strong_ref(volatile void* addr, oopDesc* base) {
+  ptrdiff_t offset = (address)addr - (address)base;
+  DecoratorSet ds = AccessBarrierSupport::resolve_possibly_unknown_oop_ref_strength<0>(base, offset);
+  return ds & ON_STRONG_OOP_REF;
+}
+
+static bool is_narrow_oop_mode() {
+#ifdef _LP64
+  return UseCompressedOops;
+#endif
+  return false;
+}
+
 int rtgc_getOopShift() {
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -105,6 +118,7 @@ void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   }
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
+  //oopDesc* old = raw_atomic_xchg(addr, new_value);
   oopDesc* old = CompressedOops::decode(*addr);
   raw_set_field(addr, new_value);
   RTGC::on_field_changed(base, old, new_value, addr, "stor");
@@ -113,7 +127,6 @@ void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
 
 template<class T, bool dest_uninitialized, int shift>
 void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
-  rtgc_log(LOG_OPT(2), "store_nh (%p) := %p\n", addr, new_value);
   RTGC::publish_and_lock_heap(new_value);
   oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
   raw_set_volatile_field(addr, new_value);
@@ -121,30 +134,92 @@ void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
   RTGC::unlock_heap(true);
 }
 
-void (*RtgcBarrier::rt_store)(narrowOop* addr, oopDesc* new_value, oopDesc* base) = 0;
+void (*RtgcBarrier::rt_store)(void* addr, oopDesc* new_value, oopDesc* base) = 0;
 void RtgcBarrier::oop_store(oop* addr, oopDesc* new_value, oopDesc* base) {
   rtgc_store<oop, true, 0>(addr, new_value, base);
 }
 
-void (*RtgcBarrier::rt_store_not_in_heap)(narrowOop* addr, oopDesc* new_value);
+void (*RtgcBarrier::rt_store_not_in_heap)(void* addr, oopDesc* new_value);
 void RtgcBarrier::oop_store_not_in_heap(oop* addr, oopDesc* new_value) {
   rtgc_store_not_in_heap<oop, false, 0>(addr, new_value);
 }
 
-void (*RtgcBarrier::rt_store_not_in_heap_uninitialized)(narrowOop* addr, oopDesc* new_value);
+void (*RtgcBarrier::rt_store_not_in_heap_uninitialized)(void* addr, oopDesc* new_value);
 void RtgcBarrier::oop_store_not_in_heap_uninitialized(oop* addr, oopDesc* new_value) {
   rtgc_store_not_in_heap<oop, true, 0>(addr, new_value);
+}
+
+void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_value, oopDesc* base) {
+  if (is_strong_ref(addr, base)) {
+    rt_store(addr, new_value, base);
+  }
+  else if (UseCompressedOops) {
+    raw_set_volatile_field((volatile narrowOop*)addr, new_value);
+  } else {
+    raw_set_volatile_field((volatile oop*)addr, new_value);
+  }
+}
+
+template<DecoratorSet decorators, typename T> 
+void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base) {
+  if (rtHeap::is_trackable(base)) {
+    if (decorators & ON_UNKNOWN_OOP_REF) {
+      oop_store_unknown(addr, new_value, base);
+    } else {
+      rt_store(addr, new_value, base);
+    }
+  }
+  else {
+    bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+    if (is_volatile) {
+      raw_set_volatile_field(addr, new_value);
+    } else {
+      raw_set_field(addr, new_value);
+    }
+  }
 }
 
 address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
-  precond(!in_heap || !uninitialized);
-  return in_heap
-     ? reinterpret_cast<address>(rt_store)
-     : uninitialized
-        ? reinterpret_cast<address>(rt_store_not_in_heap_uninitialized)
-        : reinterpret_cast<address>(rt_store_not_in_heap);
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
+  precond(!in_heap || (!uninitialized));
+  if (in_heap) {
+    if (is_trackable) {
+      return is_unknown ?
+          reinterpret_cast<address>(oop_store_unknown)
+          : reinterpret_cast<address>(rt_store);
+    }
+
+    bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+    if (is_narrow_oop_mode()) {
+      if (is_volatile) {
+        return is_unknown ?
+            reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST|ON_UNKNOWN_OOP_REF, narrowOop>)
+            : reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST, narrowOop>);
+      } else {
+        return is_unknown ?
+            reinterpret_cast<address>(rt_store_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
+            : reinterpret_cast<address>(rt_store_c1<0, narrowOop>);
+      }
+    } else {
+      if (is_volatile) {
+        return is_unknown ?
+            reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST|ON_UNKNOWN_OOP_REF, oop>)
+            : reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST, narrowOop>);
+      } else {
+        return is_unknown ?
+            reinterpret_cast<address>(rt_store_c1<ON_UNKNOWN_OOP_REF, oop>)
+            : reinterpret_cast<address>(rt_store_c1<0, narrowOop>);
+      }
+    }
+  }
+  else if (uninitialized) {
+    return reinterpret_cast<address>(rt_store_not_in_heap_uninitialized);
+  } else {
+    return reinterpret_cast<address>(rt_store_not_in_heap);
+  }
 }
 
 
@@ -176,20 +251,63 @@ oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_value) {
   return old;
 }
 
-oopDesc* (*RtgcBarrier::rt_xchg)(volatile narrowOop* addr, oopDesc* new_value, oopDesc* base);
+oopDesc* (*RtgcBarrier::rt_xchg)(volatile void* addr, oopDesc* new_value, oopDesc* base);
 oopDesc* RtgcBarrier::oop_xchg(volatile oop* addr, oopDesc* new_value, oopDesc* base) {
   return rtgc_xchg<oop, true, 0>(addr, new_value, base);
 }
 
-oopDesc* (*RtgcBarrier::rt_xchg_not_in_heap)(volatile narrowOop* addr, oopDesc* new_value);
+oopDesc* (*RtgcBarrier::rt_xchg_not_in_heap)(volatile void* addr, oopDesc* new_value);
 oopDesc* RtgcBarrier::oop_xchg_not_in_heap(volatile oop* addr, oopDesc* new_value) {
   return rtgc_xchg_not_in_heap<oop, false, 0>(addr, new_value);
 }
 
+oopDesc* RtgcBarrier::oop_xchg_unknown(volatile void* addr, oopDesc* new_value, oopDesc* base) {
+  if (is_strong_ref(addr, base)) {
+    return rt_xchg(addr, new_value, base);
+  }
+  if (UseCompressedOops) {
+    return raw_atomic_xchg((narrowOop*)addr, new_value);
+  } else {
+    return raw_atomic_xchg((oop*)addr, new_value);
+  }
+}
+
+template<DecoratorSet decorators, typename T> 
+oopDesc* RtgcBarrier::rt_xchg_c1(T* addr, oopDesc* new_value, oopDesc* base) {
+  if (!rtHeap::is_trackable(base)) {
+    return raw_atomic_xchg(addr, new_value);
+  }
+  else if (decorators & ON_UNKNOWN_OOP_REF) {
+    return oop_xchg_unknown(addr, new_value, base);
+  } else {
+    return rt_xchg(addr, new_value, base);
+  }
+}
+
 address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
-  return in_heap ? reinterpret_cast<address>(rt_xchg)
-                 : reinterpret_cast<address>(rt_xchg_not_in_heap);
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
+  precond(!in_heap || !is_unknown);
+  if (!in_heap) {
+    return reinterpret_cast<address>(rt_xchg_not_in_heap);
+  }
+
+  if (is_trackable) {
+    return is_unknown ?
+        reinterpret_cast<address>(oop_xchg_unknown)
+        : reinterpret_cast<address>(rt_xchg);
+  }
+
+  if (is_narrow_oop_mode()) {
+    return is_unknown ?
+          reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
+          : reinterpret_cast<address>(rt_xchg_c1<0, narrowOop>);
+  } else {
+    return is_unknown ?
+          reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, oop>)
+          : reinterpret_cast<address>(rt_xchg_c1<0, oop>);
+  }
 }
 
 
@@ -227,27 +345,73 @@ oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_value, oopDesc*
   return old;
 }
 
-oopDesc* (*RtgcBarrier::rt_cmpxchg)(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
+oopDesc* (*RtgcBarrier::rt_cmpxchg)(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 oopDesc* RtgcBarrier::oop_cmpxchg(volatile oop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   return rtgc_cmpxchg<oop, true, 0>(addr, cmp_value, new_value, base);
 }
 
-oopDesc* (*RtgcBarrier::rt_cmpxchg_not_in_heap)(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value);
+oopDesc* (*RtgcBarrier::rt_cmpxchg_not_in_heap)(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value);
 oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_value, oopDesc* new_value) {
   return rtgc_cmpxchg_not_in_heap<oop, false, 0>(addr, cmp_value, new_value);
 }
 
-bool RtgcBarrier::rt_cmpset(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+oopDesc* RtgcBarrier::oop_cmpxchg_unknown(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  if (is_strong_ref(addr, base)) {
+    return rt_cmpxchg(addr, cmp_value, new_value, base);
+  }
+  if (UseCompressedOops) {
+    return raw_atomic_cmpxchg((narrowOop*)addr, cmp_value, new_value);
+  } else {
+    return raw_atomic_cmpxchg((oop*)addr, cmp_value, new_value);
+  }
+}
+
+bool RtgcBarrier::rt_cmpset(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
   return cmp_value == rt_cmpxchg(addr, cmp_value, new_value, base);
 }
-bool RtgcBarrier::rt_cmpset_not_in_heap(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* new_value) {
+bool RtgcBarrier::rt_cmpset_not_in_heap(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value) {
   return cmp_value == rt_cmpxchg_not_in_heap(addr, cmp_value, new_value);
+}
+bool RtgcBarrier::rt_cmpset_unknown(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  return cmp_value == oop_cmpxchg_unknown(addr, cmp_value, new_value, base);
+}
+
+template<DecoratorSet decorators, typename T> 
+bool RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  if (!rtHeap::is_trackable(base)) {
+    return cmp_value == raw_atomic_cmpxchg(addr, cmp_value, new_value);
+  }
+  else if (decorators & ON_UNKNOWN_OOP_REF) {
+    return cmp_value == oop_cmpxchg_unknown(addr, cmp_value, new_value, base);
+  } else {
+    return cmp_value == rt_cmpxchg(addr, cmp_value, new_value, base);
+  }
 }
 
 address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
-  return in_heap ? reinterpret_cast<address>(rt_cmpset)
-                 : reinterpret_cast<address>(rt_cmpset_not_in_heap);
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
+  precond(!in_heap || !is_unknown);
+  if (!in_heap) {
+    return reinterpret_cast<address>(rt_cmpset_not_in_heap);
+  }
+
+  if (is_trackable) {
+    return is_unknown ?
+        reinterpret_cast<address>(rt_cmpset_unknown)
+        : reinterpret_cast<address>(rt_cmpset);
+  }
+
+  if (is_narrow_oop_mode()) {
+    return is_unknown ?
+          reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
+          : reinterpret_cast<address>(rt_cmpset_c1<0, narrowOop>);
+  } else {
+    return is_unknown ?
+          reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, oop>)
+          : reinterpret_cast<address>(rt_cmpset_c1<0, oop>);
+  }
 }
 
 template<class T, bool inHeap, int shift>
@@ -271,11 +435,11 @@ oopDesc* rtgc_load_not_in_heap(volatile T* addr) {
   return value;
 }
 
-oopDesc* (*RtgcBarrier::rt_load)(volatile narrowOop* addr, oopDesc* base) = 0;
+oopDesc* (*RtgcBarrier::rt_load)(volatile void* addr, oopDesc* base) = 0;
 oopDesc* RtgcBarrier::oop_load(volatile oop* addr, oopDesc* base) {
   return rtgc_load<oop, true, 0>(addr, base);
 }
-oopDesc* (*RtgcBarrier::rt_load_not_in_heap)(volatile narrowOop* addr);
+oopDesc* (*RtgcBarrier::rt_load_not_in_heap)(volatile void* addr);
 oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
   return rtgc_load_not_in_heap<oop, false, 0>(addr);
 }
@@ -290,7 +454,7 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  rtgc_log(true || LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+  rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
       src_p, dst_array, dst_p, (int)length,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
@@ -306,7 +470,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       if (stype != bound && !stype->is_subtype_of(bound)) {
         memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(true);
-        rtgc_log(true || LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
+        rtgc_log(LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
         return i;
       }
     }
@@ -317,11 +481,11 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);
-  rtgc_log(true || LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
+  rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   return length;
 }
 
-int (*RtgcBarrier::rt_arraycopy_checkcast)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+int (*RtgcBarrier::rt_arraycopy_checkcast)(void* src_p, void* dst_p, size_t length, arrayOopDesc* dst_array);
 int RtgcBarrier::oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   return rtgc_arraycopy<oop, ARRAYCOPY_CHECKCAST, 0>(src_p, dst_p, length, dst_array);
 }
@@ -330,7 +494,7 @@ int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_
   return false;
 }
 
-void (*RtgcBarrier::rt_arraycopy_disjoint)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+void (*RtgcBarrier::rt_arraycopy_disjoint)(void* src_p, void* dst_p, size_t length, arrayOopDesc* dst_array);
 void RtgcBarrier::oop_arraycopy_disjoint(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   rtgc_arraycopy<oop, ARRAYCOPY_DISJOINT, 0>(src_p, dst_p, length, dst_array);
 }
@@ -338,7 +502,7 @@ void RtgcBarrier::oop_arraycopy_disjoint(HeapWord* src_p, HeapWord* dst_p, size_
   fatal("not implemented");
 }
 
-void (*RtgcBarrier::rt_arraycopy_uninitialized)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+void (*RtgcBarrier::rt_arraycopy_uninitialized)(void* src_p, void* dst_p, size_t length, arrayOopDesc* dst_array);
 void RtgcBarrier::oop_arraycopy_uninitialized(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   rtgc_arraycopy<oop, ARRAYCOPY_DISJOINT, 0>(src_p, dst_p, length, dst_array);
 }
@@ -346,7 +510,7 @@ void RtgcBarrier::oop_arraycopy_uninitialized(HeapWord* src_p, HeapWord* dst_p, 
   fatal("not implemented");
 }
 
-void (*RtgcBarrier::rt_arraycopy_conjoint)(narrowOop* src_p, narrowOop* dst_p, size_t length, arrayOopDesc* dst_array);
+void (*RtgcBarrier::rt_arraycopy_conjoint)(void* src_p, void* dst_p, size_t length, arrayOopDesc* dst_array);
 void RtgcBarrier::oop_arraycopy_conjoint(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array) {
   rtgc_arraycopy<oop, 0, 0>(src_p, dst_p, length, dst_array);
 }

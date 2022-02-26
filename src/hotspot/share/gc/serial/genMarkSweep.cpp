@@ -101,11 +101,11 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   assert(DerivedPointerTable::is_active(), "Sanity");
   DerivedPointerTable::set_active(false);
 #endif
-#if USE_RTGC_COMPACT_1
-  rtHeap::refresh_young_roots();
-#endif
 
   mark_sweep_phase3();
+#if USE_RTGC_COMPACT_1
+  rtHeap::refresh_young_roots(false);
+#endif
 
   mark_sweep_phase4();
 

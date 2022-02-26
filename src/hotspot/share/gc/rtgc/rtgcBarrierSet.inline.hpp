@@ -51,7 +51,11 @@ oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
   }
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
   bs->template write_ref_field_pre<decorators>(addr);
-  RtgcBarrier::oop_store(addr, value, base);
+  if (decorators & ON_UNKNOWN_OOP_REF) {
+    RtgcBarrier::oop_store_unknown(addr, value, base);
+  } else {
+    RtgcBarrier::oop_store(addr, value, base);
+  }
   bs->template write_ref_field_post<decorators>(addr, value);
 }
 
@@ -75,7 +79,12 @@ oop_atomic_cmpxchg_in_heap_at(oop base, ptrdiff_t offset, oop compare_value, oop
   }
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
   bs->template write_ref_field_pre<decorators>(addr);
-  oop result = RtgcBarrier::oop_cmpxchg(addr, compare_value, new_value, base);
+  oop result;
+  if (decorators & ON_UNKNOWN_OOP_REF) {
+    result = RtgcBarrier::oop_cmpxchg_unknown(addr, compare_value, new_value, base);
+  } else {
+    result = RtgcBarrier::oop_cmpxchg(addr, compare_value, new_value, base);
+  }
   if (result == compare_value) {
     bs->template write_ref_field_post<decorators>(addr, new_value);
   }
@@ -102,7 +111,12 @@ oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value) {
   }
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
   bs->template write_ref_field_pre<decorators>(addr);
-  oop result = RtgcBarrier::oop_xchg(addr, new_value, base);
+  oop result;
+  if (decorators & ON_UNKNOWN_OOP_REF) {
+    result = RtgcBarrier::oop_xchg_unknown(addr, new_value, base);
+  } else {
+    result = RtgcBarrier::oop_xchg(addr, new_value, base);
+  }
   bs->template write_ref_field_post<decorators>(addr, new_value);
   return result;
 }

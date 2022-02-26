@@ -23,8 +23,8 @@ struct GCFlags {
 class GCNode {
 	int64_t _klass[1];
 public:
-	uint32_t _refs;
 	GCFlags _flags;
+	uint32_t _refs;
 	union {
 		int32_t _shortcutId;
 		GCNode* _nextUntrackable;

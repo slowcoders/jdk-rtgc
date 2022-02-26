@@ -1,6 +1,8 @@
 ## TODO
 - adjust_points - thread-safety 처리, 
 - DefNewGeneration::copy_to_survivor_space() -> _old_gen->promote(old, s) 처리
+- SafepointSynchronize::begin()/end()확인.
+- SafepointSynchronize::arm_safepoint() 분석
 
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.
@@ -178,7 +180,7 @@ oopDesc::markWord (markWord.hpp)
 하위 3bit 값이,
    monitor_value(0x2) 인 경우, ObjectMonitor*
       = v ^ monitor_value 
-      --> 원본 markWord 갑 = (markWord*)(ObjectMonitor*)v;
+      --> 원본 markWord 값 = (markWord*)(ObjectMonitor*)v;
    biased_lock_pattern(0x5) 인 경우, JavaThread* + age + epoc
       = v & ~(biased_lock_mask_in_place | age_mask_in_place | epoch_mask_in_place)
    locked_value(0x0) 인 경우, (BasicLock*)

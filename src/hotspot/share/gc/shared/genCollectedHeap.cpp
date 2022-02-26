@@ -530,10 +530,6 @@ void GenCollectedHeap::do_collection(bool           full,
                                      GenerationType max_generation) {
   ResourceMark rm;
   DEBUG_ONLY(Thread* my_thread = Thread::current();)
-#if false && USE_RTGC_COMPACT_1
-  full = true;
-  max_generation = OldGen;
-#endif 
 
   assert(SafepointSynchronize::is_at_safepoint(), "should be at safepoint");
   assert(my_thread->is_VM_thread(), "only VM thread");
@@ -672,7 +668,7 @@ void GenCollectedHeap::do_collection(bool           full,
   }
 #ifdef ASSERT
 #if USE_RTGC
-  rtHeap::print_heap_after_gc();
+  rtHeap::print_heap_after_gc(do_full_collection);
 #endif  
 #endif
 }

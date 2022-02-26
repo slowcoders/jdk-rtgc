@@ -32,13 +32,13 @@ static const int LOG_OPT(int function) {
 
 template <class T>
 class OopIterator {
-  oopDesc* _p;
+  oopDesc* _base;
   OopMapBlock* _map;
   T* _field;
   int _cntMap;
   int _cntOop;
 
-  OopIterator(oopDesc* p) : _p(p) {
+  OopIterator(oopDesc* p) : _base(p) {
     Klass* klass = p->klass();
     if (klass->is_objArray_klass()) {
       arrayOopDesc* array = (arrayOopDesc*)p;
@@ -63,6 +63,7 @@ class OopIterator {
   oopDesc* next() {
     while (true) {
       while (--_cntOop >= 0) {
+        //rtgc_log(LOG_OPT(5), "scan oofset %ld\n", (address)_field - (address)_base);
         oopDesc* p = CompressedOops::decode(*_field++);
         if (p != nullptr) return p;
       }
@@ -74,9 +75,9 @@ class OopIterator {
 
   void setOopMap(OopMapBlock* map) {
     _map = map;
-    _field = (T*)_p->obj_field_addr<T>(map->offset());
+    _field = (T*)_base->obj_field_addr<T>(map->offset());
     _cntOop = map->count();
-    //rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _p, _field, _cntOop);
+    //rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _base, _field, _cntOop);
   }
 
 public:
@@ -317,7 +318,7 @@ static GCObject* findNextUntrackable(GCNode* obj) {
   return (GCObject*)obj;
 }
 
-void rtHeap::refresh_young_roots() {
+void rtHeap::refresh_young_roots(bool is_object_moved) {
   //if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
@@ -340,10 +341,10 @@ void rtHeap::refresh_young_roots() {
     }
     else if (!obj->isTrackable() && obj->hasReferrer()) {
       debug_only(young_root++;)
-      obj = to_obj(p->forwardee());
-      postcond(obj != NULL);
-      prev->_nextUntrackable = obj;
-      prev = obj;
+      p = p->forwardee();
+      postcond(p != NULL);
+      prev->_nextUntrackable = to_obj(p);
+      prev = is_object_moved ? to_obj(p) : obj;
     }
     obj = obj->_nextUntrackable;
   }
@@ -451,7 +452,7 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closer) {
   g_young_root_q = header._nextUntrackable;
 }
 
-void rtHeap::print_heap_after_gc() {  
-  rtgc_log(true, "trackables = %d, young_roots= %d\n", 
-      GCNode::_cntTrackable, cnt_young_root) 
+void rtHeap::print_heap_after_gc(bool full_gc) {  
+  rtgc_log(true, "trackables = %d, young_roots = %d, full gc = %d\n", 
+      GCNode::_cntTrackable, cnt_young_root, full_gc); 
 }

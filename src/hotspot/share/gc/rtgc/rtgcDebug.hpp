@@ -23,6 +23,7 @@ namespace RTGC {
   void enableLog(int category, int functions);
 
   const char* baseFileName(const char* filePath);
+  const void* currentThreadId();
 
   extern volatile int* logOptions;
   extern volatile int* debugOptions;
@@ -32,7 +33,7 @@ namespace RTGC {
 
 #define rtgc_log(logOption, ...) \
   if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { \
-    printf("%s:%d ", RTGC::baseFileName(__FILE__), __LINE__); \
+    printf("%p] %s:%d ", RTGC::currentThreadId(), RTGC::baseFileName(__FILE__), __LINE__); \
     printf(__VA_ARGS__); \
   }
 
