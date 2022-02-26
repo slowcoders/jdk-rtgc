@@ -37,6 +37,14 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   return ds & ON_STRONG_OOP_REF;
 }
 
+static bool is_valid_decorators(DecoratorSet decorators) {
+  const DecoratorSet java_refs = ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
+  if (decorators & java_refs) {
+    return (decorators & AS_NO_KEEPALIVE) != 0;
+  }
+  return (decorators | AS_NORMAL) != 0;
+}
+
 static bool is_narrow_oop_mode() {
 #ifdef _LP64
   return UseCompressedOops;
@@ -181,44 +189,42 @@ void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base) {
 
 address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
-  bool uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
-  bool is_trackable = (decorators & AS_RAW) == 0;
-  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  precond(!in_heap || (!uninitialized));
-  if (in_heap) {
-    if (is_trackable) {
-      return is_unknown ?
-          reinterpret_cast<address>(oop_store_unknown)
-          : reinterpret_cast<address>(rt_store);
-    }
+  bool initialized = (decorators & IS_DEST_UNINITIALIZED) == 0;
+  precond(is_valid_decorators(decorators));
+  precond(!in_heap || initialized);
 
-    bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-    if (is_narrow_oop_mode()) {
-      if (is_volatile) {
-        return is_unknown ?
-            reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST|ON_UNKNOWN_OOP_REF, narrowOop>)
-            : reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST, narrowOop>);
-      } else {
-        return is_unknown ?
-            reinterpret_cast<address>(rt_store_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
-            : reinterpret_cast<address>(rt_store_c1<0, narrowOop>);
-      }
-    } else {
-      if (is_volatile) {
-        return is_unknown ?
-            reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST|ON_UNKNOWN_OOP_REF, oop>)
-            : reinterpret_cast<address>(rt_store_c1<MO_SEQ_CST, narrowOop>);
-      } else {
-        return is_unknown ?
-            reinterpret_cast<address>(rt_store_c1<ON_UNKNOWN_OOP_REF, oop>)
-            : reinterpret_cast<address>(rt_store_c1<0, narrowOop>);
-      }
-    }
+  if (!in_heap) {
+    return initialized ? reinterpret_cast<address>(rt_store_not_in_heap)
+        : reinterpret_cast<address>(rt_store_not_in_heap_uninitialized);
   }
-  else if (uninitialized) {
-    return reinterpret_cast<address>(rt_store_not_in_heap_uninitialized);
+
+  bool is_unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
+  bool is_trackable = (decorators & AS_RAW) == 0;
+
+  if (is_trackable) {
+    return !is_unknown ? reinterpret_cast<address>(rt_store)
+        : reinterpret_cast<address>(oop_store_unknown);
+  }
+
+  bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+  if (is_narrow_oop_mode()) {
+    if (is_unknown) {
+      const DecoratorSet ds = ON_UNKNOWN_OOP_REF;
+      return !is_volatile ? reinterpret_cast<address>(rt_store_c1<ds, narrowOop>)
+          : reinterpret_cast<address>(rt_store_c1<ds|MO_SEQ_CST, narrowOop>);
+    } else {
+      return !is_volatile ? reinterpret_cast<address>(rt_store_c1<0, narrowOop>)
+          : reinterpret_cast<address>(rt_store_c1<0|MO_SEQ_CST, narrowOop>);
+    }
   } else {
-    return reinterpret_cast<address>(rt_store_not_in_heap);
+    if (is_unknown) {
+      const DecoratorSet ds = ON_UNKNOWN_OOP_REF;
+      return !is_volatile ? reinterpret_cast<address>(rt_store_c1<ds, oop>)
+          : reinterpret_cast<address>(rt_store_c1<ds|MO_SEQ_CST, oop>);
+    } else {
+      return !is_volatile ? reinterpret_cast<address>(rt_store_c1<0, oop>)
+          : reinterpret_cast<address>(rt_store_c1<0|MO_SEQ_CST, oop>);
+    }
   }
 }
 
@@ -285,27 +291,26 @@ oopDesc* RtgcBarrier::rt_xchg_c1(T* addr, oopDesc* new_value, oopDesc* base) {
 }
 
 address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
+  precond(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
-  bool is_trackable = (decorators & AS_RAW) == 0;
-  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
   if (!in_heap) {
     return reinterpret_cast<address>(rt_xchg_not_in_heap);
   }
 
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
+
   if (is_trackable) {
-    return is_unknown ?
-        reinterpret_cast<address>(oop_xchg_unknown)
-        : reinterpret_cast<address>(rt_xchg);
+    return !is_unknown ? reinterpret_cast<address>(rt_xchg)
+        : reinterpret_cast<address>(oop_xchg_unknown);
   }
 
   if (is_narrow_oop_mode()) {
-    return is_unknown ?
-          reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
-          : reinterpret_cast<address>(rt_xchg_c1<0, narrowOop>);
+    return !is_unknown ? reinterpret_cast<address>(rt_xchg_c1<0, narrowOop>)
+        : reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, narrowOop>);
   } else {
-    return is_unknown ?
-          reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, oop>)
-          : reinterpret_cast<address>(rt_xchg_c1<0, oop>);
+    return !is_unknown ? reinterpret_cast<address>(rt_xchg_c1<0, oop>)
+        : reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, oop>);
   }
 }
 
@@ -388,27 +393,26 @@ bool RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, 
 }
 
 address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
+  precond(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
-  bool is_trackable = (decorators & AS_RAW) == 0;
-  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
   if (!in_heap) {
     return reinterpret_cast<address>(rt_cmpset_not_in_heap);
   }
 
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
+
   if (is_trackable) {
-    return is_unknown ?
-        reinterpret_cast<address>(rt_cmpset_unknown)
-        : reinterpret_cast<address>(rt_cmpset);
+    return !is_unknown ? reinterpret_cast<address>(rt_cmpset)
+        : reinterpret_cast<address>(rt_cmpset_unknown);
   }
 
   if (is_narrow_oop_mode()) {
-    return is_unknown ?
-          reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, narrowOop>)
-          : reinterpret_cast<address>(rt_cmpset_c1<0, narrowOop>);
+    return !is_unknown ? reinterpret_cast<address>(rt_cmpset_c1<0, narrowOop>)
+        : reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, narrowOop>);
   } else {
-    return is_unknown ?
-          reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, oop>)
-          : reinterpret_cast<address>(rt_cmpset_c1<0, oop>);
+    return !is_unknown ? reinterpret_cast<address>(rt_cmpset_c1<0, oop>)
+        : reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, oop>);
   }
 }
 
