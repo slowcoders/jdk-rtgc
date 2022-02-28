@@ -13,11 +13,12 @@ enum class TraceState : int {
 
 struct GCFlags {
 	uint32_t isTrackable: 1;
+	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
-	int32_t rootRefCount: 26;
+	int32_t rootRefCount: 25;
 };
 
 class GCNode {
@@ -36,6 +37,22 @@ public:
 		_refs = 0; 
 		*(int*)&_flags = 0;
 		_nextUntrackable = NULL; 
+	}
+
+	
+
+	bool isYoungRoot() {
+		return _flags.isYoungRoot;
+	}
+
+	void markYoungRoot() {
+		precond(!this->isYoungRoot());
+		_flags.isYoungRoot = true;
+	}
+
+	void unmarkYoungRoot() {
+		precond(this->isYoungRoot());
+		_flags.isYoungRoot = false;
 	}
 
 	bool isTrackable() {

@@ -33,7 +33,8 @@ static void check_field_addr(void* base, volatile void* addr) {
 
 static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
-  DecoratorSet ds = AccessBarrierSupport::resolve_possibly_unknown_oop_ref_strength<0>(base, offset);
+  DecoratorSet ds = AccessBarrierSupport::
+      resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
   return ds & ON_STRONG_OOP_REF;
 }
 
@@ -158,6 +159,7 @@ void RtgcBarrier::oop_store_not_in_heap_uninitialized(oop* addr, oopDesc* new_va
 }
 
 void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_value, oopDesc* base) {
+  precond(rtHeap::is_trackable(base));
   if (is_strong_ref(addr, base)) {
     rt_store(addr, new_value, base);
   }
@@ -170,6 +172,10 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_value, oopDesc* bas
 
 template<DecoratorSet decorators, typename T> 
 void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base) {
+  // rtgc_log(RTGC::debugOptions[0], "rt_store_c1 base: %p(%s) tr=%d yg_root=%d new_v: %p(%s)\n", 
+  //     base, base->klass()->name()->bytes(), RTGC::to_node(base)->isTrackable(), RTGC::to_node(base)->isYoungRoot(), new_value, 
+  //       new_value ? new_value->klass()->name()->bytes() : (const u1*)""); 
+
   if (rtHeap::is_trackable(base)) {
     if (decorators & ON_UNKNOWN_OOP_REF) {
       oop_store_unknown(addr, new_value, base);
@@ -268,6 +274,11 @@ oopDesc* RtgcBarrier::oop_xchg_not_in_heap(volatile oop* addr, oopDesc* new_valu
 }
 
 oopDesc* RtgcBarrier::oop_xchg_unknown(volatile void* addr, oopDesc* new_value, oopDesc* base) {
+  precond(rtHeap::is_trackable(base));
+
+  rtgc_log(LOG_OPT(11), "rt_xchg_c1 base: %p(%s) rt=%d, yg_root=%d new_v: %p(%s)\n", 
+      base, base->klass()->name()->bytes(), is_strong_ref(addr, base), RTGC::to_node(base)->isYoungRoot(), new_value, 
+      new_value ? new_value->klass()->name()->bytes() : (const u1*)""); 
   if (is_strong_ref(addr, base)) {
     return rt_xchg(addr, new_value, base);
   }
@@ -283,7 +294,7 @@ oopDesc* RtgcBarrier::rt_xchg_c1(T* addr, oopDesc* new_value, oopDesc* base) {
   if (!rtHeap::is_trackable(base)) {
     return raw_atomic_xchg(addr, new_value);
   }
-  else if (decorators & ON_UNKNOWN_OOP_REF) {
+  if (decorators & ON_UNKNOWN_OOP_REF) {
     return oop_xchg_unknown(addr, new_value, base);
   } else {
     return rt_xchg(addr, new_value, base);
@@ -360,6 +371,7 @@ oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_v
 }
 
 oopDesc* RtgcBarrier::oop_cmpxchg_unknown(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
+  precond(rtHeap::is_trackable(base));
   if (is_strong_ref(addr, base)) {
     return rt_cmpxchg(addr, cmp_value, new_value, base);
   }
@@ -385,9 +397,6 @@ bool RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, 
   if (!rtHeap::is_trackable(base)) {
     return cmp_value == raw_atomic_cmpxchg(addr, cmp_value, new_value);
   }
-  rtgc_log(RTGC::debugOptions[0], "base: %p(%s) new_v: %p(%s)\n", 
-      base, base->klass()->name()->bytes(), new_value, 
-        new_value ? new_value->klass()->name()->bytes() : (const u1*)""); 
   if (decorators & ON_UNKNOWN_OOP_REF) {
     return cmp_value == oop_cmpxchg_unknown(addr, cmp_value, new_value, base);
   } else {
@@ -557,7 +566,7 @@ public:
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
   ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clear();
   if (RTGC_TRACK_ALL_GENERATION) {
-    rtgc_log(RTGC::LOG_OPTION(RTGC::LOG_HEAP, 11), "clone_post_barrier %p\n", new_obj); 
+    rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);
     new_obj->oop_iterate(&c);

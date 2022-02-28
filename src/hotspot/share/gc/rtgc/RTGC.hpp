@@ -3,6 +3,7 @@
 
 
 namespace RTGC {
+  class GCNode;
   class GCObject;
   typedef bool (*RefTracer)(GCObject* obj);
   typedef bool (*RefTracer2)(GCObject* obj, void* param);
@@ -10,6 +11,9 @@ namespace RTGC {
   void scanInstance(GCObject* obj, RefTracer trace);
   void iterateReferents(GCObject* obj, RefTracer2 trace, void* param);
 
+  inline static GCNode* to_node(oopDesc* obj) {
+    return reinterpret_cast<GCNode*>(obj);
+  }
   inline static GCObject* to_obj(oopDesc* obj) {
     return reinterpret_cast<GCObject*>(obj);
   }
@@ -46,7 +50,7 @@ namespace RTGC {
 
   void add_young_root(oopDesc* obj);
 
-  void on_field_changed(oopDesc* obj, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
+  void on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
   void on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
