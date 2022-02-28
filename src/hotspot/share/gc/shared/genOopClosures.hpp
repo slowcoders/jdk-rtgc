@@ -53,7 +53,7 @@ protected:
   FastScanClosure(DefNewGeneration* g);
 
 public:
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
 #endif 
 

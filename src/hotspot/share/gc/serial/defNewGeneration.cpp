@@ -115,10 +115,9 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
 
   // If the cld has not been dirtied we know that there's
   // no references into  the young gen and we can skip it.
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
-  if (RTGC::debugOptions[0]) {
+#if RTGC_OPT_CLD_SCAN
+  if (false && RTGC::debugOptions[0]) {
     DefNewGeneration* yg = _scavenge_closure->young_gen();
-    rtgc_log(true, "tenuring_threshold %d\n", yg->tenuring_threshold());
     int prev_threshold = yg->xchg_tenuring_threshold(0);
     cld->promotable_oops_do(_scavenge_closure, true);
     yg->xchg_tenuring_threshold(prev_threshold);
@@ -590,6 +589,7 @@ void DefNewGeneration::collect(bool   full,
                               &cld_scan_closure);
   }
 
+  rtgc_log(true, "young_process_roots done\n");
   // "evacuate followers".
   evacuate_followers.do_void();
 

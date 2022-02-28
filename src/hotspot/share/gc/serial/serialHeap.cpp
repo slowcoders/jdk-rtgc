@@ -30,6 +30,8 @@
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/universe.hpp"
 #include "services/memoryManager.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 SerialHeap* SerialHeap::heap() {
   return named_heap<SerialHeap>(CollectedHeap::Serial);
@@ -89,6 +91,7 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   return memory_pools;
 }
 
+static int cnt = 5;
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,
                                      CLDClosure* cld_closure) {
@@ -97,11 +100,16 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_YOUNG_ROOTS
   if (RTGC::debugOptions[0]) {
-    rtHeap::iterate_young_roots(old_gen_closure);
+    rtHeap::iterate_young_roots(root_closure);
     return;
   }
 #endif
   old_gen()->younger_refs_iterate(old_gen_closure);
+  if (RTGC::debugOptions[0]) {
+    rtHeap::iterate_young_roots(root_closure);
+    if (--cnt <= 0)
+        fatal("stop!!!!");
+  }
 }

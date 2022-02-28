@@ -10,7 +10,8 @@
 #define USE_RTGC_TLAB_ALLOC           false
 #define RTGC_TRACK_ALL_GENERATION     false
 
-#define RTGC_OPTIMIZED_YOUNGER_GENERATION_GC  true
+#define RTGC_OPT_YOUNG_ROOTS          true
+#define RTGC_OPT_CLD_SCAN             true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
@@ -29,13 +30,14 @@ public:
   static void mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p);
 
   static bool is_trackable(oopDesc* p);
+  static bool is_alive(oopDesc* p);
   static void destrory_trackable(oopDesc* p);
 
   // should be called before pointer adjusting
   static void refresh_young_roots(bool is_object_moved);
 
   // should be called for each marked object
-  static void adjust_pointers(oopDesc* p);
+  static void adjust_tracking_pointers(oopDesc* p, bool remove_garbage);
 
   // should be called after heap compaction finished
   static void flush_trackables();

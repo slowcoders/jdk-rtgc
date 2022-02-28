@@ -189,7 +189,7 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 }
 
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_CLD_SCAN
   Chunk* c = Atomic::load_acquire(&_tail);
   if (c == NULL || c->_size == Chunk::CAPACITY) {
     Chunk* next = new Chunk(NULL);
@@ -246,7 +246,7 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
   }
 }
 
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+#if RTGC_OPT_CLD_SCAN    
 void ClassLoaderData::ChunkedHandleList::promotable_oops_do(OopClosure* f) {
   assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
          "not gc thread");
@@ -382,7 +382,7 @@ void ClassLoaderData::dec_keep_alive() {
   }
 }
 
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_CLD_SCAN
 void ClassLoaderData::promotable_oops_do(OopClosure* f, bool clear_mod_oops) {
   if (clear_mod_oops) {
     clear_modified_oops();

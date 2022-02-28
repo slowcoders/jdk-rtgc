@@ -385,7 +385,10 @@ bool RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, 
   if (!rtHeap::is_trackable(base)) {
     return cmp_value == raw_atomic_cmpxchg(addr, cmp_value, new_value);
   }
-  else if (decorators & ON_UNKNOWN_OOP_REF) {
+  rtgc_log(RTGC::debugOptions[0], "base: %p(%s) new_v: %p(%s)\n", 
+      base, base->klass()->name()->bytes(), new_value, 
+        new_value ? new_value->klass()->name()->bytes() : (const u1*)""); 
+  if (decorators & ON_UNKNOWN_OOP_REF) {
     return cmp_value == oop_cmpxchg_unknown(addr, cmp_value, new_value, base);
   } else {
     return cmp_value == rt_cmpxchg(addr, cmp_value, new_value, base);

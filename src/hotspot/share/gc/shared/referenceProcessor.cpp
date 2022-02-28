@@ -1069,6 +1069,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       return false;  // referent is reachable
     }
   }
+
   if (rt == REF_SOFT) {
     // For soft refs we can decide now if these are not
     // current candidates for clearing, in which case we
@@ -1129,12 +1130,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
     return false;   // nothing special needs to be done
   }
 
-  if (rt == REF_PHANTOM) {
-    RTGC::debug_obj = obj;
-  }
-  rtgc_log(false && rt == REF_PHANTOM, "phantom ref discovered %p %d\n", 
-      (void*)obj, obj->is_gc_marked());
-
   if (_discovery_is_mt) {
     add_to_discovered_list_mt(*list, obj, discovered_addr);
   } else {
@@ -1153,6 +1148,8 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   }
   assert(oopDesc::is_oop(obj), "Discovered a bad reference");
   verify_referent(obj);
+
+  // rtgc_log(true, "ref discoverd %p\n", (void*)obj);
   return true;
 }
 

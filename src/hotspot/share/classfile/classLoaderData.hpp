@@ -81,7 +81,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     };
 
     Chunk* volatile _head;
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_CLD_SCAN
     Chunk* volatile _tail;
     Chunk* _last_chunk;
     juint _last_idx;
@@ -91,7 +91,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
    public:
     ChunkedHandleList() : _head(NULL)
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC
+#if RTGC_OPT_CLD_SCAN
       , _tail(NULL), _last_chunk(NULL), _last_idx(0) 
 #endif      
       {}
@@ -103,7 +103,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     bool contains(oop p);
     NOT_PRODUCT(bool owner_of(oop* p);)
     void oops_do(OopClosure* f);
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+#if RTGC_OPT_CLD_SCAN    
     void promotable_oops_do(OopClosure* f);
 #endif
     int count() const;
@@ -281,7 +281,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   void initialize_holder(Handle holder);
 
-#if RTGC_OPTIMIZED_YOUNGER_GENERATION_GC    
+#if RTGC_OPT_CLD_SCAN    
   void promotable_oops_do(OopClosure* f, bool clear_modified_oops = false);
 #endif
   void oops_do(OopClosure* f, int claim_value, bool clear_modified_oops = false);

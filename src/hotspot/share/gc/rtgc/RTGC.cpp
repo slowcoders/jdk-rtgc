@@ -5,6 +5,7 @@
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
 using namespace RTGC;
@@ -21,7 +22,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = true;
+  bool REF_LINK_ENABLED = false;
 }
 int GCNode::_cntTrackable = 0;
 
@@ -80,15 +81,18 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* referrer) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  precond(to_obj(referrer)->isTrackable());
+  GCObject* base = to_obj(referrer);
+  precond(base->isTrackable());
 
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, p);
   GCObject* obj = to_obj(p);
-  if (!obj->isTrackable() && !obj->hasReferrer()) {
-    RTGC::add_young_root(obj);
+#if RTGC_OPT_YOUNG_ROOTS == 2
+  if (!obj->isTrackable() && obj->isYoungRoot()) {
+    RTGC::add_young_root(referrer);
   }
-  GCRuntime::connectReferenceLink(obj, to_obj(referrer));
+#endif  
+  GCRuntime::connectReferenceLink(obj, base);
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -98,11 +102,11 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   precond(to_obj(base)->isTrackable());
 
   if (oldValue == newValue) return;
+  if (!REF_LINK_ENABLED) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
-  if (!REF_LINK_ENABLED) return;
-  if (newValue != NULL) GCRuntime::connectReferenceLink(to_obj(newValue), to_obj(base));
+  if (newValue != NULL) add_referrer_unsafe(newValue, base);
   if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
 }
 
@@ -153,10 +157,12 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  if (false && UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = -1;
-    logOptions[LOG_REF_LINK] = -1;
-    logOptions[LOG_BARRIER] = -1;//1 << 11;
+  debugOptions[0] = UnlockExperimentalVMOptions;
+//    logOptions[LOG_HEAP] = 1 << 11;
+  if (UnlockExperimentalVMOptions) {
+    logOptions[LOG_HEAP] = 1 << 11;
+    logOptions[LOG_REF_LINK] = 0;
+    logOptions[LOG_BARRIER] = 0;//1 << 11;
   }
 }
 

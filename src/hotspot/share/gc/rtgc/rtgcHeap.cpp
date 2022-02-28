@@ -1,6 +1,7 @@
 #include "precompiled.hpp"
 
 #include "oops/oop.inline.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "runtime/globals.hpp"
@@ -10,6 +11,7 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
+#include "gc/serial/markSweep.inline.hpp"
 
 
 namespace RTGC {
@@ -20,25 +22,34 @@ namespace RTGC {
     }
   } g_young_root_tail;
   GrowableArrayCHeap<oopDesc*, mtGC> g_promted_trackables;
+
   static Thread* gcThread = NULL;
 	static int cnt_young_root = 0;
   static GCNode* volatile g_young_root_q = NULL;
 };
 using namespace RTGC;
 
+static bool is_narrow_oop_mode() {
+#ifdef _LP64
+  return UseCompressedOops;
+#endif
+  return false;
+}
+
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
 }
 
 template <class T>
-class OopIterator {
+class FieldIterator {
   oopDesc* _base;
   OopMapBlock* _map;
   T* _field;
   int _cntMap;
   int _cntOop;
 
-  OopIterator(oopDesc* p) : _base(p) {
+public:
+  FieldIterator(oopDesc* p) : _base(p) {
     Klass* klass = p->klass();
     if (klass->is_objArray_klass()) {
       arrayOopDesc* array = (arrayOopDesc*)p;
@@ -60,58 +71,62 @@ class OopIterator {
     }
   }
 
-  oopDesc* next() {
-    while (true) {
-      while (--_cntOop >= 0) {
-        //rtgc_log(LOG_OPT(5), "scan oofset %ld\n", (address)_field - (address)_base);
-        oopDesc* p = CompressedOops::decode(*_field++);
-        if (p != nullptr) return p;
-      }
-      if (--_cntMap < 0) break;
-      setOopMap(_map + 1);
-    }
-    return nullptr;
-  }
-
   void setOopMap(OopMapBlock* map) {
     _map = map;
     _field = (T*)_base->obj_field_addr<T>(map->offset());
     _cntOop = map->count();
-    //rtgc_log(LOG_OPT(5), "scan %p: at _field[%p] count %d\n", _base, _field, _cntOop);
+  }
+
+  void iterate_static_pointers(OopClosure* closure) {
+    InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(_base);
+    if (klass == NULL || !klass->is_loaded()) return;
+
+    rtgc_log(LOG_OPT(11), "tracing klass %p(%s)\n", _base, klass->name()->bytes());
+    for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
+      if (fs.access_flags().is_static()) {
+        fieldDescriptor& fd = fs.field_descriptor();
+        if (fd.field_type() == T_OBJECT) {
+          T* field = _base->obj_field_addr<T>(fd.offset());
+          closure->do_oop(field);
+        }
+      }
+    }
+  }
+
+  oopDesc* next() {
+    while (true) {
+      while (--_cntOop >= 0) {
+        T heap_oop = RawAccess<>::oop_load(_field++);
+        if (!CompressedOops::is_null(heap_oop)) {
+          oop obj = CompressedOops::decode_not_null(heap_oop);
+          return obj;
+        }
+      }
+      if (--_cntMap < 0) break;
+      setOopMap(_map + 1);
+    }
+    return NULL;
   }
 
 public:
-  OopIterator() {}
-
-  static void iterateReferents(oopDesc* p, RTGC::RefTracer2 trace, void* param) {
-    OopIterator it(p);
-    for (oopDesc* oop; (oop = it.next()) != NULL; ) {
-      trace(to_obj(oop), param);
-    }
-    if (p->klass() == vmClasses::Class_klass()) {
-      InstanceKlass* klass = (InstanceKlass*)java_lang_Class::as_Klass(p);
-      if (klass != NULL && klass->is_loaded()) {
-        rtgc_log(LOG_OPT(5), "tracing klass %p\n", p);
-        for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
-          if (fs.access_flags().is_static()) {
-            fieldDescriptor& fd = fs.field_descriptor();
-            if (fd.field_type() == T_OBJECT) {
-              T* field = p->obj_field_addr<T>(fd.offset());
-              oopDesc* ref = CompressedOops::decode(*field);
-              if (ref != NULL) {
-                trace(to_obj(ref), param);
-              }
-            }
-          }
-        }
+  FieldIterator() {}
+  void iterate_pointers(OopClosure* closure) {
+    while (true) {
+      while (--_cntOop >= 0) {
+        closure->do_oop(_field++);
       }
-    }  
+      if (--_cntMap < 0) break;
+      setOopMap(_map + 1);
+    }
+    if (_base->klass() == vmClasses::Class_klass()) {
+      iterate_static_pointers(closure);
+    }
   }
 
   static void scanInstance(oopDesc* p, RTGC::RefTracer trace) {
-    GrowableArrayCHeap<OopIterator, mtGC> stack;
-    stack.append(OopIterator(p));
-    OopIterator* it = &stack.at(0);
+    GrowableArrayCHeap<FieldIterator, mtGC> stack;
+    stack.append(FieldIterator(p));
+    FieldIterator* it = &stack.at(0);
     while (true) {
       oopDesc* link = it->next();
       if (link == nullptr) {
@@ -121,7 +136,7 @@ public:
         it = &stack.at(len);
       }
       else if (trace(to_obj(link))) {
-          stack.append(OopIterator(link));
+          stack.append(FieldIterator(link));
           it = &stack.at(stack.length() - 1);
       }
     }    
@@ -223,58 +238,81 @@ void RTGC::scanInstance(GCObject* root, RTGC::RefTracer trace) {
   oopDesc* p = cast_to_oop(root);
 #ifdef _LP64
   if (UseCompressedOops) {
-    OopIterator<narrowOop>::scanInstance(p, trace);
+    FieldIterator<narrowOop>::scanInstance(p, trace);
   } else {
-    OopIterator<oop>::scanInstance(p, trace);
+    FieldIterator<oop>::scanInstance(p, trace);
   }
 #else
-  OopIterator<oop>::scanInstance(p, trace);
+  FieldIterator<oop>::scanInstance(p, trace);
 #endif
 }
+
+class Ref2Tracer : public OopClosure {
+  RTGC::RefTracer2 _trace;
+  void* _param;
+public:  
+  Ref2Tracer(RTGC::RefTracer2 trace, void* param) {
+    _trace = trace;
+    _param = param;
+  }
+
+  template <class T>
+  void do_oop_work(T* p) {
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop obj = CompressedOops::decode_not_null(heap_oop);
+      _trace(to_obj(obj), _param);
+    }    
+  }
+
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
+};
 
 void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
   oopDesc* p = cast_to_oop(root);
-#ifdef _LP64
-  if (UseCompressedOops) {
-    OopIterator<narrowOop>::iterateReferents(p, trace, param);
-  } else {
-    OopIterator<oop>::iterateReferents(p, trace, param);
+  Ref2Tracer tracer(trace, param);
+  if (is_narrow_oop_mode()) {
+    FieldIterator<narrowOop> it(p);
+    it.iterate_pointers(&tracer);
   }
-#else
-  OopIterator<oop>::iterateReferents(p, trace, param);
-#endif
+  else {
+    FieldIterator<oop> it(p);
+    it.iterate_pointers(&tracer);
+  }
 }
 
-void rtHeap::adjust_pointers(oopDesc* ref) {
+void rtHeap::adjust_tracking_pointers(oopDesc* ref, bool remove_garbage) {
   GCObject* obj = to_obj(ref);
 
-  precond(ref->is_gc_marked());
+  precond(!remove_garbage || ref->is_gc_marked());
   if (!obj->hasReferrer()) {
     return;
   }
 
   void* moved_to = ref->mark().decode_pointer();
-  const bool CHECK_GARBAGE = true;
+  const bool CHECK_GARBAGE = remove_garbage;
 
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
       oopDesc* oop = cast_to_oop(referrers->at(idx));
       if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-        rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
+        rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
         referrers->removeFast(idx);
         continue;
       }
       GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", 
+        rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
           oop, new_obj, obj);
         referrers->at(idx) = new_obj;
       }
       idx ++;
     }
 
-    if (referrers->size() < 2) {
+    if (CHECK_GARBAGE && referrers->size() < 2) {
       obj->setHasMultiRef(false);
       if (referrers->size() == 0) {
         obj->_refs = 0;
@@ -289,13 +327,13 @@ void rtHeap::adjust_pointers(oopDesc* ref) {
   else {
     oopDesc* oop = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
     if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-      rtgc_log(LOG_OPT(1), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
+      rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
       obj->_refs = 0;
     }
     else {
       GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(1), "ref moved %p->%p in %p\n", 
+        rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
           oop, new_obj, obj);
         obj->_refs = _pointer2offset(new_obj, &obj->_refs);
       }
@@ -325,7 +363,7 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
 
 	int young_root = 0;
   int cnt_garbage = 0;
-  rtgc_log(LOG_OPT(6), "refresh_young_roots started %d\n", 
+  rtgc_log(true || LOG_OPT(6), "refresh_young_roots started %d\n", 
     cnt_young_root);
 
   PsuedoYoungRoot header;
@@ -335,7 +373,7 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
     oopDesc* p = cast_to_oop(obj);
     rtgc_log(LOG_OPT(6), "check young root %p\n", obj);
     if (!p->is_gc_marked()) {
-      rtgc_log(LOG_OPT(8), "young garbage %p\n", p);
+      rtgc_log(LOG_OPT(6), "young garbage %p\n", p);
       debug_only(cnt_garbage++;)
       ((GCObject*)obj)->removeAllReferrer();
     }
@@ -351,14 +389,15 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
   prev->_nextUntrackable = NULL;
   g_young_root_q = header._nextUntrackable;
 
-  rtgc_log(LOG_OPT(6), "young roots %d -> garbage = %d, young = %d\n", cnt_young_root, cnt_garbage, young_root);
+  rtgc_log(true || LOG_OPT(6), "young roots %d -> garbage = %d, young = %d\n", cnt_young_root, cnt_garbage, young_root);
   debug_only(cnt_young_root = young_root);
 }
 
-void RTGC::add_young_root(GCObject* obj) {
+void RTGC::add_young_root(oopDesc* p) {
+  GCObject* obj = to_obj(p);
   precond(!obj->isTrackable() && !obj->hasReferrer());
   debug_only(cnt_young_root++;)
-  rtgc_log(LOG_OPT(8), "add young root %p root=%p\n", obj, g_young_root_q);
+  rtgc_log(LOG_OPT(11), "add young root %p root=%p\n", obj, g_young_root_q);
   obj->_nextUntrackable = g_young_root_q;
   g_young_root_q = obj;
 }
@@ -377,13 +416,7 @@ void rtHeap::destrory_trackable(oopDesc* p) {
 }
 
 void rtHeap::mark_active_trackable(oopDesc* p) {
-  GCObject* obj = to_obj(p);
-  if (obj->isTrackable()) return;
-
-  RTGC::lock_heap();
-  obj->markTrackable();
-  RTGC::iterateReferents(obj, (RefTracer2)add_referrer_unsafe, obj);
-  RTGC::unlock_heap(true);
+  fatal("mark_active_trackable is not thread safe!!");
 }
 
 void rtHeap::mark_empty_trackable(oopDesc* p) {
@@ -418,7 +451,7 @@ void rtHeap::flush_trackables() {
   const int count = g_promted_trackables.length();
   if (count == 0) return;
 
-  rtgc_log(LOG_OPT(9), "flush_trackables %d\n", count);
+  rtgc_log(LOG_OPT(11), "flush_trackables %d\n", count);
   oopDesc** pOop = &g_promted_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
@@ -427,29 +460,80 @@ void rtHeap::flush_trackables() {
   g_promted_trackables.trunc_to(0);
 }
 
-void rtHeap::iterate_young_roots(OopIterateClosure* closer) {
+class OldAnchorAdustPointer : public BasicOopIterateClosure {
+public:
+  template <typename T>
+  void do_oop_work(T* p) {
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop ref = CompressedOops::decode_not_null(heap_oop);
+      assert(Universe::heap()->is_in(ref), "should be in heap");
+      if (ref->is_forwarded()) {
+        rtgc_log(LOG_OPT(11), "adjust anchor pointer  %p->%p\n", (void*)ref, (void*)ref->forwardee());
+        RawAccess<IS_NOT_NULL>::oop_store(p, ref->forwardee());
+      }
+    }
+  }
+
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop*       p) { do_oop_work(p); }
+};
+
+void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
   /**
-   * 참고) promoted object 의 ref-field 는 아직 pointer 변경이 되지않은 상태이다.
+   * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
    */
-  flush_trackables();
+  // flush_trackables();
+  rtgc_log(true, "iterate_young_roots\n");
 
   PsuedoYoungRoot header;
   GCNode* prev = &header;
-  prev->_nextUntrackable = g_young_root_q;
-  while (true) {
-    GCNode* next = prev->_nextUntrackable;
-    if (next == NULL) break;
-    if (next->isTrackable()) continue;
+  GrowableArrayCHeap<oopDesc*, mtGC> anchors;
 
-    closer->do_oop((oop*)&prev->_nextUntrackable);
-    if (next->isTrackable()) {
-      prev->_nextUntrackable = next->_nextUntrackable;
+  for (GCNode* obj = g_young_root_q; obj != NULL; obj = obj->_nextUntrackable) {
+    rtgc_log(LOG_OPT(11), "young_roots %p is_trackable=%d\n", obj, obj->isTrackable());
+
+    oop forwarded = cast_to_oop(obj);
+    if (!forwarded->is_forwarded()) {
+      closure->do_oop(&forwarded);
     } else {
-      prev = next;
+      forwarded = forwarded->forwardee();
+    }
+
+    if (obj != (void*)forwarded) {
+      rtgc_log(LOG_OPT(11), "young_roots %p -> %p\n", obj, (void*)forwarded);
+      AnchorIterator ai((GCObject*)obj);
+      while (ai.hasNext()) {
+        GCObject* anchor = ai.next();
+        precond(anchor->isTrackable());
+        if (anchor->getTraceState() == TraceState::NOT_TRACED) {
+          anchor->setTraceState(TraceState::IN_TRACING);
+          anchors.append(cast_to_oop(anchor));
+        }
+      }
+    }
+    if (!obj->isTrackable()) {
+      prev->_nextUntrackable = obj;//to_obj(forwarded);
+      prev = obj;
     }
   }
   prev->_nextUntrackable = NULL;
   g_young_root_q = header._nextUntrackable;
+  OldAnchorAdustPointer ap;
+  for (int i = anchors.length(); --i >= 0; ) {
+    oopDesc* anchor = anchors.at(i);
+    if (is_narrow_oop_mode()) {
+      FieldIterator<narrowOop> it(anchor);
+      it.iterate_pointers(&ap);
+    }
+    else {
+      FieldIterator<oop> it(anchor);
+      it.iterate_pointers(&ap);
+    }
+    to_obj(anchor)->setTraceState(TraceState::NOT_TRACED);
+  }
+  rtgc_log(true, "iterate_young_roots done anchors=%d\n", anchors.length());
+  anchors.trunc_to(0);
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  

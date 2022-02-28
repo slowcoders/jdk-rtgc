@@ -340,3 +340,37 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
   static const int unused_gap_shift               = age_shift + age_bits;
   static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
   static const int epoch_shift                    = hash_shift;
+
+
+## Reference 처리.
+   !!! Referene 가 collect 되면, RefereceQueue 에 등록(enqueue)되지 않는다!
+   JVM은 별도의 RefList 를 관리하지 않음. 객체 Marking 시, RefClass 에 대해서 예외처리 함.
+   (Reference 자체가 old-gen으로 이동하면, referent 를 marking 하지 못할 수 있음. enqueue 처리가 늦어지는 것이 단점.)
+DefNewGeneration::collect() ...
+   void InstanceRefKlass::oop_oop_iterate***() {
+      void InstanceRefKlass::oop_oop_iterate_ref_processing() {
+         void InstanceRefKlass::oop_oop_iterate_discovered_and_discovery() {
+         void InstanceRefKlass::oop_oop_iterate_discovery() {
+            bool InstanceRefKlass::try_discover() {
+               ReferenceDiscoverer* rd = closure->ref_discoverer();
+               if (!referent->is_gc_marked()) {
+                  // Reference는 marking 되고, Referent 는 marking 되지 않은 경우에만
+                  // discover 처리.
+                  bool ReferenceProcessor::discover_reference(
+                     if (RefDiscoveryPolicy == ReferenceBasedDiscovery &&
+                           !is_subject_to_discovery(obj)) {
+                        // Reference 가 YG인 경우, referent 도 무조건 marking 한다.
+                        // 즉, 일반 객체와 동일. 즉, Reference 가 OldG로 옮겨진 경우에만,
+                        // unmarked referent를 discovered-list 에 추가한다.
+                        // referent 는 계속적인 scanning 과정에서 marked 상태로 변경될 수 있다.
+                        // Reference 는 referent 보다 나중에 생성되므로, promotion_fail 이
+                        // 발생하지 않는 한 reference 만 old-G 로 옮겨질 가능성은 없다.
+                        // promotion_fail 에 대한 예외처리 외에도 referent 가 먼저 marking 되어 // YG에 남아있고, reference 만 old-G 로 옮겨질 가능성에 대한 검토도 필요.
+                        return false;
+                     }
+                     ...
+                     list = ReferenceProcessor::get_discovered_list(ReferenceType rt)
+                     list->add(dicovered reference 등록)
+                        -> Reference->discovered field 이용.
+
+
