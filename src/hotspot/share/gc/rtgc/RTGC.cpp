@@ -87,7 +87,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* referrer) {
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, p);
   GCObject* obj = to_obj(p);
-#if RTGC_OPT_YOUNG_ROOTS == 2
+#if RTGC_OPT_YOUNG_ROOTS 
   if (!obj->isTrackable() && !base->isYoungRoot()) {
     RTGC::add_young_root(referrer);
   }
