@@ -17,6 +17,7 @@
 namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_promted_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
+  GrowableArrayCHeap<oop, mtGC> g_young_root_references;
 
   static Thread* gcThread = NULL;
 };
@@ -31,6 +32,24 @@ static bool is_narrow_oop_mode() {
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
+}
+
+static bool is_java_reference(oopDesc* obj) {
+  return (obj->klass()->id() == InstanceRefKlassID);
+}
+
+static bool has_young_referent(oopDesc* obj) {
+  if (!is_java_reference(obj)) return false;
+
+  void* referent_addr = java_lang_ref_Reference::referent_addr_raw(obj);
+  oop referent;
+  if (is_narrow_oop_mode()) {
+    referent = RawAccess<>::oop_load((narrowOop*)referent_addr);
+  }
+  else {
+    referent = RawAccess<>::oop_load((oop*)referent_addr);
+  }
+  return referent != NULL && !to_obj(referent)->isTrackable();
 }
 
 template <class T>
@@ -182,7 +201,7 @@ public:
       &&  !RTGC::isPublished(p)) {
         localObjects.append(p);
       }
-      rtgc_log(LOG_OPT(0x100), "rookie %d, %s\n", ++cnt, p->klass()->name()->bytes());
+      rtgc_log(LOG_OPT(12), "rookie %d, %s\n", ++cnt, p->klass()->name()->bytes());
       t_p += p->size();  // size() == sizeInBytes / sizeof(HeapWord);
     }
   }
@@ -191,7 +210,7 @@ public:
     ResourceMark rm;
     RTGC_MarkClosure c;
     thread->oops_do(&c, NULL);
-    rtgc_log(LOG_OPT(0x100), "local root marked %d(%d)\n", c._cnt, c._cntLocal);
+    rtgc_log(LOG_OPT(12), "local root marked %d(%d)\n", c._cnt, c._cntLocal);
   }
 
   void collectTlab(Thread* thread) {
@@ -353,6 +372,7 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
   //if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
+
   if (g_young_roots.length() == 0) {
     rtgc_log(LOG_OPT(11), "refresh_young_roots 0->0\n"); 
     return;
@@ -363,7 +383,8 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
     oopDesc* p = *src;
     if (p->is_gc_marked()) {
       oopDesc* p2 = p->forwardee();
-      postcond(p2 != NULL);
+      postcond(!is_object_moved || p2 != NULL);
+      if (p2 == NULL) p2 = p;
       if (dst != src || p != p2) {
         *dst = p2;
       }
@@ -382,6 +403,14 @@ void RTGC::add_young_root(oopDesc* p) {
   obj->markYoungRoot();
   g_young_roots.append(p);
   rtgc_log(LOG_OPT(11), "add young root %p root=%d\n", obj, g_young_roots.length());
+}
+
+void rtHeap::add_young_root_reference(oopDesc* p) {
+  precond(is_java_reference(p));
+  // if (to_obj(p)->isYoungRoot()) return;
+  // rtgc_log(LOG_OPT(11), "add_young_root_reference %p\n", p);
+  // to_obj(p)->markYoungRoot();
+  // g_young_root_references.append(p);
 }
 
 bool rtHeap::is_trackable(oopDesc* p) {
@@ -429,7 +458,6 @@ void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
 
 void rtHeap::flush_trackables() {
   //if (!REF_LINK_ENABLED) return;
-
   const int count = g_promted_trackables.length();
   if (count == 0) return;
 
@@ -438,6 +466,9 @@ void rtHeap::flush_trackables() {
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
     RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_unsafe, p);
+    if (!to_obj(p)->isYoungRoot() && has_young_referent(p)) {
+      add_young_root(p);
+    }
   }
   g_promted_trackables.trunc_to(0);
 }
@@ -458,7 +489,7 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop ref = CompressedOops::decode_not_null(heap_oop);
       _closure->do_oop(p);
-      rtgc_log(true, "iterate young_ref %p->%p\n", (void*)ref, (void*)*p);
+      rtgc_log(LOG_OPT(11), "iterate young_ref %p->%p\n", (void*)ref, (void*)*p);
       if (!to_obj(ref)->isTrackable()) {
         cnt_young_ref ++;
       }
@@ -474,9 +505,17 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
    * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
    */
   // flush_trackables();
-  rtgc_log(true, "iterate_young_roots %d\n", g_young_roots.length());
+  rtgc_log(LOG_OPT(1), "iterate_young_roots %d, refs=%d\n", 
+    g_young_roots.length(), g_young_root_references.length());
+  for (int i = g_young_root_references.length(); --i >= 0; ) {
+    oopDesc* p = g_young_root_references.at(i);
+    rtgc_log(true || LOG_OPT(11), "g_young_root_reference %p\n", p);
+    p->oop_iterate(closure);
+  }
+  g_young_root_references.trunc_to(0);
+
+
   if (g_young_roots.length() == 0) return;
-  
   OldAnchorAdustPointer ap(closure);
   oop* src = &g_young_roots.at(0);
   oop* dst = src;
@@ -485,7 +524,11 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
     
     rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
     bool is_root;
-    if (is_narrow_oop_mode()) {
+    if (is_java_reference(anchor)) {
+      anchor->oop_iterate(closure);
+      is_root = has_young_referent(anchor);
+    }
+    else if (is_narrow_oop_mode()) {
       FieldIterator<narrowOop> it(anchor);
       it.iterate_pointers(&ap);
       is_root = ap.cnt_young_ref > 0;
@@ -506,14 +549,14 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
     }
   }
   int cnt_young_root = dst - &g_young_roots.at(0);
-  rtgc_log(LOG_OPT(11), "iterate_young_roots done %d->%d\n", 
+  rtgc_log(LOG_OPT(1), "iterate_young_roots done %d->%d\n", 
       g_young_roots.length(), cnt_young_root);
   g_young_roots.trunc_to(cnt_young_root);
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
-  rtgc_log(true, "trackables = %d, young_roots = %d, full gc = %d\n", 
-      GCNode::_cntTrackable, g_young_roots.length(), full_gc); 
+  rtgc_log(true, "trackables = %d, young_roots = %d, root_refs=%d, full gc = %d\n", 
+      GCNode::_cntTrackable, g_young_roots.length(), g_young_root_references.length(), full_gc); 
 }
 
 bool rtHeap::is_alive(oopDesc* p) {

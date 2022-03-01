@@ -48,8 +48,8 @@ inline void DefNewGeneration::KeepAliveClosure::do_oop_work(T* p) {
 
   Devirtualizer::do_oop(_cl, p);
 
-#if RTGC_OPT_YOUNG_ROOTS
-  if (false && RTGC::debugOptions[0]) return;
+#if RTGC_OPT_YOUNG_ROOTS == 2
+  if (RTGC::debugOptions[0]) return;
 #endif
   // Card marking is trickier for weak refs.
   // This oop is a 'next' field which was filled in while we
@@ -82,8 +82,8 @@ inline void DefNewGeneration::FastKeepAliveClosure::do_oop_work(T* p) {
 
   Devirtualizer::do_oop(_cl, p);
 
-#if RTGC_OPT_YOUNG_ROOTS
-  if (false && RTGC::debugOptions[0]) return;
+#if RTGC_OPT_YOUNG_ROOTS == 2
+  if (RTGC::debugOptions[0]) return;
 #endif
   // Optimized for Defnew generation if it's the youngest generation:
   // we set a younger_gen card if we have an older->youngest

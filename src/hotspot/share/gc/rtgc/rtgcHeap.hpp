@@ -18,6 +18,12 @@
 
 #define RTGC_EXPLICT_NULL_CHCECK_ALWAYS true
 
+#ifdef USE_RTGC
+  #define RTGC_ONLY(t)                  t
+#else
+  #define RTGC_ONLY(t)                  
+#endif
+
 class Thread;
 class oopDesc;
 class OopIterateClosure;
@@ -46,6 +52,7 @@ public:
 
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
   static void iterate_young_roots(OopIterateClosure* closer);
+  static void add_young_root_reference(oopDesc* p);
 };
 
 

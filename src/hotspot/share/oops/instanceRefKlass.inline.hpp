@@ -36,6 +36,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::do_referent(oop obj, OopClosureType* closure, Contains& contains) {
@@ -71,6 +72,11 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
         // Only try to discover if not yet marked.
         return rd->discover_reference(obj, type);
       }
+#if RTGC_OPT_YOUNG_ROOTS == 2
+      if (!rtHeap::is_trackable(referent) && rtHeap::is_trackable(obj)) {
+        rtHeap::add_young_root_reference(obj);
+      }
+#endif      
     }
   }
   return false;

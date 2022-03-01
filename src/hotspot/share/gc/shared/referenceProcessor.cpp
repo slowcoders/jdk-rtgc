@@ -351,6 +351,11 @@ size_t ReferenceProcessor::process_soft_ref_reconsider_work(DiscoveredList&    r
       iter.remove();
       // keep the referent around
       iter.make_referent_alive();
+#if RTGC_OPT_YOUNG_ROOTS == 2  
+      if (!rtHeap::is_trackable(iter.referent()) && rtHeap::is_trackable(iter.obj())) {
+        rtHeap::add_young_root_reference(iter.obj());
+      }
+#endif      
       iter.move_to_next();
     } else {
       iter.next();
@@ -382,6 +387,11 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
       // The referent is reachable after all.
       // Remove reference from list.
       log_dropped_ref(iter, "reachable");
+#if RTGC_OPT_YOUNG_ROOTS == 2  
+      if (!rtHeap::is_trackable(iter.referent()) && rtHeap::is_trackable(iter.obj())) {
+        rtHeap::add_young_root_reference(iter.obj());
+      }
+#endif      
       iter.remove();
       // Update the referent pointer as necessary.  Note that this
       // should not entail any recursive marking because the
@@ -417,6 +427,11 @@ size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_li
     iter.load_ptrs(DEBUG_ONLY(false /* allow_null_referent */));
     // keep the referent and followers around
     iter.make_referent_alive();
+#if RTGC_OPT_YOUNG_ROOTS == 2  
+      if (!rtHeap::is_trackable(iter.referent()) && rtHeap::is_trackable(iter.obj())) {
+        rtHeap::add_young_root_reference(iter.obj());
+      }
+#endif      
 
     // Self-loop next, to mark the FinalReference not active.
     assert(java_lang_ref_Reference::next(iter.obj()) == NULL, "enqueued FinalReference");
@@ -447,6 +462,11 @@ size_t ReferenceProcessor::process_phantom_refs_work(DiscoveredList&    refs_lis
 
     if (referent == NULL || iter.is_referent_alive()) {
       iter.make_referent_alive();
+#if RTGC_OPT_YOUNG_ROOTS == 2  
+      if (referent != NULL && !rtHeap::is_trackable(iter.referent()) && rtHeap::is_trackable(iter.obj())) {
+        rtHeap::add_young_root_reference(iter.obj());
+      }
+#endif      
       iter.remove();
       iter.move_to_next();
     } else {
@@ -1262,6 +1282,11 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
       // and mark its cohort.
       log_develop_trace(gc, ref)("Precleaning Reference (" INTPTR_FORMAT ": %s)",
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
+#if RTGC_OPT_YOUNG_ROOTS == 2  
+      if (iter.referent() != NULL && !rtHeap::is_trackable(iter.referent()) && rtHeap::is_trackable(iter.obj())) {
+        rtHeap::add_young_root_reference(iter.obj());
+      }
+#endif      
       // Remove Reference object from list
       iter.remove();
       // Keep alive its cohort.

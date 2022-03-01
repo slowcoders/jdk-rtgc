@@ -715,7 +715,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   oop obj = NULL;
 
   // Try allocating obj in to-space (unless too old)
-  if (old->age() < tenuring_threshold() && !rtHeap::is_trackable(old)) {
+  if (old->age() < tenuring_threshold()) {
     obj = cast_to_oop(to()->allocate(s));
   }
 
