@@ -405,14 +405,6 @@ void RTGC::add_young_root(oopDesc* p) {
   rtgc_log(LOG_OPT(11), "add young root %p root=%d\n", obj, g_young_roots.length());
 }
 
-void rtHeap::add_young_root_reference(oopDesc* p) {
-  precond(is_java_reference(p));
-  // if (to_obj(p)->isYoungRoot()) return;
-  // rtgc_log(LOG_OPT(11), "add_young_root_reference %p\n", p);
-  // to_obj(p)->markYoungRoot();
-  // g_young_root_references.append(p);
-}
-
 bool rtHeap::is_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   return obj->isTrackable();

@@ -28,6 +28,8 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 #ifdef ASSERT
 #define __ gen->lir(__FILE__, __LINE__)->
@@ -36,6 +38,9 @@
 #endif
 
 void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprDesc* new_val) {
+#if RTGC_OPT_YOUNG_ROOTS  
+  if (RTGC::debugOptions[0]) return;
+#endif
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();
   bool in_heap = (decorators & IN_HEAP) != 0;

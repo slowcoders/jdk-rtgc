@@ -26,11 +26,15 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/modRefBarrierSetAssembler.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 #define __ masm->
 
 void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
+#if RTGC_OPT_YOUNG_ROOTS  
+  if (RTGC::debugOptions[0]) return;
+#endif
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);
@@ -57,6 +61,9 @@ void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Decorat
 
 void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
+#if RTGC_OPT_YOUNG_ROOTS  
+  if (RTGC::debugOptions[0]) return;
+#endif
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);

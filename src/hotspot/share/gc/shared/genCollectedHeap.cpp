@@ -1144,11 +1144,8 @@ GenCollectedHeap* GenCollectedHeap::heap() {
 void GenCollectedHeap::prepare_for_compaction() {
   // Start by compacting into same gen.
   CompactPoint cp(_old_gen);
-  rtgc_log(false, "prepare_for_compaction _old_gen started\n")
   _old_gen->prepare_for_compaction(&cp);
-  rtgc_log(false, "prepare_for_compaction _young_gen started\n")
   _young_gen->prepare_for_compaction(&cp);
-  rtgc_log(false, "prepare_for_compaction finished\n")
 }
 #endif // INCLUDE_SERIALGC
 
@@ -1159,6 +1156,9 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());
   _young_gen->verify();
 
+#if RTGC_OPT_YOUNG_ROOTS
+  if (RTGC::debugOptions[0]) return;
+#endif  
   log_debug(gc, verify)("RemSet");
   rem_set()->verify();
 }

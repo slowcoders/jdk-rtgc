@@ -52,7 +52,6 @@ public:
 
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
   static void iterate_young_roots(OopIterateClosure* closer);
-  static void add_young_root_reference(oopDesc* p);
 };
 
 
