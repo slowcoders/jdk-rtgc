@@ -111,6 +111,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
@@ -2248,7 +2249,7 @@ bool G1CollectedHeap::is_in(const void* p) const {
 
 #if USE_RTGC // is_in_trackable_space
 bool G1CollectedHeap::is_in_trackable_space(const void* p) const {
-  fatal("not impemented");
+  assert(!RTGC::debugOptions[0], "not impemented");
   return false;
 }
 #endif

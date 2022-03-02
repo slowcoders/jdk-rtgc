@@ -87,6 +87,7 @@
 #include "services/memTracker.hpp"
 #include "utilities/events.hpp"
 #include "utilities/powerOfTwo.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 class ShenandoahPretouchHeapTask : public AbstractGangTask {
 private:
@@ -716,7 +717,7 @@ bool ShenandoahHeap::is_in(const void* p) const {
 
 #if USE_RTGC  // is_in_trackable_space
 bool ShenandoahHeap::is_in_trackable_space(const void* p) const {
-  fatal("not implemented");
+  assert(!RTGC::debugOptions[0], "not impemented");
   return false;
 }
 #endif

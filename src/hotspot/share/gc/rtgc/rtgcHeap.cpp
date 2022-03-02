@@ -539,7 +539,7 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
-  rtgc_log(true, "trackables = %d, young_roots = %d, full gc = %d\n", 
+  rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
       g_cntTrackable, g_young_roots.length(), full_gc); 
 }
 

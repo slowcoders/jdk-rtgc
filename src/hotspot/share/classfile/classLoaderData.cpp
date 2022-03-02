@@ -247,7 +247,7 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
 }
 
 #if RTGC_OPT_CLD_SCAN    
-void ClassLoaderData::ChunkedHandleList::promotable_oops_do(OopClosure* f) {
+void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
          "not gc thread");
 
@@ -375,12 +375,12 @@ void ClassLoaderData::dec_keep_alive() {
 }
 
 #if RTGC_OPT_CLD_SCAN
-void ClassLoaderData::promotable_oops_do(OopClosure* f, bool clear_mod_oops) {
+void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
   if (clear_mod_oops) {
     clear_modified_oops();
   }
 
-  _handles.promotable_oops_do(f);
+  _handles.incremental_oops_do(f);
 }
 #endif
 

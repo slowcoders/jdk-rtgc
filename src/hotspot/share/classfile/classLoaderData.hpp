@@ -104,7 +104,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     NOT_PRODUCT(bool owner_of(oop* p);)
     void oops_do(OopClosure* f);
 #if RTGC_OPT_CLD_SCAN    
-    void promotable_oops_do(OopClosure* f);
+    void incremental_oops_do(OopClosure* f);
 #endif
     int count() const;
   };
@@ -282,7 +282,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void initialize_holder(Handle holder);
 
 #if RTGC_OPT_CLD_SCAN    
-  void promotable_oops_do(OopClosure* f, bool clear_modified_oops = false);
+  void incremental_oops_do(OopClosure* f, bool clear_modified_oops = false);
 #endif
   void oops_do(OopClosure* f, int claim_value, bool clear_modified_oops = false);
 

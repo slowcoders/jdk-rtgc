@@ -123,7 +123,7 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
     if (RTGC_OPT_CLD_SCAN && RTGC::debugOptions[0]) {
       DefNewGeneration* yg = _scavenge_closure->young_gen();
       int prev_threshold = yg->xchg_tenuring_threshold(1);
-      cld->promotable_oops_do(_scavenge_closure, true);
+      cld->incremental_oops_do(_scavenge_closure, true);
       yg->xchg_tenuring_threshold(prev_threshold);
     }
     else {
@@ -588,7 +588,6 @@ void DefNewGeneration::collect(bool   full,
                               &cld_scan_closure);
   }
 
-  rtgc_log(true, "young_process_roots done\n");
   // "evacuate followers".
   evacuate_followers.do_void();
 

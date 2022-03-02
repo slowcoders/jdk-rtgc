@@ -89,12 +89,18 @@ bash configure --with-jvm-variants=client \
       0x876543DB876543DBL, 0x123456DB00000000L + (category << 24) + functions));` 
 ```
 
+## 5. Tests
+- new RTGC error
+```
+   make test CONF="macosx" TEST="gc/collection/TestGCGarbageCollectionEvent.java"  
+```
+
 - narrowOop shift test (0,1,2,3,4)
 ```
    make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
 ```
    
-## 5. Tests   
+
 - implicit null check exception.
 ```
    make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
@@ -121,7 +127,7 @@ bash configure --with-jvm-variants=client \
 6. Test file build
    javac test/rtgc/Main.java
 
-7. Test 실행
+7. Custom Test 실행
    ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 2 100000 
 
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -XX:-ScavengeBeforeFullGC -cp test/rtgc Main 2 1 
@@ -134,17 +140,7 @@ bash configure --with-jvm-variants=client \
   ENABLE_RTGC_STORE_HOOK = 1 (RTGC_HOOK enable)
   ENABLE_RTGC_STORE_TEST = 1 ( TEST Log 출력)
 
-
-9. arraycopy 의 추가적인 최적화
-LIR_OpArrayCopy::emit_code() 
-   //c1_LIRAssembler_x86.cpp 
-   -> LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) 
-      StubRoutines::select_arraycopy_function() 함수를 통해
-         stubGenerator_x86_64.cpp 의
-            generate_*****_int_oop_copy 등에 의해 생성된 함수 호출
-
-
-10. JVM SetField
+9. JVM SetField
 - putfield
 - putstatic
 - clone() -> JVM_Clone()

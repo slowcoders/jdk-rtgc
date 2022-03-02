@@ -40,6 +40,7 @@
 #include "memory/iterator.hpp"
 #include "memory/universe.hpp"
 #include "utilities/align.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 ZCollectedHeap* ZCollectedHeap::heap() {
   return named_heap<ZCollectedHeap>(CollectedHeap::Z);
@@ -124,7 +125,7 @@ bool ZCollectedHeap::is_in(const void* p) const {
 
 #if USE_RTGC  // is_in_trackable_space
 bool ZCollectedHeap::is_in_trackable_space(const void* p) const {
-  fatal("not implemented");
+  assert(!RTGC::debugOptions[0], "not impemented");
   return false;
 }
 #endif

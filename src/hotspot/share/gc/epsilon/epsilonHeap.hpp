@@ -83,7 +83,7 @@ public:
   }
 
 #if USE_RTGC // is_in_trackable_space
-  virtual bool is_in_trackable_space(const void* p) const { return true; }
+  virtual bool is_in_trackable_space(const void* p) const { return false; }
 #endif
 
   virtual bool is_maximal_no_gc() const {
