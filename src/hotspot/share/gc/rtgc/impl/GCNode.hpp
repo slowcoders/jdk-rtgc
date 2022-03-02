@@ -61,9 +61,6 @@ public:
 
 	void markTrackable() {
 		precond(!this->isTrackable());
-#ifdef ASSERT		
-		_cntTrackable++;
-#endif		
 		_flags.isTrackable = true;
 	}
 

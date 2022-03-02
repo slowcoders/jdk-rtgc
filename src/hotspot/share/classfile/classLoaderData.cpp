@@ -251,44 +251,36 @@ void ClassLoaderData::ChunkedHandleList::promotable_oops_do(OopClosure* f) {
   assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
          "not gc thread");
 
-  Chunk* c = _last_chunk;
+  Chunk* c = Atomic::load_acquire(&_last_chunk);
   juint idx;
   if (c == NULL) {
     c = Atomic::load_acquire(&_head);
+    if (c == NULL) return;
     idx = 0;
   } else {
     idx = _last_idx;
   }
+  
   _last_chunk = NULL;
-
   for (; c != NULL; c = c->_next, idx = 0) {
-    juint size = c->_size;
+    juint size = Atomic::load_acquire(&c->_size);
     for (; idx < size; idx++) {
       if (c->_data[idx] != NULL) {
         oop* p = &c->_data[idx];
         oop old = *p;
         f->do_oop(p);
         // check on old_p. new_p may not copyed yet;
-        if (!rtHeap::is_trackable(old)) {
-          _last_chunk = c;
-          _last_idx = idx++;
-          break;
+        if (_last_chunk == NULL && !rtHeap::is_trackable(old)) {
+          printf("promotion failed\n");
+          Atomic::release_store(&_last_chunk, c);
+          Atomic::release_store(&_last_idx, idx);
         }
       }
     }
   }
-  for (; c != NULL; c = c->_next, idx = 0) {
-    juint size = c->_size;
-    for (; idx < size; idx++) {
-      if (c->_data[idx] != NULL) {
-        f->do_oop(&c->_data[idx]);
-      }
-    }
-  }
-
   if (_last_chunk == NULL) {
-    _last_chunk = _tail;
-    _last_idx = _tail->_size;
+    Atomic::release_store(&_last_chunk, _tail);
+    Atomic::release_store(&_last_idx, _tail->_size);
   }
 }
 #endif

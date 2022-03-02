@@ -17,9 +17,8 @@
 namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_promted_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
-  GrowableArrayCHeap<oop, mtGC> g_young_root_references;
-
   static Thread* gcThread = NULL;
+  static int g_cntTrackable = 0;
 };
 using namespace RTGC;
 
@@ -414,7 +413,7 @@ void rtHeap::destrory_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   if (obj->isTrackable()) {
     obj->removeAllReferrer();
-    GCNode::_cntTrackable --;
+    debug_only(g_cntTrackable --);
   }
 }
 
@@ -426,6 +425,7 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
   obj->markTrackable();
+  debug_only(g_cntTrackable++);
 }
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
@@ -434,6 +434,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   precond((void*)old_p->forwardee() == new_p);
   GCObject* obj = to_obj(old_p);
   obj->markTrackable();
+  debug_only(g_cntTrackable++);
   g_promted_trackables.append((oopDesc*)new_p);
 }
 
@@ -445,6 +446,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
   rtgc_log(LOG_OPT(9), "mark_promoted_trackable %p(moved to %p)\n", old_p, new_p);
   to_obj(old_p)->markTrackable();
   to_obj(new_p)->markTrackable();
+  debug_only(g_cntTrackable++);
   g_promted_trackables.append(new_p);
 }
 
@@ -496,16 +498,6 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
   /**
    * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
    */
-  // flush_trackables();
-  rtgc_log(LOG_OPT(1), "iterate_young_roots %d, refs=%d\n", 
-    g_young_roots.length(), g_young_root_references.length());
-  for (int i = g_young_root_references.length(); --i >= 0; ) {
-    oopDesc* p = g_young_root_references.at(i);
-    rtgc_log(true || LOG_OPT(11), "g_young_root_reference %p\n", p);
-    p->oop_iterate(closure);
-  }
-  g_young_root_references.trunc_to(0);
-
 
   if (g_young_roots.length() == 0) return;
   OldAnchorAdustPointer ap(closure);
@@ -547,8 +539,8 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
-  rtgc_log(true, "trackables = %d, young_roots = %d, root_refs=%d, full gc = %d\n", 
-      GCNode::_cntTrackable, g_young_roots.length(), g_young_root_references.length(), full_gc); 
+  rtgc_log(true, "trackables = %d, young_roots = %d, full gc = %d\n", 
+      g_cntTrackable, g_young_roots.length(), full_gc); 
 }
 
 bool rtHeap::is_alive(oopDesc* p) {
