@@ -164,14 +164,11 @@ DecoratorSet AccessBarrierSupport::resolve_unknown_oop_ref_strength(
    DecoratorSet decorators, oop base, ptrdiff_t offset);
 
 
-## What is a Safepoint ?
+## Safepoint 
 A safepoint is a state of your application execution where all references to objects are perfectly reachable by the VM.
+- 함수 종료 시, Loop 반복 시, 특정 메모리 영역을 read 하고, SafepointException에 의해 safePoint 진입.
 
-Some operations of the VM require that all threads reach a safepoint to be performed. The most common operation that need it is the GC.
-
-A safepoint means that all threads need to reach a certain point of execution before they are stopped. Then the VM operation is performed. After that all threads are resumed.
-
-
+## markWord
 oopDesc::markWord (markWord.hpp)
 하위 3bit 값이,
    monitor_value(0x2) 인 경우, ObjectMonitor*
