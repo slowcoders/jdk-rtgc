@@ -92,7 +92,7 @@ bash configure --with-jvm-variants=client \
 ## 5. Tests
 - new RTGC error
 ```
-   make test CONF="macosx" TEST="gc/collection/TestGCGarbageCollectionEvent.java"  
+   make test CONF="macosx" TEST="jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java"  
 ```
 
 - narrowOop shift test (0,1,2,3,4)
@@ -166,7 +166,8 @@ DecoratorSet AccessBarrierSupport::resolve_unknown_oop_ref_strength(
 
 ## Safepoint 
 A safepoint is a state of your application execution where all references to objects are perfectly reachable by the VM.
-- 함수 종료 시, Loop 반복 시, 특정 메모리 영역을 read 하고, SafepointException에 의해 safePoint 진입.
+- 함수 종료 시, Loop 반복 시, 
+특정 메모리 영역을 read 하고, SafepointException에 의해 safePoint 진입.
 
 ## markWord
 oopDesc::markWord (markWord.hpp)

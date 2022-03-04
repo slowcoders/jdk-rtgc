@@ -3,6 +3,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.*;
 
+import java.time.Duration;
+
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.test.lib.jfr.Events;
+import jdk.test.lib.jfr.GCHelper;
+
 public class Main {
     String title;
     String[] paras = new String[16];
@@ -15,6 +22,8 @@ public class Main {
     static volatile int idx;
     static AtomicReference atomicRef = new AtomicReference();
     static AtomicLong atomicLong = new AtomicLong();
+
+    private final static String EVENT_NAME = GCHelper.event_garbage_collection;
 
     Main(int sno) {
         cnt ++;
@@ -52,6 +61,13 @@ public class Main {
     }
     
     public static void main(String args[]) {
+
+        Recording recording = new Recording();
+        recording.enable(EVENT_NAME).withThreshold(Duration.ofMillis(0));
+        recording.start();
+        System.gc();
+        recording.stop();
+
         int round = 1;
         int array_size = 20;
         try {

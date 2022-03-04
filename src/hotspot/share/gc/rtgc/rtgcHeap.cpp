@@ -381,9 +381,10 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
   for (int i = g_young_roots.length(); --i >= 0; src++) {
     oopDesc* p = *src;
     if (p->is_gc_marked()) {
+      assert(to_obj(p)->isYoungRoot(), "YGRoot Err %p\n", p);
       oopDesc* p2 = p->forwardee();
       postcond(!is_object_moved || p2 != NULL);
-      if (p2 == NULL) p2 = p;
+      if (p2 == NULL || p2 == (void*)0xbaadbabebaadbabc) p2 = p;
       if (dst != src || p != p2) {
         *dst = p2;
       }

@@ -39,7 +39,7 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 const char* __getClassName(GCObject* obj) {
     Klass* klass = cast_to_oop(obj)->klass();
-    if (vmClasses::Class_klass() == klass) {
+    if (vmClasses::Class_klass() == klass || vmClasses::Class_klass() == (void*)obj) {
         printf("Class of class\n");
         cast_to_oop(obj)->print_on(tty);
     }
