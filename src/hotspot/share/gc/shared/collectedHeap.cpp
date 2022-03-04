@@ -57,6 +57,8 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 class ClassLoaderData;
 
@@ -433,6 +435,9 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
 
   ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
   allocator.initialize(start);
+#if USE_RTGC 
+  DEBUG_ONLY(RTGC::mark_dead_space(start);)
+#endif    
   DEBUG_ONLY(zap_filler_array(start, words, zap);)
 }
 
@@ -447,6 +452,9 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
     assert(words == min_fill_size(), "unaligned size");
     ObjAllocator allocator(vmClasses::Object_klass(), words);
     allocator.initialize(start);
+#if USE_RTGC 
+    DEBUG_ONLY(RTGC::mark_dead_space(start);)
+#endif    
   }
 }
 

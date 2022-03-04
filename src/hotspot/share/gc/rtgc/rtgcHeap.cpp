@@ -367,6 +367,12 @@ static GCObject* findNextUntrackable(GCNode* obj) {
   return (GCObject*)obj;
 }
 
+#ifdef ASSERT
+RTGC::mark_dead_space(void* p) {
+  ((GCNode*)p)->markGarbage();
+}
+#endif
+
 void rtHeap::refresh_young_roots(bool is_object_moved) {
   //if (!REF_LINK_ENABLED) return;
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
@@ -380,8 +386,12 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
   oop* dst = src;
   for (int i = g_young_roots.length(); --i >= 0; src++) {
     oopDesc* p = *src;
+#ifdef ASSERT    
+    if (!to_obj(p)->isYoungRoot()) {
+      assert(to_obj(p)->isGarbageMarked(), "YGRoot Err %p\n", p);
+    } else
+#endif    
     if (p->is_gc_marked()) {
-      assert(to_obj(p)->isYoungRoot(), "YGRoot Err %p\n", p);
       oopDesc* p2 = p->forwardee();
       postcond(!is_object_moved || p2 != NULL);
       if (p2 == NULL || p2 == (void*)0xbaadbabebaadbabc) p2 = p;
@@ -423,6 +433,8 @@ void rtHeap::mark_active_trackable(oopDesc* p) {
 }
 
 void rtHeap::mark_empty_trackable(oopDesc* p) {
+  assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(), 
+      "is not a deadspace?");
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
   obj->markTrackable();

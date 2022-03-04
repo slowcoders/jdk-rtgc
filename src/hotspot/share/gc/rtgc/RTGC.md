@@ -34,7 +34,10 @@
 ```sh
    git clone https://github.com/google/googletest.git -b release-1.8.1
 ```
-
+- ccache 설치
+```sh
+   brew install ccache
+```
 - VS Code C++ in Macosx
    https://code.visualstudio.com/docs/cpp/config-clang-mac
 
