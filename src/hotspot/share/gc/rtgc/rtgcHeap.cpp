@@ -96,9 +96,12 @@ public:
     for (JavaFieldStream fs(klass); !fs.done(); fs.next()) {
       if (fs.access_flags().is_static()) {
         fieldDescriptor& fd = fs.field_descriptor();
-        if (fd.field_type() == T_OBJECT) {
+        if (fd.field_type() == T_OBJECT || fd.field_type() == T_ARRAY) {
           T* field = _base->obj_field_addr<T>(fd.offset());
+          debug_only(oop old = CompressedOops::decode(*field);)
           closure->do_oop(field);
+          rtgc_log(LOG_OPT(11), "tracing klass offset [%d] %p -> %p \n", 
+              fd.offset(), (void*)old, (void*)CompressedOops::decode(*field));
         }
       }
     }
@@ -122,6 +125,10 @@ public:
 public:
   FieldIterator() {}
   void iterate_pointers(OopClosure* closure) {
+    if (_base->klass() == vmClasses::Class_klass()) {
+      _base->oop_iterate_size((BasicOopIterateClosure*)closure);
+      return;
+    }
     while (true) {
       while (--_cntOop >= 0) {
         closure->do_oop(_field++);
@@ -371,6 +378,10 @@ static GCObject* findNextUntrackable(GCNode* obj) {
 void RTGC::mark_dead_space(void* p) {
   ((GCNode*)p)->markGarbage();
 }
+bool RTGC::is_young_root(void* p) {
+  return ((GCNode*)p)->isYoungRoot();
+}
+
 #endif
 
 void rtHeap::refresh_young_roots(bool is_object_moved) {
@@ -496,7 +507,8 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop ref = CompressedOops::decode_not_null(heap_oop);
       _closure->do_oop(p);
-      rtgc_log(LOG_OPT(11), "iterate young_ref %p->%p\n", (void*)ref, (void*)*p);
+      rtgc_log(LOG_OPT(11), "iterate young_ref %p->%p\n", 
+          (void*)ref, (void*)CompressedOops::decode_not_null(*p));
       if (!to_obj(ref)->isTrackable()) {
         cnt_young_ref ++;
       }

@@ -796,6 +796,7 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   // General roots.
   assert(code_roots != NULL, "code root closure should always be set");
 
+  rtgc_trace(10, "GenCollectedHeap::process_roots\n");
   ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
 
   // Only process code roots from thread stacks if we aren't visiting the entire CodeCache anyway

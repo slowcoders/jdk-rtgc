@@ -104,7 +104,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     NOT_PRODUCT(bool owner_of(oop* p);)
     void oops_do(OopClosure* f);
 #if RTGC_OPT_CLD_SCAN    
-    void incremental_oops_do(OopClosure* f);
+    bool incremental_oops_do(OopClosure* f);
 #endif
     int count() const;
   };

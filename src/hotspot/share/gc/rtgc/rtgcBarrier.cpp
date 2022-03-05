@@ -172,7 +172,7 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_value, oopDesc* bas
 
 template<DecoratorSet decorators, typename T> 
 void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base) {
-  // rtgc_log(RTGC::debugOptions[0], "rt_store_c1 base: %p(%s) tr=%d yg_root=%d new_v: %p(%s)\n", 
+  // rtgc_trace(10, "rt_store_c1 base: %p(%s) tr=%d yg_root=%d new_v: %p(%s)\n", 
   //     base, base->klass()->name()->bytes(), RTGC::to_node(base)->isTrackable(), RTGC::to_node(base)->isYoungRoot(), new_value, 
   //       new_value ? new_value->klass()->name()->bytes() : (const u1*)""); 
 

@@ -381,6 +381,7 @@ void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
       Prefetch::write(p, interval);
       debug_only(HeapWord* prev = p);
       oop m = cast_to_oop(p);
+      rtgc_trace(10, "iterate new oop %p\n", p);
       p += m->oop_iterate_size(blk);
     }
   } while (t < top());

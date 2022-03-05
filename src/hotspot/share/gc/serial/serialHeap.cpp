@@ -91,7 +91,6 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   return memory_pools;
 }
 
-static int cnt = 5;
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,
                                      CLDClosure* cld_closure) {

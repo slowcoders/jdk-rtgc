@@ -56,6 +56,7 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
     if (!obj->mark().is_marked()) {
       mark_object(obj);
       assert(obj->klass() != NULL, "marking_stack pushed %p k=%p\n", (void*)obj, obj->klass());
+      rtgc_trace(10, "stack_pushed %p, yg=%d tr=%d\n", (void*)obj, RTGC::is_young_root(obj), rtHeap::is_trackable(obj));
       _marking_stack.push(obj);
     }
   }

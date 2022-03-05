@@ -98,8 +98,10 @@ inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
 
 template <class T>
 void DefNewScanClosure::barrier(T* p) {
-  if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
-    _scanned_cld->record_modified_oops();
+  if (!RTGC_OPT_CLD_SCAN) {  
+    if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
+      _scanned_cld->record_modified_oops();
+    }
   }
 }
 

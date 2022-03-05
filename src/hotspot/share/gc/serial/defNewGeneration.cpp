@@ -120,9 +120,9 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
     // if oops are left pointing into the young gen.
     _scavenge_closure->set_scanned_cld(cld);
 
-    if (RTGC_OPT_CLD_SCAN && false) {
+    if (RTGC_OPT_CLD_SCAN) {
       DefNewGeneration* yg = _scavenge_closure->young_gen();
-      int prev_threshold = yg->xchg_tenuring_threshold(1);
+      int prev_threshold = yg->xchg_tenuring_threshold(0);
       cld->incremental_oops_do(_scavenge_closure, true);
       yg->xchg_tenuring_threshold(prev_threshold);
     }
@@ -742,6 +742,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
+  // rtgc_trace(10, "forwarded %p->(%p)\n", (void*)old, (void*)obj);
 
   return obj;
 }
@@ -761,6 +762,8 @@ void DefNewGeneration::save_marks() {
 
 
 void DefNewGeneration::reset_saved_marks() {
+  rtgc_trace(10, "reset_saved_marks\n");
+
   eden()->reset_saved_mark();
   to()->reset_saved_mark();
   from()->reset_saved_mark();

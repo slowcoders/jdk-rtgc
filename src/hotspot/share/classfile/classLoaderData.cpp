@@ -248,7 +248,7 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
 }
 
 #if RTGC_OPT_CLD_SCAN    
-void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
+bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
          "not gc thread");
 
@@ -256,13 +256,15 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   juint idx;
   if (c == NULL) {
     c = Atomic::load_acquire(&_head);
-    if (c == NULL) return;
+    if (c == NULL) return true;
     idx = 0;
   } else {
     idx = _last_idx;
   }
   
   bool promotion_failed = false;
+  debug_only(int cnt_handle = 0;)
+  debug_only(int cnt_promoted = 0;)
   for (; c != NULL; c = c->_next, idx = 0) {
     juint size = Atomic::load_acquire(&c->_size);
     for (; idx < size; idx++) {
@@ -270,6 +272,9 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
         oop* p = &c->_data[idx];
         oop old = *p;
         f->do_oop(p);
+        debug_only(cnt_handle ++;)
+        debug_only(cnt_promoted += rtHeap::is_trackable(old) ? 1 : 0;) 
+
         // check on old_p. new_p may not copyed yet;
         if (!promotion_failed && !rtHeap::is_trackable(old)) {
           promotion_failed = true;
@@ -278,6 +283,7 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
           postcond(_last_chunk != NULL);
           postcond(_last_idx == idx);
         }
+        rtgc_trace(10, "%p promoted -> %p\n", (void*)old, (void*)*p);
       }
     }
   }
@@ -285,6 +291,10 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     Atomic::release_store(&_last_chunk, _tail);
     Atomic::release_store(&_last_idx, _tail->_size);
   }
+
+  rtgc_trace(10, "cld_oops_do has_fail=%d, count %d, promoted=%d, last %p:%d\n", 
+          promotion_failed, cnt_handle, cnt_promoted, _last_chunk, _last_idx);
+  return !promotion_failed;
 }
 #endif
 
@@ -383,7 +393,14 @@ void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
     clear_modified_oops();
   }
 
-  _handles.incremental_oops_do(f);
+  if (_handles.incremental_oops_do(f)) {
+    record_modified_oops();
+  }
+  rtgc_trace(10, "incremental_oops_do = %p, keep_alive %d\n", //, last %p:%d\n", 
+          this, this->keep_alive());//, _last_chunk, _last_idx);
+
+
+
 }
 #endif
 
