@@ -33,8 +33,8 @@
 #include "jvm_constants.h"
 #include "jvm_io.h"
 
-#ifndef USE_RTGC
-#define USE_RTGC 1
+#ifndef SAFE_CLEAR_DISCOVERED
+#define SAFE_CLEAR_DISCOVERED
 #endif
 
 #ifdef __cplusplus
@@ -322,7 +322,7 @@ JVM_GetSystemPackages(JNIEnv *env);
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearReferencePendingList(JNIEnv *env);
 
-#if USE_RTGC  // JVM_GetAndClearDiscovered
+#ifdef SAFE_CLEAR_DISCOVERED
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearDiscovered(JNIEnv *env, jobject ref);
 #endif

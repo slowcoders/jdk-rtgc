@@ -32,7 +32,7 @@ Java_java_lang_ref_Reference_getAndClearReferencePendingList(JNIEnv *env, jclass
     return JVM_GetAndClearReferencePendingList(env);
 }
 
-#if USE_RTGC
+#ifdef SAFE_CLEAR_DISCOVERED
 JNIEXPORT jobject JNICALL
 Java_java_lang_ref_Reference_getAndClearDiscovered(JNIEnv *env, jobject ref)
 {

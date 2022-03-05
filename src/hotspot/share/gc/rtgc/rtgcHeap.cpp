@@ -359,21 +359,6 @@ void rtHeap::adjust_tracking_pointers(oopDesc* ref, bool remove_garbage) {
   }
 }
 
-
-
-static GCObject* findNextUntrackable(GCNode* obj) {
-  precond(obj != NULL && !obj->isTrackable());
-  obj = obj->_nextUntrackable;
-  precond(obj != NULL); 
-  while (obj->isTrackable()) {
-    GCNode* next = obj->_nextUntrackable;
-    precond(next != NULL);
-    obj->_nextUntrackable = NULL;
-    obj = next;
-  }
-  return (GCObject*)obj;
-}
-
 #ifdef ASSERT
 void RTGC::mark_dead_space(void* p) {
   ((GCNode*)p)->markGarbage();

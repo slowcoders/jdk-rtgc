@@ -43,7 +43,7 @@ static bool is_valid_decorators(DecoratorSet decorators) {
   if (decorators & java_refs) {
     return (decorators & AS_NO_KEEPALIVE) != 0;
   }
-  return (decorators | AS_NORMAL) != 0;
+  return (decorators & AS_NORMAL) != 0;
 }
 
 static bool is_narrow_oop_mode() {
