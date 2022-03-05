@@ -81,7 +81,7 @@ inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_
 template <typename T>
 void DefNewYoungerGenClosure::barrier(T* p) {
 #if RTGC_OPT_YOUNG_ROOTS 
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[1]) return;
 #endif
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   T heap_oop = RawAccess<>::oop_load(p);

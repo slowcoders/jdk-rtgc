@@ -148,6 +148,8 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 // Initialization after module runtime initialization
 void universe_post_module_init();  // must happen after call_initPhase2
@@ -556,12 +558,16 @@ bool Thread::claim_par_threads_do(uintx claim_token) {
 }
 
 void Thread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
+  rtgc_log(true, "Thread::oops_do_no_frames 0 %p\n", this);
   if (active_handles() != NULL) {
     active_handles()->oops_do(f);
   }
+  rtgc_log(true, "Thread::oops_do_no_frames 1 ex=%p\n", (void*)_pending_exception);
   // Do oop for ThreadShadow
   f->do_oop((oop*)&_pending_exception);
+  rtgc_log(true, "Thread::oops_do_no_frames 2\n");
   handle_area()->oops_do(f);
+  rtgc_log(true, "Thread::oops_do_no_frames 3\n");
 }
 
 // If the caller is a NamedThread, then remember, in the current scope,
@@ -1977,11 +1983,13 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
 
+  rtgc_log(true, "oops_do_no_frames 0\n");
   // Traverse the GCHandles
   Thread::oops_do_no_frames(f, cf);
 
   DEBUG_ONLY(verify_frame_info();)
 
+  rtgc_log(true, "oops_do_no_frames 1\n");
   if (has_last_Java_frame()) {
     // Traverse the monitor chunks
     for (MonitorChunk* chunk = monitor_chunks(); chunk != NULL; chunk = chunk->next()) {
@@ -1989,6 +1997,7 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
     }
   }
 
+  rtgc_log(true, "oops_do_no_frames 2\n");
   assert(vframe_array_head() == NULL, "deopt in progress at a safepoint!");
   // If we have deferred set_locals there might be oops waiting to be
   // written
@@ -1999,18 +2008,25 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
     }
   }
 
+  rtgc_log(true, "oops_do_no_frames 3\n");
   // Traverse instance variables at the end since the GC may be moving things
   // around using this function
   f->do_oop((oop*) &_vm_result);
+  rtgc_log(true, "oops_do_no_frames 4\n");
   f->do_oop((oop*) &_exception_oop);
+  rtgc_log(true, "oops_do_no_frames 5\n");
   f->do_oop((oop*) &_pending_async_exception);
+  rtgc_log(true, "oops_do_no_frames 6\n");
 #if INCLUDE_JVMCI
+  rtgc_log(true, "oops_do_no_frames 7\n");
   f->do_oop((oop*) &_jvmci_reserved_oop0);
 #endif
+  rtgc_log(true, "oops_do_no_frames 8\n");
 
   if (jvmti_thread_state() != NULL) {
     jvmti_thread_state()->oops_do(f, cf);
   }
+  rtgc_log(true, "oops_do_no_frames 9\n");
 }
 
 void JavaThread::oops_do_frames(OopClosure* f, CodeBlobClosure* cf) {

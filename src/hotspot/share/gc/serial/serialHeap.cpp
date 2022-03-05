@@ -107,9 +107,4 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   }
 #endif
   old_gen()->younger_refs_iterate(old_gen_closure);
-  if (RTGC::debugOptions[0]) {
-    rtHeap::iterate_young_roots(root_closure);
-    if (--cnt <= 0)
-        fatal("stop!!!!");
-  }
 }

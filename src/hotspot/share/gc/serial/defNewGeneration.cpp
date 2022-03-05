@@ -120,7 +120,7 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
     // if oops are left pointing into the young gen.
     _scavenge_closure->set_scanned_cld(cld);
 
-    if (RTGC_OPT_CLD_SCAN && RTGC::debugOptions[0]) {
+    if (RTGC_OPT_CLD_SCAN && false) {
       DefNewGeneration* yg = _scavenge_closure->young_gen();
       int prev_threshold = yg->xchg_tenuring_threshold(1);
       cld->incremental_oops_do(_scavenge_closure, true);

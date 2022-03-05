@@ -78,6 +78,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -261,7 +262,7 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     idx = _last_idx;
   }
   
-  _last_chunk = NULL;
+  bool promotion_failed = false;
   for (; c != NULL; c = c->_next, idx = 0) {
     juint size = Atomic::load_acquire(&c->_size);
     for (; idx < size; idx++) {
@@ -270,15 +271,17 @@ void ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
         oop old = *p;
         f->do_oop(p);
         // check on old_p. new_p may not copyed yet;
-        if (_last_chunk == NULL && !rtHeap::is_trackable(old)) {
-          printf("promotion failed\n");
+        if (!promotion_failed && !rtHeap::is_trackable(old)) {
+          promotion_failed = true;
           Atomic::release_store(&_last_chunk, c);
           Atomic::release_store(&_last_idx, idx);
+          postcond(_last_chunk != NULL);
+          postcond(_last_idx == idx);
         }
       }
     }
   }
-  if (_last_chunk == NULL) {
+  if (!promotion_failed) {
     Atomic::release_store(&_last_chunk, _tail);
     Atomic::release_store(&_last_idx, _tail->_size);
   }

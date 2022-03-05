@@ -147,6 +147,9 @@ jint GenCollectedHeap::initialize() {
 }
 
 CardTableRS* GenCollectedHeap::create_rem_set(const MemRegion& reserved_region) {
+#if RTGC_OPT_YOUNG_ROOTS
+  if (RTGC::debugOptions[1]) return NULL;
+#endif
   return new CardTableRS(reserved_region);
 }
 

@@ -36,6 +36,7 @@
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
@@ -54,6 +55,7 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
     if (!obj->mark().is_marked()) {
       mark_object(obj);
+      assert(obj->klass() != NULL, "marking_stack pushed %p k=%p\n", (void*)obj, obj->klass());
       _marking_stack.push(obj);
     }
   }

@@ -29,9 +29,14 @@
 
 #include "gc/shared/cardTable.hpp"
 #include "runtime/atomic.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 template <DecoratorSet decorators, typename T>
 inline void CardTableBarrierSet::write_ref_field_post(T* field, oop newVal) {
+#if RTGC_OPT_YOUNG_ROOTS  
+  if (RTGC::debugOptions[1]) return;
+#endif
   volatile CardValue* byte = _card_table->byte_for(field);
   *byte = CardTable::dirty_card_val();
 }

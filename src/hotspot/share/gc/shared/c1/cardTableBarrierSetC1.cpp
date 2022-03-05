@@ -39,7 +39,7 @@
 
 void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprDesc* new_val) {
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();

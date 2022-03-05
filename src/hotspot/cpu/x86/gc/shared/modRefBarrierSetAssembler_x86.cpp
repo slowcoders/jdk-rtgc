@@ -33,7 +33,7 @@
 void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
@@ -62,7 +62,7 @@ void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Decorat
 void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;

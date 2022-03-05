@@ -47,7 +47,7 @@
 void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                                     Register addr, Register count, Register tmp) {
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   BarrierSet *bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
@@ -92,7 +92,7 @@ __ BIND(L_done);
 
 void CardTableBarrierSetAssembler::store_check(MacroAssembler* masm, Register obj, Address dst) {
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   // Does a store check for the oop in register obj. The content of
   // register obj is destroyed afterwards.
@@ -151,7 +151,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
 #endif  
 #if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[0]) return;
+  if (RTGC::debugOptions[2]) return;
 #endif
   if (needs_post_barrier) {
     // flatten object address if needed

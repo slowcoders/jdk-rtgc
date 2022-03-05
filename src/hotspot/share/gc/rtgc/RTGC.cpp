@@ -158,9 +158,12 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
+//  debugOptions[1] = UnlockExperimentalVMOptions;
 //    logOptions[LOG_HEAP] = 1 << 11;
+
+    debugOptions[2] = UnlockExperimentalVMOptions;
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 0;//1 << 11;
+    logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;//1 << 11;
   }

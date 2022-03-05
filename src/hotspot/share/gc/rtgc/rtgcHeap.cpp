@@ -368,7 +368,7 @@ static GCObject* findNextUntrackable(GCNode* obj) {
 }
 
 #ifdef ASSERT
-RTGC::mark_dead_space(void* p) {
+void RTGC::mark_dead_space(void* p) {
   ((GCNode*)p)->markGarbage();
 }
 #endif
