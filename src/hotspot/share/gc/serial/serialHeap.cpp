@@ -32,6 +32,7 @@
 #include "services/memoryManager.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "memory/iterator.inline.hpp"
 
 SerialHeap* SerialHeap::heap() {
   return named_heap<SerialHeap>(CollectedHeap::Serial);
@@ -91,6 +92,7 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   return memory_pools;
 }
 
+
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,
                                      CLDClosure* cld_closure) {
@@ -99,11 +101,10 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
-#if RTGC_OPT_YOUNG_ROOTS 
-  if (RTGC::debugOptions[0]) {
-    rtHeap::iterate_young_roots(root_closure);
-    return;
+  if (RTGC_OPT_YOUNG_ROOTS) {
+    rtHeap::iterate_young_roots(static_cast<YoungRootClosure*>(old_gen_closure));
   }
-#endif
-  old_gen()->younger_refs_iterate(old_gen_closure);
+  else {
+    old_gen()->younger_refs_iterate(old_gen_closure);
+  }
 }

@@ -40,6 +40,6 @@ namespace RTGC {
     printf(__VA_ARGS__); \
   }
 
-#define rtgc_trace(10, (opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)
+#define rtgc_trace(opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)
 
 #endif // SHARE_GC_RTGC_RTGCDEBUG_HPP

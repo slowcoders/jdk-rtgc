@@ -32,9 +32,8 @@
 
 void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
-#if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[2]) return;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);
@@ -61,9 +60,8 @@ void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Decorat
 
 void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
-#if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[2]) return;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);

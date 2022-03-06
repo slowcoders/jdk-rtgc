@@ -128,14 +128,16 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   CardTableRS* rs = gch->rem_set();
   Generation* old_gen = gch->old_gen();
 
-  // Clear/invalidate below make use of the "prev_used_regions" saved earlier.
-  if (gch->young_gen()->used() == 0) {
-    // We've evacuated the young generation.
-    rs->clear_into_younger(old_gen);
-  } else {
-    // Invalidate the cards corresponding to the currently used
-    // region and clear those corresponding to the evacuated region.
-    rs->invalidate_or_clear(old_gen);
+  if (!RTGC_NO_DIRTY_CARD_MARKING) {
+    // Clear/invalidate below make use of the "prev_used_regions" saved earlier.
+    if (gch->young_gen()->used() == 0) {
+      // We've evacuated the young generation.
+      rs->clear_into_younger(old_gen);
+    } else {
+      // Invalidate the cards corresponding to the currently used
+      // region and clear those corresponding to the evacuated region.
+      rs->invalidate_or_clear(old_gen);
+    }
   }
 
   gch->prune_scavengable_nmethods();

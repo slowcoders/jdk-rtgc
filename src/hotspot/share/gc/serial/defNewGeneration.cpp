@@ -155,7 +155,9 @@ DefNewGeneration::DefNewGeneration(ReservedSpace rs,
                 (HeapWord*)_virtual_space.high());
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
-  gch->rem_set()->resize_covered_region(cmr);
+  if (!RTGC_NO_DIRTY_CARD_MARKING) {
+    gch->rem_set()->resize_covered_region(cmr);
+  }
 
   _eden_space = new ContiguousSpace();
   _from_space = new ContiguousSpace();
@@ -411,7 +413,9 @@ void DefNewGeneration::compute_new_size() {
                              SpaceDecorator::DontMangle);
     MemRegion cmr((HeapWord*)_virtual_space.low(),
                   (HeapWord*)_virtual_space.high());
-    gch->rem_set()->resize_covered_region(cmr);
+    if (!RTGC_NO_DIRTY_CARD_MARKING) {                  
+      gch->rem_set()->resize_covered_region(cmr);
+    }
 
     log_debug(gc, ergo, heap)(
         "New generation size " SIZE_FORMAT "K->" SIZE_FORMAT "K [eden=" SIZE_FORMAT "K,survivor=" SIZE_FORMAT "K]",
@@ -569,6 +573,9 @@ void DefNewGeneration::collect(bool   full,
 
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
+#if RTGC_OPT_YOUNG_ROOTS  
+  YoungRootClosure        young_root_closure(this);
+#endif
 
   CLDScanClosure cld_scan_closure(&scan_closure);
 
@@ -584,7 +591,11 @@ void DefNewGeneration::collect(bool   full,
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
+#if RTGC_OPT_YOUNG_ROOTS  
+                              &young_root_closure,
+#else
                               &younger_gen_closure,
+#endif
                               &cld_scan_closure);
   }
 
@@ -724,9 +735,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#if USE_RTGC_COMPACT_1 // mark_promoted_trackable
-    rtHeap::mark_promoted_trackable(old, obj);
-#endif  
   } else {
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;

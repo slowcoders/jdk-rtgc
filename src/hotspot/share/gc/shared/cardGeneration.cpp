@@ -53,19 +53,19 @@ CardGeneration::CardGeneration(ReservedSpace rs,
   _bts = new BlockOffsetSharedArray(reserved_mr,
                                     heap_word_size(initial_byte_size));
   MemRegion committed_mr(start, heap_word_size(initial_byte_size));
-  if (!RTGC::debugOptions[1]) _rs->resize_covered_region(committed_mr);
+  if (!RTGC_NO_DIRTY_CARD_MARKING) _rs->resize_covered_region(committed_mr);
 
   // Verify that the start and end of this generation is the start of a card.
   // If this wasn't true, a single card could span more than on generation,
   // which would cause problems when we commit/uncommit memory, and when we
   // clear and dirty cards.
-  if (!RTGC::debugOptions[1]) {
+  if (!RTGC_NO_DIRTY_CARD_MARKING) {
     guarantee(_rs->is_aligned(reserved_mr.start()), "generation must be card aligned");
   }
   if (reserved_mr.end() != GenCollectedHeap::heap()->reserved_region().end()) {
     // Don't check at the very end of the heap as we'll assert that we're probing off
     // the end if we try.
-    if (!RTGC::debugOptions[1]) {
+    if (!RTGC_NO_DIRTY_CARD_MARKING) {
       guarantee(_rs->is_aligned(reserved_mr.end()), "generation must be card aligned");
     }
   }
@@ -81,8 +81,10 @@ bool CardGeneration::grow_by(size_t bytes) {
     size_t new_word_size =
        heap_word_size(_virtual_space.committed_size());
     MemRegion mr(space()->bottom(), new_word_size);
-    // Expand card table
-    GenCollectedHeap::heap()->rem_set()->resize_covered_region(mr);
+    if (!RTGC_NO_DIRTY_CARD_MARKING) {    
+      // Expand card table
+      GenCollectedHeap::heap()->rem_set()->resize_covered_region(mr);
+    }
     // Expand shared block offset array
     _bts->resize(new_word_size);
 
@@ -168,8 +170,10 @@ void CardGeneration::shrink(size_t bytes) {
   // Shrink the shared block offset array
   _bts->resize(new_word_size);
   MemRegion mr(space()->bottom(), new_word_size);
-  // Shrink the card table
-  GenCollectedHeap::heap()->rem_set()->resize_covered_region(mr);
+  if (!RTGC_NO_DIRTY_CARD_MARKING) {
+    // Shrink the card table
+    GenCollectedHeap::heap()->rem_set()->resize_covered_region(mr);
+  }
 
   size_t new_mem_size = _virtual_space.committed_size();
   size_t old_mem_size = new_mem_size + size;

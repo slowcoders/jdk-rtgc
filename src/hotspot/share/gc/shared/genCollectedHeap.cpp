@@ -125,7 +125,9 @@ jint GenCollectedHeap::initialize() {
   initialize_reserved_region(heap_rs);
 
   _rem_set = create_rem_set(heap_rs.region());
+#if !RTGC_NO_DIRTY_CARD_MARKING
   _rem_set->initialize();
+#endif
   CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
   bs->initialize();
   BarrierSet::set_barrier_set(bs);
@@ -147,9 +149,7 @@ jint GenCollectedHeap::initialize() {
 }
 
 CardTableRS* GenCollectedHeap::create_rem_set(const MemRegion& reserved_region) {
-#if RTGC_OPT_YOUNG_ROOTS
-  if (RTGC::debugOptions[1]) return NULL;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return NULL;
   return new CardTableRS(reserved_region);
 }
 

@@ -38,9 +38,8 @@
 #endif
 
 void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprDesc* new_val) {
-#if RTGC_OPT_YOUNG_ROOTS  
-  if (RTGC::debugOptions[2]) return;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();
   bool in_heap = (decorators & IN_HEAP) != 0;

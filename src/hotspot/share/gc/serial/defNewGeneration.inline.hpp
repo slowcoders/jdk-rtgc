@@ -48,9 +48,7 @@ inline void DefNewGeneration::KeepAliveClosure::do_oop_work(T* p) {
 
   Devirtualizer::do_oop(_cl, p);
 
-#if RTGC_OPT_YOUNG_ROOTS 
-  if (RTGC::debugOptions[1]) return;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
   // Card marking is trickier for weak refs.
   // This oop is a 'next' field which was filled in while we
   // were discovering weak references. While we might not need
@@ -82,9 +80,7 @@ inline void DefNewGeneration::FastKeepAliveClosure::do_oop_work(T* p) {
 
   Devirtualizer::do_oop(_cl, p);
 
-#if RTGC_OPT_YOUNG_ROOTS 
-  if (RTGC::debugOptions[1]) return;
-#endif
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
   // Optimized for Defnew generation if it's the youngest generation:
   // we set a younger_gen card if we have an older->youngest
   // generation pointer.

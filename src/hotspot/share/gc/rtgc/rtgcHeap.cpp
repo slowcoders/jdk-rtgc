@@ -447,24 +447,23 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   g_promted_trackables.append((oopDesc*)new_p);
 }
 
-void rtHeap::mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p) {
-  //if (!REF_LINK_ENABLED) return;
-  // 이미 객체가 복사된 상태이므로, 둘 다 marking 되어야 한다.
+void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
+  // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
-  rtgc_log(LOG_OPT(9), "mark_promoted_trackable %p(moved to %p)\n", old_p, new_p);
-  to_obj(old_p)->markTrackable();
+  rtgc_log(LOG_OPT(11), "mark_promoted_trackable %p, tr=%d\n", new_p, to_obj(new_p)->isTrackable());
+  if (to_obj(new_p)->isTrackable()) return;
   to_obj(new_p)->markTrackable();
   debug_only(g_cntTrackable++);
-  g_promted_trackables.append(new_p);
+  // g_promted_trackables.append(new_p);
 }
 
 void rtHeap::flush_trackables() {
   //if (!REF_LINK_ENABLED) return;
   const int count = g_promted_trackables.length();
+  rtgc_log(LOG_OPT(11), "flush_trackables %d\n", count);
   if (count == 0) return;
 
-  rtgc_log(LOG_OPT(11), "flush_trackables %d\n", count);
   oop* pOop = &g_promted_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
@@ -504,33 +503,23 @@ public:
   virtual void do_oop(oop*       p) { do_oop_work(p); }
 };
 
-void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
+void rtHeap::iterate_young_roots(BoolObjectClosure* closure) {
   /**
    * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
    */
+  rtgc_log(LOG_OPT(11), "iterate_young_roots %d\n", g_young_roots.length());
 
   if (g_young_roots.length() == 0) return;
-  OldAnchorAdustPointer ap(closure);
+  // OldAnchorAdustPointer ap(closure);
   oop* src = &g_young_roots.at(0);
   oop* dst = src;
   for (int i = g_young_roots.length(); --i >= 0; src++) {
     oopDesc* anchor = *src;
     
     rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
-    bool is_root;
-    if (is_java_reference(anchor)) {
-      anchor->oop_iterate(closure);
+    bool is_root = closure->do_object_b(anchor);
+    if (!is_root && is_java_reference(anchor)) {
       is_root = has_young_referent(anchor);
-    }
-    else if (is_narrow_oop_mode()) {
-      FieldIterator<narrowOop> it(anchor);
-      it.iterate_pointers(&ap);
-      is_root = ap.cnt_young_ref > 0;
-    }
-    else {
-      FieldIterator<oop> it(anchor);
-      it.iterate_pointers(&ap);
-      is_root = ap.cnt_young_ref > 0;
     }
     if (!is_root) {
       to_obj(anchor)->unmarkYoungRoot();
@@ -551,6 +540,12 @@ void rtHeap::iterate_young_roots(OopIterateClosure* closure) {
 void rtHeap::print_heap_after_gc(bool full_gc) {  
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
       g_cntTrackable, g_young_roots.length(), full_gc); 
+}
+
+void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
+  rtgc_log(LOG_OPT(11), "add_trackable_link %p(%d) -> anchor=%p(%d)\n", 
+    link, to_obj(link)->isTrackable(), anchor, to_obj(anchor)->isTrackable()); 
+  RTGC::add_referrer_unsafe(link, anchor);
 }
 
 bool rtHeap::is_alive(oopDesc* p) {

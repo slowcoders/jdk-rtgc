@@ -12,6 +12,7 @@
 
 #define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_OPT_CLD_SCAN             true
+#define RTGC_NO_DIRTY_CARD_MARKING    true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
@@ -33,7 +34,7 @@ public:
   static void mark_active_trackable(oopDesc* p);
   static void mark_empty_trackable(oopDesc* p);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
-  static void mark_promoted_trackable(oopDesc* old_p, oopDesc* new_p);
+  static void mark_promoted_trackable(oopDesc* new_p);
 
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p);
@@ -51,8 +52,12 @@ public:
   static void print_heap_after_gc(bool full_gc);
 
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
-  static void iterate_young_roots(OopIterateClosure* closer);
+
+  static void add_trackable_link(oopDesc* anchor, oopDesc* linked);
+
+  static void iterate_young_roots(BoolObjectClosure* closure);
 };
+
 
 
 #endif // SHARE_GC_RTGC_RTGCHEAP_HPP

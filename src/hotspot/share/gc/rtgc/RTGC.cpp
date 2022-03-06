@@ -22,7 +22,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = false;
+  bool REF_LINK_ENABLED = true;
 }
 int GCNode::_cntTrackable = 0;
 
@@ -102,11 +102,11 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   precond(to_obj(base)->isTrackable());
 
   if (oldValue == newValue) return;
-  if (!REF_LINK_ENABLED) return;
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL) add_referrer_unsafe(newValue, base);
+  if (!REF_LINK_ENABLED) return;
   if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
 }
 
@@ -158,7 +158,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-//  debugOptions[1] = UnlockExperimentalVMOptions;
+  debugOptions[1] = UnlockExperimentalVMOptions;
 //    logOptions[LOG_HEAP] = 1 << 11;
 
     debugOptions[2] = UnlockExperimentalVMOptions;
