@@ -23,7 +23,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = false;
+  bool REF_LINK_ENABLED = true;
 }
 int GCNode::_cntTrackable = 0;
 
