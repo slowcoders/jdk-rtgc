@@ -3499,7 +3499,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   bool disjoint = (flags & LIR_OpArrayCopy::overlapping) == 0;
   bool aligned = (flags & LIR_OpArrayCopy::unaligned) == 0;
   const char *name;
-  address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false);
+  address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false, true);
   __ call_VM_leaf(entry, 0);
 
   __ bind(*stub->continuation());

@@ -505,7 +505,7 @@ enum {
 // Note:  The condition "disjoint" applies also for overlapping copies
 // where an descending copy is permitted (i.e., dest_offset <= src_offset).
 address
-StubRoutines::select_arraycopy_function(BasicType t, bool aligned, bool disjoint, const char* &name, bool dest_uninitialized) {
+StubRoutines::select_arraycopy_function(BasicType t, bool aligned, bool disjoint, const char* &name, bool dest_uninitialized, bool checked) {
   int selector =
     (aligned  ? COPYFUNC_ALIGNED  : COPYFUNC_UNALIGNED) +
     (disjoint ? COPYFUNC_DISJOINT : COPYFUNC_CONJOINT);
@@ -553,6 +553,7 @@ StubRoutines::select_arraycopy_function(BasicType t, bool aligned, bool disjoint
     }
   case T_ARRAY:
   case T_OBJECT:
+    assert(checked, "rtgc select_arraycopy_function");
     switch (selector) {
     case COPYFUNC_CONJOINT | COPYFUNC_UNALIGNED:  RETURN_STUB_PARM(oop_arraycopy, dest_uninitialized);
     case COPYFUNC_CONJOINT | COPYFUNC_ALIGNED:    RETURN_STUB_PARM(arrayof_oop_arraycopy, dest_uninitialized);

@@ -7,6 +7,7 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
+#include "logging/logConfiguration.hpp"
 
 using namespace RTGC;
 
@@ -22,7 +23,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = true;
+  bool REF_LINK_ENABLED = false;
 }
 int GCNode::_cntTrackable = 0;
 
@@ -155,17 +156,17 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 void RTGC::initialize() {
   RTGC::_rtgc.initialize();
-  REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
+    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+
+  // REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  debugOptions[1] = UnlockExperimentalVMOptions;
-//    logOptions[LOG_HEAP] = 1 << 11;
 
-    debugOptions[2] = UnlockExperimentalVMOptions;
+//    logOptions[LOG_BARRIER] = 1 << 5;
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
-    logOptions[LOG_BARRIER] = 0;//1 << 11;
+    logOptions[LOG_BARRIER] = 1 << 5;
   }
 }
 

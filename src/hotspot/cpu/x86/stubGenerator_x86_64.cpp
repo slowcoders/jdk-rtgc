@@ -1789,6 +1789,7 @@ class StubGenerator: public StubCodeGenerator {
   address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_disjoint_copy_avx3_masked(entry, "jbyte_disjoint_arraycopy_avx3", 0,
                                                  aligned, false, false);
     }
@@ -1905,6 +1906,7 @@ class StubGenerator: public StubCodeGenerator {
                                       address* entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_conjoint_copy_avx3_masked(entry, "jbyte_conjoint_arraycopy_avx3", 0,
                                                  nooverlap_target, aligned, false, false);
     }
@@ -2016,6 +2018,7 @@ class StubGenerator: public StubCodeGenerator {
   address generate_disjoint_short_copy(bool aligned, address *entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_disjoint_copy_avx3_masked(entry, "jshort_disjoint_arraycopy_avx3", 1,
                                                  aligned, false, false);
     }
@@ -2147,6 +2150,7 @@ class StubGenerator: public StubCodeGenerator {
                                        address *entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_conjoint_copy_avx3_masked(entry, "jshort_conjoint_arraycopy_avx3", 1,
                                                  nooverlap_target, aligned, false, false);
     }
@@ -2251,6 +2255,7 @@ class StubGenerator: public StubCodeGenerator {
                                          const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_disjoint_copy_avx3_masked(entry, "jint_disjoint_arraycopy_avx3", 2,
                                                  aligned, is_oop, dest_uninitialized);
     }
@@ -2361,6 +2366,7 @@ class StubGenerator: public StubCodeGenerator {
                                          bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_conjoint_copy_avx3_masked(entry, "jint_conjoint_arraycopy_avx3", 2,
                                                  nooverlap_target, aligned, is_oop, dest_uninitialized);
     }
@@ -2473,6 +2479,7 @@ class StubGenerator: public StubCodeGenerator {
                                           const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_disjoint_copy_avx3_masked(entry, "jlong_disjoint_arraycopy_avx3", 3,
                                                  aligned, is_oop, dest_uninitialized);
     }
@@ -2583,6 +2590,7 @@ class StubGenerator: public StubCodeGenerator {
                                           const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+      fatal("avx33333333333333333");
        return generate_conjoint_copy_avx3_masked(entry, "jlong_conjoint_arraycopy_avx3", 3,
                                                  nooverlap_target, aligned, is_oop, dest_uninitialized);
     }
@@ -3302,6 +3310,7 @@ class StubGenerator: public StubCodeGenerator {
 
 #if ENABLE_ARRAY_COPY_HOOK
       __ movptr(c_rarg3, dst);  
+      setup_arg_regs(4);
 #else
       // Fetch destination element klass from the ObjArrayKlass header.
       int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());

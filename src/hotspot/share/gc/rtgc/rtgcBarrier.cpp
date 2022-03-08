@@ -476,7 +476,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
   RTGC::lock_heap();                          
-  for (size_t i = 0; i < length; i++) {
+  if (checkcast) for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
     oopDesc* new_value = CompressedOops::decode(s_raw);
     if (checkcast && new_value != NULL) {
@@ -491,7 +491,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
     // 사용불가 memmove 필요
     // dst_p[i] = s_raw;
-    RTGC::on_field_changed(dst_array, old, new_value, dst_p, "arry");
+    // !!!!! RTGC::on_field_changed(dst_array, old, new_value, &dst_p[i], "arry");
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);

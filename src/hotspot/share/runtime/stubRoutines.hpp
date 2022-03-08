@@ -318,7 +318,7 @@ class StubRoutines: AllStatic {
   static address atomic_add_long_entry()                   { return _atomic_add_long_entry; }
   static address fence_entry()                             { return _fence_entry; }
 
-  static address select_arraycopy_function(BasicType t, bool aligned, bool disjoint, const char* &name, bool dest_uninitialized);
+  static address select_arraycopy_function(BasicType t, bool aligned, bool disjoint, const char* &name, bool dest_uninitialized, bool checked = false);
 
   static address jbyte_arraycopy()  { return _jbyte_arraycopy; }
   static address jshort_arraycopy() { return _jshort_arraycopy; }
