@@ -1414,6 +1414,7 @@ bool LibraryCallKit::inline_string_toBytesU() {
     // Figure out which arraycopy runtime method to call (disjoint, uninitialized).
     const char* copyfunc_name = "arraycopy";
     address     copyfunc_addr = StubRoutines::select_arraycopy_function(T_CHAR, aligned, true, copyfunc_name, true);
+    fatal("rtgc select_arraycopy_function");
     Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
                       OptoRuntime::fast_arraycopy_Type(),
                       copyfunc_addr, copyfunc_name, TypeRawPtr::BOTTOM,
@@ -1496,6 +1497,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
     // Figure out which arraycopy runtime method to call (disjoint, uninitialized).
     const char* copyfunc_name = "arraycopy";
     address     copyfunc_addr = StubRoutines::select_arraycopy_function(T_CHAR, aligned, true, copyfunc_name, true);
+    fatal("rtgc select_arraycopy_function");
     Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
                       OptoRuntime::fast_arraycopy_Type(),
                       copyfunc_addr, copyfunc_name, TypeRawPtr::BOTTOM,

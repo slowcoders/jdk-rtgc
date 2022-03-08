@@ -1188,6 +1188,7 @@ bool PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
   address     copyfunc_addr =
       basictype2arraycopy(basic_elem_type, src_offset, dest_offset,
                           disjoint_bases, copyfunc_name, dest_uninitialized);
+    fatal("rtgc select_arraycopy_function");
 
   Node* result_memory = NULL;
   RegionNode* exit_block = NULL;

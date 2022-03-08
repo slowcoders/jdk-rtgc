@@ -1421,8 +1421,8 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_exit);
+    
     {
       // Type(shift)           byte(0), short(1), int(2),   long(3)
       int loop_size[]        = { 192,     96,       48,      24};
@@ -1642,7 +1642,7 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_exit);
     {
       // Type(shift)       byte(0), short(1), int(2),   long(3)
       int loop_size[]   = { 192,     96,       48,      24};

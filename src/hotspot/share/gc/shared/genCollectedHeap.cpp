@@ -1160,9 +1160,8 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());
   _young_gen->verify();
 
-#if RTGC_OPT_YOUNG_ROOTS
-  if (RTGC::debugOptions[0]) return;
-#endif  
+  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+
   log_debug(gc, verify)("RemSet");
   rem_set()->verify();
 }

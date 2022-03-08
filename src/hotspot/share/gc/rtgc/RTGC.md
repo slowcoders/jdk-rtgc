@@ -48,8 +48,9 @@ bash configure --with-jvm-variants=client \
   --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
-  --with-toolchain-type=clang \
   --with-gtest=./googletest
+
+  --with-toolchain-type=clang \
 ```
 * for linux container
 ```
@@ -96,6 +97,7 @@ bash configure --with-jvm-variants=client \
 - new RTGC error
 ```
    make test CONF="macosx" TEST="jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java"  
+   make test CONF="macosx" TEST="runtime/Monitor/SyncOnValueBasedClassTest.java"
 ```
 
 - narrowOop shift test (0,1,2,3,4)

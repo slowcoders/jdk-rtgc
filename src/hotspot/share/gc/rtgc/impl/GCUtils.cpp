@@ -123,7 +123,7 @@ void SysMem::commit_memory(void* addr, size_t offset, size_t bytes) {
     if (addr != 0) return;
 #elif _USE_MMAP
     int res = mprotect((char*)addr + offset, bytes, PROT_READ|PROT_WRITE);
-    rtgc_log(true, "commit_memory mprotect %p\n", addr);
+    rtgc_log(0, "commit_memory mprotect %p\n", addr);
     if (res == 0) return;
 #elif _ULIMIT    
     void* mem = ::realloc(addr, offset + bytes);
