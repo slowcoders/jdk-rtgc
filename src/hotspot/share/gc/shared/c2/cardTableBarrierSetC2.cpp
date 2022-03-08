@@ -38,7 +38,8 @@
 
 Node* CardTableBarrierSetC2::byte_map_base_node(GraphKit* kit) const {
   // Get base of card map
-  CardTable::CardValue* card_table_base = ci_card_table_address();
+   fatal("rtgc c2 not impl");
+ CardTable::CardValue* card_table_base = ci_card_table_address();
    if (card_table_base != NULL) {
      return kit->makecon(TypeRawPtr::make((address)card_table_base));
    } else {
@@ -59,6 +60,7 @@ void CardTableBarrierSetC2::post_barrier(GraphKit* kit,
                                          BasicType bt,
                                          bool use_precise) const {
   // No store check needed if we're storing a NULL.
+  fatal("rtgc c2 not impl");
   if (val != NULL && val->is_Con()) {
     const Type* t = val->bottom_type();
     if (t == TypePtr::NULL_PTR || t == Type::TOP) {
@@ -126,6 +128,7 @@ void CardTableBarrierSetC2::post_barrier(GraphKit* kit,
 }
 
 void CardTableBarrierSetC2::clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const {
+  fatal("rtgc c2 not impl");
   BarrierSetC2::clone(kit, src, dst, size, is_array);
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
 
@@ -159,6 +162,7 @@ bool CardTableBarrierSetC2::is_gc_barrier_node(Node* node) const {
 }
 
 void CardTableBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+  fatal("rtgc c2 not impl");
   assert(node->Opcode() == Op_CastP2X, "ConvP2XNode required");
   Node *shift = node->unique_out();
   Node *addp = shift->unique_out();
@@ -177,6 +181,7 @@ void CardTableBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* 
 }
 
 bool CardTableBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
+  fatal("rtgc c2 not impl");
   bool is_oop = is_reference_type(type);
   return is_oop && (!tightly_coupled_alloc || !use_ReduceInitialCardMarks());
 }

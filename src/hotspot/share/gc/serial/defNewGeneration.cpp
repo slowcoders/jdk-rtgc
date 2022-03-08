@@ -120,16 +120,15 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
     // if oops are left pointing into the young gen.
     _scavenge_closure->set_scanned_cld(cld);
 
-    if (RTGC_OPT_CLD_SCAN) {
-      DefNewGeneration* yg = _scavenge_closure->young_gen();
-      int prev_threshold = yg->xchg_tenuring_threshold(0);
-      cld->incremental_oops_do(_scavenge_closure, true);
-      yg->xchg_tenuring_threshold(prev_threshold);
-    }
-    else {
-      // Clean the cld since we're going to scavenge all the metadata.
-      cld->oops_do(_scavenge_closure, ClassLoaderData::_claim_none, /*clear_modified_oops*/true);
-    }
+#if RTGC_OPT_CLD_SCAN
+    DefNewGeneration* yg = _scavenge_closure->young_gen();
+    int prev_threshold = yg->xchg_tenuring_threshold(0);
+    cld->incremental_oops_do(_scavenge_closure, true);
+    yg->xchg_tenuring_threshold(prev_threshold);
+#else
+    // Clean the cld since we're going to scavenge all the metadata.
+    cld->oops_do(_scavenge_closure, ClassLoaderData::_claim_none, /*clear_modified_oops*/true);
+#endif
 
     _scavenge_closure->set_scanned_cld(NULL);
   }

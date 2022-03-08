@@ -86,10 +86,10 @@ inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_
 template <typename T>
 void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
-  if (RTGC_OPT_YOUNG_ROOTS) {
+#if RTGC_OPT_YOUNG_ROOTS
     precond(_trackable_anchor != NULL);
     rtHeap::add_trackable_link(_trackable_anchor, new_obj);
-  }
+#endif
   if (RTGC_NO_DIRTY_CARD_MARKING) return;
 
     // If p points to a younger generation, mark the card.
