@@ -189,7 +189,7 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
                                   Register src, Register dst, Register count, 
                                   Register dst_array, Label& copy_done, Register saved_count) {
   this->arraycopy_prologue(masm, decorators, type, src, dst, count); 
-  if (true || type != T_OBJECT) return;
+  if (type != T_OBJECT) return;
 
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
@@ -207,9 +207,12 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
   // __checkTrackable(masm, dst_array, L_raw_access, rax);
 
   ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-  __ movl(rax, Address(dst_array, offset_of(RTGC::GCNode, _flags)));
-  __ testl(rax, (int32_t)RTGC::TRACKABLE_BIT);
-  // __ andl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
+  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+  if (checkcast) {
+    tmp3 = rax;
+  }
+  __ movl(tmp3, Address(dst_array, offset_of(RTGC::GCNode, _flags)));
+  __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
   // notZero 바꿔서 test.
   __ jcc(Assembler::zero, L_raw_access);
 
