@@ -401,6 +401,8 @@ UNSAFE_ENTRY(void, Unsafe_CopyMemory0(JNIEnv *env, jobject unsafe, jobject srcOb
 
   oop srcp = JNIHandles::resolve(srcObj);
   oop dstp = JNIHandles::resolve(dstObj);
+  precond(srcp == NULL || !srcp->is_objArray());
+  precond(dstp == NULL || !dstp->is_objArray());
 
   void* src = index_oop_from_field_offset_long(srcp, srcOffset);
   void* dst = index_oop_from_field_offset_long(dstp, dstOffset);

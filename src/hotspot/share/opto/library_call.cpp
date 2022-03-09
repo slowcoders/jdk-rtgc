@@ -4528,6 +4528,7 @@ bool LibraryCallKit::inline_arraycopy() {
   Node* dest_offset = argument(3);  // type: int
   Node* length      = argument(4);  // type: int
 
+  fatal("rtgc inline_arraycopy");
   uint new_idx = C->unique();
 
   // Check for allocation before we add nodes that would confuse

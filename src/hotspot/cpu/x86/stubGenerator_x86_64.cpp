@@ -1152,6 +1152,8 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(rdi, rcx); // c_rarg0
     __ mov(rsi, rdx); // c_rarg1
     __ mov(rdx, r8);  // c_rarg2
+    if (ENABLE_ARRAY_COPY_HOOK)
+      __ mov(rcx, rax); // c_rarg3 (via rax)
 #else
     assert(c_rarg0 == rdi && c_rarg1 == rsi && c_rarg2 == rdx && c_rarg3 == rcx,
            "unexpected argument registers");
@@ -1338,9 +1340,9 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
 
-  void setup_argument_regs(BasicType type) {
+  void setup_argument_regs(BasicType type, bool four_args = false) {
     if (type == T_BYTE || type == T_SHORT) {
-      setup_arg_regs(); // from => rdi, to => rsi, count => rdx
+      setup_arg_regs(four_args); // from => rdi, to => rsi, count => rdx
                         // r9 and r10 may be used to save non-volatile registers
     } else {
       setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx
@@ -3267,11 +3269,11 @@ class StubGenerator: public StubCodeGenerator {
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // src_addr
     __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // dst_addr
-    __ movl2ptr(count, r11_length); // length
-  __ BIND(L_plain_copy);
-    if (ENABLE_ARRAY_COPY_HOOK) {
+    if (ENABLE_ARRAY_COPY_HOOK) { // dst = count = c_rarg2
       __ movptr(c_rarg3, dst);
     }
+    __ movl2ptr(count, r11_length); // length
+  __ BIND(L_plain_copy);
 #ifdef _WIN64
     __ pop(rklass_tmp); // Restore callee-save rdi
 #endif
@@ -3296,6 +3298,9 @@ class StubGenerator: public StubCodeGenerator {
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
       __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+#if ENABLE_ARRAY_COPY_HOOK
+      __ push(dst);
+#endif
       __ movl(count, length);           // length (reloaded)
       Register sco_temp = c_rarg3;      // this register is free now
       assert_different_registers(from, to, count, sco_temp,
@@ -3309,7 +3314,7 @@ class StubGenerator: public StubCodeGenerator {
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
 #if ENABLE_ARRAY_COPY_HOOK
-      __ movptr(c_rarg3, dst);  
+      __ pop(c_rarg3);  
       setup_arg_regs(4);
 #else
       // Fetch destination element klass from the ObjArrayKlass header.

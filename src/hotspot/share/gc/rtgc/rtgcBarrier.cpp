@@ -468,7 +468,7 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+  assert(dst_array > (void*)0xFFFF, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
       src_p, dst_array, dst_p, (int)length,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;

@@ -332,6 +332,7 @@ address PhaseMacroExpand::basictype2arraycopy(BasicType t,
     disjoint = true;
   }
 
+  fatal("rtgc select_arraycopy_function");
   return StubRoutines::select_arraycopy_function(t, aligned, disjoint, name, dest_uninitialized);
 }
 

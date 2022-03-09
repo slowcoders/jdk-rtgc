@@ -23,7 +23,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = true;
+  bool REF_LINK_ENABLED = false;
 }
 int GCNode::_cntTrackable = 0;
 
@@ -100,7 +100,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  precond(to_obj(base)->isTrackable());
+  assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
 
   if (oldValue == newValue) return;
 

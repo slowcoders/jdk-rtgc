@@ -3363,7 +3363,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #ifdef _WIN64
         // Allocate abi space for args but be sure to keep stack aligned
         __ subptr(rsp, 6*wordSize);
-        if (USE_RTGC) {
+        if (ENABLE_ARRAY_COPY_HOOK) {
           __ movptr(c_rarg3, dst);
         }
         else {
@@ -3375,7 +3375,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
         __ call(RuntimeAddress(copyfunc_addr));
         __ addptr(rsp, 6*wordSize);
 #else
-        if (USE_RTGC) {
+        if (ENABLE_ARRAY_COPY_HOOK) {
           __ movptr(c_rarg3, dst);
         }
         else {
@@ -3481,6 +3481,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   __ lea(c_rarg0, Address(src, src_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   assert_different_registers(c_rarg1, length);
   __ lea(c_rarg1, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
+  assert_different_registers(c_rarg2, dst);
   __ mov(c_rarg2, length);
   if (ENABLE_ARRAY_COPY_HOOK) {
     __ movptr(c_rarg3, dst);
@@ -3501,6 +3502,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   const char *name;
   address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false, true);
   __ call_VM_leaf(entry, 0);
+  __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
 
   __ bind(*stub->continuation());
 }

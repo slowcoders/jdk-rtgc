@@ -26,9 +26,9 @@ void push_registers(MacroAssembler* masm, bool include_rax, bool include_r12_r15
   if (include_rax) {
     __ push(rax);
   }
-  __ push(rbp);
-  __ mov(rbp, rsp);
-  __ andptr(rsp, -(StackAlignmentInBytes));
+  // __ push(rbp);
+  // __ mov(rbp, rsp);
+  // __ andptr(rsp, -(StackAlignmentInBytes));
 
   __ push(rcx);
   __ push(rdx);
@@ -67,8 +67,8 @@ void pop_registers(MacroAssembler* masm, bool include_rax, bool include_r12_r15)
   __ pop(rdx);
   __ pop(rcx);
 
-  __ mov(rsp, rbp);
-  __ pop(rbp);
+  // __ mov(rsp, rbp);
+  // __ pop(rbp);
   if (include_rax) {
     __ pop(rax);
   }
@@ -207,14 +207,15 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
   // __checkTrackable(masm, dst_array, L_raw_access, rax);
 
   ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
-  if (checkcast) {
-    tmp3 = rax;
-  }
-  __ movl(tmp3, Address(dst_array, offset_of(RTGC::GCNode, _flags)));
-  __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
-  // notZero 바꿔서 test.
-  __ jcc(Assembler::zero, L_raw_access);
+  Register tmp3 = rax;
+
+  // __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
+  // __ mfence();
+  // __ sfence();
+  // __ movl(tmp3, Address(dst_array, offset_of(RTGC::GCNode, _flags)));
+  // __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
+  // // notZero 바꿔서 test.
+  // __ jcc(Assembler::zero, L_raw_access);
 
   push_registers(masm, false, false);
   __ MacroAssembler::call_VM_leaf_base(fn, 4);
