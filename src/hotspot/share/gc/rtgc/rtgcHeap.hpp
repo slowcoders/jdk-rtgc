@@ -10,8 +10,8 @@
 #define USE_RTGC_TLAB_ALLOC           false
 #define RTGC_TRACK_ALL_GENERATION     false
 
-#define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_OPT_CLD_SCAN             true
+#define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_NO_DIRTY_CARD_MARKING    true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)

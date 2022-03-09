@@ -204,18 +204,7 @@ void RtgcBarrierSetAssembler::arraycopy_prologue_ex(MacroAssembler* masm, Decora
   address fn = RtgcBarrier::getArrayCopyFunction(decorators);
   Label L_raw_access;
 
-  // __checkTrackable(masm, dst_array, L_raw_access, rax);
-
-  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-  Register tmp3 = rax;
-
-  // __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
-  // __ mfence();
-  // __ sfence();
-  // __ movl(tmp3, Address(dst_array, offset_of(RTGC::GCNode, _flags)));
-  // __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
-  // // notZero 바꿔서 test.
-  // __ jcc(Assembler::zero, L_raw_access);
+  __checkTrackable(masm, dst_array, L_raw_access, rax);
 
   push_registers(masm, false, false);
   __ MacroAssembler::call_VM_leaf_base(fn, 4);

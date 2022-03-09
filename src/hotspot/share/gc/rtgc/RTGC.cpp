@@ -15,6 +15,7 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
+
 static int _logOptions[256];
 static int _debugOptions[256];
 namespace RTGC {
@@ -78,22 +79,22 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* referrer) {
+void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  GCObject* base = to_obj(referrer);
-  precond(base->isTrackable());
-
-  if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", referrer, p);
-  GCObject* obj = to_obj(p);
+  GCObject* anchor = to_obj(base);
+  GCObject* link = to_obj(p);
+  precond(anchor->isTrackable());
 #if RTGC_OPT_YOUNG_ROOTS 
-  if (!obj->isTrackable() && !base->isYoungRoot()) {
-    RTGC::add_young_root(referrer);
+  if (!link->isTrackable() && !anchor->isYoungRoot()) {
+    RTGC::add_young_root(base);
   }
 #endif  
-  GCRuntime::connectReferenceLink(obj, base);
+
+  if (!REF_LINK_ENABLED) return;
+  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", anchor, link);
+  GCRuntime::connectReferenceLink(link, anchor);
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -156,17 +157,16 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 void RTGC::initialize() {
   RTGC::_rtgc.initialize();
-    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
-  // REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
+  REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
 
-//    logOptions[LOG_BARRIER] = 1 << 5;
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
-    logOptions[LOG_BARRIER] = 1 << 5;
+    logOptions[LOG_BARRIER] = 0;
   }
 }
 

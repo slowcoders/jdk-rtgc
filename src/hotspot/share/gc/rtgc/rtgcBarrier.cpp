@@ -468,15 +468,15 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  assert(dst_array > (void*)0xFFFF, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
-      src_p, dst_array, dst_p, (int)length,
-      (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
+  rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+      src_p, dst_array, dst_p, (int)length,
+      (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
   RTGC::lock_heap();                          
-  if (checkcast) for (size_t i = 0; i < length; i++) {
+  for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
     oopDesc* new_value = CompressedOops::decode(s_raw);
     if (checkcast && new_value != NULL) {
@@ -491,7 +491,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
     // 사용불가 memmove 필요
     // dst_p[i] = s_raw;
-    // !!!!! RTGC::on_field_changed(dst_array, old, new_value, &dst_p[i], "arry");
+    RTGC::on_field_changed(dst_array, old, new_value, &dst_p[i], "arry");
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);

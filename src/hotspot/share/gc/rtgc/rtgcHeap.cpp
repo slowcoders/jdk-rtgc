@@ -428,9 +428,15 @@ void rtHeap::mark_active_trackable(oopDesc* p) {
   fatal("mark_active_trackable is not thread safe!!");
 }
 
+static oopDesc* empty_trackable;
 void rtHeap::mark_empty_trackable(oopDesc* p) {
-  assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(), 
-      "is not a deadspace?");
+  bool is_dead_space = SafepointSynchronize::is_at_safepoint()
+      && Thread::current()->is_VM_thread();
+  if (!is_dead_space) {
+    rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
+    empty_trackable = p;
+  }
+  /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
   obj->markTrackable();

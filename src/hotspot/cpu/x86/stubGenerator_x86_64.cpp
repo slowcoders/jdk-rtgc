@@ -3299,10 +3299,17 @@ class StubGenerator: public StubCodeGenerator {
       __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
 #if ENABLE_ARRAY_COPY_HOOK
-      __ push(dst);
-#endif
+      __ mov(c_rarg3, dst/*c_rarg2*/);
+      __ movl(count/*c_rarg2*/, length/*c_rarg4*/);
+      Register sco_temp = rklass_tmp;
+#else      
       __ movl(count, length);           // length (reloaded)
       Register sco_temp = c_rarg3;      // this register is free now
+#endif      
+      if (0) {
+        __ xorptr(count, count);    
+        __ movl(count/*c_rarg2*/, Address(count, 8)); // error
+      }
       assert_different_registers(from, to, count, sco_temp,
                                  r11_dst_klass, r10_src_klass);
       assert_clean_int(count, sco_temp);
@@ -3313,10 +3320,7 @@ class StubGenerator: public StubCodeGenerator {
       assert_clean_int(sco_temp, rax);
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
-#if ENABLE_ARRAY_COPY_HOOK
-      __ pop(c_rarg3);  
-      setup_arg_regs(4);
-#else
+#if !ENABLE_ARRAY_COPY_HOOK
       // Fetch destination element klass from the ObjArrayKlass header.
       int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
       __ movptr(r11_dst_klass, Address(r11_dst_klass, ek_offset));

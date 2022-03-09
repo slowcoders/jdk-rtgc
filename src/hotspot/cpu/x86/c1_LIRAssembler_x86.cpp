@@ -3502,7 +3502,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   const char *name;
   address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false, true);
   __ call_VM_leaf(entry, 0);
-  __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
 
   __ bind(*stub->continuation());
 }
