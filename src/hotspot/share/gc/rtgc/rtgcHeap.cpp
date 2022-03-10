@@ -13,7 +13,6 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/serial/markSweep.inline.hpp"
 
-
 namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
@@ -369,7 +368,7 @@ bool RTGC::is_young_root(void* p) {
 
 #endif
 
-void rtHeap::refresh_young_roots(bool is_object_moved) {
+void rtHeap::refresh_young_roots() {
   /**
    * @brief 
    * full-gc : 객체를 이동할 주소를 모두 설정한 후 호출된다.
@@ -394,8 +393,8 @@ void rtHeap::refresh_young_roots(bool is_object_moved) {
 #endif    
     if (p->is_gc_marked()) {
       oopDesc* p2 = p->forwardee();
-      postcond(!is_object_moved || p2 != NULL);
-      if (p2 == NULL || p2 == (void*)0xbaadbabebaadbabc) p2 = p;
+      postcond(p2 != (void*)0xbaadbabebaadbabc);
+      if (p2 == NULL) p2 = p;
       if (dst != src || p != p2) {
         *dst = p2;
       }
@@ -429,23 +428,21 @@ void rtHeap::destrory_trackable(oopDesc* p) {
   }
 }
 
-void rtHeap::mark_active_trackable(oopDesc* p) {
-  fatal("mark_active_trackable is not thread safe!!");
-}
-
 static oopDesc* empty_trackable;
 void rtHeap::mark_empty_trackable(oopDesc* p) {
-  bool is_dead_space = SafepointSynchronize::is_at_safepoint()
-      && Thread::current()->is_VM_thread();
-  if (!is_dead_space) {
-    rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
-    RTGC::debug_obj = p;
+  if (CHECK_EMPTY_TRACKBLE) {
+    bool is_dead_space = SafepointSynchronize::is_at_safepoint()
+        && Thread::current()->is_VM_thread();
+    if (!is_dead_space) {
+      rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
+      empty_trackable = p;
+    }
+    /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
+    // rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
+    // GCObject* obj = to_obj(p);
+    // obj->markTrackable();
+    // debug_only(g_cntTrackable++);
   }
-  /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
-  rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
-  GCObject* obj = to_obj(p);
-  obj->markTrackable();
-  debug_only(g_cntTrackable++);
 }
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
@@ -455,7 +452,9 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
    * new_p 를 access 할 수 없으므로, g_pending_trackables 에 따로 보관한다.  
    */
   //if (!REF_LINK_ENABLED) return;
-  precond(new_p != RTGC::debug_obj);
+  if (CHECK_EMPTY_TRACKBLE) {
+    assert(new_p != RTGC::debug_obj, "empty_trackable catched!");
+  }
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p);
   GCObject* obj = to_obj(old_p);
@@ -468,8 +467,10 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   /**
    * @brief YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
    */
-
-  precond (new_p != RTGC::debug_obj);
+  if (CHECK_EMPTY_TRACKBLE && new_p == empty_trackable) {
+    empty_trackable = NULL;
+    rtgc_log(true, "empty_trackable catched!\n");
+  }
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
@@ -479,11 +480,14 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   debug_only(g_cntTrackable++);
 }
 
-void rtHeap::flush_trackables() {
+bool rtHeap::flush_pending_trackables() {
   //if (!REF_LINK_ENABLED) return;
+  if (CHECK_EMPTY_TRACKBLE) {
+    assert(empty_trackable == NULL, "empty_trackable is not catched!");
+  }
   const int count = g_pending_trackables.length();
-  rtgc_log(LOG_OPT(11), "flush_trackables %d\n", count);
-  if (count == 0) return;
+  rtgc_log(LOG_OPT(11), "flush_pending_trackables %d\n", count);
+  if (count == 0) return false;
 
   oop* pOop = &g_pending_trackables.at(0);
   for (int i = count; --i >= 0; ) {
@@ -494,6 +498,7 @@ void rtHeap::flush_trackables() {
     }
   }
   g_pending_trackables.trunc_to(0);
+  return true;
 }
 
 class OldAnchorAdustPointer : public BasicOopIterateClosure {

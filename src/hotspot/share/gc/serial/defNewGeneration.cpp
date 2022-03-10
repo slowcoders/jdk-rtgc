@@ -567,9 +567,13 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
+#if RTGC_OPT_YOUNG_ROOTS
+  assert(this->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+#else
   assert(heap->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-
+#endif
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
 #if RTGC_OPT_YOUNG_ROOTS  
@@ -583,8 +587,13 @@ void DefNewGeneration::collect(bool   full,
                                                   &scan_closure,
                                                   &younger_gen_closure);
 
+#if RTGC_OPT_YOUNG_ROOTS
+  assert(this->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+#else
   assert(heap->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
+#endif
 
   {
     StrongRootsScope srs(0);
@@ -618,9 +627,8 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-#if USE_RTGC  // flush_trackables
-  //rtHeap::refresh_young_roots(true);
-  rtHeap::flush_trackables();
+#if USE_RTGC  // flush_pending_trackables
+  assert(!rtHeap::flush_pending_trackables(), "pending trackables found in defNewGenerations");
 #endif
 
   if (!_promotion_failed) {

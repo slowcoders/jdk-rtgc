@@ -849,9 +849,6 @@ jobject JVMCIRuntime::make_global(const Handle& obj) {
   jobject res = NULL;
   if (ptr != NULL) {
     assert(*ptr == NULL, "invariant");
-#if USE_RTGC && false // make_gloval
-      RTGC::mark_active_trackable(obj());
-#endif    
     NativeAccess<>::oop_store(ptr, obj());
     res = reinterpret_cast<jobject>(ptr);
   } else {

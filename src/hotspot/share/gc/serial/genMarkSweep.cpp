@@ -104,7 +104,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 #if USE_RTGC_COMPACT_1
-  rtHeap::refresh_young_roots(false);
+  rtHeap::refresh_young_roots();
 #endif
 
   mark_sweep_phase4();
@@ -118,7 +118,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   deallocate_stacks();
 
 #if USE_RTGC_COMPACT_1
-  rtHeap::flush_trackables();
+  rtHeap::flush_pending_trackables();
 #endif
 
   // If compaction completely evacuated the young generation then we

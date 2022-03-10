@@ -5,15 +5,25 @@ import java.util.concurrent.atomic.*;
 
 import java.time.Duration;
 
-import jdk.jfr.Recording;
-import jdk.jfr.consumer.RecordedEvent;
-import jdk.test.lib.jfr.Events;
-import jdk.test.lib.jfr.GCHelper;
+// import jdk.jfr.Recording;
+// import jdk.jfr.consumer.RecordedEvent;
+// import jdk.test.lib.jfr.Events;
+// import jdk.test.lib.jfr.GCHelper;
 
 public class Main {
+
+    interface Ifc extends java.io.Serializable {
+
+    }
+
     String title;
-    String[] paras = new String[16];
+    static String[] paras = new String[16];
+    static java.io.Serializable[] ses2 = new java.io.Serializable[16];
+    static volatile Object ses = ses2;
+    static volatile Object str = new String[16];
+    Ifc[] sParas = new Ifc[16];
     int[] intArray = new int[16];
+    static Main[] sArray;
     int id;
     static Object sObj;
     static Object sObj2;
@@ -23,20 +33,23 @@ public class Main {
     static AtomicReference atomicRef = new AtomicReference();
     static AtomicLong atomicLong = new AtomicLong();
 
-    private final static String EVENT_NAME = GCHelper.event_garbage_collection;
+
+    static void test() {
+            System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
+            System.arraycopy(ses, 0, str, paras.length - 1, 1);
+    }
 
     Main(int sno) {
         cnt ++;
-        if (cnt > 90000) {
+        if (cnt > 99_0000) {
             atomicLong.compareAndExchange(0x876543DB876543DBL, 0x123456DB123456DBL);
             Instant instant = Instant.ofEpochMilli(System.currentTimeMillis());
             LocalDateTime ldt = LocalDateTime.ofInstant(
                     instant, ZoneId.systemDefault());
             //System.out.println(ldt);
+            ses2[0] = new StringBuilder();
         }
-
-        System.arraycopy(new Object[16], 0, paras, paras.length - 1, 1);
-        System.arraycopy(new String[16], 0, paras, paras.length - 1, 1);
+        test();
         atomicRef.compareAndSet(null, new Object());
         atomicRef.getAndSet(new Object());
 
@@ -45,12 +58,12 @@ public class Main {
         //System.out.println("set obj member");
         this.title = "title-" + sno;
         idx = sno % paras.length;
-        //System.out.println("set int array item with volatile idx ");
-        //System.out.println("set array item with constant index + constant obj.");
-        //System.out.println("set array item with constant index + null.");
-        //System.out.println("set array item with variable index + constant obj.");
-        //System.out.println("set array item with variable index + null.");
-        //System.out.println("set static field.");
+        // System.out.println("set int array item with volatile idx ");
+        // System.out.println("set array item with constant index + constant obj.");
+        // System.out.println("set array item with constant index + null.");
+        // System.out.println("set array item with variable index + constant obj.");
+        // System.out.println("set array item with variable index + null.");
+        // System.out.println("set static field.");
         sObj2 = this;
         this.intArray[idx] = sno * 20 + idx;
         this.paras[8] = "";
@@ -62,11 +75,12 @@ public class Main {
     
     public static void main(String args[]) {
 
-        Recording recording = new Recording();
-        recording.enable(EVENT_NAME).withThreshold(Duration.ofMillis(0));
-        recording.start();
-        System.gc();
-        recording.stop();
+        // String EVENT_NAME = GCHelper.event_garbage_collection;
+        // Recording recording = new Recording();
+        // recording.enable(EVENT_NAME).withThreshold(Duration.ofMillis(0));
+        // recording.start();
+        // System.gc();
+        // recording.stop();
 
         int round = 1;
         int array_size = 20;
@@ -87,19 +101,19 @@ public class Main {
     }
 
     static void doTest(int round, int size) {
-        Main array[] = new Main[size];
+        sArray = new Main[size];
         System.out.println("["+ round + "] start ");
-        for (int i = 0; i < array.length; i++) {
+        for (int i = 0; i < size; i++) {
             Main m = createMain(sno++);
-            array[i] = m;
+            // array[i] = m;
         }
         System.out.println("["+ round + "] ----");
         int total = 0;
-        for (int i = 0; i < array.length; i++) {
-            total += array[i].paras[(int)(Math.random() * 16)] != null ? 1 : 0;
+        for (int i = 0; i < size; i++) {
+            //total += sArray[i].paras[(int)(Math.random() * 16)] != null ? 1 : 0;
         }
 
-        System.out.println("["+ round + "] total: " + total);
+        System.out.println("["+ round + "] total: " + sArray[0]);
     }
 
     static Main createMain(int sno) {

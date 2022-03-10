@@ -29,33 +29,29 @@ class Thread;
 class oopDesc;
 class OopIterateClosure;
 
+static const int CHECK_EMPTY_TRACKBLE = 1;
+
 class rtHeap : AllStatic {
 public:
-  static void mark_active_trackable(oopDesc* p);
-  static void mark_empty_trackable(oopDesc* p);
-  static void mark_pending_trackable(oopDesc* old_p, void* new_p);
-  static void mark_promoted_trackable(oopDesc* new_p);
-
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p);
+
+  // for younger object collection
+  static void mark_promoted_trackable(oopDesc* new_p);
+  static void add_trackable_link(oopDesc* anchor, oopDesc* linked);
+  static void iterate_young_roots(BoolObjectClosure* closure);
+
+  // for full gc
+  static void refresh_young_roots();
+  static void adjust_tracking_pointers(oopDesc* p, bool remove_garbage);
+  static void mark_pending_trackable(oopDesc* old_p, void* new_p);
+  static bool flush_pending_trackables();
   static void destrory_trackable(oopDesc* p);
 
-  // should be called before pointer adjusting
-  static void refresh_young_roots(bool is_object_moved);
-
-  // should be called for each marked object
-  static void adjust_tracking_pointers(oopDesc* p, bool remove_garbage);
-
-  // should be called after heap compaction finished
-  static void flush_trackables();
-
+  // just for debugging
   static void print_heap_after_gc(bool full_gc);
-
+  static void mark_empty_trackable(oopDesc* p);
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
-
-  static void add_trackable_link(oopDesc* anchor, oopDesc* linked);
-
-  static void iterate_young_roots(BoolObjectClosure* closure);
 };
 
 

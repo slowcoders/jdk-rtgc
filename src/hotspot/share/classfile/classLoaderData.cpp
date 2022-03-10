@@ -209,9 +209,6 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
     Atomic::release_store(&_head, c);
   }
 #endif  
-#if USE_RTGC && 0
-  rtHeap::mark_active_trackable(o);
-#endif  
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
