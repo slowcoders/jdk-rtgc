@@ -436,11 +436,11 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
     rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
     RTGC::debug_obj = p;
   }
-  /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
-  rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
-  GCObject* obj = to_obj(p);
-  obj->markTrackable();
-  debug_only(g_cntTrackable++);
+  // /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
+  // rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
+  // GCObject* obj = to_obj(p);
+  // obj->markTrackable();
+  // debug_only(g_cntTrackable++);
 }
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
