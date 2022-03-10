@@ -434,7 +434,7 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
       && Thread::current()->is_VM_thread();
   if (!is_dead_space) {
     rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
-    empty_trackable = p;
+    RTGC::debug_obj = p;
   }
   /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
@@ -445,6 +445,7 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   //if (!REF_LINK_ENABLED) return;
+  precond (new_p != RTGC::debug_obj);
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p);
   GCObject* obj = to_obj(old_p);
@@ -454,6 +455,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
 }
 
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
+  precond (new_p != RTGC::debug_obj);
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
