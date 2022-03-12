@@ -551,7 +551,8 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
-  void do_work(T* p){
+  void do_work(T* p) {
+    fatal("its not used. in Generational GC");
     oop obj = CompressedOops::decode(*p);
     if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie);
   }

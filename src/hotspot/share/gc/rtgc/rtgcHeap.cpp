@@ -480,6 +480,13 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   debug_only(g_cntTrackable++);
 }
 
+static void add_referrer_and_check_young_root(oopDesc* p, oopDesc* base) {
+  if (!to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
+    RTGC::add_young_root(base);
+  }
+  RTGC::add_referrer_unsafe(p, base);
+}
+
 bool rtHeap::flush_pending_trackables() {
   //if (!REF_LINK_ENABLED) return;
   if (CHECK_EMPTY_TRACKBLE) {
@@ -492,7 +499,7 @@ bool rtHeap::flush_pending_trackables() {
   oop* pOop = &g_pending_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
-    RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_unsafe, p);
+    RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_and_check_young_root, p);
     if (!to_obj(p)->isYoungRoot() && has_young_referent(p)) {
       add_young_root(p);
     }
@@ -568,9 +575,13 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
       g_cntTrackable, g_young_roots.length(), full_gc); 
 }
 
-void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
-  rtgc_log(LOG_OPT(11), "add_trackable_link %p(%d) -> anchor=%p(%d)\n", 
-    link, to_obj(link)->isTrackable(), anchor, to_obj(anchor)->isTrackable()); 
+void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link, bool is_young_root) {
+  rtgc_log(false && is_young_root != !to_obj(link)->isTrackable(), 
+      "add_trackable_link %p(%d) -> anchor=%p(%d)\n", 
+      link, to_obj(link)->isTrackable(), anchor, to_obj(anchor)->isTrackable()); 
+  if (is_young_root && !to_obj(anchor)->isYoungRoot()) {
+    RTGC::add_young_root(anchor);
+  }
   RTGC::add_referrer_unsafe(link, anchor);
 }
 

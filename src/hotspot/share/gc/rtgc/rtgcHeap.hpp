@@ -38,7 +38,7 @@ public:
 
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
-  static void add_trackable_link(oopDesc* anchor, oopDesc* linked);
+  static void add_trackable_link(oopDesc* anchor, oopDesc* linked, bool is_young_root);
   static void iterate_young_roots(BoolObjectClosure* closure);
 
   // for full gc

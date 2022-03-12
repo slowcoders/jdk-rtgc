@@ -83,18 +83,11 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  GCObject* anchor = to_obj(base);
-  GCObject* link = to_obj(p);
-  precond(anchor->isTrackable());
-#if RTGC_OPT_YOUNG_ROOTS 
-  if (!link->isTrackable() && !anchor->isYoungRoot()) {
-    RTGC::add_young_root(base);
-  }
-#endif  
+  precond(to_obj(base)->isTrackable());
 
   if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", anchor, link);
-  GCRuntime::connectReferenceLink(link, anchor);
+  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
+  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base));
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -107,7 +100,14 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
-  if (newValue != NULL) add_referrer_unsafe(newValue, base);
+  if (newValue != NULL) {
+#if RTGC_OPT_YOUNG_ROOTS 
+    if (!to_obj(newValue)->isTrackable() && !to_obj(base)->isYoungRoot()) {
+      RTGC::add_young_root(base);
+    }
+#endif  
+    add_referrer_unsafe(newValue, base);
+  }
   if (!REF_LINK_ENABLED) return;
   if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
 }
