@@ -174,6 +174,12 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       cur_obj += size;
       end_of_live = cur_obj;
     } else {
+#if USE_RTGC_COMPACT_1
+      if (space->scanned_block_is_obj(cur_obj)) {
+        // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
+        rtHeap::destrory_trackable(cast_to_oop(cur_obj));
+      }
+#endif
       // run over all the contiguous dead objects
       HeapWord* end = cur_obj;
       do {
@@ -246,9 +252,6 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
       debug_only(prev_obj = cur_obj);
       cur_obj += size;
     } else {
-#if USE_RTGC_COMPACT_1
-      rtHeap::destrory_trackable(cast_to_oop(cur_obj));
-#endif
       debug_only(prev_obj = cur_obj);
       // cur_obj is not a live object, instead it points at the next live object
       cur_obj = *(HeapWord**)cur_obj;
