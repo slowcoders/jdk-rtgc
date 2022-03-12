@@ -10,6 +10,8 @@
 #define USE_RTGC_TLAB_ALLOC           false
 #define RTGC_TRACK_ALL_GENERATION     false
 
+#define RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER true
+
 #define RTGC_OPT_CLD_SCAN             true
 #define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_NO_DIRTY_CARD_MARKING    true

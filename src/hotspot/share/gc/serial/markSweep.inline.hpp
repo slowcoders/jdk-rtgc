@@ -86,7 +86,7 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
 
     oop new_obj = cast_to_oop(obj->mark().decode_pointer());
 
-#if !USE_RTGC_COMPACT_1 
+#if !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER
     assert(new_obj != NULL ||                      // is forwarding ptr?
            obj->mark() == markWord::prototype() || // not gc marked?
            (UseBiasedLocking && obj->mark().has_bias_pattern()),

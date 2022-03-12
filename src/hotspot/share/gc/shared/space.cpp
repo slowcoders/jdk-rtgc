@@ -385,7 +385,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-#if !USE_RTGC_COMPACT_1 // do not clear marked-state in RTGC.    
+#if !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER
     q->init_mark();
 #endif
     assert(q->forwardee() == NULL, "should be forwarded to NULL");
