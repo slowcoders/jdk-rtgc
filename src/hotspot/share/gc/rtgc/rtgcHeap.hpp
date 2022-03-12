@@ -45,7 +45,7 @@ public:
 
   // for full gc
   static void refresh_young_roots();
-  static void adjust_tracking_pointers(oopDesc* p, bool remove_garbage);
+  static void adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
   static bool flush_pending_trackables();
   static void destrory_trackable(oopDesc* p);

@@ -191,6 +191,15 @@ class AdjustPointerClosure: public BasicOopIterateClosure {
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+#if RTGC_OPT_YOUNG_ROOTS
+  void init_old_gen_start();
+  bool has_young_ref() { return _has_young_ref; }
+  void set_has_young_ref(bool has_young_ref) { _has_young_ref = has_young_ref; }
+  bool is_in_young(void* p) { return p < _old_gen_start; }
+private:
+  bool _has_young_ref;
+  HeapWord* _old_gen_start;
+#endif  
 };
 
 class PreservedMark {

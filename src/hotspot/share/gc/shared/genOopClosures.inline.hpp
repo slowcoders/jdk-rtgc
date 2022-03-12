@@ -88,8 +88,8 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
 #if RTGC_OPT_YOUNG_ROOTS
     precond(_trackable_anchor != NULL);
-    bool is_young_root = cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
-    rtHeap::add_trackable_link(_trackable_anchor, new_obj, is_young_root);
+    bool is_young_ref = cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
+    rtHeap::add_trackable_link(_trackable_anchor, new_obj, is_young_ref);
 #endif
   if (RTGC_NO_DIRTY_CARD_MARKING) return;
 

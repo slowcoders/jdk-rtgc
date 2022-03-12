@@ -35,6 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
 
@@ -104,7 +105,16 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
 }
 
 template <typename T>
-void AdjustPointerClosure::do_oop_work(T* p)           { MarkSweep::adjust_pointer(p); }
+void AdjustPointerClosure::do_oop_work(T* p) { 
+#if RTGC_OPT_YOUNG_ROOTS
+  oopDesc* obj = MarkSweep::adjust_pointer(p); 
+  if (is_in_young(obj)) {
+    set_has_young_ref(true);
+  }
+#else
+  MarkSweep::adjust_pointer(p); 
+#endif
+}
 inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 

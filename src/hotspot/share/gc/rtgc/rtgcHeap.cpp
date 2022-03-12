@@ -36,7 +36,7 @@ static bool is_java_reference(oopDesc* obj) {
   return (obj->klass()->id() == InstanceRefKlassID);
 }
 
-static bool has_young_referent(oopDesc* obj) {
+static bool is_java_reference_with_young_referent(oopDesc* obj) {
   if (!is_java_reference(obj)) return false;
 
   void* referent_addr = java_lang_ref_Reference::referent_addr_raw(obj);
@@ -300,16 +300,43 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
   }
 }
 
-void rtHeap::adjust_tracking_pointers(oopDesc* ref, bool remove_garbage) {
-  GCObject* obj = to_obj(ref);
+static const bool USE_PENDING_TRACKABLES = false;
+void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref) {
+  precond(old_p->is_gc_marked() || 
+      (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER));
 
-  precond(!remove_garbage || ref->is_gc_marked());
+  GCObject* obj = to_obj(old_p);
+  if (obj->isGarbageMarked()) return;
+
+  oopDesc* forwardee = old_p->forwardee();
+  if (!obj->isTrackable()) {
+    if (USE_PENDING_TRACKABLES) {
+      postcond(forwardee == NULL || MarkSweep::adjust_pointer_closure.is_in_young(forwardee));
+    } else {
+      if (forwardee == NULL) {
+        forwardee = old_p;
+      }
+      if (!MarkSweep::adjust_pointer_closure.is_in_young(forwardee)) {
+        mark_pending_trackable(old_p, forwardee);
+        // obj->markTrackable();
+        // RTGC::iterateReferents(obj, (RefTracer2)add_referrer_unsafe, p);
+        if (has_young_ref) {// } || is_java_reference_with_young_referent(p)) {
+          obj->markYoungRoot();
+          g_young_roots.append(forwardee);
+        }
+      }
+    }
+  }
+  else {
+    postcond(forwardee == NULL || !MarkSweep::adjust_pointer_closure.is_in_young(forwardee));
+  }
+
   if (!obj->hasReferrer()) {
     return;
   }
 
-  void* moved_to = ref->mark().decode_pointer();
-  const bool CHECK_GARBAGE = remove_garbage;
+  void* moved_to = old_p->mark().decode_pointer();
+  const bool CHECK_GARBAGE = RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER;
 
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
@@ -426,6 +453,7 @@ void rtHeap::destrory_trackable(oopDesc* p) {
     obj->removeAllReferrer();
     debug_only(g_cntTrackable --);
   }
+  debug_only(obj->markGarbage();)
 }
 
 static oopDesc* empty_trackable;
@@ -436,6 +464,9 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
     if (!is_dead_space) {
       rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
       empty_trackable = p;
+    }
+    else {
+      debug_only(to_obj(p)->isGarbageMarked();)
     }
     /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
     // rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
@@ -456,9 +487,8 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
     assert(new_p != RTGC::debug_obj, "empty_trackable catched!");
   }
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
-  precond((void*)old_p->forwardee() == new_p);
-  GCObject* obj = to_obj(old_p);
-  obj->markTrackable();
+  precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
+  to_obj(old_p)->markTrackable();
   debug_only(g_cntTrackable++);
   g_pending_trackables.append((oopDesc*)new_p);
 }
@@ -481,8 +511,10 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
 }
 
 static void add_referrer_and_check_young_root(oopDesc* p, oopDesc* base) {
-  if (!to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
-    RTGC::add_young_root(base);
+  if (USE_PENDING_TRACKABLES) {
+    if (!to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
+      RTGC::add_young_root(base);
+    }
   }
   RTGC::add_referrer_unsafe(p, base);
 }
@@ -500,7 +532,7 @@ bool rtHeap::flush_pending_trackables() {
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
     RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_and_check_young_root, p);
-    if (!to_obj(p)->isYoungRoot() && has_young_referent(p)) {
+    if (!to_obj(p)->isYoungRoot() && is_java_reference_with_young_referent(p)) {
       add_young_root(p);
     }
   }
@@ -550,14 +582,11 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure) {
     oopDesc* anchor = *src;
     
     rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
-    bool is_root = closure->do_object_b(anchor);
-    if (!is_root && is_java_reference(anchor)) {
-      is_root = has_young_referent(anchor);
-    }
+    bool is_root = closure->do_object_b(anchor)
+                || is_java_reference_with_young_referent(anchor);
     if (!is_root) {
       to_obj(anchor)->unmarkYoungRoot();
-    }
-    else {
+    } else {
       if (dst != src) {
         *dst = anchor;
       }
