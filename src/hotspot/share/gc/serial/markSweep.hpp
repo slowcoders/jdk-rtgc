@@ -150,7 +150,7 @@ class MarkSweep : AllStatic {
 
   static void follow_cld(ClassLoaderData* cld);
 
-  template <class T> static inline oopDesc* adjust_pointer(T* p);
+  template <class T> static inline oopDesc* adjust_pointer(T* p, oop* new_oop = NULL);
 
   // Check mark and maybe push on marking stack
   template <class T> static void mark_and_push(T* p);
@@ -195,10 +195,12 @@ class AdjustPointerClosure: public BasicOopIterateClosure {
   void init_old_gen_start();
   bool has_young_ref() { return _has_young_ref; }
   void set_has_young_ref(bool has_young_ref) { _has_young_ref = has_young_ref; }
+  void set_promoted_anchor(oopDesc* anchor) { _promoted_anchor = anchor; _has_young_ref = false; }
   bool is_in_young(void* p) { return p < _old_gen_start; }
 private:
   bool _has_young_ref;
   HeapWord* _old_gen_start;
+  oopDesc* _promoted_anchor;
 #endif  
 };
 

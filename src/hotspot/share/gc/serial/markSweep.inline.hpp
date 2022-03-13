@@ -56,8 +56,6 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
     if (!obj->mark().is_marked()) {
       mark_object(obj);
-      assert(obj->klass() != NULL, "marking_stack pushed %p k=%p\n", (void*)obj, obj->klass());
-      rtgc_trace(10, "stack_pushed %p, yg=%d tr=%d\n", (void*)obj, RTGC::is_young_root(obj), rtHeap::is_trackable(obj));
       _marking_stack.push(obj);
     }
   }
@@ -79,7 +77,7 @@ inline void MarkAndPushClosure::do_oop(narrowOop* p)         { do_oop_work(p); }
 inline void MarkAndPushClosure::do_klass(Klass* k)           { MarkSweep::follow_klass(k); }
 inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow_cld(cld); }
 
-template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
+template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
@@ -98,8 +96,14 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned");
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-      return new_obj;
+      if (new_oop != NULL) {
+        *new_oop = new_obj;
+      }
     }
+    else if (new_oop != NULL) {
+      *new_oop = obj;
+    }
+    return obj;
   }
   return NULL;
 }
@@ -107,9 +111,15 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p) {
 template <typename T>
 void AdjustPointerClosure::do_oop_work(T* p) { 
 #if RTGC_OPT_YOUNG_ROOTS
-  oopDesc* obj = MarkSweep::adjust_pointer(p); 
-  if (is_in_young(obj)) {
-    set_has_young_ref(true);
+  oop new_p;
+  oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
+  if (old_p != NULL && _promoted_anchor != NULL) {
+    if (is_in_young(new_p)) {
+      set_has_young_ref(true);
+    }
+    // _promoted_anchor 는 old-address를 가지고 있으므로,
+    // Young root로 등록할 수 없다.
+    // rtHeap::add_trackable_link(_promoted_anchor, old_p, false);
   }
 #else
   MarkSweep::adjust_pointer(p); 

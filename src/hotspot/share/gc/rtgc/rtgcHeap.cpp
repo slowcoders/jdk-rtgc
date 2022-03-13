@@ -32,6 +32,10 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
 }
 
+static bool IS_GC_MARKED(oopDesc* obj) {
+  return obj->is_gc_marked();
+}
+
 static bool is_java_reference(oopDesc* obj) {
   return (obj->klass()->id() == InstanceRefKlassID);
 }
@@ -300,19 +304,28 @@ void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param)
   }
 }
 
-static const bool USE_PENDING_TRACKABLES = false;
-void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref) {
+static const bool USE_PENDING_TRACKABLES = true;
+void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool is_young_root) {
   precond(old_p->is_gc_marked() || 
       (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER));
 
   GCObject* obj = to_obj(old_p);
-  if (obj->isGarbageMarked()) return;
+  if (!IS_GC_MARKED(old_p)) {
+    precond(!obj->hasReferrer());
+    precond(!is_young_root);
+    return;
+  }
 
-  oopDesc* forwardee = old_p->forwardee();
-  if (!obj->isTrackable()) {
-    if (USE_PENDING_TRACKABLES) {
-      postcond(forwardee == NULL || MarkSweep::adjust_pointer_closure.is_in_young(forwardee));
-    } else {
+  if (!USE_PENDING_TRACKABLES && is_young_root) {
+    precond(obj->isTrackable());
+    obj->markYoungRoot();
+    oopDesc* forwardee = old_p->forwardee();
+    if (forwardee == NULL) forwardee = old_p;
+    g_young_roots.append(forwardee);
+  }
+  else {
+    oopDesc* forwardee = old_p->forwardee();
+    if (!obj->isTrackable()) {
       if (forwardee == NULL) {
         forwardee = old_p;
       }
@@ -320,15 +333,12 @@ void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref) {
         mark_pending_trackable(old_p, forwardee);
         // obj->markTrackable();
         // RTGC::iterateReferents(obj, (RefTracer2)add_referrer_unsafe, p);
-        if (has_young_ref) {// } || is_java_reference_with_young_referent(p)) {
+        if (is_young_root) {// } || is_java_reference_with_young_referent(p)) {
           obj->markYoungRoot();
           g_young_roots.append(forwardee);
         }
       }
     }
-  }
-  else {
-    postcond(forwardee == NULL || !MarkSweep::adjust_pointer_closure.is_in_young(forwardee));
   }
 
   if (!obj->hasReferrer()) {
@@ -341,16 +351,16 @@ void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref) {
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
-      oopDesc* oop = cast_to_oop(referrers->at(idx));
-      if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-        rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
+      oopDesc* old_p = cast_to_oop(referrers->at(idx));
+      if (CHECK_GARBAGE && !IS_GC_MARKED(old_p)) {
+        rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", old_p, obj, moved_to);
         referrers->removeFast(idx);
         continue;
       }
-      GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
+      GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
         rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
-          oop, new_obj, obj);
+          old_p, new_obj, obj);
         referrers->at(idx) = new_obj;
       }
       idx ++;
@@ -369,16 +379,16 @@ void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref) {
     }
   }
   else {
-    oopDesc* oop = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
-    if (CHECK_GARBAGE && !oop->is_gc_marked()) {
-      rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", oop, obj, moved_to);
+    oopDesc* old_p = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
+    if (CHECK_GARBAGE && !IS_GC_MARKED(old_p)) {
+      rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", old_p, obj, moved_to);
       obj->_refs = 0;
     }
     else {
-      GCObject* new_obj = (GCObject*)oop->mark().decode_pointer();
+      GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
       if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
         rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
-          oop, new_obj, obj);
+          old_p, new_obj, obj);
         obj->_refs = _pointer2offset(new_obj, &obj->_refs);
       }
     }
@@ -418,7 +428,7 @@ void rtHeap::refresh_young_roots() {
       assert(to_obj(p)->isGarbageMarked(), "YGRoot Err %p\n", p);
     } else
 #endif    
-    if (p->is_gc_marked()) {
+    if (IS_GC_MARKED(p)) {
       oopDesc* p2 = p->forwardee();
       postcond(p2 != (void*)0xbaadbabebaadbabc);
       if (p2 == NULL) p2 = p;
@@ -453,7 +463,7 @@ void rtHeap::destrory_trackable(oopDesc* p) {
     obj->removeAllReferrer();
     debug_only(g_cntTrackable --);
   }
-  debug_only(obj->markGarbage();)
+  obj->markGarbage();
 }
 
 static oopDesc* empty_trackable;
@@ -490,7 +500,14 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
   debug_only(g_cntTrackable++);
-  g_pending_trackables.append((oopDesc*)new_p);
+  if (USE_PENDING_TRACKABLES) {
+    g_pending_trackables.append((oopDesc*)new_p);
+  }
+  else if (is_java_reference_with_young_referent(old_p)) {
+    to_obj(old_p)->markYoungRoot();
+    g_young_roots.append((oopDesc*)new_p);
+  }
+
 }
 
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
@@ -520,7 +537,8 @@ static void add_referrer_and_check_young_root(oopDesc* p, oopDesc* base) {
 }
 
 bool rtHeap::flush_pending_trackables() {
-  //if (!REF_LINK_ENABLED) return;
+  if (!USE_PENDING_TRACKABLES) return false;
+
   if (CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
