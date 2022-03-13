@@ -245,21 +245,9 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
       // cur_obj is alive
       // point all the oops to the new location
 #if USE_RTGC_COMPACT_1
-      oopDesc* anchor = NULL;
-      if (!rtHeap::is_trackable(cast_to_oop(cur_obj))) {
-        oopDesc* p = cast_to_oop(cur_obj)->forwardee();
-        if (p == NULL) p = cast_to_oop(cur_obj);
-        if (!MarkSweep::adjust_pointer_closure.is_in_young(p)) {
-          //rtHeap::mark_pending_trackable(cast_to_oop(cur_obj), p);
-          anchor = cast_to_oop(cur_obj);
-        }
-      }
-      MarkSweep::adjust_pointer_closure.set_promoted_anchor(anchor);
-#endif
+      size_t size = rtHeap::adjust_pointers(cast_to_oop(cur_obj));
+#else      
       size_t size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
-#if USE_RTGC_COMPACT_1
-      bool has_young_ref = MarkSweep::adjust_pointer_closure.has_young_ref();
-      rtHeap::adjust_tracking_pointers(cast_to_oop(cur_obj), has_young_ref);
 #endif
       size = space->adjust_obj_size(size);
       debug_only(prev_obj = cur_obj);

@@ -104,8 +104,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if USE_RTGC_COMPACT_1
   rtHeap::refresh_young_roots();
-  HeapWord* old_gen_start = GenCollectedHeap::heap()->old_gen()->reserved().start(); 
-  MarkSweep::adjust_pointer_closure.init_old_gen_start();
 #endif
 
   mark_sweep_phase3();

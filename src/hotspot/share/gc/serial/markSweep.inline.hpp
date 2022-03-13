@@ -110,20 +110,7 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
 
 template <typename T>
 void AdjustPointerClosure::do_oop_work(T* p) { 
-#if RTGC_OPT_YOUNG_ROOTS
-  oop new_p;
-  oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (old_p != NULL && _promoted_anchor != NULL) {
-    if (is_in_young(new_p)) {
-      set_has_young_ref(true);
-    }
-    // _promoted_anchor 는 old-address를 가지고 있으므로,
-    // Young root로 등록할 수 없다.
-    // rtHeap::add_trackable_link(_promoted_anchor, old_p, false);
-  }
-#else
   MarkSweep::adjust_pointer(p); 
-#endif
 }
 inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }

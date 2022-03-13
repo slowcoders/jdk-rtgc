@@ -175,12 +175,6 @@ void MarkSweep::set_ref_processor(ReferenceProcessor* rp) {
   mark_and_push_closure.set_ref_discoverer(_ref_processor);
 }
 
-#if RTGC_OPT_YOUNG_ROOTS
-void AdjustPointerClosure::init_old_gen_start() { 
-  _old_gen_start = GenCollectedHeap::heap()->old_gen()->reserved().start(); 
-}
-#endif
-
 AdjustPointerClosure MarkSweep::adjust_pointer_closure;
 
 void MarkSweep::adjust_marks() {
