@@ -15,10 +15,12 @@ struct GCFlags {
 	uint32_t isTrackable: 1;
 	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
+	uint32_t dirtyReferrerPoints: 1;
+
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
-	int32_t rootRefCount: 25;
+	int32_t rootRefCount: 24;
 };
 
 class GCNode {
@@ -39,7 +41,17 @@ public:
 		_nextUntrackable = NULL; 
 	}
 
-	
+	void markDirtyReferrerPoints() {
+		_flags.dirtyReferrerPoints = true;
+	}	
+
+	void unmarkDirtyReferrerPoints() {
+		_flags.dirtyReferrerPoints = false;
+	}	
+
+	bool isDirtyReferrerPoints() {
+		return _flags.dirtyReferrerPoints;
+	}	
 
 	bool isYoungRoot() {
 		return _flags.isYoungRoot;

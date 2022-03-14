@@ -169,6 +169,9 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
+#if USE_RTGC_COMPACT_1
+      rtHeap::mark_forwarded(cast_to_oop(cur_obj));
+#endif
       size_t size = space->scanned_block_size(cur_obj);
       compact_top = cp->space->forward(cast_to_oop(cur_obj), size, cp, compact_top);
       cur_obj += size;
@@ -177,7 +180,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 #if USE_RTGC_COMPACT_1
       if (space->scanned_block_is_obj(cur_obj)) {
         // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
-        rtHeap::destrory_trackable(cast_to_oop(cur_obj));
+        rtHeap::destroy_trackable(cast_to_oop(cur_obj));
       }
 #endif
       // run over all the contiguous dead objects

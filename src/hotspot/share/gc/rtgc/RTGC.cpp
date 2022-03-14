@@ -24,7 +24,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
-  bool REF_LINK_ENABLED = false;
+  bool REF_LINK_ENABLED = true;
 }
 int GCNode::_cntTrackable = 0;
 
@@ -83,7 +83,11 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  precond(to_obj(base)->isTrackable());
+  // precond(base->klass()->id() != InstanceRefKlassID
+  //   || ((address)p - (address)base != java_lang_ref_Reference::referent_offset() &&
+  //       (address)p - (address)base != java_lang_ref_Reference::discovered_offset()));
+
+  // precond(to_obj(base)->isTrackable());
 
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
@@ -95,6 +99,9 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
+  precond(base->klass()->id() != InstanceRefKlassID
+    || ((address)addr - (address)base != java_lang_ref_Reference::referent_offset() &&
+        (address)addr - (address)base != java_lang_ref_Reference::discovered_offset()));
 
   if (oldValue == newValue) return;
 
@@ -164,7 +171,7 @@ void RTGC::initialize() {
   debugOptions[0] = UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 0;
+    logOptions[LOG_HEAP] = -1;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }

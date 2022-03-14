@@ -49,7 +49,8 @@ public:
   static void adjust_tracking_pointers(oopDesc* old_p, bool has_young_ref);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
   static bool flush_pending_trackables();
-  static void destrory_trackable(oopDesc* p);
+  static void mark_forwarded(oopDesc* p);
+  static void destroy_trackable(oopDesc* p);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

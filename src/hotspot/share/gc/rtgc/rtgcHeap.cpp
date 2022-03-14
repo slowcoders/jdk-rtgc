@@ -20,19 +20,26 @@ class RtAdjustPointerClosure: public BasicOopIterateClosure {
   virtual void do_oop(oop* p)       { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
-#if RTGC_OPT_YOUNG_ROOTS
+
   void init_old_gen_start() {
     _old_gen_start = GenCollectedHeap::heap()->old_gen()->reserved().start(); 
+    _old_anchor_p = NULL;
   }
   bool is_in_young(void* p) { return p < _old_gen_start; }
   bool has_young_ref() { return _has_young_ref; }
   void set_has_young_ref(bool has_young_ref) { _has_young_ref = has_young_ref; }
-  void set_promoted_anchor(oopDesc* anchor) { _promoted_anchor = anchor; _has_young_ref = false; }
+  void set_old_anchor_p(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_reference) { 
+    _old_anchor_p = old_anchor_p; 
+    _new_anchor_p = new_anchor_p; 
+    _is_java_reference = is_reference;
+    _has_young_ref = false; 
+  }
 private:
   bool _has_young_ref;
   HeapWord* _old_gen_start;
-  oopDesc* _promoted_anchor;
-#endif  
+  oopDesc* _old_anchor_p;
+  oopDesc* _new_anchor_p;
+  bool _is_java_reference;
 };
 
 namespace RTGC {
@@ -41,7 +48,7 @@ namespace RTGC {
   static Thread* gcThread = NULL;
   static int g_cntTrackable = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
-  static const bool USE_PENDING_TRACKABLES = true;
+  static const bool USE_PENDING_TRACKABLES = false;
 };
 using namespace RTGC;
 
@@ -163,9 +170,9 @@ public:
       if (--_cntMap < 0) break;
       setOopMap(_map + 1);
     }
-    if (_base->klass() == vmClasses::Class_klass()) {
-      iterate_static_pointers(closure);
-    }
+    // if (_base->klass() == vmClasses::Class_klass()) {
+    //   iterate_static_pointers(closure);
+    // }
   }
 
   static void scanInstance(oopDesc* p, RTGC::RefTracer trace) {
@@ -339,23 +346,7 @@ void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool is_young_root) {
     return;
   }
 
-  if (USE_PENDING_TRACKABLES) {
-    oopDesc* forwardee = old_p->forwardee();
-    if (!obj->isTrackable()) {
-      if (forwardee == NULL) {
-        forwardee = old_p;
-      }
-      if (!g_adjust_pointer_closure.is_in_young(forwardee)) {
-        // mark_pending_trackable(old_p, forwardee);
-        // obj->markTrackable();
-        // RTGC::iterateReferents(obj, (RefTracer2)add_referrer_unsafe, p);
-        if (is_young_root) {// } || is_java_reference_with_young_referent(p)) {
-          obj->markYoungRoot();
-          g_young_roots.append(forwardee);
-        }
-      }
-    }
-  } else if (is_young_root) {
+  if (is_young_root) {
     precond(obj->isTrackable());
     if (!obj->isYoungRoot()) {
       obj->markYoungRoot();
@@ -486,7 +477,7 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return obj->isTrackable();
 }
 
-void rtHeap::destrory_trackable(oopDesc* p) {
+void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   if (obj->isTrackable()) {
     obj->removeAllReferrer();
@@ -522,7 +513,8 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
    */
   //if (!REF_LINK_ENABLED) return;
   if (CHECK_EMPTY_TRACKBLE) {
-    assert(new_p != RTGC::debug_obj, "empty_trackable catched!");
+    empty_trackable = NULL;
+    // assert(new_p != RTGC::debug_obj, "empty_trackable catched!");
   }
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
@@ -531,7 +523,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   if (USE_PENDING_TRACKABLES) {
     g_pending_trackables.append((oopDesc*)new_p);
   }
-  else if (is_java_reference_with_young_referent(old_p)) {
+  if (is_java_reference_with_young_referent(old_p)) {
     /* adjust_pointers 수행 전에 referent 검사하여야 한다.
        또는 객체 복사가 모두 종료된 시점에 referent를 검사할 수 있다.
     */
@@ -549,7 +541,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
    */
   if (CHECK_EMPTY_TRACKBLE && new_p == empty_trackable) {
     empty_trackable = NULL;
-    rtgc_log(true, "empty_trackable catched!\n");
+    // rtgc_log(true, "empty_trackable catched!\n");
   }
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
@@ -570,11 +562,11 @@ static void add_referrer_and_check_young_root(oopDesc* p, oopDesc* base) {
 }
 
 bool rtHeap::flush_pending_trackables() {
-  if (!USE_PENDING_TRACKABLES) return false;
-
   if (CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
+
+  if (!USE_PENDING_TRACKABLES) return false;
   const int count = g_pending_trackables.length();
   rtgc_log(LOG_OPT(11), "flush_pending_trackables %d\n", count);
   if (count == 0) return false;
@@ -582,10 +574,7 @@ bool rtHeap::flush_pending_trackables() {
   oop* pOop = &g_pending_trackables.at(0);
   for (int i = count; --i >= 0; ) {
     oopDesc* p = *pOop++;
-    RTGC::iterateReferents(to_obj(p), (RefTracer2)add_referrer_and_check_young_root, p);
-    if (!to_obj(p)->isYoungRoot() && is_java_reference_with_young_referent(p)) {
-      add_young_root(p);
-    }
+    RTGC::iterateReferents(to_obj(p), (RefTracer2)RTGC::add_referrer_unsafe, p);
   }
   g_pending_trackables.trunc_to(0);
   return true;
@@ -677,30 +666,60 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (old_p != NULL && _promoted_anchor != NULL) {
+  if (old_p != NULL && _new_anchor_p != NULL) {
     if (is_in_young(new_p)) {
       set_has_young_ref(true);
     }
-    // _promoted_anchor 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
-    rtHeap::add_trackable_link(_promoted_anchor, old_p, false);
+    if (USE_PENDING_TRACKABLES) return;
+
+    if (_is_java_reference) {
+      ptrdiff_t offset = (address)p - (address)_old_anchor_p;
+      if (offset == java_lang_ref_Reference::discovered_offset()
+      ||  offset == java_lang_ref_Reference::referent_offset()) {
+        return;
+      }
+    }
+    // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
+    if (to_obj(old_p)->isDirtyReferrerPoints()) {
+      // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
+      rtHeap::add_trackable_link(_old_anchor_p, old_p, false);
+    }
+    else {
+      // old_p 에 대해 이미 adjust_pointers 가 수행됨.
+      rtHeap::add_trackable_link(_new_anchor_p, old_p, false);
+    }
+  }
+}
+
+void rtHeap::mark_forwarded(oopDesc* p) {
+  if (!USE_PENDING_TRACKABLES) {
+    to_obj(p)->markDirtyReferrerPoints();
   }
 }
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
-  oopDesc* anchor = NULL;
+  oopDesc* new_anchor_p = NULL;
+  bool is_reference = false;
   if (!to_obj(old_p)->isTrackable()) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(p)) {
       mark_pending_trackable(old_p, p);
-      anchor = old_p;
+      is_reference = is_java_reference(old_p);
+      new_anchor_p = p;
     }
   }
-  g_adjust_pointer_closure.set_promoted_anchor(anchor);
-
+  g_adjust_pointer_closure.set_old_anchor_p(old_p, new_anchor_p, is_reference);
+  /**
+   * @brief oop_iterate, oop_iterate_size 는 Reference.referent 와 discovered 도
+   * Scan 한다. 이 때, Reference 를 referent 의 anchor 로 추가하지 않아야 한다.
+   */
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
   bool has_young_ref = g_adjust_pointer_closure.has_young_ref();
   adjust_tracking_pointers(old_p, has_young_ref); 
+  if (!USE_PENDING_TRACKABLES) {
+    to_obj(old_p)->unmarkDirtyReferrerPoints();
+  }
   return size; 
 }

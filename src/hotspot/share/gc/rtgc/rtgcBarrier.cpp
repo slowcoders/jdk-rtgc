@@ -25,7 +25,7 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER, function);
 }
 
-static void check_field_addr(void* base, volatile void* addr) {
+static void check_field_addr(oopDesc* base, volatile void* addr) {
   assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
       && addr < (address)base + MAX_OBJ_SIZE
       , "invalid field addr %p of base %p\n", addr, base);
