@@ -3,8 +3,8 @@
 
 namespace RTGC {
 
-static const int ZERO_ROOT_REF = -1;
-static const int TRACKABLE_BIT = 1;
+#define 			ZERO_ROOT_REF 	0
+static const int 	TRACKABLE_BIT = 1;
 enum class TraceState : int {
 	NOT_TRACED,
 	IN_TRACING,
@@ -20,7 +20,11 @@ struct GCFlags {
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
+#if ZERO_ROOT_REF < 0	
 	int32_t rootRefCount: 24;
+#else
+	uint32_t rootRefCount: 24;
+#endif
 };
 
 class GCNode {

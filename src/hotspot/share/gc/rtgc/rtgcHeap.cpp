@@ -620,6 +620,9 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure) {
   oop* dst = src;
   for (int i = g_young_roots.length(); --i >= 0; src++) {
     oopDesc* anchor = *src;
+    if (!is_alive(anchor)) {
+      continue;      
+    }
     
     rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
     bool is_root = closure->do_object_b(anchor)
@@ -655,7 +658,9 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link, bool is_young_ro
 }
 
 bool rtHeap::is_alive(oopDesc* p) {
-  fatal("not impl");
+  if (RTGC::debugOptions[0]) {
+    return !RTGC::collectGarbage(p);
+  }
   return true;
 }
 

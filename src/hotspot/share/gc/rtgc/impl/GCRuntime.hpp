@@ -45,11 +45,14 @@ public:
 	ShortcutPool g_shortcutPool;
     TinyMemPool gTinyPool;
     ReferrerListPool gRefListPool;
+	GarbageProcessor* g_pGarbageProcessor;
+	char _gp[sizeof(GarbageProcessor)];
 
 	void initialize() {
 		g_shortcutPool.initialize();
 		gTinyPool.initialize();
 		gRefListPool.initialize();
+		g_pGarbageProcessor = new (_gp)GarbageProcessor();
 	}
 
 	static void NO_INLINE onReplaceRootVariable(GCObject* assigned, GCObject* erased);

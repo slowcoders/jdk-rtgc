@@ -6,6 +6,7 @@
 using namespace RTGC;
 namespace RTGC {
     GCRuntime _rtgc;
+  //  GarbageProcessor g_garbageProcessor;
 }
 
 const static bool USE_TINY_MEM_POOL = true;
@@ -21,7 +22,6 @@ void ReferrerList::init(int initialSize) {
 
 
 void* DefaultAllocator::alloc(size_t size) {
-    assert(0, "ghghghgh");
     if (USE_TINY_MEM_POOL && size <= sizeof(TinyChunk)) {
         return _rtgc.gTinyPool.allocate();
     }
@@ -191,8 +191,7 @@ void GCRuntime::publishInstance(GCObject* obj) {
 #endif
 
 void GCRuntime::detectGarbages(GCObject* unsafeObj) {
-    assert(0, "not impl");
-    // g_garbageProcessor.scanGarbages(unsafeObj);
+    _rtgc.g_pGarbageProcessor->scanGarbages(unsafeObj);
 }
 
 #if GC_DEBUG

@@ -1,5 +1,6 @@
 #include "GCObject.hpp" 
 #include "GCRuntime.hpp" 
+#include "../rtgcDebug.hpp"
 
 #define USE_ITERATOR_STACK false
 #define USE_ANCHOR_VISIOR true
@@ -77,22 +78,31 @@ static bool findSurvivalPath(GCObject* tracingNode, SimpleVector<void*>& visited
 void constructShortcut(GCObject* obj) {
 	int s_id = 0;
 	SafeShortcut* newShortcut = nullptr;
+    int cntNode = 0;
     while (obj->getRootRefCount() == ZERO_ROOT_REF) {
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (newShortcut == nullptr) {
-                SafeShortcut* newShortcut = new SafeShortcut(obj);
+                newShortcut = new SafeShortcut(obj);
 				s_id = SafeShortcut::getIndex(newShortcut);
             }
+            cntNode ++;
             obj->setShortcutId_unsafe(s_id);
+            //rtgc_log(true, "shotcut assigned %p = %d (%d)\n", obj, s_id, cntNode);
             obj = obj->getSafeAnchor();
         } else {
             if (newShortcut != nullptr) {
-                newShortcut->setAnchor(obj, 0);
+                newShortcut->setAnchor(obj, cntNode);
+                s_id = SafeShortcut::getIndex(newShortcut);
+                rtgc_log(true, "shotcut %d anchor= %p cntNode= %d\n", s_id, obj, cntNode);
+                cntNode = 0;
                 newShortcut = nullptr;
             }
             obj = ss->getAnchor();
         }
+    }
+    if (newShortcut != nullptr) {
+        rtgc_log(true, "shotcut %d anchor= %p cntNode= %d\n", s_id, obj, cntNode);
     }
 }
 
@@ -102,12 +112,14 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
         bool hasSurvivalPath = findSurvivalPath(unsafeObj, visitedNodes);
 
         if (hasSurvivalPath) {
-            constructShortcut(unsafeObj);
+            if (visitedNodes.size() > 2) {
+                constructShortcut(unsafeObj);
+            }
         }
         else {
             for (int i = visitedNodes.size(); --i >= 0; ) {
                 GCObject* obj = (GCObject*)visitedNodes.at(i);
-                //if (GC_VERBOSE_LOG) printf("markGarbage %p %s\n", obj, obj->getDebugId());
+                rtgc_log(true, "markGarbage %p\n", obj);
                 obj->markGarbage();
             }
             for (int i = visitedNodes.size(); --i >= 0; ) {

@@ -319,6 +319,10 @@ markWord markWord::displaced_mark_helper()
             Finalizer(extends FinalReference).register()
                new Finalizer(boj);
 
+## hashCode 생성
+   synchronizer.cpp:808 get_next_hash를 이용하여 hashCode 를 생성한다.
+   globals.hpp:726 외부 옵션으로 hashCode 생성 방식을 변경할 수 있다. default:5
+
 lock_bits: 2
 biased_lock_bits: 1
 age_bits: 4
@@ -337,11 +341,11 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
   // The biased locking code currently requires that the age bits be
   // contiguous to the lock bits.
   static const int lock_shift                     = 0;
-  static const int biased_lock_shift              = lock_bits;
-  static const int age_shift                      = lock_bits + biased_lock_bits;
-  static const int unused_gap_shift               = age_shift + age_bits;
-  static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
-  static const int epoch_shift                    = hash_shift;
+  static const int biased_lock_shift              = lock_bits(2);
+  static const int age_shift                      = lock_bits(2) + biased_lock_bits(1);
+  static const int unused_gap_shift               = age_shift(3) + age_bits(4);
+  static const int hash_shift                     = unused_gap_shift(7) + unused_gap_bits(?1:0);
+  static const int epoch_shift                    = hash_shift(7+1?);
 
 
 ## Reference 처리.

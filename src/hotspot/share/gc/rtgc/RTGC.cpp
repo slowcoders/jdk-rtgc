@@ -152,8 +152,11 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 bool RTGC::collectGarbage(oopDesc* obj) {
-  assert(0, "not impl");
-  return false;
+  GCObject* erased = to_obj(obj); 
+  if (erased->isUnsafe() && !erased->isGarbageMarked()) {
+      GCRuntime::detectGarbages(erased);
+  }
+  return erased->isGarbageMarked();
 }
 
 oop rtgc_break(const char* file, int line, const char* function) {
@@ -171,7 +174,7 @@ void RTGC::initialize() {
   debugOptions[0] = UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = -1;
+    logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }
