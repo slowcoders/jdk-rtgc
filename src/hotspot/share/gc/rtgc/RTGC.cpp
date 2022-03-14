@@ -151,6 +151,11 @@ bool RTGC::logEnabled(int logOption) {
   return logOptions[category] & function;
 }
 
+GCObject* RTGC::getForwardee(GCObject* obj) {
+  oopDesc* p = cast_to_oop(obj)->forwardee();
+  return to_obj(p);
+}
+
 bool RTGC::collectGarbage(oopDesc* obj) {
   GCObject* erased = to_obj(obj); 
   if (erased->isUnsafe() && !erased->isGarbageMarked()) {

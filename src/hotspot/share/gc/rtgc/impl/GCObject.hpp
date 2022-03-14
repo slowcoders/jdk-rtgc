@@ -75,8 +75,8 @@ public:
 
 
 class SafeShortcut {
-	GCObject* _anchor;
 	GCObject* _tail;
+	GCObject* _anchor;
 	int _cntNode;
 public:
 
@@ -97,6 +97,12 @@ public:
 	void operator delete(void* ptr);
 
 	GCObject* getAnchor() { return _anchor; }
+
+	GCObject* getTail() { return _tail; }
+
+	void adjustPointUnsafe(GCObject* anchor, GCObject* tail) {
+		_anchor = anchor; _tail = tail;
+	}
 
 	void setAnchor(GCObject* anchor, int cntNode) { this->_anchor = anchor; this->_cntNode = cntNode; }
 

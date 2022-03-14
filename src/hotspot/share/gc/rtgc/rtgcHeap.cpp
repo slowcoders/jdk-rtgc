@@ -566,6 +566,9 @@ bool rtHeap::flush_pending_trackables() {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
 
+  if (RTGC::debugOptions[0]) {
+    GCRuntime::adjustShortcutPoints();
+  }
   if (!USE_PENDING_TRACKABLES) return false;
   const int count = g_pending_trackables.length();
   rtgc_log(LOG_OPT(11), "flush_pending_trackables %d\n", count);

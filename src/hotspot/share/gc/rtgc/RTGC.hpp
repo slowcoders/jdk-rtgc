@@ -38,6 +38,8 @@ namespace RTGC {
     publish_and_lock_heap(to_obj(obj), true);
   }
 
+  GCObject* getForwardee(GCObject* obj);
+
   bool lock_if_published(GCObject* obj);
 
   void lock_heap();

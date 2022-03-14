@@ -77,6 +77,8 @@ public:
 		return false;
 	}
 	
+	static void adjustShortcutPoints();
+
 	static void connectReferenceLink(GCObject* assigned, GCObject* owner);
 
 	static void disconnectReferenceLink(GCObject* erased, GCObject* owner);

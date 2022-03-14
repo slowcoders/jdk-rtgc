@@ -431,6 +431,10 @@ public:
         return ptr;
     }
 
+    int getAllocatedSize() {
+        return _idxAlloc;
+    }
+
     int getIndex(void* ptr) {
         return (int)((T*)ptr - _items);
     }
