@@ -58,7 +58,7 @@ public:
 		return this->_shortcutId;
 	}
 
-	void invaliateSurvivalPath();
+	void invaliateSurvivalPath(GCObject* newTail);
 
 	GCObject* getLinkInside(SafeShortcut* container);
 
@@ -75,7 +75,10 @@ public:
 
 
 class SafeShortcut {
-	GCObject* _tail;
+	union {
+		GCObject* _tail;
+		intptr_t  _mark;
+	};
 	GCObject* _anchor;
 	int _cntNode;
 public:
@@ -96,9 +99,23 @@ public:
 
 	void operator delete(void* ptr);
 
+	void markInTracing() {
+		_mark |= 1;
+	}
+	void unmarkInTracing() {
+		_mark &= ~1;
+	}
+	bool inTracing() {
+		return (_mark & 1);
+	}
+
 	GCObject* getAnchor() { return _anchor; }
 
 	GCObject* getTail() { return _tail; }
+
+	void split(GCObject* newTail, GCObject* newAnchor);
+
+	bool clearTooShort(GCObject* anchor, GCObject* tail);
 
 	void adjustPointUnsafe(GCObject* anchor, GCObject* tail) {
 		_anchor = anchor; _tail = tail;
@@ -106,7 +123,7 @@ public:
 
 	void setAnchor(GCObject* anchor, int cntNode) { this->_anchor = anchor; this->_cntNode = cntNode; }
 
-	void invalidate() { this->_anchor = nullptr; }
+	void moveAnchorTo(GCObject* newAnchor);
 
 	bool isValid() { return this->_anchor != nullptr; }
 };

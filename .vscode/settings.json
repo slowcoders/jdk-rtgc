@@ -74,7 +74,9 @@
         "ios": "cpp",
         "__split_buffer": "cpp",
         "__locale": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "__config": "cpp",
+        "__debug": "cpp"
     },
     "terminal.integrated.defaultProfile.osx": "bash"
 }

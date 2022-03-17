@@ -104,6 +104,9 @@ public:
 		_flags.isGarbage = true;
 	}
 
+	void unmarkGarbage() {
+		_flags.isGarbage = false;
+	}
 
 	bool hasReferrer() {
 		return this->_refs != 0;

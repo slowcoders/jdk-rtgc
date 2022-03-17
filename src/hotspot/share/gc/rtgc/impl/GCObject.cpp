@@ -84,7 +84,12 @@ int GCObject::removeReferrer(GCObject* referrer) {
             return idx;
         }
     }
-    this->invaliateSurvivalPath();
+    if (this->getShortcutId() != 0
+    &&  this->getShortcutId() == referrer->getShortcutId()) {
+    this->invaliateSurvivalPath(referrer);
+		SafeShortcut* shortcut = this->getShortcut();
+        shortcut->split(referrer, this);
+    }
     return 0;
 }
 
@@ -211,10 +216,13 @@ void GCObject::setShortcutId_unsafe(int shortcutId) {
 	this->_shortcutId = shortcutId;
 }
 
-void GCObject::invaliateSurvivalPath() {
+
+
+void GCObject::invaliateSurvivalPath(GCObject* newTail) {
 	if (this->_shortcutId > 0) {
-		this->getShortcut()->invalidate();
-		this->_shortcutId = 0;
+		SafeShortcut* shortcut = this->getShortcut();
+        shortcut->split(newTail, this);
+    	this->_shortcutId = 0;
 	}
 }
 
