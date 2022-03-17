@@ -43,10 +43,15 @@
 #include "utilities/growableArray.hpp"
 
 #include "unittest.hpp"
-
 #include <vector>
 #include <list>
 #include <map>
+
+#ifdef __APPLE__
+// for XCode 13.3 
+#undef assert
+#define assert(p, ...) vmassert(p, __VA_ARGS__)
+#endif
 
 namespace {
 

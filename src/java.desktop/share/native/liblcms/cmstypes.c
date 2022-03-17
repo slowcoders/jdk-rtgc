@@ -3435,7 +3435,10 @@ cmsBool ReadSeqID(struct _cms_typehandler_struct* self,
     return TRUE;
 }
 
-
+#ifdef __APPLE__
+  // for XCode 13.3 
+  #pragma GCC diagnostic ignored "-Wunused-but-set-parameter"
+#endif
 
 static
 void *Type_ProfileSequenceId_Read(struct _cms_typehandler_struct* self, cmsIOHANDLER* io, cmsUInt32Number* nItems, cmsUInt32Number SizeOfTag)

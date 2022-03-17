@@ -3217,6 +3217,11 @@ png_check_chunk_length(png_const_structrp png_ptr, png_uint_32 length)
    }
 }
 
+#ifdef __APPLE__
+  // for XCode 13.3 
+  #pragma GCC diagnostic ignored "-Wnull-pointer-subtraction"
+#endif
+
 /* Combines the row recently read in with the existing pixels in the row.  This
  * routine takes care of alpha and transparency if requested.  This routine also
  * handles the two methods of progressive display of interlaced images,
