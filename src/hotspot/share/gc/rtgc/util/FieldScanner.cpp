@@ -91,22 +91,6 @@ public:
 
 public:
   FieldIterator() {}
-  void iterate_pointers(OopClosure* closure) {
-    if (_base->klass() == vmClasses::Class_klass()) {
-      _base->oop_iterate_size((BasicOopIterateClosure*)closure);
-      return;
-    }
-    while (true) {
-      while (--_cntOop >= 0) {
-        closure->do_oop(_field++);
-      }
-      if (--_cntMap < 0) break;
-      setOopMap(_map + 1);
-    }
-    // if (_base->klass() == vmClasses::Class_klass()) {
-    //   iterate_static_pointers(closure);
-    // }
-  }
 
   template <int args>
   static void scanInstanceGraph(oopDesc* p, void* trace_fn, void* param) {
@@ -160,7 +144,7 @@ void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer3 trace, void* param
 
 
 
-class Ref2Tracer : public OopClosure {
+class Ref2Tracer : public BasicOopIterateClosure {
   RTGC::RefTracer2 _trace;
   void* _param;
 public:  
@@ -186,12 +170,5 @@ public:
 void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
   oopDesc* p = cast_to_oop(root);
   Ref2Tracer tracer(trace, param);
-  if (RTGC::is_narrow_oop_mode) {
-    FieldIterator<narrowOop> it(p);
-    it.iterate_pointers(&tracer);
-  }
-  else {
-    FieldIterator<oop> it(p);
-    it.iterate_pointers(&tracer);
-  }
+  p->oop_iterate(&tracer);
 }
