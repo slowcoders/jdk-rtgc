@@ -25,7 +25,9 @@ namespace RTGC {
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
   bool REF_LINK_ENABLED = true;
+  bool is_narrow_oop_mode;
 }
+
 int GCNode::_cntTrackable = 0;
 
 bool RTGC::isPublished(GCObject* obj) {
@@ -59,7 +61,7 @@ bool RTGC::lock_if_published(GCObject* obj) {
 void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
   if (doPublish && obj != NULL && !isPublished(obj)) {
     //if (RTGC::debugOptions[0])
-    //RTGC::scanInstance(obj, GCRuntime::markPublished);
+    //RTGC::scanInstanceGraph(obj, GCRuntime::markPublished);
   }
   lock_heap();
 }
@@ -171,7 +173,14 @@ oop rtgc_break(const char* file, int line, const char* function) {
 } 
 
 void RTGC::initialize() {
+#ifdef _LP64
+  is_narrow_oop_mode = UseCompressedOops;
+#else
+  is_narrow_oop_mode = false;
+#endif
+
   RTGC::_rtgc.initialize();
+
   // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

@@ -86,7 +86,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
     }
     if (this->getShortcutId() != 0
     &&  this->getShortcutId() == referrer->getShortcutId()) {
-    this->invaliateSurvivalPath(referrer);
+    //this->invaliateSurvivalPath(referrer);
 		SafeShortcut* shortcut = this->getShortcut();
         shortcut->split(referrer, this);
     }
@@ -103,7 +103,7 @@ void GCObject::removeAllReferrer() {
     this->_refs = 0;
 }
 
-bool GCObject::removeAllReferrer(GCObject* referrer) {
+bool GCObject::removeMatchedReferrers(GCObject* referrer) {
     if (!hasMultiRef()) {
         if (_refs != 0 && _refs == _pointer2offset(referrer, &_refs)) {
             this->_refs = 0;
@@ -112,7 +112,7 @@ bool GCObject::removeAllReferrer(GCObject* referrer) {
     }
     else {
         ReferrerList* referrers = _rtgc.gRefListPool.getPointer(_refs);
-        if (referrers->removeAll(referrer)) {
+        if (referrers->removeMatchedItems(referrer)) {
             if (referrers->size() <= 1) {
                 if (referrers->size() == 0) {
                     _rtgc.gRefListPool.delete_(referrers);

@@ -161,7 +161,7 @@ public:
         return true;
     }
 
-    bool removeAll(T v) {
+    bool removeMatchedItems(T v) {
         int idx = _data->_size;
         T* pObj = _data->_items + idx;
         bool found = false;
@@ -309,7 +309,7 @@ public:
         }
     }
 
-    bool removeAll(T* item) {
+    bool removeMatchedItems(T* item) {
         precond(item != nullptr);
         if (SUPER::_slot <= 0) {
             if (SUPER::_slot == ((intptr_t)item | SINGLE_ITEM_FLAG)) {
@@ -318,7 +318,7 @@ public:
             }
             return false;
         }
-        else if (SUPER::removeAll(item)) {
+        else if (SUPER::removeMatchedItems(item)) {
             if (SUPER::size() <= 1) {
                 if (SUPER::size() == 0) {
                     SUPER::deallocate();

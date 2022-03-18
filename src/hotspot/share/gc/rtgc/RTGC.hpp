@@ -5,11 +5,16 @@
 namespace RTGC {
   class GCNode;
   class GCObject;
-  typedef bool (*RefTracer)(GCObject* obj);
+  typedef bool (*RefTracer1)(GCObject* obj);
   typedef bool (*RefTracer2)(GCObject* obj, void* param);
+  typedef bool (*RefTracer3)(GCObject* obj, GCObject* anchor, void* param);
   
-  void scanInstance(GCObject* obj, RefTracer trace);
+  void scanInstanceGraph(GCObject* obj, RefTracer1 tracer);
+  void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, void* param);
+  void scanInstanceGraph(GCObject* obj, RefTracer3 tracer, void* param);
   void iterateReferents(GCObject* obj, RefTracer2 trace, void* param);
+
+  extern bool is_narrow_oop_mode;
 
   inline static GCNode* to_node(oopDesc* obj) {
     return reinterpret_cast<GCNode*>(obj);

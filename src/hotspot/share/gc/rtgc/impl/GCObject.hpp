@@ -70,7 +70,7 @@ public:
 
 	void removeAllReferrer();
 
-	bool removeAllReferrer(GCObject* referrer);
+	bool removeMatchedReferrers(GCObject* referrer);
 };
 
 

@@ -1,11 +1,12 @@
 #include "GCObject.hpp" 
 #include "GCRuntime.hpp" 
+#include "../RTGC.hpp"
 #include "../rtgcDebug.hpp"
+#include "../rtgcHeap.hpp"
 
 #define USE_ITERATOR_STACK false
 #define USE_ANCHOR_VISIOR true
 
-#define MARK_GARBAGE_INTRACING          true
 #define RECLAIM_GARBAGE_IMMEDIATELY     false
 static const int GC_VERBOSE_LOG = false;
 
@@ -57,10 +58,7 @@ static bool findSurvivalPath(GCObject* tracingNode, SimpleVector<void*>& visited
     }
  
     /* 방문 객체 목록 추가 단계(S330). */
-    #if MARK_GARBAGE_INTRACING
     tracingNode->markGarbage();
-    #endif
-        rtgc_log(true, "tracing %p\n", tracingNode);
     visitedNodes.push_back(tracingNode);
  
     /* 역방향 경로 추적 단계(S340) */
@@ -68,7 +66,7 @@ static bool findSurvivalPath(GCObject* tracingNode, SimpleVector<void*>& visited
     while (it.hasNext()) {
 		GCObject* R = it.next();
         /* 중복 추적 회피 단계(S341) */
-        if ((MARK_GARBAGE_INTRACING ? R->isGarbageMarked() : visitedNodes.contains(R)) ||
+        if (R->isGarbageMarked() ||
             R->getShortcut()->inTracing()) {
             continue;
         }
@@ -117,6 +115,20 @@ void constructShortcut(GCObject* obj) {
     }
 }
 
+static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleVector<GCObject*>* unsafeObjects) {
+    fatal("Cool down.");
+    if (link->isGarbageMarked()) return false;
+
+    if (link->removeReferrer(garbageAnchor) == 0
+    &&  link->isUnsafe()) {
+        if (link->isGarbage()) {
+            link->markGarbage();
+            return true;
+        }
+        unsafeObjects->push_back(link);
+    }
+    return false;
+}
 
 void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
     while (true) {
@@ -125,27 +137,19 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
         bool hasSurvivalPath = findSurvivalPath(unsafeObj, visitedNodes);
 
         if (hasSurvivalPath) {
-            #if MARK_GARBAGE_INTRACING
             for (int i = visitedNodes.size(); --i >= 0; ) {
                 GCObject* obj = (GCObject*)visitedNodes.at(i);
                 obj->unmarkGarbage();
             }
-            #endif
             if (visitedNodes.size() > MIN_SHORTCUT_LENGTH) {
                 constructShortcut(unsafeObj);
             }
         }
         else {
-            #if !MARK_GARBAGE_INTRACING
             for (int i = visitedNodes.size(); --i >= 0; ) {
                 GCObject* obj = (GCObject*)visitedNodes.at(i);
-                rtgc_log(true, "markGarbage %p\n", obj);
-                obj->markGarbage();
-            }
-            #endif
-            for (int i = visitedNodes.size(); --i >= 0; ) {
-                GCObject* obj = (GCObject*)visitedNodes.at(i);
-                destroyObject(obj);
+                RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &_unsafeObjects);
+                //destroyObject(obj);
             }
         }
         visitedNodes.resize(0);

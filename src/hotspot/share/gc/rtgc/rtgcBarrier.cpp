@@ -46,13 +46,6 @@ static bool is_valid_decorators(DecoratorSet decorators) {
   return (decorators & AS_NORMAL) != 0;
 }
 
-static bool is_narrow_oop_mode() {
-#ifdef _LP64
-  return UseCompressedOops;
-#endif
-  return false;
-}
-
 int rtgc_getOopShift() {
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -213,7 +206,7 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   }
 
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
-  if (is_narrow_oop_mode()) {
+  if (RTGC::is_narrow_oop_mode) {
     if (is_unknown) {
       const DecoratorSet ds = ON_UNKNOWN_OOP_REF;
       return !is_volatile ? reinterpret_cast<address>(rt_store_c1<ds, narrowOop>)
@@ -316,7 +309,7 @@ address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
         : reinterpret_cast<address>(oop_xchg_unknown);
   }
 
-  if (is_narrow_oop_mode()) {
+  if (RTGC::is_narrow_oop_mode) {
     return !is_unknown ? reinterpret_cast<address>(rt_xchg_c1<0, narrowOop>)
         : reinterpret_cast<address>(rt_xchg_c1<ON_UNKNOWN_OOP_REF, narrowOop>);
   } else {
@@ -419,7 +412,7 @@ address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
         : reinterpret_cast<address>(rt_cmpset_unknown);
   }
 
-  if (is_narrow_oop_mode()) {
+  if (RTGC::is_narrow_oop_mode) {
     return !is_unknown ? reinterpret_cast<address>(rt_cmpset_c1<0, narrowOop>)
         : reinterpret_cast<address>(rt_cmpset_c1<ON_UNKNOWN_OOP_REF, narrowOop>);
   } else {
