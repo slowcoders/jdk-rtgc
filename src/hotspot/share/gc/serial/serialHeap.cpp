@@ -92,17 +92,44 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   return memory_pools;
 }
 
+#if RTGC_OPT_YG_SCAN
+class StackScanClosure : public FastScanClosure<StackScanClosure> {
+public:
+  StackScanClosure(DefNewGeneration* g) :
+    FastScanClosure<StackScanClosure>(g) {}
+
+  template <typename T>
+  void barrier(T* p, oop forwardee) {
+    rtHeap::mark_stack_root(forwardee);
+  }
+
+  template <typename T>
+  void trackable_barrier(T* p, oop obj) { 
+    barrier(p, obj); 
+  }
+
+};
+#endif
 
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,
                                      CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, CodeBlobToOopClosure::FixRelocations);
 
+#if RTGC_OPT_YG_SCAN
+  StackScanClosure stack_closure(static_cast<YoungRootClosure*>(old_gen_closure)->young_gen());
+  // process_roots(SO_ScavengeCodeCache, &stack_closure, &stack_closure,
+  //               cld_closure, cld_closure, &mark_code_closure);
+  process_roots(SO_ScavengeCodeCache, root_closure, root_closure,
+                cld_closure, cld_closure, &mark_code_closure);
+  if (RTGC::debugOptions[0]) return;
+#else
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
+#endif
 
 #if RTGC_OPT_YOUNG_ROOTS
-  rtHeap::iterate_young_roots(static_cast<YoungRootClosure*>(old_gen_closure));
+  rtHeap::iterate_young_roots(static_cast<YoungRootClosure*>(old_gen_closure), root_closure);
 #else
   old_gen()->younger_refs_iterate(old_gen_closure);
 #endif

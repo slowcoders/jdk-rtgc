@@ -28,6 +28,7 @@
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 class Generation;
 class CardTableRS;
@@ -56,12 +57,75 @@ protected:
 public:
 #if RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
-  void trackable_barrier(void* p, oop obj) {}
+  void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
 #endif 
 
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 };
+
+
+
+#if RTGC_OPT_YOUNG_ROOTS
+class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
+  int _cnt_young_ref;
+public:
+  YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
+  
+  bool do_object_b(oop obj) {
+    _cnt_young_ref = 0;
+    rtgc_log(false && RTGC::debugOptions[0], "do_object_b %p\n", (void*)obj);
+    obj->oop_iterate(this);
+    return _cnt_young_ref > 0;
+  }
+
+  template <typename T>
+  void barrier(T* p, oop new_obj) {
+    if (!rtHeap::is_trackable(new_obj)) _cnt_young_ref ++;
+  }
+
+  void trackable_barrier(void* p, oop obj) {
+    precond(rtHeap::is_alive(obj));
+  }
+};
+#endif
+
+// Closure for scanning DefNewGeneration when *not* iterating over the old generation.
+//
+// This closures records changes to oops in CLDs.
+class DefNewScanClosure : public FastScanClosure<DefNewScanClosure> {
+  ClassLoaderData* _scanned_cld;
+
+public:
+  DefNewScanClosure(DefNewGeneration* g);
+
+  void set_scanned_cld(ClassLoaderData* cld) {
+    assert(cld == NULL || _scanned_cld == NULL, "Must be");
+    _scanned_cld = cld;
+  }
+
+  template <typename T>
+  void barrier(T* p, oop new_obj);
+
+#if RTGC_OPT_YOUNG_ROOTS
+  void trackable_barrier(void* p, oop obj) { 
+    rtHeap::mark_reachable_from_YG(obj);
+  }
+
+  void do_iterate(oop obj) {
+    obj->oop_iterate(this);
+  }
+#endif
+};
+
+class CLDScanClosure: public CLDClosure {
+  DefNewScanClosure* _scavenge_closure;
+ public:
+  CLDScanClosure(DefNewScanClosure* scavenge_closure) :
+       _scavenge_closure(scavenge_closure) {}
+  void do_cld(ClassLoaderData* cld);
+};
+
 
 // Closure for scanning DefNewGeneration when iterating over the old generation.
 //
@@ -92,63 +156,6 @@ public:
     debug_only(_trackable_anchor = NULL;)
   }
 #endif
-
-};
-
-#if RTGC_OPT_YOUNG_ROOTS
-class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
-  int _cnt_young_ref;
-public:
-  YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
-  
-  bool do_object_b(oop obj) {
-    _cnt_young_ref = 0;
-    obj->oop_iterate(this);
-    return _cnt_young_ref > 0;
-  }
-
-  template <typename T>
-  void barrier(T* p, oop new_obj) {
-    if (!rtHeap::is_trackable(new_obj)) {
-      _cnt_young_ref ++;
-    }
-  }
-};
-#endif
-
-// Closure for scanning DefNewGeneration when *not* iterating over the old generation.
-//
-// This closures records changes to oops in CLDs.
-class DefNewScanClosure : public FastScanClosure<DefNewScanClosure> {
-  ClassLoaderData* _scanned_cld;
-
-public:
-  DefNewScanClosure(DefNewGeneration* g);
-
-  void set_scanned_cld(ClassLoaderData* cld) {
-    assert(cld == NULL || _scanned_cld == NULL, "Must be");
-    _scanned_cld = cld;
-  }
-
-  template <typename T>
-  void barrier(T* p, oop new_obj);
-
-#if RTGC_OPT_YOUNG_ROOTS
-  void do_iterate(oop obj) {
-    obj->oop_iterate(this);
-  }
-
-  void clear_trackable_anchor() {}
-
-#endif
-};
-
-class CLDScanClosure: public CLDClosure {
-  DefNewScanClosure* _scavenge_closure;
- public:
-  CLDScanClosure(DefNewScanClosure* scavenge_closure) :
-       _scavenge_closure(scavenge_closure) {}
-  void do_cld(ClassLoaderData* cld);
 };
 
 #endif // INCLUDE_SERIALGC

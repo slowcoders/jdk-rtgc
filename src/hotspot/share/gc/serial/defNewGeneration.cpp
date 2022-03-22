@@ -595,6 +595,9 @@ void DefNewGeneration::collect(bool   full,
          "save marks have not been newly set.");
 #endif
 
+#if RTGC_OPT_YOUNG_ROOTS  
+  rtHeap::switch_young_roots();
+#endif  
   {
     StrongRootsScope srs(0);
 
@@ -609,6 +612,12 @@ void DefNewGeneration::collect(bool   full,
 
   // "evacuate followers".
   evacuate_followers.do_void();
+#if RTGC_OPT_YG_SCAN
+  if (RTGC::debugOptions[0]) {
+    rtHeap::iterate_young_roots(&young_root_closure, &scan_closure);
+    evacuate_followers.do_void();
+  }
+#endif
 
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
@@ -742,6 +751,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
+
   } else {
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;
@@ -759,6 +769,13 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   old->forward_to(obj);
   // rtgc_trace(10, "forwarded %p->(%p)\n", (void*)old, (void*)obj);
 
+    // rtgc_log(old->klass() == vmClasses::Module_klass(), 
+    //     "Module moved %p -> %p\n", (void*)old, (void*)obj);
+    if (old == RTGC::debug_obj) {
+      RTGC::debug_obj = obj;
+      // rtgc_log(true, 
+      //   "ClassLoader moved %p -> %p\n", (void*)old, (void*)obj);
+    }
   return obj;
 }
 

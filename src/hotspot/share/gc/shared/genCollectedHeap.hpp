@@ -30,6 +30,7 @@
 #include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/preGCValues.hpp"
 #include "gc/shared/softRefGenPolicy.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class AdaptiveSizePolicy;
 class CardTableRS;
@@ -348,6 +349,9 @@ public:
 
  protected:
   void process_roots(ScanningOption so,
+#if RTGC_OPT_YG_SCAN
+                     OopClosure* stack_roots,
+#endif  
                      OopClosure* strong_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,

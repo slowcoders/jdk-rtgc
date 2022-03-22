@@ -16,14 +16,15 @@ struct GCFlags {
 	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
 	uint32_t dirtyReferrerPoints: 1;
+	uint32_t unused: 1;
 
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
 #if ZERO_ROOT_REF < 0	
-	int32_t rootRefCount: 24;
+	int32_t rootRefCount: 23;
 #else
-	uint32_t rootRefCount: 24;
+	uint32_t rootRefCount: 23;
 #endif
 };
 
@@ -129,6 +130,7 @@ public:
 	}
 
 	int decrementRootRefCount() {
+		precond(_flags.rootRefCount > ZERO_ROOT_REF);
 		return --_flags.rootRefCount;
 	}
 

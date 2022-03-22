@@ -97,6 +97,7 @@ void DirtyCardToOopClosure::walk_mem_region(MemRegion mr,
     if (_sp->block_is_obj(bottom) &&
         !_sp->obj_allocated_since_save_marks(cast_to_oop(bottom))) {
 #if RTGC_OPT_YOUNG_ROOTS
+      fatal("should not be here!!");
       if (!rtHeap::is_alive(cast_to_oop(bottom))) continue;
 #endif          
       cast_to_oop(bottom)->oop_iterate(_cl, mr);

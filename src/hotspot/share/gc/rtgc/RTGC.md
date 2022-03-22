@@ -3,6 +3,10 @@
 - DefNewGeneration::copy_to_survivor_space() -> _old_gen->promote(old, s) 처리
 - SafepointSynchronize::begin()/end()확인.
 - SafepointSynchronize::arm_safepoint() 분석
+- YG 객체에 의한 Old 객체 참조 문제.
+   1) YG 객체도 AnchorList를 생성한다. - 데이터 소비 및 속도 문제.
+   2) YG 객체에 의한 참조는 Ref-Count 변경 - Garbage 객체에 대한 추가적 Scan 필요.
+   3) YG 객체에 의한 참조 시 unmarkGarbage 실행.
 
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.

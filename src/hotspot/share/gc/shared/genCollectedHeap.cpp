@@ -793,6 +793,9 @@ static AssertNonScavengableClosure assert_is_non_scavengable_closure;
 #endif
 
 void GenCollectedHeap::process_roots(ScanningOption so,
+#if RTGC_OPT_YG_SCAN
+                                     OopClosure* stack_roots,
+#endif  
                                      OopClosure* strong_roots,
                                      CLDClosure* strong_cld_closure,
                                      CLDClosure* weak_cld_closure,
@@ -806,9 +809,13 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   // Only process code roots from thread stacks if we aren't visiting the entire CodeCache anyway
   CodeBlobToOopClosure* roots_from_code_p = (so & SO_AllCodeCache) ? NULL : code_roots;
 
+#if RTGC_OPT_YG_SCAN
+  Threads::oops_do(stack_roots, roots_from_code_p);
+  OopStorageSet::strong_oops_do(stack_roots);
+#else
   Threads::oops_do(strong_roots, roots_from_code_p);
-
   OopStorageSet::strong_oops_do(strong_roots);
+#endif
 
   if (so & SO_ScavengeCodeCache) {
     assert(code_roots != NULL, "must supply closure for code cache");
@@ -836,8 +843,11 @@ void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
                                           CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
-
+#if RTGC_OPT_YG_SCAN
+  process_roots(so, root_closure, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
+#else
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
+#endif
 }
 
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {

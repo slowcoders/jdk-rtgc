@@ -15,6 +15,7 @@
 #define RTGC_OPT_CLD_SCAN             true
 #define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_NO_DIRTY_CARD_MARKING    true
+#define RTGC_OPT_YG_SCAN              true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
@@ -39,9 +40,12 @@ public:
   static bool is_alive(oopDesc* p);
 
   // for younger object collection
+  static void switch_young_roots();
   static void mark_promoted_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* anchor, oopDesc* linked, bool is_young_root);
-  static void iterate_young_roots(BoolObjectClosure* closure);
+  static void iterate_young_roots(BoolObjectClosure* young_root_closure, OopClosure* survivor_closure);
+  static void mark_stack_root(oopDesc* new_p); // deprecated
+  static void mark_reachable_from_YG(oopDesc* tenured_p);
 
   // for full gc
   static void refresh_young_roots();

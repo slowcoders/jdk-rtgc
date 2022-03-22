@@ -414,9 +414,22 @@ oop MemAllocator::finish(HeapWord* mem) const {
   return cast_to_oop(mem);
 }
 
+static int cntModule = 0;
 oop ObjAllocator::initialize(HeapWord* mem) const {
+  rtgc_log(vmClasses::Module_klass_is_loaded() && vmClasses::Module_klass() == _klass,
+      "vmClasses::Module %p(%d)\n", mem, ++cntModule);
+  // postcond(!(vmClasses::Module_klass_is_loaded() && vmClasses::Module_klass() == _klass) || ++cntModule < 4);
   mem_clear(mem);
-  return finish(mem);
+  oop res = finish(mem);
+  if (vmClasses::ClassLoader_klass_loaded() && res->is_a(vmClasses::ClassLoader_klass())) {
+      rtgc_log(true, 
+        "ClassLoader %p(%d)\n", mem, cntModule);
+    if (cntModule == 3) {
+      RTGC::debug_obj = mem;
+    }
+  }
+  
+  return res;
 }
 
 MemRegion ObjArrayAllocator::obj_memory_range(oop obj) const {

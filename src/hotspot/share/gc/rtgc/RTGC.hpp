@@ -62,6 +62,8 @@ namespace RTGC {
   void on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
   bool collectGarbage(oopDesc* obj);
+
+  const char* getClassName(GCObject* obj, bool showClassInfo = false);
 };
 
 
