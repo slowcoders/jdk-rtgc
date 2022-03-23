@@ -22,7 +22,7 @@ public:
 class GarbageProcessor {
 	SimpleVector<LinkIterator> _traceStack;
 	GCObject* delete_q;
-	SimpleVector<void*> visitedNodes;
+	SimpleVector<GCObject*> _visitedNodes;
 public:
 	SimpleVector<GCObject*> _unsafeObjects;
 	GarbageProcessor() : _traceStack(255) {
@@ -32,6 +32,7 @@ public:
 	void destroyObject(GCObject* garbage);
 	void reclaimObjects();
 	void scanGarbages(GCObject* unsafeObj);
+	static bool detectUnreachable(GCObject* node, SimpleVector<GCObject*>& garbage_list);
 
 private:
 	void addGarbage(GCObject* garbage);

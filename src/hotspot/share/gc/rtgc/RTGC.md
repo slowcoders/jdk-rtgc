@@ -3,6 +3,10 @@
 - DefNewGeneration::copy_to_survivor_space() -> _old_gen->promote(old, s) 처리
 - SafepointSynchronize::begin()/end()확인.
 - SafepointSynchronize::arm_safepoint() 분석
+- YG 객체에 의한 Old 객체 참조 문제.
+   1) YG 객체도 AnchorList를 생성한다. - 데이터 소비 및 속도 문제.
+   2) YG 객체에 의한 참조는 Ref-Count 변경 - Garbage 객체에 대한 추가적 Scan 필요.
+   3) YG 객체에 의한 참조 시 unmarkGarbage 실행.
 
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.
@@ -136,9 +140,9 @@ bash configure --with-jvm-variants=client \
 export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/jdk/jfr/event/gc/collection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar
 
 - macosx
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 2 100000 
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
 - linux
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 2 100000 
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
    
    // enable c1_LIRGenerator 
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 

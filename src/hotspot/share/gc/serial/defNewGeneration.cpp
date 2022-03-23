@@ -759,6 +759,13 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   old->forward_to(obj);
   // rtgc_trace(10, "forwarded %p->(%p)\n", (void*)old, (void*)obj);
 
+    // rtgc_log(old->klass() == vmClasses::Module_klass(), 
+    //     "Module moved %p -> %p\n", (void*)old, (void*)obj);
+    if (old == RTGC::debug_obj) {
+      RTGC::debug_obj = obj;
+      // rtgc_log(true, 
+      //   "ClassLoader moved %p -> %p\n", (void*)old, (void*)obj);
+    }
   return obj;
 }
 

@@ -347,7 +347,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       // size and destination
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
-      if (RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER && compaction_top == NULL) {
+      if (RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER && compaction_top == NULL) {
         // RTGC 사용 시 주소가 옮겨지지 않은 객체의 marked-state 를 clear 하지 않는다.
         // Space.cpp:388 참조.
         compaction_top = cur_obj;

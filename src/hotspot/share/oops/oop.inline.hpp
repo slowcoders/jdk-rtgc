@@ -115,7 +115,7 @@ void oopDesc::set_klass(Klass* k) {
   }
 #if USE_RTGC  // clear _rtNode
   _rtNode[0] = _rtNode[1] = 0;
-  if (CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(this)) {
+  if (RTGC_CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(this)) {
     rtHeap::mark_empty_trackable(this);
   }
 #endif
@@ -127,7 +127,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
 #if USE_RTGC  // clear _rtNode
   cast_to_oop(mem)->_rtNode[0] = 0;
   cast_to_oop(mem)->_rtNode[1] = 0;
-  if (CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(mem)) {
+  if (RTGC_CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(mem)) {
     rtHeap::mark_empty_trackable(cast_to_oop(mem));
   }
 #endif

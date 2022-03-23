@@ -28,6 +28,7 @@
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 class Generation;
 class CardTableRS;
@@ -56,7 +57,7 @@ protected:
 public:
 #if RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
-  void trackable_barrier(void* p, oop obj) {}
+  void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -109,9 +110,11 @@ public:
 
   template <typename T>
   void barrier(T* p, oop new_obj) {
-    if (!rtHeap::is_trackable(new_obj)) {
-      _cnt_young_ref ++;
-    }
+    if (!rtHeap::is_trackable(new_obj)) _cnt_young_ref ++;
+  }
+
+  void trackable_barrier(void* p, oop obj) {
+    precond(rtHeap::is_alive(obj));
   }
 };
 #endif
@@ -134,12 +137,13 @@ public:
   void barrier(T* p, oop new_obj);
 
 #if RTGC_OPT_YOUNG_ROOTS
+  void trackable_barrier(void* p, oop obj) { 
+    rtHeap::mark_reachable_from_YG(obj);
+  }
+
   void do_iterate(oop obj) {
     obj->oop_iterate(this);
   }
-
-  void clear_trackable_anchor() {}
-
 #endif
 };
 

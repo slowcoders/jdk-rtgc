@@ -85,15 +85,13 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  // precond(base->klass()->id() != InstanceRefKlassID
-  //   || ((address)p - (address)base != java_lang_ref_Reference::referent_offset() &&
-  //       (address)p - (address)base != java_lang_ref_Reference::discovered_offset()));
 
-  // precond(to_obj(base)->isTrackable());
+  // rtgc_log(p != NULL && p->klass() == vmClasses::Module_klass(), 
+  //     "Module anchored %p -> %p\n", (void*)base, (void*)p);
 
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
-  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base));
+  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -106,6 +104,8 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
         (address)addr - (address)base != java_lang_ref_Reference::discovered_offset()));
 
   if (oldValue == newValue) return;
+  // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 
+  //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
@@ -158,13 +158,39 @@ GCObject* RTGC::getForwardee(GCObject* obj) {
   return to_obj(p);
 }
 
+void RTGC::print_anchor_list(void* obj) {
+  AnchorIterator it((GCObject*)obj);
+  while (it.hasNext()) {
+    GCObject* R = it.next();
+    rtgc_log(true, "anchor obj(%p) -> %p(%s)\n", obj, R, RTGC::getClassName(R));
+  }
+}
+
 bool RTGC::collectGarbage(oopDesc* obj) {
   GCObject* erased = to_obj(obj); 
+  ResourceMark rm;
   if (erased->isUnsafe() && !erased->isGarbageMarked()) {
       GCRuntime::detectGarbages(erased);
   }
+  // rtgc_log(erased->isGarbageMarked(), "garbage deteted %p[%d](%s)\n", obj, 
+  //     vmClasses::Class_klass() == obj->klass(),  RTGC::getClassName(erased));
   return erased->isGarbageMarked();
 }
+
+const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
+    Klass* klass = cast_to_oop(obj)->klass();
+    if (vmClasses::Class_klass() == klass || vmClasses::Class_klass() == (void*)obj) {
+      if (showClassInfo) {
+        printf("Class of class\n");
+        cast_to_oop(obj)->print_on(tty);
+      }
+      else {
+        return klass->internal_name();
+      }
+    }
+    return (const char*)klass->name()->as_C_string();
+}
+
 
 oop rtgc_break(const char* file, int line, const char* function) {
   printf("Error %s:%d %s", file, line, function);
@@ -188,7 +214,7 @@ void RTGC::initialize() {
   debugOptions[0] = UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 0;
+    logOptions[LOG_HEAP] = 1 << 8;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }

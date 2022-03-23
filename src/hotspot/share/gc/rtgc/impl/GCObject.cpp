@@ -3,6 +3,7 @@
 
 #include "GCObject.hpp"
 #include "GCRuntime.hpp"
+#include "../RTGC.hpp"
 
 using namespace RTGC;
 
@@ -37,34 +38,26 @@ void GCObject::addReferrer(GCObject* referrer) {
     }
 }
 
-const char* __getClassName(GCObject* obj) {
-    Klass* klass = cast_to_oop(obj)->klass();
-    if (vmClasses::Class_klass() == klass || vmClasses::Class_klass() == (void*)obj) {
-        printf("Class of class\n");
-        cast_to_oop(obj)->print_on(tty);
-    }
-    return (const char*)klass->name()->bytes();
-}
 
 int GCObject::removeReferrer(GCObject* referrer) {
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
-        referrer, __getClassName(referrer),
-        this, cast_to_oop(this)->klass()->name()->bytes());
+        referrer, RTGC::getClassName(referrer, true),
+        this, RTGC::getClassName(this));
 
     if (!hasMultiRef()) {
         assert(_refs == _pointer2offset(referrer, &_refs), 
             "referrer %p(%s) != %p in %p(%s) \n", 
-            referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
+            referrer, RTGC::getClassName(referrer),
             _offset2Object(_refs, &_refs),
-            this, cast_to_oop(this)->klass()->name()->bytes());
+            this, RTGC::getClassName(this));
         this->_refs = 0;
     }
     else {
         ReferrerList* referrers = getReferrerList();
         int idx = referrers->indexOf(referrer);
         rtgc_log(idx < 0, "referrer %p(%s) is not found in %p(%s) \n", 
-            referrer, cast_to_oop(referrer)->klass()->name()->bytes(),
-            this, cast_to_oop(this)->klass()->name()->bytes());
+            referrer, RTGC::getClassName(referrer),
+            this, RTGC::getClassName(this));
         if (idx < 0) {
             for (int i = 0; i < referrers->size(); i ++) {
                 rtgc_log(true, "at[%d] %p\n", i, referrers->at(i));

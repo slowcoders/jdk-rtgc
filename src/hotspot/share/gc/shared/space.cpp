@@ -96,6 +96,9 @@ void DirtyCardToOopClosure::walk_mem_region(MemRegion mr,
     // block alignment or minimum block size restrictions. XXX
     if (_sp->block_is_obj(bottom) &&
         !_sp->obj_allocated_since_save_marks(cast_to_oop(bottom))) {
+#if RTGC_NO_DIRTY_CARD_MARKING          
+      fatal("should not be here!!");
+#endif
 #if RTGC_OPT_YOUNG_ROOTS
       if (!rtHeap::is_alive(cast_to_oop(bottom))) continue;
 #endif          
@@ -376,16 +379,10 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
     assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
-#if 0 && USE_RTGC_COMPACT_1  // mark_pending_trackable
-    if (cp->gen == GenCollectedHeap::heap()->old_gen() && 
-        GenCollectedHeap::heap()->is_in_young(q)) {
-      rtHeap::mark_pending_trackable(q, compact_top);
-    }
-#endif
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-#if !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POIINTER
+#if !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER
     q->init_mark();
 #endif
     assert(q->forwardee() == NULL, "should be forwarded to NULL");

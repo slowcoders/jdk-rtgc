@@ -807,7 +807,6 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   CodeBlobToOopClosure* roots_from_code_p = (so & SO_AllCodeCache) ? NULL : code_roots;
 
   Threads::oops_do(strong_roots, roots_from_code_p);
-
   OopStorageSet::strong_oops_do(strong_roots);
 
   if (so & SO_ScavengeCodeCache) {

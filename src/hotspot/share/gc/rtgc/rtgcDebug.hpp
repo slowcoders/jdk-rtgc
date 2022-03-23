@@ -14,6 +14,7 @@ namespace RTGC {
   static const int LOG_HEAP       = 3;
   static const int LOG_REF_LINK   = 4;
   static const int LOG_GCNODE     = 5;
+  static const int LOG_SCANNER    = 6;
 
   inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);
@@ -32,6 +33,7 @@ namespace RTGC {
 
   void mark_dead_space(void* obj);
   bool is_young_root(void* obj);
+  void print_anchor_list(void* obj);
 };
 
 #define rtgc_log(logOption, ...) \

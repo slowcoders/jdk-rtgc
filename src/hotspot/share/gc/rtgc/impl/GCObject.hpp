@@ -15,6 +15,7 @@
 
 namespace RTGC {
 
+static const bool _EnableShortcut = false;
 
 class GCObject;
 class SafeShortcut;

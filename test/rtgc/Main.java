@@ -105,7 +105,7 @@ public class Main {
         System.out.println("["+ round + "] start ");
         for (int i = 0; i < size; i++) {
             Main m = createMain(sno++);
-            // array[i] = m;
+            sArray[i] = m;
         }
         System.out.println("["+ round + "] ----");
         int total = 0;
