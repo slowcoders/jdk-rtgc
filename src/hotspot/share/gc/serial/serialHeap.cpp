@@ -122,7 +122,7 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   //               cld_closure, cld_closure, &mark_code_closure);
   process_roots(SO_ScavengeCodeCache, root_closure, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
-  if (RTGC::debugOptions[0]) return;
+  // if (RTGC::debugOptions[0]) return;
 #else
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);

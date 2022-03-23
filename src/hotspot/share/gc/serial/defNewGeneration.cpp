@@ -596,7 +596,7 @@ void DefNewGeneration::collect(bool   full,
 #endif
 
 #if RTGC_OPT_YOUNG_ROOTS  
-  rtHeap::switch_young_roots();
+  // rtHeap::switch_young_roots();
 #endif  
   {
     StrongRootsScope srs(0);
@@ -612,7 +612,7 @@ void DefNewGeneration::collect(bool   full,
 
   // "evacuate followers".
   evacuate_followers.do_void();
-#if RTGC_OPT_YG_SCAN
+#if 0 && RTGC_OPT_YG_SCAN
   if (RTGC::debugOptions[0]) {
     rtHeap::iterate_young_roots(&young_root_closure, &scan_closure);
     evacuate_followers.do_void();

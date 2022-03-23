@@ -227,6 +227,7 @@ void rtHeap::refresh_young_roots() {
    * yg-gc : 현재 사용하지 않음.
    */
 
+  rtgc_log(LOG_OPT(11), "refresh_young_roots %d\n", 1);
 
   debug_only(if (gcThread == NULL) gcThread = Thread::current();)
   precond(gcThread == Thread::current());
@@ -368,10 +369,14 @@ static void dump_anchors(GCObject* obj) {
     }  
 }
 
+void rtHeap__clear_garbage_young_roots();
+
 bool rtHeap::flush_pending_trackables() {
   if (CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
+
+  rtHeap__clear_garbage_young_roots();
 
   if (RTGC::debugOptions[0]) {
     GCRuntime::adjustShortcutPoints();
@@ -426,6 +431,7 @@ public:
 void rtHeap::mark_stack_root(oopDesc* new_p) {
   // fatal("mark_stack_root");
   GCNode* node = to_node(new_p);
+  precond(node->isTrackable());
   if (node->getRootRefCount() > 0) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
   node->incrementRootRefCount();
@@ -444,47 +450,13 @@ void rtHeap__clear_garbage_young_roots() {
     oop* dst = src;
     for (;--idx_root >= 0; src++) {
       GCObject* anchor = to_obj(*src);
-      if (anchor->isUnsafe() &&
+      if (RTGC::debugOptions[0] && anchor->isUnsafe() &&
           GarbageProcessor::detectUnreachable(anchor, g_garbage_list)) {
-        rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(to_obj(anchor)));
-        continue;      
+        rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(anchor));
       }  
-    }
-  }
-}
-
-void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivor_closure) {
-  /**
-   * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
-   */
-  rtgc_log(LOG_OPT(8), "iterate_young_roots %d/%d stack %d\n", 
-      g_saved_young_root_count, g_young_roots.length(), g_stack_roots.length());
-
-  g_resurrection_closure._survivor_closure = survivor_closure;
-
-  int idx_root;
-  if ((idx_root = g_saved_young_root_count) > 0) {
-    // OldAnchorAdustPointer ap(closure);
-    oop* src = g_young_roots.adr_at(0);
-    oop* dst = src;
-    for (;--idx_root >= 0; src++) {
-      oopDesc* anchor = *src;
-      if (RTGC::debugOptions[0] && 
-          to_obj(anchor)->isUnsafe() &&
-          GarbageProcessor::detectUnreachable(to_obj(anchor), g_garbage_list)) {
-        rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(to_obj(anchor)));
-        RTGC::print_anchor_list(anchor);
-        continue;      
-      }
-      
-      rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
-      bool is_root = closure->do_object_b(anchor)
-                  || is_java_reference_with_young_referent(anchor);
-      if (!is_root) {
-        to_obj(anchor)->unmarkYoungRoot();
-      } else {
+      else if (anchor->isYoungRoot()) {
         if (dst != src) {
-          *dst = anchor;
+          *dst = cast_to_oop(anchor);
         }
         dst ++;
       }
@@ -502,7 +474,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivo
       remain_roots += new_roots;
     }
 
-    rtgc_log(LOG_OPT(8), "iterate_young_roots done %d->%d garbage=%d\n", 
+    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
         g_young_roots.length(), remain_roots, g_garbage_list.size());
     g_young_roots.trunc_to(remain_roots);
   }
@@ -516,20 +488,58 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivo
         g_stack_roots.length());
     g_stack_roots.trunc_to(0);
   }
+
+}
+
+void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivor_closure) {
+  /**
+   * 참고) promoted object 에 대한 adjust_pointer 실행 전 상태.
+   */
+  g_saved_young_root_count = g_young_roots.length();
+  rtgc_log(LOG_OPT(8), "iterate_young_roots %d stack %d\n", 
+      g_saved_young_root_count, g_stack_roots.length());
+
+  g_resurrection_closure._survivor_closure = survivor_closure;
+
+  int idx_root;
+  if ((idx_root = g_saved_young_root_count) > 0) {
+    // OldAnchorAdustPointer ap(closure);
+    oop* src = g_young_roots.adr_at(0);
+    for (;--idx_root >= 0; src++) {
+      oopDesc* anchor = *src;
+      // if (RTGC::debugOptions[0] && 
+      //     to_obj(anchor)->isUnsafe() &&
+      //     GarbageProcessor::detectUnreachable(to_obj(anchor), g_garbage_list)) {
+      //   rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(to_obj(anchor)));
+      //   RTGC::print_anchor_list(anchor);
+      //   continue;      
+      // }
+      
+      rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
+      bool is_root = closure->do_object_b(anchor)
+                  || is_java_reference_with_young_referent(anchor);
+      if (!is_root) {
+        to_obj(anchor)->unmarkYoungRoot();
+      }
+    }
+  }
+  rtgc_log(LOG_OPT(8), "iterate_young_roots done %d stack %d\n", 
+      g_saved_young_root_count, g_stack_roots.length());
+
 }
 
 
 void rtHeap::mark_reachable_from_YG(oopDesc* tenured_p) {
-  if (g_saved_young_root_count < 0) {
+  //if (g_saved_young_root_count < 0) {
     mark_stack_root(tenured_p);
-    return;
-  }
-  GCObject* obj = to_obj(tenured_p);
-  if (!obj->isGarbageMarked()) return;
-  rtgc_log(true, "resurrect garabage %p(%s)\n",
-      (void*)obj, RTGC::getClassName(obj));
-  obj->unmarkGarbage();
-  tenured_p->oop_iterate(&g_resurrection_closure);
+  //  return;
+  //}
+  // GCObject* obj = to_obj(tenured_p);
+  // if (!obj->isGarbageMarked()) return;
+  // rtgc_log(true, "resurrect garabage %p(%s)\n",
+  //     (void*)obj, RTGC::getClassName(obj));
+  // obj->unmarkGarbage();
+  // tenured_p->oop_iterate(&g_resurrection_closure);
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
