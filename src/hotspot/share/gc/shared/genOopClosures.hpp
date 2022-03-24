@@ -74,6 +74,7 @@ private:
   CardTableRS* _rs;
 #if RTGC_OPT_YOUNG_ROOTS
   oopDesc* _trackable_anchor;
+  bool _is_young_root;
 #endif
 
 public:
@@ -84,12 +85,16 @@ public:
 
 #if RTGC_OPT_YOUNG_ROOTS
   template <typename T>
-  void trackable_barrier(T* p, oop obj) { barrier(p, obj); }
+  void trackable_barrier(T* p, oop obj);
 
   void do_iterate(oop obj) {
     _trackable_anchor = obj;
+    _is_young_root = false;
     rtHeap::mark_promoted_trackable(obj);
     obj->oop_iterate(this);
+    if (_is_young_root) {
+      rtHeap::add_young_root(obj, obj);
+    }
     debug_only(_trackable_anchor = NULL;)
   }
 #endif
@@ -138,7 +143,7 @@ public:
 
 #if RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
-    rtHeap::mark_reachable_from_YG(obj);
+    rtHeap::mark_survivor_reachable(obj);
   }
 
   void do_iterate(oop obj) {

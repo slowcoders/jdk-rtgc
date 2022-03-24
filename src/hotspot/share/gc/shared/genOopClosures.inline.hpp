@@ -88,8 +88,8 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
 #if RTGC_OPT_YOUNG_ROOTS
     precond(_trackable_anchor != NULL);
-    bool is_young_ref = cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
-    rtHeap::add_trackable_link(_trackable_anchor, new_obj, is_young_ref);
+    _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
+    rtHeap::add_promoted_link(_trackable_anchor, new_obj, false);
 #endif
   if (RTGC_NO_DIRTY_CARD_MARKING) return;
 
@@ -98,6 +98,16 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
     _rs->inline_write_ref_field_gc(p);
   }
 }
+
+#if RTGC_OPT_YOUNG_ROOTS
+template <typename T>
+void DefNewYoungerGenClosure::trackable_barrier(T* p, oop obj) {
+  assert(_old_gen->is_in_reserved(p), "expected ref in generation");
+  assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
+  precond(_trackable_anchor != NULL);
+  rtHeap::add_promoted_link(_trackable_anchor, obj, true);
+}
+#endif
 
 inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
     FastScanClosure<DefNewScanClosure>(g), _scanned_cld(NULL) {}

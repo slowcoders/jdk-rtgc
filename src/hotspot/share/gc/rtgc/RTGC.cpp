@@ -112,7 +112,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   if (newValue != NULL) {
 #if RTGC_OPT_YOUNG_ROOTS 
     if (!to_obj(newValue)->isTrackable() && !to_obj(base)->isYoungRoot()) {
-      RTGC::add_young_root(base);
+      rtHeap::add_young_root(base, base);
     }
 #endif  
     add_referrer_unsafe(newValue, base);
@@ -211,7 +211,7 @@ void RTGC::initialize() {
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  debugOptions[0] = UnlockExperimentalVMOptions;
+  debugOptions[0] = true || UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 8;

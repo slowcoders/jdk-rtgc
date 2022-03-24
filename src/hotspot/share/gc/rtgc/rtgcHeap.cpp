@@ -51,7 +51,7 @@ namespace RTGC {
   SimpleVector<GCObject*> g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
-  int g_saved_young_root_count = -1;
+  int g_saved_young_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   const bool USE_PENDING_TRACKABLES = false;
   oopDesc* empty_trackable;
@@ -105,12 +105,12 @@ bool RTGC::is_young_root(void* p) {
 
 #endif
 
-void RTGC::add_young_root(oopDesc* p) {
-  GCObject* obj = to_obj(p);
-  precond(obj->isTrackable());
-  obj->markYoungRoot();
-  g_young_roots.append(p);
-  rtgc_log(LOG_OPT(11), "mark YG Root %p idx=%d\n", obj, g_young_roots.length());
+void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
+  precond(to_obj(old_p)->isTrackable());
+  precond(!to_obj(old_p)->isGarbageMarked());
+  to_obj(old_p)->markYoungRoot();
+  g_young_roots.append(new_p);
+  rtgc_log(LOG_OPT(11), "mark YG Root (%p)->%p idx=%d\n", old_p, new_p, g_young_roots.length());
 }
 
 bool rtHeap::is_trackable(oopDesc* p) {
@@ -154,17 +154,8 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   debug_only(g_cntTrackable++);
 }
 
-static void add_referrer_and_check_young_root(oopDesc* p, oopDesc* base) {
-  if (USE_PENDING_TRACKABLES) {
-    if (!to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
-      RTGC::add_young_root(base);
-    }
-  }
-  RTGC::add_referrer_unsafe(p, base);
-}
-
-void rtHeap::mark_stack_root(oopDesc* new_p) {
-  // fatal("mark_stack_root");
+void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
+  // fatal("mark_survivor_reachable");
   GCNode* node = to_node(new_p);
   precond(node->isTrackable());
   if (node->getRootRefCount() > 0) return;
@@ -180,11 +171,12 @@ void rtHeap__clear_garbage_young_roots() {
     oop* dst = src;
     for (;--idx_root >= 0; src++) {
       GCObject* anchor = to_obj(*src);
+      precond(!anchor->isGarbageMarked());
       if (RTGC::debugOptions[0] && anchor->isUnsafe() &&
           GarbageProcessor::detectUnreachable(anchor, g_garbage_list)) {
         rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(anchor));
       }  
-      else if (anchor->isYoungRoot()) {
+      if (anchor->isYoungRoot()) {
         if (dst != src) {
           *dst = cast_to_oop(anchor);
         }
@@ -207,7 +199,18 @@ void rtHeap__clear_garbage_young_roots() {
     rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
         g_young_roots.length(), remain_roots, g_garbage_list.size());
     g_young_roots.trunc_to(remain_roots);
+    g_saved_young_root_count = 0;
   }
+
+#ifdef ASSERT
+  if ((idx_root = g_young_roots.length()) > 0) {
+    oop* src = g_young_roots.adr_at(0);
+    for (;--idx_root >= 0; src++) {
+      GCObject* anchor = to_obj(*src);
+      precond(!anchor->isGarbageMarked());
+    }
+  }
+#endif
 
   if ((idx_root = g_stack_roots.length()) > 0) {
     GCNode** src = &g_stack_roots.at(0);
@@ -218,7 +221,6 @@ void rtHeap__clear_garbage_young_roots() {
         g_stack_roots.length());
     g_stack_roots.trunc_to(0);
   }
-
 }
 
 void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivor_closure) {
@@ -234,6 +236,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivo
     oop* src = g_young_roots.adr_at(0);
     for (;--idx_root >= 0; src++) {
       oopDesc* anchor = *src;
+      precond(!to_obj(anchor)->isGarbageMarked());
       rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
       bool is_root = closure->do_object_b(anchor)
                   || is_java_reference_with_young_referent(anchor);
@@ -245,34 +248,13 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivo
 }
 
 
-void rtHeap::mark_reachable_from_YG(oopDesc* tenured_p) {
-  //if (g_saved_young_root_count < 0) {
-    mark_stack_root(tenured_p);
-  //  return;
-  //}
-  // GCObject* obj = to_obj(tenured_p);
-  // if (!obj->isGarbageMarked()) return;
-  // rtgc_log(true, "resurrect garabage %p(%s)\n",
-  //     (void*)obj, RTGC::getClassName(obj));
-  // obj->unmarkGarbage();
-  // tenured_p->oop_iterate(&g_resurrection_closure);
-}
-
-void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link, bool is_young_root) {
-  rtgc_log(false && is_young_root != !to_obj(link)->isTrackable(), 
-      "add_trackable_link %p(%d) -> anchor=%p(%d)\n", 
-      link, to_obj(link)->isTrackable(), anchor, to_obj(anchor)->isTrackable()); 
+void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool link_is_tenured) {
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
-  if (to_obj(link)->isGarbageMarked()) {
-    rtHeap::mark_reachable_from_YG(link);
-  }
-  if (is_young_root && !to_obj(anchor)->isYoungRoot()) {
-    RTGC::add_young_root(anchor);
+  if (link_is_tenured) {
+    rtHeap::mark_survivor_reachable(link);
   }
   RTGC::add_referrer_unsafe(link, anchor);
 }
-
-
 
 
 template <typename T>
@@ -325,15 +307,11 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   if (USE_PENDING_TRACKABLES) {
     g_pending_trackables.append((oopDesc*)new_p);
   }
-  if (false && is_java_reference_with_young_referent(old_p)) {
+  if (is_java_reference_with_young_referent(old_p)) {
     /* adjust_pointers 수행 전에 referent 검사하여야 한다.
        또는 객체 복사가 모두 종료된 시점에 referent를 검사할 수 있다.
     */
-    to_obj(old_p)->markYoungRoot();
-    oopDesc* forwardee = old_p->forwardee();
-    if (forwardee == NULL) forwardee = old_p;
-    rtgc_log(LOG_OPT(11), "mark YG Root %p\n", new_p);
-    g_young_roots.append((oopDesc*)new_p);
+    add_young_root(old_p, (oopDesc*)new_p);
   }
 }
 
@@ -378,11 +356,9 @@ void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool is_young_root) {
   if (is_young_root) {
     precond(obj->isTrackable());
     if (!obj->isYoungRoot()) {
-      obj->markYoungRoot();
       oopDesc* forwardee = old_p->forwardee();
       if (forwardee == NULL) forwardee = old_p;
-      rtgc_log(LOG_OPT(11), "mark YG Root %p\n", forwardee);
-      g_young_roots.append(forwardee);
+      add_young_root(old_p, forwardee);
     } else {
       postcond(is_java_reference(old_p));
     }
@@ -480,7 +456,7 @@ void rtHeap::refresh_young_roots() {
     }
   }
   int cnt_young_root = dst - &g_young_roots.at(0);
-  rtgc_log(LOG_OPT(11), "refresh_young_roots %d->%d\n", 
+  rtgc_log(LOG_OPT(8), "refresh_young_roots %d->%d\n", 
       g_young_roots.length(), cnt_young_root);
   g_young_roots.trunc_to(cnt_young_root);
 }
@@ -505,7 +481,6 @@ bool rtHeap::flush_pending_trackables() {
     GCRuntime::adjustShortcutPoints();
   }
 
-  g_saved_young_root_count = -1;
   g_garbage_list.resize(0);
 
   if (!USE_PENDING_TRACKABLES) return false;

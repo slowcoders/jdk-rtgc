@@ -41,10 +41,10 @@ public:
 
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
-  static void add_trackable_link(oopDesc* anchor, oopDesc* linked, bool is_young_root);
+  static void add_promoted_link(oopDesc* promoted_anchor, oopDesc* linked, bool link_is_tenured);
   static void iterate_young_roots(BoolObjectClosure* young_root_closure, OopClosure* survivor_closure);
-  static void mark_stack_root(oopDesc* new_p); // deprecated
-  static void mark_reachable_from_YG(oopDesc* tenured_p);
+  static void mark_survivor_reachable(oopDesc* tenured_p);
+  static void add_young_root(oopDesc* old_p, oopDesc* new_p);
 
   // for full gc
   static void refresh_young_roots();

@@ -77,7 +77,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
             return idx;
         }
     }
-    if (this->getShortcutId() != 0
+    if (this->getShortcutId() > INVALID_SHORTCUT
     &&  this->getShortcutId() == referrer->getShortcutId()) {
     //this->invaliateSurvivalPath(referrer);
 		SafeShortcut* shortcut = this->getShortcut();

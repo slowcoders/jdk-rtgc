@@ -139,6 +139,7 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 
 
 bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
+    precond(!unsafeObj->isGarbageMarked());
     int cntUnreachable = unreachableNodes.size();
     bool hasSurvivalPath = findSurvivalPath(unsafeObj, unreachableNodes);
 
@@ -249,6 +250,7 @@ void GarbageProcessor::reclaimObjects() {
 
 
 void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
+    if (!_EnableShortcut) return;
     precond(newAnchor->getShortcut() == this);
     precond(newTail->getShortcut() == this);
     GCObject* tail2;
