@@ -26,6 +26,13 @@ namespace RTGC {
   volatile void* debug_obj = (void*)-1;
   bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
+
+}
+
+static void check_valid_obj(void* p) {
+  GCObject* obj = (GCObject*)p;
+  assert(obj == NULL || !obj->isGarbageMarked(), 
+      "incorrect garbage mark %p(%s)\n", obj, RTGC::getClassName(obj));
 }
 
 int GCNode::_cntTrackable = 0;
@@ -82,6 +89,8 @@ bool RTGC::needTrack(oopDesc* obj) {
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
+  check_valid_obj(p);
+  check_valid_obj(base);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
@@ -95,6 +104,9 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  check_valid_obj(newValue);
+  check_valid_obj(oldValue);
+  check_valid_obj(base);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
@@ -122,6 +134,9 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
 }
 
 void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
+  check_valid_obj(newValue);
+  check_valid_obj(oldValue);
+
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
@@ -207,11 +222,11 @@ void RTGC::initialize() {
 
   RTGC::_rtgc.initialize();
 
-  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  debugOptions[0] = true || UnlockExperimentalVMOptions;
+  debugOptions[0] = false || UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 8;

@@ -739,6 +739,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   if (obj == NULL) {
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
+      rtgc_log(true, "promotion fail %p(%s)\n", (void*)obj, obj->klass()->internal_name());
       handle_promotion_failure(old);
       return old;
     }

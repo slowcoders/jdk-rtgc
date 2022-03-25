@@ -149,6 +149,11 @@ template <class T> inline void ScanWeakRefClosure::do_oop_work(T* p) {
                                       : _g->copy_to_survivor_space(obj);
     RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
   }
+#if RTGC_OPT_YOUNG_ROOTS
+  // else if (rtHeap::is_trackable(obj)) {
+  //   rtHeap::mark_survivor_reachable(obj);
+  // }
+#endif  
 }
 
 inline void ScanWeakRefClosure::do_oop(oop* p)       { ScanWeakRefClosure::do_oop_work(p); }

@@ -79,6 +79,8 @@
 #include "utilities/ostream.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -212,6 +214,8 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
+  precond(RTGC::to_node(o)->getRootRefCount() > 0);
+
   return OopHandle(handle);
 }
 
