@@ -59,6 +59,8 @@ public:
 		return this->_shortcutId;
 	}
 
+	GCObject* getSingleAnchor();
+
 	void invaliateSurvivalPath(GCObject* newTail);
 
 	GCObject* getLinkInside(SafeShortcut* container);

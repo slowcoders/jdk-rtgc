@@ -124,6 +124,12 @@ bool GCObject::removeMatchedReferrers(GCObject* referrer) {
     return false;
 }
 
+GCObject* GCObject::getSingleAnchor() {
+    precond(!this->hasMultiRef());
+    GCObject* front = _offset2Object(_refs, &_refs);
+    return front;
+}
+
 GCObject* GCObject::getSafeAnchor() {
     precond(hasReferrer()); 
     GCObject* front;

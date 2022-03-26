@@ -90,7 +90,6 @@ bool RTGC::needTrack(oopDesc* obj) {
 
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   check_valid_obj(p);
-  check_valid_obj(base);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
@@ -226,7 +225,7 @@ void RTGC::initialize() {
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  debugOptions[0] = false || UnlockExperimentalVMOptions;
+  debugOptions[0] = true || UnlockExperimentalVMOptions;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 8;

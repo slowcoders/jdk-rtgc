@@ -36,51 +36,86 @@ void* SafeShortcut::operator new (std::size_t size) {
 	return circuit;
 }
 
-static bool findSurvivalPath(GCObject* tracingNode, SimpleVector<GCObject*>& visitedNodes) {
-/* 기반 객체 확인 단계(S310) */
-    if (tracingNode->getRootRefCount() > ZERO_ROOT_REF) {
-        return true;
-    }
- 
+class PathFinder {
+    SimpleVector<GCObject*>& _visitedNodes;
+    SimpleVector<AnchorIterator> _trackers;
+    GCObject* _temp;
+public:
+    PathFinder(SimpleVector<GCObject*>& nodes) : _visitedNodes(nodes) {}
+
+    bool findSurvivalPath(GCObject* tracingNode);
+
+    bool findSurvivalPathThroughShorcut(GCObject* tracingNode);
+};
+
+bool PathFinder::findSurvivalPathThroughShorcut(GCObject* tracingNode) {
     SafeShortcut* shortcut = tracingNode->getShortcut();
- 
+    precond(shortcut != NULL);
+
     if (shortcut->isValid()) {
         /* 단축 경로 추적 단계(S320) */
         /* 방문 단축 경로 추가(S321) */
         shortcut->markInTracing();
-        // visitedNodes.push_back(shortcut);
+        // _visitedNodes.push_back(shortcut);
         /* 단축 경로 시작점 객체의 생존 경로 탐색(S322) */
-        bool survived = findSurvivalPath(shortcut->getAnchor(), visitedNodes);
+        bool survived = findSurvivalPath(shortcut->getAnchor());
         shortcut->unmarkInTracing();
         if (survived) {
             return true;
         }
         /* 단축 경로 정보 소거 -> 단축(S323) */
         shortcut->moveAnchorTo(tracingNode);
-        // visitedNodes.pop_back();
+        // _visitedNodes.pop_back();
     }
- 
-    /* 방문 객체 목록 추가 단계(S330). */
+    return false;
+}
+
+bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
+
+    if (tracingNode->getRootRefCount() > ZERO_ROOT_REF) {
+        return true;
+    }
+    if (findSurvivalPathThroughShorcut(tracingNode)) {
+        return true;
+    }
+
+
     tracingNode->markGarbage();
-    visitedNodes.push_back(tracingNode);
- 
-    /* 역방향 경로 추적 단계(S340) */
-	AnchorIterator it(tracingNode);
-    while (it.hasNext()) {
-		GCObject* R = it.next();
+    _visitedNodes.push_back(tracingNode);
+    _trackers.push_back(tracingNode);
+    AnchorIterator* it = &_trackers.back();
+    while (true) {
+        precond(it != NULL);
+        if (!it->hasNext()) {
+            _trackers.pop_back();
+            if (_trackers.empty()) break;
+            it = &_trackers.back();
+            continue;
+        }
+
+        GCObject* R = it->next();
+        precond(R != NULL);
+        precond(R->getShortcut() != NULL);
+
         /* 중복 추적 회피 단계(S341) */
         if (R->isGarbageMarked() ||
             R->getShortcut()->inTracing()) {
             continue;
         }
- 
-        /* 참조자 R의 생존 경로 탐색 단계 (S342) */
-        bool hasSurvivalPath = findSurvivalPath(R, visitedNodes);
-        if (hasSurvivalPath) {
-            /* 생존 경로 정보 저장 단계 (S350) */
-            tracingNode->setSafeAnchor(R);
-            /* 성공값 반환 */
+
+        if (R->getRootRefCount() > ZERO_ROOT_REF) {
             return true;
+        }
+
+        if (findSurvivalPathThroughShorcut(R)) {
+            return true;
+        }
+
+        R->markGarbage();
+        _visitedNodes.push_back(R);
+        if (R->hasReferrer()) {
+            _trackers.push_back(R);
+            it = &_trackers.back();
         }
     }
     /* 실패값 반환 */
@@ -141,9 +176,11 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
     precond(!unsafeObj->isGarbageMarked());
     int cntUnreachable = unreachableNodes.size();
-    bool hasSurvivalPath = findSurvivalPath(unsafeObj, unreachableNodes);
+    PathFinder pf(unreachableNodes);
+    bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
-    if (hasSurvivalPath) {
+    //postcond(unreachableNodes.size() < 8000);
+    if (true || hasSurvivalPath) {
         for (int i = unreachableNodes.size(); --i >= cntUnreachable; ) {
             GCObject* obj = (GCObject*)unreachableNodes.at(i);
             obj->unmarkGarbage();
@@ -161,7 +198,8 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
     while (true) {
         rtgc_log(LOG_OPT(1), "scan Garbage %p\n", unsafeObj);
 
-        bool hasSurvivalPath = findSurvivalPath(unsafeObj, _visitedNodes);
+        PathFinder pf(_visitedNodes);
+        bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
         if (hasSurvivalPath) {
             for (int i = _visitedNodes.size(); --i >= 0; ) {
