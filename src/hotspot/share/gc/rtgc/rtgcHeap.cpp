@@ -87,15 +87,37 @@ static bool is_java_reference_with_young_referent(oopDesc* obj) {
   return referent != NULL && !to_obj(referent)->isTrackable();
 }
 
+// static void dump_anchor_tree(int depth, GCObject* node) {
+//   // for (int i = depth; --i >= 0; ) {
+//   //   printf("- ");
+//   // }
+//   printf("[%d] %p(%s:%d ygR:%d):%d anchors:%d\n", 
+//     depth, node, RTGC::getClassName(node), node->isGarbageMarked(), 
+//     node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+//   if (node->getRootRefCount() > 0) return;
+//   node->incrementRootRefCount();
+
+//   AnchorIterator it(node);
+//   while (it.hasNext()) {
+//     GCObject* anchor = it.next();
+//     dump_anchor_tree(depth + 1, anchor);
+//   }
+// }
+
+
 bool rtHeap::is_alive(oopDesc* p) {
-  if (!INGNORE_GARBAGE_MARK) {
-    assert(!to_obj(p)->isGarbageMarked(),
-        "incorrect marked garbage %p(%s)\n", p, RTGC::getClassName(to_obj(p)));
-  }
-  else {
-    rtgc_log(to_obj(p)->isGarbageMarked(),
-        "incorrect marked garbage %p(%s)\n", p, RTGC::getClassName(to_obj(p)));
-  }
+  // if (to_obj(p)->isGarbageMarked()) {
+  //   dump_anchor_tree(0, to_obj(p));
+  // }
+
+  // if (!INGNORE_GARBAGE_MARK) {
+  //   assert(!to_obj(p)->isGarbageMarked(),
+  //       "incorrect marked garbage %p(%s)\n", p, RTGC::getClassName(to_obj(p)));
+  // }
+  // else {
+  //   rtgc_log(to_obj(p)->isGarbageMarked(),
+  //       "incorrect marked garbage %p(%s)\n", p, RTGC::getClassName(to_obj(p)));
+  // }
   return INGNORE_GARBAGE_MARK || !to_obj(p)->isGarbageMarked();
 }
 
@@ -181,10 +203,10 @@ void rtHeap__clear_garbage_young_roots() {
     oop* dst = src;
     for (;--idx_root >= 0; src++) {
       GCObject* anchor = to_obj(*src);
-      precond(INGNORE_GARBAGE_MARK || !anchor->isGarbageMarked());
+      //precond(INGNORE_GARBAGE_MARK || !anchor->isGarbageMarked());
       if (anchor->isUnsafe() && !anchor->isGarbageMarked() &&
           GarbageProcessor::detectUnreachable(anchor, g_garbage_list)) {
-        //rtgc_log(true, "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(anchor));
+          rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(anchor));
         if (!INGNORE_GARBAGE_MARK) continue;
       }  
       if (anchor->isYoungRoot()) {

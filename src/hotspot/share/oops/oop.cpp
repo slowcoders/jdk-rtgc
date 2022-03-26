@@ -80,6 +80,7 @@ void oopDesc::print_value_on(outputStream* st) const {
 
 void oopDesc::verify_on(outputStream* st, oopDesc* oop_desc) {
   if (oop_desc != NULL) {
+    if (RTGC_OPT_YOUNG_ROOTS && !rtHeap::is_alive(oop_desc)) return;
     oop_desc->klass()->oop_verify_on(oop_desc, st);
   }
 }
