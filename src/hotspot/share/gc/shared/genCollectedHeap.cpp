@@ -1161,6 +1161,7 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());
   _old_gen->verify();
 
+  printf("_young_gen->verify()\n");
   // fatal("_young_gen->verify()\n");
   log_debug(gc, verify)("%s", _old_gen->name());
   _young_gen->verify();

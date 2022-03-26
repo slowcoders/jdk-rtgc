@@ -89,6 +89,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stringUtils.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #endif
@@ -3814,6 +3815,7 @@ void InstanceKlass::verify_on(outputStream* st) {
 
 void InstanceKlass::oop_verify_on(oop obj, outputStream* st) {
   Klass::oop_verify_on(obj, st);
+  if (RTGC_OPT_YOUNG_ROOTS && !rtHeap::is_alive(obj)) return;
   VerifyFieldClosure blk;
   obj->oop_iterate(&blk);
 }

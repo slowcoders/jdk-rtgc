@@ -196,6 +196,14 @@ public:
     T** _end;
     T* _temp;
 
+    RefIterator() {}
+
+    RefIterator(T* temp) {
+        _temp = temp;
+        _current = &_temp;
+        _end = _current + 1;
+    }
+
     bool hasNext() {
         return (_current != _end);
     }

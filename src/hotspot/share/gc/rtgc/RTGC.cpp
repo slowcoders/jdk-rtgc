@@ -198,11 +198,11 @@ const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
         printf("Class of class\n");
         cast_to_oop(obj)->print_on(tty);
       }
-      else {
-        return klass->internal_name();
-      }
+      // else {
+      //   return klass->internal_name();
+      // }
     }
-    return (const char*)klass->name()->as_C_string();
+    return klass->internal_name();
 }
 
 

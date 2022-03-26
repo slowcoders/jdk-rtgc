@@ -72,17 +72,17 @@ bool PathFinder::findSurvivalPathThroughShorcut(GCObject* tracingNode) {
 
 bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
 
-    if (tracingNode->getRootRefCount() > ZERO_ROOT_REF) {
-        return true;
-    }
-    if (findSurvivalPathThroughShorcut(tracingNode)) {
-        return true;
-    }
+    // if (tracingNode->getRootRefCount() > ZERO_ROOT_REF) {
+    //     return true;
+    // }
+    // if (findSurvivalPathThroughShorcut(tracingNode)) {
+    //     return true;
+    // }
 
-
-    tracingNode->markGarbage();
-    _visitedNodes.push_back(tracingNode);
-    _trackers.push_back(tracingNode);
+    RefIterator<GCObject> tail(tracingNode);
+    //tracingNode->markGarbage();
+    //_visitedNodes.push_back(tracingNode);
+    _trackers.push_back(*(AnchorIterator*)&tail);
     AnchorIterator* it = &_trackers.back();
     while (true) {
         precond(it != NULL);
@@ -179,8 +179,7 @@ bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObj
     PathFinder pf(unreachableNodes);
     bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
-    //postcond(unreachableNodes.size() < 8000);
-    if (true || hasSurvivalPath) {
+    if (hasSurvivalPath) {
         for (int i = unreachableNodes.size(); --i >= cntUnreachable; ) {
             GCObject* obj = (GCObject*)unreachableNodes.at(i);
             obj->unmarkGarbage();
