@@ -203,7 +203,6 @@ void rtHeap__clear_garbage_young_roots() {
     oop* dst = src;
     for (;--idx_root >= 0; src++) {
       GCObject* anchor = to_obj(*src);
-      //precond(INGNORE_GARBAGE_MARK || !anchor->isGarbageMarked());
       if (anchor->isUnsafe() && !anchor->isGarbageMarked() &&
           GarbageProcessor::detectUnreachable(anchor, g_garbage_list)) {
           rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)anchor, RTGC::getClassName(anchor));
@@ -369,14 +368,14 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
   bool has_young_ref = g_adjust_pointer_closure.has_young_ref();
-  adjust_tracking_pointers(old_p, has_young_ref); 
+  adjust_anchor_pointers(old_p, has_young_ref); 
   if (!USE_PENDING_TRACKABLES) {
     to_obj(old_p)->unmarkDirtyReferrerPoints();
   }
   return size; 
 }
 
-void rtHeap::adjust_tracking_pointers(oopDesc* old_p, bool is_young_root) {
+void rtHeap::adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
   precond(old_p->is_gc_marked() || 
       (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER));
 
@@ -504,20 +503,23 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   obj->markGarbage();
 }
 
-bool rtHeap::flush_pending_trackables() {
+bool rtHeap::finish_collection(bool is_tenure_gc) {
   if (RTGC_CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
 
-  rtHeap__clear_garbage_young_roots();
-
-  GCRuntime::adjustShortcutPoints();
+  if (is_tenure_gc) {
+    GCRuntime::adjustShortcutPoints();
+  } else {
+    precond(g_pending_trackables.length() == 0);
+    rtHeap__clear_garbage_young_roots();
+  }
 
   g_garbage_list.resize(0);
 
   if (!USE_PENDING_TRACKABLES) return false;
   const int count = g_pending_trackables.length();
-  rtgc_log(LOG_OPT(11), "flush_pending_trackables %d\n", count);
+  rtgc_log(LOG_OPT(11), "finish_collection %d\n", count);
   if (count == 0) return false;
 
   oop* pOop = &g_pending_trackables.at(0);

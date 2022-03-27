@@ -627,8 +627,8 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-#if USE_RTGC  // flush_pending_trackables
-  assert(!rtHeap::flush_pending_trackables(), "pending trackables found in defNewGenerations");
+#if USE_RTGC  // finish_collection
+  rtHeap::finish_collection(false);
 #endif
 
   if (!_promotion_failed) {

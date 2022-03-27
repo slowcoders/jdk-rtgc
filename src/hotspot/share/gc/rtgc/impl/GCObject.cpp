@@ -77,10 +77,11 @@ int GCObject::removeReferrer(GCObject* referrer) {
             return idx;
         }
     }
-    if (this->getShortcutId() > INVALID_SHORTCUT
-    &&  this->getShortcutId() == referrer->getShortcutId()) {
-    //this->invaliateSurvivalPath(referrer);
+    if (this->getShortcutId() > INVALID_SHORTCUT) {
 		SafeShortcut* shortcut = this->getShortcut();
+        precond(this->getShortcutId() == referrer->getShortcutId()
+            ||  referrer == shortcut->getAnchor());
+    //this->invaliateSurvivalPath(referrer);
         shortcut->split(referrer, this);
     }
     return 0;
@@ -150,7 +151,8 @@ void GCObject::setSafeAnchor(GCObject* anchor) {
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         int idx = referrers->indexOf(anchor);
-        precond(idx >= 0);
+        assert(idx >= 0, "incorrect anchor(%p) for this(%p)",
+            anchor, this);
         if (idx != 0) {
             GCObject* tmp = referrers->at(0);
             referrers->at(0) = anchor;
@@ -159,9 +161,9 @@ void GCObject::setSafeAnchor(GCObject* anchor) {
     }
     else {
         GCObject* front = _offset2Object(_refs, &_refs);
-        precond(front == anchor);
+        assert(front == anchor, "incorrect safe anchor(%p) for this(%p). it must be (%p)",
+            anchor, this, front);
     }
-    setShortcutId_unsafe(INVALID_SHORTCUT);
 }
 
 SafeShortcut* GCObject::getShortcut() {
@@ -208,11 +210,6 @@ void GCObject::initIterator(AnchorIterator* iterator) {
 ReferrerList* GCObject::getReferrerList() {
     precond(hasMultiRef());
     return _rtgc.gRefListPool.getPointer(_refs);
-}
-
-void GCObject::setShortcutId_unsafe(int shortcutId) {
-	precond(!getShortcut()->isValid());
-	this->_shortcutId = shortcutId;
 }
 
 

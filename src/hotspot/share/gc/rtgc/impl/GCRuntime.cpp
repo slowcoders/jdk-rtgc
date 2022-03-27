@@ -202,13 +202,17 @@ int GCRuntime::getCircuitCount() {
 
 void GCRuntime::adjustShortcutPoints() {
     int allocSize = _rtgc.g_shortcutPool.getAllocatedSize();
-    if (allocSize <= INVALID_SHORTCUT + 1) return;
-    SafeShortcut* p = _rtgc.g_shortcutPool.getPointer(INVALID_SHORTCUT + 1);
+    allocSize -= INVALID_SHORTCUT + 1;
+    if (allocSize <= 0) return;
+    rtgc_log(true, "g_shortcutPool allocSize %d\n", allocSize);
+    SafeShortcut* p = SafeShortcut::getPointer(INVALID_SHORTCUT + 1);
     SafeShortcut* end = p + allocSize;
     for (; p < end; p++) {
         if (p->isValid()) {
             GCObject* anchor = RTGC::getForwardee(p->getAnchor());
             GCObject* tail = RTGC::getForwardee(p->getTail());
+            rtgc_log(true, "adjustShortcutPoints %p->%p, %p->%p\n", 
+                p->getAnchor(), anchor, p->getTail(), tail);
             p->adjustPointUnsafe(anchor, tail);
         }
     }

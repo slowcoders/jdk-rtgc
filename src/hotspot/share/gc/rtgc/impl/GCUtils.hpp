@@ -102,6 +102,15 @@ public:
         return _data->_size == 0; 
     }
 
+    T* push_empty() {
+        if (_data->_size >= _data->_capacity) {
+            int newSize = ((_data->_capacity * 2 + 7) & ~7) - 1;
+            _data = (Data*)Allocator::realloc(_data, alloc_size(newSize));
+            _data->_capacity = newSize;
+        }
+        return _data->_items + _data->_size++;
+    }
+
     void push_back(T item) {
         if (_data->_size >= _data->_capacity) {
             int newSize = ((_data->_capacity * 2 + 7) & ~7) - 1;
@@ -127,6 +136,10 @@ public:
 
     T& at(size_t __n) {
         return _data->_items[__n];
+    }
+
+    T* adr_at(size_t __n) {
+        return _data->_items + __n;
     }
 
     void resize(size_t __n) {
@@ -196,9 +209,7 @@ public:
     T** _end;
     T* _temp;
 
-    RefIterator() {}
-
-    RefIterator(T* temp) {
+    void initSingleIterator(T* temp) {
         _temp = temp;
         _current = &_temp;
         _end = _current + 1;
@@ -206,6 +217,15 @@ public:
 
     bool hasNext() {
         return (_current != _end);
+    }
+
+    T* peekPrev() {
+        return _current[-1];
+    }
+
+    T* peek() {
+        precond(hasNext());
+        return *_current;
     }
 
     T* next() {

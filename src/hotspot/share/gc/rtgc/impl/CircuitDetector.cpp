@@ -12,7 +12,6 @@ static const int GC_VERBOSE_LOG = false;
 
 
 using namespace RTGC;
-static const int MIN_SHORTCUT_LENGTH = 3;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SCANNER, function);
@@ -45,113 +44,140 @@ public:
 
     bool findSurvivalPath(GCObject* tracingNode);
 
-    bool findSurvivalPathThroughShorcut(GCObject* tracingNode);
+    void constructShortcut();
 };
 
-bool PathFinder::findSurvivalPathThroughShorcut(GCObject* tracingNode) {
-    SafeShortcut* shortcut = tracingNode->getShortcut();
-    precond(shortcut != NULL);
-
-    if (shortcut->isValid()) {
-        /* 단축 경로 추적 단계(S320) */
-        /* 방문 단축 경로 추가(S321) */
-        shortcut->markInTracing();
-        // _visitedNodes.push_back(shortcut);
-        /* 단축 경로 시작점 객체의 생존 경로 탐색(S322) */
-        bool survived = findSurvivalPath(shortcut->getAnchor());
-        shortcut->unmarkInTracing();
-        if (survived) {
-            return true;
-        }
-        /* 단축 경로 정보 소거 -> 단축(S323) */
-        shortcut->moveAnchorTo(tracingNode);
-        // _visitedNodes.pop_back();
-    }
-    return false;
-}
-
 bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
-
-    // if (tracingNode->getRootRefCount() > ZERO_ROOT_REF) {
-    //     return true;
-    // }
-    // if (findSurvivalPathThroughShorcut(tracingNode)) {
-    //     return true;
-    // }
-
-    RefIterator<GCObject> tail(tracingNode);
-    //tracingNode->markGarbage();
-    //_visitedNodes.push_back(tracingNode);
-    _trackers.push_back(*(AnchorIterator*)&tail);
-    AnchorIterator* it = &_trackers.back();
+    AnchorIterator* it = _trackers.push_empty();
+    it->initSingleIterator(tracingNode);
     while (true) {
-        precond(it != NULL);
-        if (!it->hasNext()) {
+        GCObject* R;
+        while (!it->hasNext()) {
             _trackers.pop_back();
-            if (_trackers.empty()) break;
+            rtgc_log(true, "SurvivalPath pop [%d]\n", _trackers.size());
+            if (_trackers.empty()) return false;
             it = &_trackers.back();
-            continue;
+
+            R = it->peekPrev();
+            if (!R->isGarbageMarked()) {
+                SafeShortcut* shortcut = R->getShortcut();
+                precond(shortcut->inTracing());
+                precond(R->hasReferrer());
+                shortcut->unmarkInTracing();
+                shortcut->shrinkAnchorTo(R);
+                it = _trackers.push_empty();
+                R->initIterator(it);
+                postcond(!_visitedNodes.contains(R));
+                R->markGarbage();
+                _visitedNodes.push_back(R);
+                break;
+            }
         }
 
-        GCObject* R = it->next();
+        R = it->next();
+        rtgc_log(true, "findSurvivalPath %p[%d]\n", R, _trackers.size());
+        SafeShortcut* shortcut = R->getShortcut();
+        precond(shortcut != NULL);
         precond(R != NULL);
-        precond(R->getShortcut() != NULL);
 
         /* 중복 추적 회피 단계(S341) */
         if (R->isGarbageMarked() ||
-            R->getShortcut()->inTracing()) {
+            shortcut->inTracing()) {
             continue;
         }
 
         if (R->getRootRefCount() > ZERO_ROOT_REF) {
+            rtgc_log(true, "SurvivalPath found [%d]\n", _trackers.size());
             return true;
         }
 
-        if (findSurvivalPathThroughShorcut(R)) {
-            return true;
+        if (R->hasReferrer()) {
+            it = _trackers.push_empty();
+            if (shortcut->isValid()) {
+                shortcut->markInTracing();
+
+                rtgc_log(true, "shortcut pushed %p(%p)\n", R, shortcut->getAnchor());
+                it->initSingleIterator(shortcut->getAnchor());
+            }
+            else {
+                R->initIterator(it);
+                R->markGarbage();
+                _visitedNodes.push_back(R);
+            }
+            continue;
         }
 
         R->markGarbage();
         _visitedNodes.push_back(R);
-        if (R->hasReferrer()) {
-            _trackers.push_back(R);
-            it = &_trackers.back();
-        }
     }
-    /* 실패값 반환 */
-    return false;
 }
 
-void constructShortcut(GCObject* obj) {
-    if (!_EnableShortcut) return;
-                
-	int s_id = 0;
-	SafeShortcut* newShortcut = nullptr;
+void PathFinder::constructShortcut() {
+    for (int i = _visitedNodes.size(); --i >= 0; ) {
+        GCObject* obj = (GCObject*)_visitedNodes.at(i);
+        obj->unmarkGarbage();
+    }
+
+    const int MAX_SHORTCUT_LEN = 256;
+    // for (int i = 0; i < _trackers.size(); i ++) {
+    //     AnchorIterator* it = _trackers.adr_at(i);
+    //     rtgc_log(true, "- link(%p)[%d]\n", it->peekPrev(), i);
+    // }
+    AnchorIterator* ait = _trackers.adr_at(0);
+    AnchorIterator* end = ait + _trackers.size() - 1;
+    if (ait >= end) {
+        return;
+    }
+    GCObject* tail = NULL;
+    GCObject* link = NULL;
+    SafeShortcut* lastShortcut = NULL;
     int cntNode = 0;
-    while (obj->getRootRefCount() == ZERO_ROOT_REF) {
+    for (; ait < end; ait++) {
+        GCObject* obj = ait->peekPrev();        
+        if (link != NULL) {
+            rtgc_log(true, "link(%p) to anchor(%p)\n", link, obj);
+            link->setSafeAnchor(obj);
+        }
+
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
-            if (newShortcut == nullptr) {
-                newShortcut = new SafeShortcut(obj);
-				s_id = SafeShortcut::getIndex(newShortcut);
+            if (++cntNode >= MAX_SHORTCUT_LEN) {
+                lastShortcut = SafeShortcut::create(obj, tail, cntNode);
+                cntNode = 1;
             }
-            cntNode ++;
-            obj->setShortcutId_unsafe(s_id);
-            //rtgc_log(true, "shotcut assigned %p = %d (%d)\n", obj, s_id, cntNode);
-            obj = obj->getSafeAnchor();
+            if (cntNode == 1) {
+                tail = obj;
+            }
+            link = obj;
         } else {
-            if (newShortcut != nullptr) {
-                newShortcut->setAnchor(obj, cntNode);
-                s_id = SafeShortcut::getIndex(newShortcut);
-                rtgc_log(LOG_OPT(11), "shotcut %d anchor= %p cntNode= %d\n", s_id, obj, cntNode);
-                cntNode = 0;
-                newShortcut = nullptr;
+            postcond(ait + 1 == end || ait[+1].peekPrev() == ss->getAnchor());
+            precond(ss->inTracing());
+            ss->unmarkInTracing();
+            if (obj == ss->getTail()) {
+                ss->extendTail(tail);
             }
-            obj = ss->getAnchor();
+            else if (lastShortcut != NULL) {
+                lastShortcut->extendAnchor(obj);
+            }
+            else {
+                SafeShortcut::create(obj, tail, cntNode);
+            }
+            link = NULL;
+            lastShortcut = ss;
+            cntNode = 0;
         }
     }
-    if (newShortcut != nullptr) {
-        rtgc_log(LOG_OPT(11), "shotcut %d anchor= %p cntNode= %d\n", s_id, obj, cntNode);
+    
+    if (link != NULL) {
+        GCObject* root_anchor = end->peekPrev();
+        link->setSafeAnchor(root_anchor);
+        if (cntNode > 0) {
+            if (lastShortcut != NULL) {
+                lastShortcut->extendAnchor(root_anchor);
+            } else {
+                SafeShortcut::create(root_anchor, tail, cntNode);
+            }
+        }
     }
 }
 
@@ -176,17 +202,13 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
     precond(!unsafeObj->isGarbageMarked());
     int cntUnreachable = unreachableNodes.size();
+
+    rtgc_log(true, "detectUnreachable %p\n", unsafeObj);
     PathFinder pf(unreachableNodes);
     bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
     if (hasSurvivalPath) {
-        for (int i = unreachableNodes.size(); --i >= cntUnreachable; ) {
-            GCObject* obj = (GCObject*)unreachableNodes.at(i);
-            obj->unmarkGarbage();
-        }
-        if (unreachableNodes.size() > MIN_SHORTCUT_LENGTH) {
-            constructShortcut(unsafeObj);
-        }
+        pf.constructShortcut();
         unreachableNodes.resize(cntUnreachable);
         return false;
     }
@@ -201,13 +223,7 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
         bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
         if (hasSurvivalPath) {
-            for (int i = _visitedNodes.size(); --i >= 0; ) {
-                GCObject* obj = (GCObject*)_visitedNodes.at(i);
-                obj->unmarkGarbage();
-            }
-            if (_visitedNodes.size() > MIN_SHORTCUT_LENGTH) {
-                constructShortcut(unsafeObj);
-            }
+            pf.constructShortcut();
         }
         else {
             for (int i = _visitedNodes.size(); --i >= 0; ) {
@@ -287,12 +303,28 @@ void GarbageProcessor::reclaimObjects() {
 
 
 void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
-    if (!_EnableShortcut) return;
     precond(newAnchor->getShortcut() == this);
-    precond(newTail->getShortcut() == this);
-    GCObject* tail2;
-
     newAnchor->setShortcutId_unsafe(0);
+    if (newTail == this->_anchor) {
+        if (clearTooShort(newAnchor, _tail)) {
+            delete this;
+        } else {
+            this->_anchor = newAnchor;
+            this->vailidateShortcut();
+        }
+        return;
+    }
+    if (newAnchor == this->_tail) {
+        if (clearTooShort(_anchor, newTail)) {
+            delete this;
+        } else {
+            newTail->setShortcutId_unsafe(0);
+            this->_tail = newTail;
+            this->vailidateShortcut();
+        }
+        return;
+    }
+
     bool cut_tail = clearTooShort(newAnchor, _tail);
     bool cut_head = clearTooShort(_anchor, newTail);
     if (cut_head) {
@@ -307,18 +339,15 @@ void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
     }
     else {
         this->_tail = newTail;
-        SafeShortcut* shortcut = new SafeShortcut(_tail);
-        int sid = SafeShortcut::getIndex(shortcut);
-        shortcut->setAnchor(newAnchor, 0);
-        for (GCObject* o = _tail; o != newAnchor; o = o->getSafeAnchor()) {
-            o->setShortcutId_unsafe(sid);
-        }
+        SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1);
     }
+    this->vailidateShortcut();
 }
 
 bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     int len = MIN_SHORTCUT_LENGTH;
     for (GCObject* obj = tail; obj != anchor; obj = obj->getSafeAnchor()) {
+        precond(obj->hasReferrer());
         if (--len < 0) return false;
     }
     for (GCObject* obj = tail; obj != anchor; obj = obj->getSafeAnchor()) {
@@ -327,15 +356,15 @@ bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     return true;
 }
 
-void SafeShortcut::moveAnchorTo(GCObject* newAnchor) {
+void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     precond(newAnchor->getShortcut() == this);
     for (GCObject* obj = newAnchor; obj != _anchor; obj = obj->getSafeAnchor()) {
+        precond(obj->hasReferrer());
         obj->setShortcutId_unsafe(INVALID_SHORTCUT);
     }
     if (clearTooShort(newAnchor, _tail)) {
         delete this;
-    }
-    else {
+    } else {
         this->_anchor = newAnchor;
     }
 }

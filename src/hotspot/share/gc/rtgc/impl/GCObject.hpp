@@ -15,7 +15,7 @@
 
 namespace RTGC {
 
-static const bool _EnableShortcut = false;
+static const bool _EnableShortcut = true;
 
 class GCObject;
 class SafeShortcut;
@@ -53,7 +53,9 @@ public:
 
 	void setSafeAnchor(GCObject* anchor);
 
-	void setShortcutId_unsafe(int shortcutId);
+	void setShortcutId_unsafe(int shortcutId) {
+		this->_shortcutId = shortcutId;
+	}
 
 	int getShortcutId() {
 		return this->_shortcutId;
@@ -76,6 +78,7 @@ public:
 	bool removeMatchedReferrers(GCObject* referrer);
 };
 
+static const int MIN_SHORTCUT_LENGTH = 3;
 
 class SafeShortcut {
 	union {
@@ -84,10 +87,26 @@ class SafeShortcut {
 	};
 	GCObject* _anchor;
 	int _cntNode;
+
+	SafeShortcut(GCObject* anchor, GCObject* tail) {
+		_tail = tail;
+		_anchor = anchor;
+	}
 public:
 
-	SafeShortcut(GCObject* tail) {
-		_tail = tail;
+	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
+		int s_id = INVALID_SHORTCUT;
+		SafeShortcut* shortcut = NULL;
+		if (cntNode > MIN_SHORTCUT_LENGTH) {
+			shortcut = new SafeShortcut(anchor, tail);
+			s_id = getIndex(shortcut);
+		}
+		for (GCObject* node = tail; node != anchor; node = node->getSafeAnchor()) {
+			node->setShortcutId_unsafe(s_id);
+		}
+        rtgc_log(true, "shotcut[%d:%d] assigned %p->%p\n", s_id, cntNode, anchor, tail);
+		if (shortcut != NULL) shortcut->vailidateShortcut();
+		return shortcut;
 	}
 
 	void clear() {
@@ -124,9 +143,32 @@ public:
 		_anchor = anchor; _tail = tail;
 	}
 
-	void setAnchor(GCObject* anchor, int cntNode) { this->_anchor = anchor; this->_cntNode = cntNode; }
+	void vailidateShortcut() {
+		precond(_anchor->getShortcut() != this);
+		for (GCObject* obj = _tail; obj != _anchor; obj = obj->getSafeAnchor()) {
+			precond(obj->getShortcut() == this);
+		}
+	}
 
-	void moveAnchorTo(GCObject* newAnchor);
+	void extendTail(GCObject* tail) { 
+		int s_id = getIndex(this);
+		for (GCObject* node = tail; node != _tail; node = node->getSafeAnchor()) {
+			node->setShortcutId_unsafe(s_id);
+		}
+		this->_tail = tail;
+		vailidateShortcut();
+	}
+
+	void extendAnchor(GCObject* anchor) { 
+		int s_id = getIndex(this);
+		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
+			node->setShortcutId_unsafe(s_id);
+		}
+		this->_anchor = anchor;
+		vailidateShortcut();
+	}
+
+	void shrinkAnchorTo(GCObject* newAnchor);
 
 	bool isValid() { return this->_anchor != nullptr; }
 };
@@ -135,6 +177,8 @@ public:
 
 class AnchorIterator : public RefIterator<GCObject> {
 public:
+	AnchorIterator() {}
+
 	AnchorIterator(GCObject* const node) {
 		node->initIterator(this);
 	}
