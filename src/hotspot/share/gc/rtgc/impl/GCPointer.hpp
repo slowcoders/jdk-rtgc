@@ -31,6 +31,20 @@ void* _offset2Pointer(uint32_t offset, void* origin);
 #define _offset2Object(offset, origin) (GCObject*)RTGC::_offset2Pointer(offset, origin)
 #define USE_32BIT_POINTER 1
 
+class GCObject;
+
+class ShortOOP {
+    uint32_t _ofs;
+public:
+    ShortOOP(GCObject* ptr) {
+        _ofs = _pointer2offset(ptr, this);
+    }
+
+    operator GCObject* () {
+        return (GCObject*)_offset2Pointer(_ofs, this);
+    }
+};
+
 template <class T>
 class OffsetPointer {
 #if USE_32BIT_POINTER

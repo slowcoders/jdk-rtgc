@@ -60,7 +60,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
             this, RTGC::getClassName(this));
         if (idx < 0) {
             for (int i = 0; i < referrers->size(); i ++) {
-                rtgc_log(true, "at[%d] %p\n", i, referrers->at(i));
+                rtgc_log(true, "at[%d] %p\n", i, (void*)referrers->at(i));
             }
         }
         precond(idx >= 0);
@@ -145,7 +145,8 @@ GCObject* GCObject::getSafeAnchor() {
 }
 
 void GCObject::setSafeAnchor(GCObject* anchor) {
-    precond(hasReferrer()); 
+    assert(hasReferrer(), "incorrect anchor(%p) for empty obj(%p)",
+        anchor, this);
     precond(!this->getShortcut()->isValid());
 
     if (hasMultiRef()) {
@@ -195,8 +196,7 @@ void GCObject::initIterator(AnchorIterator* iterator) {
         iterator->_current = iterator->_end = nullptr;
     }
     else if (!hasMultiRef()) {
-        iterator->_temp = _offset2Object(_refs, &_refs);
-        iterator->_current = &iterator->_temp;
+        iterator->_current = (ShortOOP*)(void*)&_refs;//&iterator->_temp;
         iterator->_end = iterator->_current + 1;
     }
     else {

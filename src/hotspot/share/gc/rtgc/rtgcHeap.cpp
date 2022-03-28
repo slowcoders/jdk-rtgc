@@ -54,7 +54,7 @@ namespace RTGC {
   int g_saved_young_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   const bool USE_PENDING_TRACKABLES = false;
-  const bool INGNORE_GARBAGE_MARK = false;
+  const bool INGNORE_GARBAGE_MARK = true;
   oopDesc* empty_trackable;
 };
 
@@ -407,7 +407,7 @@ void rtHeap::adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     for (int idx = 0; idx < referrers->size(); ) {
-      oopDesc* old_p = cast_to_oop(referrers->at(idx));
+      oopDesc* old_p = cast_to_oop((void*)referrers->at(idx));
       if (CHECK_GARBAGE && !IS_GC_MARKED(old_p)) {
         rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", old_p, obj, moved_to);
         referrers->removeFast(idx);

@@ -15,15 +15,13 @@
 
 namespace RTGC {
 
-static const bool _EnableShortcut = true;
-
 class GCObject;
 class SafeShortcut;
 class AnchorIterator;
 
 typedef SimpleVector<GCObject*> ScanVector;
 
-class ReferrerList : public SimpleVector<GCObject*> {
+class ReferrerList : public SimpleVector<ShortOOP> {
 public:    
 	void init(int initialSize);
 };
@@ -79,6 +77,8 @@ public:
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
+static const bool _EnableShortcut = false;
+
 
 class SafeShortcut {
 	union {
@@ -97,15 +97,17 @@ public:
 	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
 		int s_id = INVALID_SHORTCUT;
 		SafeShortcut* shortcut = NULL;
-		if (cntNode > MIN_SHORTCUT_LENGTH) {
+		if (_EnableShortcut && cntNode > MIN_SHORTCUT_LENGTH) {
 			shortcut = new SafeShortcut(anchor, tail);
 			s_id = getIndex(shortcut);
 		}
 		for (GCObject* node = tail; node != anchor; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}
-        rtgc_log(true, "shotcut[%d:%d] assigned %p->%p\n", s_id, cntNode, anchor, tail);
-		if (shortcut != NULL) shortcut->vailidateShortcut();
+		if (shortcut != NULL) {
+	        // rtgc_log(true, "shotcut[%d:%d] assigned %p->%p\n", s_id, cntNode, anchor, tail);
+			shortcut->vailidateShortcut();
+		}
 		return shortcut;
 	}
 
@@ -152,6 +154,7 @@ public:
 
 	void extendTail(GCObject* tail) { 
 		int s_id = getIndex(this);
+	    rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, _tail, tail);
 		for (GCObject* node = tail; node != _tail; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}
@@ -161,6 +164,7 @@ public:
 
 	void extendAnchor(GCObject* anchor) { 
 		int s_id = getIndex(this);
+	    rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, _anchor, anchor);
 		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}
@@ -175,7 +179,7 @@ public:
 
 
 
-class AnchorIterator : public RefIterator<GCObject> {
+class AnchorIterator : public RefIterator<ShortOOP> {
 public:
 	AnchorIterator() {}
 

@@ -39,6 +39,8 @@ enum class DoNotInitialize {
     Flag
 };
 
+
+
 template <class T, class Allocator = DefaultAllocator >
 class SimpleVector {
 public:
@@ -205,39 +207,41 @@ typedef bool (*LinkVisitor)(GCObject* anchor, GCObject* link, void* param);
 template <class T>
 class RefIterator {
 public:
-    T** _current;
-    T** _end;
-    T* _temp;
+    T* _current;
+    T* _end;
 
     void initSingleIterator(T* temp) {
-        _temp = temp;
-        _current = &_temp;
+        _current = temp;
         _end = _current + 1;
+    }
+
+    void setLength(int len) {
+        _end = _current + len;
     }
 
     bool hasNext() {
         return (_current != _end);
     }
 
-    T* peekPrev() {
+    T& peekPrev() {
         return _current[-1];
     }
 
-    T* peek() {
+    T& peek() {
         precond(hasNext());
         return *_current;
     }
 
-    T* next() {
+    T& next() {
         precond(hasNext());
         return *_current++;
     }
 
-    T** getLocation() {
+    T* getLocation() {
         return _current;
     }
 
-    void reset(T** location) {
+    void reset(T* location) {
         _current = location;
     }
 
@@ -367,20 +371,20 @@ public:
         return SUPER::_data;
     }
 
-    void initIterator(RefIterator<T>* iterator) {
-        if (SUPER::_slot == 0) {
-            iterator->_current = iterator->_end = nullptr;
-        }
-        else if (SUPER::_slot < 0) {
-            iterator->_temp = first();
-            iterator->_current = &iterator->_temp;
-            iterator->_end = iterator->_current + 1;
-        }
-        else {
-            iterator->_current = &SUPER::at(0);
-            iterator->_end = iterator->_current + SUPER::size();
-        }
-    }
+    // void initIterator(AnchorIterator* iterator) {
+    //     if (SUPER::_slot == 0) {
+    //         iterator->_current = iterator->_end = nullptr;
+    //     }
+    //     else if (SUPER::_slot < 0) {
+    //         iterator->_temp = first();
+    //         iterator->_current = &iterator->_temp;
+    //         iterator->_end = iterator->_current + 1;
+    //     }
+    //     else {
+    //         iterator->_current = &SUPER::at(0);
+    //         iterator->_end = iterator->_current + SUPER::size();
+    //     }
+    // }
 };
 
 
@@ -454,7 +458,7 @@ public:
     }
 
     T* getPointer(int idx) {
-        precond(idx < _idxAlloc);
+        assert(idx < _idxAlloc, "invalid idx: %d (max=%d)\n", idx, _idxAlloc);
         T* ptr = _items + idx;
         return ptr;
     }
