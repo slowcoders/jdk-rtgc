@@ -54,7 +54,7 @@ namespace RTGC {
   int g_saved_young_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   const bool USE_PENDING_TRACKABLES = false;
-  const bool INGNORE_GARBAGE_MARK = true;
+  const bool INGNORE_GARBAGE_MARK = false;
   oopDesc* empty_trackable;
 };
 

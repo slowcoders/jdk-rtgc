@@ -21,6 +21,10 @@ SafeShortcut* SafeShortcut::getPointer(int idx) {
 	return _rtgc.g_shortcutPool.getPointer(idx);
 }
 
+bool SafeShortcut::isValidIndex(int idx) {
+	return idx >= 0 && idx < _rtgc.g_shortcutPool.getAllocatedSize();
+}
+
 int SafeShortcut::getIndex(SafeShortcut* circuit) {
 	return circuit == nullptr ? 0 : _rtgc.g_shortcutPool.getIndex(circuit);
 }
@@ -77,7 +81,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         }
 
         R = it->next();
-        rtgc_log(LOG_OPT(0x10), "findSurvivalPath %p[%d]\n", R, _trackers.size());
+        rtgc_log(true || LOG_OPT(0x10), "findSurvivalPath %p[%d]\n", R, _trackers.size());
         SafeShortcut* shortcut = R->getShortcut();
         precond(shortcut != NULL);
         precond(R != NULL);
@@ -98,7 +102,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
             if (shortcut->isValid()) {
                 shortcut->markInTracing();
                 _tempOops.push_back(shortcut->getAnchor());
-                rtgc_log(LOG_OPT(0x10), "shortcut pushed %p(%p)\n", R, shortcut->getAnchor());
+                rtgc_log(true || LOG_OPT(0x10), "shortcut pushed %p(%p)\n", R, shortcut->getAnchor());
                 it->initSingleIterator(&_tempOops.back());
             }
             else {
@@ -126,8 +130,8 @@ void PathFinder::constructShortcut() {
     //     rtgc_log(LOG_OPT(0x10), "- link(%p)[%d]\n", it->peekPrev(), i);
     // }
     AnchorIterator* ait = _trackers.adr_at(0);
-    AnchorIterator* end = ait + _trackers.size() - 1;
-    if (ait >= end) {
+    AnchorIterator* end = ait + _trackers.size();
+    if (ait + 1 >= end) {
         return;
     }
     GCObject* tail = NULL;
@@ -138,9 +142,11 @@ void PathFinder::constructShortcut() {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(0x10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
         if (link != NULL) {
+            precond(link->hasReferrer());
             link->setSafeAnchor(obj);
         }
 
+        precond(SafeShortcut::isValidIndex(obj->getShortcutId()));
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
@@ -152,35 +158,34 @@ void PathFinder::constructShortcut() {
             }
             link = obj;
         } else {
-            postcond(ait + 1 == end || ait[+1].peekPrev() == ss->getAnchor());
-            precond(ss->inTracing());
+            postcond(ait+1 == end || ait[+1].peekPrev() == ss->getAnchor());
+            precond(ss->inTracing() || (ait+1 == end && obj->getRootRefCount() > 0));
             ss->unmarkInTracing();
-            if (obj == ss->getTail()) {
-                ss->extendTail(tail);
-            }
-            else if (lastShortcut != NULL) {
-                lastShortcut->extendAnchor(obj);
-            }
-            else {
-                SafeShortcut::create(obj, tail, cntNode);
+            if (cntNode > 0) {
+                if (obj == ss->getTail()) {
+                    ss->extendTail(tail);
+                }
+                else if (lastShortcut != NULL) {
+                    lastShortcut->extendAnchor(obj);
+                }
+                else {
+                    SafeShortcut::create(obj, tail, cntNode);
+                }
+                cntNode = 0;
             }
             link = NULL;
             lastShortcut = ss;
-            cntNode = 0;
         }
     }
     
-    if (link != NULL) {
-        GCObject* root_anchor = end->peekPrev();
-        link->setSafeAnchor(root_anchor);
-        if (cntNode > 0) {
-            if (lastShortcut != NULL) {
-                lastShortcut->extendAnchor(root_anchor);
-            } else {
-                SafeShortcut::create(root_anchor, tail, cntNode);
-            }
+    if (cntNode > 1) {
+        if (lastShortcut != NULL) {
+            lastShortcut->extendAnchor(link);
+        } else {
+            SafeShortcut::create(link, tail, cntNode);
         }
     }
+    // last anchor may not have safe-anchor
 }
 
 static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleVector<GCObject*>* unsafeObjects) {
@@ -205,7 +210,7 @@ bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObj
     precond(!unsafeObj->isGarbageMarked());
     int cntUnreachable = unreachableNodes.size();
 
-    rtgc_log(LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
+    rtgc_log(true || LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
     PathFinder pf(unreachableNodes);
     bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 

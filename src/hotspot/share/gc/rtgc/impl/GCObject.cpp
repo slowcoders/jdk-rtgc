@@ -145,8 +145,8 @@ GCObject* GCObject::getSafeAnchor() {
 }
 
 void GCObject::setSafeAnchor(GCObject* anchor) {
-    assert(hasReferrer(), "incorrect anchor(%p) for empty obj(%p)",
-        anchor, this);
+    assert(hasReferrer() && SafeShortcut::isValidIndex(this->getShortcutId()), 
+        "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
 
     if (hasMultiRef()) {

@@ -77,8 +77,7 @@ public:
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
-static const bool _EnableShortcut = false;
-
+static const bool _EnableShortcut = true;
 
 class SafeShortcut {
 	union {
@@ -152,7 +151,9 @@ public:
 		}
 	}
 
-	void extendTail(GCObject* tail) { 
+	void extendTail(GCObject* tail) {
+		precond(tail != NULL); 
+		precond(tail != _tail); 
 		int s_id = getIndex(this);
 	    rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, _tail, tail);
 		for (GCObject* node = tail; node != _tail; node = node->getSafeAnchor()) {
@@ -163,6 +164,8 @@ public:
 	}
 
 	void extendAnchor(GCObject* anchor) { 
+		precond(anchor != NULL); 
+		precond(anchor != _anchor); 
 		int s_id = getIndex(this);
 	    rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, _anchor, anchor);
 		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
@@ -175,6 +178,8 @@ public:
 	void shrinkAnchorTo(GCObject* newAnchor);
 
 	bool isValid() { return this->_anchor != nullptr; }
+
+	static bool isValidIndex(int idx);
 };
 
 
