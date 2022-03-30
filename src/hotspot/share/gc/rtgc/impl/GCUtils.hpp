@@ -27,12 +27,56 @@
 
 namespace RTGC {
 
+static const int MEM_BUCKET_SIZE = 64 * 1024;
+
+struct VirtualMemory {
+    static void* reserve_memory(size_t bytes);
+    static void  commit_memory(void* mem, void* bucket, size_t bytes);
+};
+
 struct DefaultAllocator {
     static void* alloc(size_t size);
-
     static void* realloc(void* mem, size_t size);
+    static void  free(void* mem);
+};
 
-    static void free(void* mem);
+template <class T, class Allocator = DefaultAllocator>
+struct DynamicAllocator {
+    static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
+        return Allocator::alloc(capacity * item_size + offset);
+    }
+
+    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t offset) {
+        capacity = ((capacity * 2 + 7) & ~7) - 1;
+        return Allocator::realloc(mem, capacity * item_size + offset);
+    }
+
+    static void free(void* mem) {
+        Allocator::free(mem);
+    }
+};
+
+template <int max_bucket>
+struct FixedAllocator {
+
+    static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
+        capacity = (MEM_BUCKET_SIZE - offset) / item_size;
+        void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_SIZE);
+        VirtualMemory::commit_memory(mem, 0, MEM_BUCKET_SIZE);
+    }
+
+    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t offset) {
+        int idx_bucket = (capacity * item_size + MEM_BUCKET_SIZE - 1) / MEM_BUCKET_SIZE;
+        precond(idx_bucket < max_bucket);
+        int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
+        VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
+        capacity = (mem_offset + MEM_BUCKET_SIZE - offset) / item_size;
+        return mem; 
+    }
+
+    static void free(void* mem) { 
+        fatal("something wrong."); 
+    }
 };
 
 enum class DoNotInitialize {
@@ -41,12 +85,12 @@ enum class DoNotInitialize {
 
 
 
-template <class T, class Allocator = DefaultAllocator >
+template <class T, class Allocator = DynamicAllocator<T>>
 class SimpleVector {
 public:
     struct Data {
-        int _size;
-        int _capacity;
+        uint32_t _size;
+        uint32_t _capacity;
         T _items[31];
     };
 
@@ -65,8 +109,8 @@ protected:
         // do nothing;
     }
 
-    void allocate(size_t capacity, int initial_size) {
-        _data = (Data*)Allocator::alloc(alloc_size(capacity));
+    void initial_allocate(uint32_t capacity, int initial_size) {
+        _data = (Data*)Allocator::alloc(capacity, sizeof(T), 8);
         _data->_capacity = (int)capacity;
         _data->_size = initial_size;
     }
@@ -76,12 +120,16 @@ protected:
     }
 
 public:
-    SimpleVector(size_t capacity = 8) {
-        allocate(capacity, 0);
+    SimpleVector(uint32_t capacity = 8) {
+        initial_allocate(capacity, 0);
     }
 
     SimpleVector(Data* data) {
         _data = data;
+    }
+
+    void initialize() {
+        if (_data == NULL) initial_allocate(8, 0);
     }
 
     ~SimpleVector() {
@@ -104,22 +152,17 @@ public:
         return _data->_size == 0; 
     }
 
+
     T* push_empty() {
         if (_data->_size >= _data->_capacity) {
-            int newSize = ((_data->_capacity * 2 + 7) & ~7) - 1;
-            _data = (Data*)Allocator::realloc(_data, alloc_size(newSize));
-            _data->_capacity = newSize;
+            _data = (Data*)Allocator::realloc(_data, _data->_capacity, sizeof(T), 8);
         }
         return _data->_items + _data->_size++;
     }
 
     void push_back(T item) {
-        if (_data->_size >= _data->_capacity) {
-            int newSize = ((_data->_capacity * 2 + 7) & ~7) - 1;
-            _data = (Data*)Allocator::realloc(_data, alloc_size(newSize));
-            _data->_capacity = newSize;
-        }
-        _data->_items[_data->_size++] = item;
+        T* back = push_empty();
+        back[0] = item;
     }
 
     T& back() {
@@ -133,18 +176,22 @@ public:
     }
 
     T& operator[](size_t __n) {
+        precond(__n >= 0 && __n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T& at(size_t __n) {
+        precond(__n >= 0 && __n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T* adr_at(size_t __n) {
+        precond(__n >= 0 && __n < _data->_capacity);
         return _data->_items + __n;
     }
 
     void resize(size_t __n) {
+        precond(__n >= 0 && __n < _data->_capacity);
         _data->_size = (int)__n;
     }
 
@@ -317,7 +364,7 @@ public:
         }
         else if (SUPER::_slot < 0) {
             T* first = (T*)(SUPER::_slot & ~SINGLE_ITEM_FLAG);
-            SUPER::allocate(2, 2);
+            SUPER::initial_allocate(2, 2);
             SUPER::_data->_items[0] = first;
             SUPER::_data->_items[1] = item;
         }
@@ -388,17 +435,13 @@ public:
 };
 
 
-struct SysMem {
-    static void* reserve_memory(size_t bytes);
-    static void commit_memory(void* memory, size_t offset, size_t bytes);
-};
 
-template <class T, int MAX_BUCKET, int indexOffset, int clearOffset>
+template <class T, size_t MAX_BUCKET, int indexOffset, int clearOffset>
 class MemoryPool {
     T* _items;
     T* _free;
-    int _idxAlloc;
-    int _maxAlloc;
+    T* _next;
+    void* _end;
     #if GC_DEBUG
     int _cntFree;
     #endif
@@ -410,30 +453,28 @@ class MemoryPool {
 
 public:
     void initialize() {
-        _items = (T*)SysMem::reserve_memory(sizeof(T) * MAX_BUCKET) - indexOffset;
+        _end = _next = (T*)VirtualMemory::reserve_memory(MAX_BUCKET*MEM_BUCKET_SIZE);
+        _items = _next - indexOffset;
         _free = nullptr;
-        _maxAlloc = indexOffset;
-        _idxAlloc = indexOffset;
         #if GC_DEBUG
         _cntFree = 0;
         #endif
     }
 
     #if GC_DEBUG
-    int getAllocationCount() {
-        return _idxAlloc - _cntFree - indexOffset;
+    int getAllocatedItemCount() {
+        return _next - _items - _cntFree - indexOffset;
     }
     #endif
 
     T* allocate() {
         T* ptr;
         if (_free == nullptr) {
-            if (_idxAlloc >= _maxAlloc) {
-                SysMem::commit_memory(_items + indexOffset, (_maxAlloc - indexOffset) * sizeof(T), 4096 * sizeof(T));
-                _maxAlloc += 4096;
+            ptr = _next ++;
+            if (_next >= _end) {
+                VirtualMemory::commit_memory(_items, _end, MEM_BUCKET_SIZE);
+                _end = (char*)_end + MEM_BUCKET_SIZE;
             }
-            ptr = _items + _idxAlloc++;
-            return ptr;
         }
         else {
             ptr = _free;
@@ -458,13 +499,13 @@ public:
     }
 
     T* getPointer(int idx) {
-        assert(idx < _idxAlloc, "invalid idx: %d (max=%d)\n", idx, _idxAlloc);
+        assert(_items + idx < _next, "invalid idx: %d (max=%ld)\n", idx, _next - _items);
         T* ptr = _items + idx;
         return ptr;
     }
 
-    int getAllocatedSize() {
-        return _idxAlloc;
+    int size() {
+        return _next - _items;
     }
 
     int getIndex(void* ptr) {

@@ -92,8 +92,9 @@ GCObject* LinkIterator::next() {
 #define _USE_JVM 0
 #define _USE_MMAP 1
 #define _ULIMIT 1
-void* SysMem::reserve_memory(size_t bytes) {
-    void* addr;
+void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
+    precond(bytes % MEM_BUCKET_SIZE == 0);
+    void* addr;    
 #if _USE_JVM
     size_t total_reserved = bytes;
     size_t page_size = os::vm_page_size();
@@ -114,15 +115,16 @@ void* SysMem::reserve_memory(size_t bytes) {
     return addr;
 }
 
-void SysMem::commit_memory(void* addr, size_t offset, size_t bytes) {
+void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) {
+    precond(bytes % MEM_BUCKET_SIZE == 0);
 #if _USE_JVM
     rtgc_log(true, "commit_memory\n");
     return;
 #elif defined(_MSC_VER)
-    addr = VirtualAlloc((char*)addr + offset, bytes, MEM_COMMIT, PAGE_READWRITE);
+    addr = VirtualAlloc(bucket, MEM_BUCKET_SIZE, MEM_COMMIT, PAGE_READWRITE);
     if (addr != 0) return;
 #elif _USE_MMAP
-    int res = mprotect((char*)addr + offset, bytes, PROT_READ|PROT_WRITE);
+    int res = mprotect(bucket, bytes, PROT_READ|PROT_WRITE);
     rtgc_log(0, "commit_memory mprotect %p\n", addr);
     if (res == 0) return;
 #elif _ULIMIT    

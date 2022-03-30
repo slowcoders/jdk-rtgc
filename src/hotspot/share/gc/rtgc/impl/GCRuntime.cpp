@@ -61,11 +61,11 @@ void DefaultAllocator::free(void* mem) {
 
 #if GC_DEBUG
 int GCRuntime::getTinyChunkCount() {
-    return _rtgc.gTinyPool.getAllocationCount();
+    return _rtgc.gTinyPool.getAllocatedItemCount();
 }
 
 int GCRuntime::getReferrerListCount() {
-    return _rtgc.gRefListPool.getAllocationCount();
+    return _rtgc.gRefListPool.getAllocatedItemCount();
 }
 #endif
 
@@ -196,12 +196,12 @@ void GCRuntime::detectGarbages(GCObject* unsafeObj) {
 
 #if GC_DEBUG
 int GCRuntime::getCircuitCount() {
-	return 0;//g_shortcutPool.getAllocationCount();
+	return 0;//g_shortcutPool.getAllocatedItemCount();
 }
 #endif
 
 void GCRuntime::adjustShortcutPoints() {
-    int allocSize = _rtgc.g_shortcutPool.getAllocatedSize();
+    int allocSize = _rtgc.g_shortcutPool.size();
     allocSize -= INVALID_SHORTCUT + 1;
     if (allocSize <= 0) return;
     rtgc_log(true, "g_shortcutPool allocSize %d\n", allocSize);

@@ -10,8 +10,13 @@
 #define RECLAIM_GARBAGE_IMMEDIATELY     false
 static const int GC_VERBOSE_LOG = false;
 
-
 using namespace RTGC;
+
+
+// RTGC::MemoryPool<int, 4096, 0, -1> _memPool;
+// template<>
+// RTGC::MemoryPool<int, 4096, 0, -1>* RTGC::MemoryPool<int, 4096, 0, -1>::HugeAllocator::memPool = &_memPool;
+// RTGC::MemoryPool<int, 4096, 0, -1>::HugeArray hugeIntArray(0);
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SCANNER, function);
@@ -22,7 +27,7 @@ SafeShortcut* SafeShortcut::getPointer(int idx) {
 }
 
 bool SafeShortcut::isValidIndex(int idx) {
-	return idx >= 0 && idx < _rtgc.g_shortcutPool.getAllocatedSize();
+	return idx >= 0 && idx < _rtgc.g_shortcutPool.size();
 }
 
 int SafeShortcut::getIndex(SafeShortcut* circuit) {
@@ -60,7 +65,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         GCObject* R;
         while (!it->hasNext()) {
             _trackers.pop_back();
-            rtgc_log(LOG_OPT(0x10), "SurvivalPath pop [%d]\n", _trackers.size());
+            rtgc_log(true || LOG_OPT(0x10), "SurvivalPath pop [%d]\n", _trackers.size());
             if (_trackers.empty()) return false;
             it = &_trackers.back();
 
@@ -70,6 +75,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
                 precond(shortcut->inTracing());
                 precond(R->hasReferrer());
                 shortcut->unmarkInTracing();
+                rtgc_log(true || LOG_OPT(0x10), "shortcut poped %p:%d\n", R, R->getShortcutId());
                 shortcut->shrinkAnchorTo(R);
                 it = _trackers.push_empty();
                 R->initIterator(it);
@@ -81,7 +87,6 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         }
 
         R = it->next();
-        rtgc_log(true || LOG_OPT(0x10), "findSurvivalPath %p[%d]\n", R, _trackers.size());
         SafeShortcut* shortcut = R->getShortcut();
         precond(shortcut != NULL);
         precond(R != NULL);
@@ -89,13 +94,18 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         /* 중복 추적 회피 단계(S341) */
         if (R->isGarbageMarked() ||
             shortcut->inTracing()) {
+            rtgc_log(true || LOG_OPT(0x10), "pass marked %p:%d[%d](gm=%d)\n", 
+                R, R->getShortcutId(), _trackers.size(), R->isGarbageMarked());
             continue;
         }
 
         if (R->getRootRefCount() > ZERO_ROOT_REF) {
-            rtgc_log(LOG_OPT(0x10), "SurvivalPath found [%d]\n", _trackers.size());
+            rtgc_log(true || LOG_OPT(0x10), "SurvivalPath found %p[%d]\n", R, _trackers.size());
             return true;
         }
+
+        rtgc_log(true || LOG_OPT(0x10), "findSurvivalPath %p:%d[%d]\n", 
+            R, R->getShortcutId(), _trackers.size());
 
         if (R->hasReferrer()) {
             it = _trackers.push_empty();
@@ -140,13 +150,15 @@ void PathFinder::constructShortcut() {
     int cntNode = 0;
     for (; ait < end; ait++) {
         GCObject* obj = ait->peekPrev();        
-        rtgc_log(LOG_OPT(0x10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
+        rtgc_log(true || LOG_OPT(0x10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
         if (link != NULL) {
-            precond(link->hasReferrer());
+            assert(link->hasReferrer(),
+                "link has no anchor %p:%d\n", obj, obj->getShortcutId());
             link->setSafeAnchor(obj);
         }
 
-        precond(SafeShortcut::isValidIndex(obj->getShortcutId()));
+        assert(SafeShortcut::isValidIndex(obj->getShortcutId()),
+            "invalid shortcut id %p:%d\n", obj, obj->getShortcutId());
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
@@ -158,7 +170,8 @@ void PathFinder::constructShortcut() {
             }
             link = obj;
         } else {
-            postcond(ait+1 == end || ait[+1].peekPrev() == ss->getAnchor());
+            assert(ait+1 == end || ait[+1].peekPrev() == ss->getAnchor(), 
+                "invalid shortcut %p:%d\n", obj, obj->getShortcutId());
             precond(ss->inTracing() || (ait+1 == end && obj->getRootRefCount() > 0));
             ss->unmarkInTracing();
             if (cntNode > 0) {
