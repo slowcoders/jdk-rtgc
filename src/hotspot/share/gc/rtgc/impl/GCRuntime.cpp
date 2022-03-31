@@ -209,10 +209,10 @@ void GCRuntime::adjustShortcutPoints() {
     SafeShortcut* end = p + allocSize;
     for (; p < end; p++) {
         if (p->isValid()) {
-            GCObject* anchor = RTGC::getForwardee(p->getAnchor());
-            GCObject* tail = RTGC::getForwardee(p->getTail());
-            rtgc_log(true, "adjustShortcutPoints %p->%p, %p->%p\n", 
-                p->getAnchor(), anchor, p->getTail(), tail);
+            GCObject* anchor = RTGC::getForwardee(p->anchor());
+            GCObject* tail = RTGC::getForwardee(p->tail());
+            rtgc_log(true, "adjustShortcutPoints[%d] %p->%p, %p->%p\n", 
+                p->getIndex(p), (void*)p->anchor(), anchor, (void*)p->tail(), tail);
             p->adjustPointUnsafe(anchor, tail);
         }
     }

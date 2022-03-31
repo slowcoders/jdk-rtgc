@@ -42,6 +42,16 @@ namespace RTGC {
     bool _is_java_reference;
   };
 
+  class RtAnchorRemoveClosure: public BasicOopIterateClosure {
+  public:
+    RtAnchorRemoveClosure(GCObject* garbage) : _garbage_anchor(garbage) {}
+    template <typename T> void do_oop_work(T* p);
+    virtual void do_oop(oop* p)       { do_oop_work(p); }
+    virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  private:
+    GCObject* _garbage_anchor;
+  };
+
 
 
 
@@ -494,13 +504,37 @@ void rtHeap::refresh_young_roots() {
   g_young_roots.trunc_to(cnt_young_root);
 }
 
+template <typename T>
+void RtAnchorRemoveClosure::do_oop_work(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+  if (!CompressedOops::is_null(heap_oop)) {
+    oop obj = CompressedOops::decode_not_null(heap_oop);
+    if (obj->is_gc_marked() && to_obj(obj)->hasReferrer()) {
+      rtgc_log(true, "remove garbage anchor(%p) from %p\n", _garbage_anchor, (void*)obj);
+      to_obj(obj)->removeMatchedReferrers(_garbage_anchor);
+    }
+  }
+}
+
 void rtHeap::destroy_trackable(oopDesc* p) {
-  GCObject* obj = to_obj(p);
-  if (obj->isTrackable()) {
-    obj->removeAllReferrer();
+  GCObject* node = to_obj(p);
+  if (node->hasMultiRef()) {
+    node->removeAnchorList();
     debug_only(g_cntTrackable --);
   }
-  obj->markGarbage();
+  if (!node->isTrackable()) return;
+
+  int s_id = node->getShortcutId();
+  if (s_id > INVALID_SHORTCUT) {
+    rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
+    // node 가 가비지면 생존경로가 존재하지 않는다.
+    SafeShortcut* ss = node->getShortcut();
+    ss->shrinkAnchorTo(node);
+  }
+
+  RtAnchorRemoveClosure r(node);
+  cast_to_oop(node)->oop_iterate(&r);
+  node->markGarbage();
 }
 
 bool rtHeap::finish_collection(bool is_tenure_gc) {

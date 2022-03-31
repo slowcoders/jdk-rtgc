@@ -71,7 +71,7 @@ public:
 
 	int removeReferrer(GCObject* referrer);
 
-	void removeAllReferrer();
+	void removeAnchorList();
 
 	bool removeMatchedReferrers(GCObject* referrer);
 };
@@ -80,18 +80,14 @@ static const int MIN_SHORTCUT_LENGTH = 3;
 static const bool _EnableShortcut = true;
 
 class SafeShortcut {
-	union {
-		GCObject* _tail;
-		intptr_t  _mark;
-	};
-	GCObject* _anchor;
+	int _mark;
 	int _cntNode;
+	ShortOOP _anchor;
+	ShortOOP _tail;
 
-	SafeShortcut(GCObject* anchor, GCObject* tail) {
-		_tail = tail;
-		_anchor = anchor;
-	}
+	SafeShortcut(GCObject* anchor, GCObject* tail) : _anchor(anchor), _tail(tail) {}
 public:
+	~SafeShortcut() { clear(); }
 
 	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
 		int s_id = INVALID_SHORTCUT;
@@ -110,9 +106,9 @@ public:
 		return shortcut;
 	}
 
-	void clear() {
-		_tail = _anchor = nullptr;
-	}
+	bool isValid() { return *(int32_t*)&_anchor != 0; }
+
+	void clear() { *(int32_t*)&_anchor = 0; }
 
 	static int getIndex(SafeShortcut* circuit);
 
@@ -132,13 +128,13 @@ public:
 		return (_mark & 1);
 	}
 
-	GCObject* getAnchor() { return _anchor; }
+	ShortOOP& anchor() { return _anchor; }
 
-	GCObject* getTail() { return _tail; }
+	ShortOOP& tail() { return _tail; }
 
 	void split(GCObject* newTail, GCObject* newAnchor);
 
-	bool clearTooShort(GCObject* anchor, GCObject* tail);
+	static bool clearTooShort(GCObject* anchor, GCObject* tail);
 
 	void adjustPointUnsafe(GCObject* anchor, GCObject* tail) {
 		_anchor = anchor; _tail = tail;
@@ -146,7 +142,8 @@ public:
 
 	void vailidateShortcut() {
 		precond(_anchor->getShortcut() != this);
-		for (GCObject* obj = _tail; obj != _anchor; obj = obj->getSafeAnchor()) {
+	    GCObject* anchor = _anchor;
+		for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
 			precond(obj->getShortcut() == this);
 		}
 	}
@@ -155,8 +152,9 @@ public:
 		precond(tail != NULL); 
 		precond(tail != _tail); 
 		int s_id = getIndex(this);
-	    rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, _tail, tail);
-		for (GCObject* node = tail; node != _tail; node = node->getSafeAnchor()) {
+	    rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
+		GCObject* old_tail = _tail;
+		for (GCObject* node = tail; node != old_tail; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}
 		this->_tail = tail;
@@ -167,7 +165,7 @@ public:
 		precond(anchor != NULL); 
 		precond(anchor != _anchor); 
 		int s_id = getIndex(this);
-	    rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, _anchor, anchor);
+	    rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
 		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}
@@ -176,8 +174,6 @@ public:
 	}
 
 	void shrinkAnchorTo(GCObject* newAnchor);
-
-	bool isValid() { return this->_anchor != nullptr; }
 
 	static bool isValidIndex(int idx);
 };

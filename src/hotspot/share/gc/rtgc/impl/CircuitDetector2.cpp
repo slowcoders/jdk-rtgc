@@ -35,7 +35,7 @@ bool PathFinder::findSurvivalPathThroughShorcut(GCObject* tracingNode) {
         shortcut->markInTracing();
         // _visitedNodes.push_back(shortcut);
         /* 단축 경로 시작점 객체의 생존 경로 탐색(S322) */
-        bool survived = findSurvivalPath(shortcut->getAnchor());
+        bool survived = findSurvivalPath(shortcut->anchor());
         shortcut->unmarkInTracing();
         if (survived) {
             return true;
@@ -72,7 +72,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         if (R->hasReferrer()) {
             if (shortcut->isValid()) {
                 shortcut->markInTracing();
-                RefIterator<GCObject> jump(shortcut->getAnchor());
+                RefIterator<GCObject> jump(shortcut->anchor());
                 _trackers.append(*(AnchorIterator*)&jump);
             }
             else {
@@ -151,7 +151,7 @@ void PathFinder::constructShortcut() {
             }
             link = obj;
         } else {
-            if (obj == ss->getTail()) {
+            if (obj == ss->tail()) {
                 ss->extendTail(tail);
             }
             else if (lastShortcut != NULL) {
@@ -160,7 +160,7 @@ void PathFinder::constructShortcut() {
             else {
                 SafeShortcut::create(obj, tail, cntNode);
             }
-            link = ss->getAnchor();
+            link = ss->anchor();
             lastShortcut = ss;
             cntNode = 0;
         }

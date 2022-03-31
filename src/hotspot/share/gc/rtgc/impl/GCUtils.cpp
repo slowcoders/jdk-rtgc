@@ -10,10 +10,10 @@ namespace RTGC {
 
     uint32_t _pointer2offset(void* ref, void* origin) {
         precond(ref != nullptr);
-        precond(((uintptr_t)ref & (OBJ_ALIGN-1)) == 0);
+        assert(((uintptr_t)ref & (OBJ_ALIGN-1)) == 0, "invalid_short_oop %p\n", ref);
         precond((address)ref > CompressedOops::base());
         uintptr_t offset = ((address)ref - CompressedOops::base()) / OBJ_ALIGN;
-        precond(offset == (uint32_t)offset);
+        assert(offset == (uint32_t)offset, "invalid_short_oop %p\n", ref);
         return (uint32_t)offset;
     }
 

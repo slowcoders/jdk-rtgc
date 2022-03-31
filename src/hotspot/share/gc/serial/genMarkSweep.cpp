@@ -108,6 +108,10 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 
+#if USE_RTGC_COMPACT_1
+  rtHeap::finish_collection(true);
+#endif
+
   mark_sweep_phase4();
 
   restore_marks();
@@ -117,10 +121,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   gch->save_marks();
 
   deallocate_stacks();
-
-#if USE_RTGC_COMPACT_1
-  rtHeap::finish_collection(true);
-#endif
 
   // If compaction completely evacuated the young generation then we
   // can clear the card table.  Otherwise, we must invalidate

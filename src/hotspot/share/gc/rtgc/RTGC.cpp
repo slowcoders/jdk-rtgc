@@ -169,7 +169,7 @@ bool RTGC::logEnabled(int logOption) {
 
 GCObject* RTGC::getForwardee(GCObject* obj) {
   oopDesc* p = cast_to_oop(obj)->forwardee();
-  return to_obj(p);
+  return p == NULL ? obj : to_obj(p);
 }
 
 void RTGC::print_anchor_list(void* obj) {

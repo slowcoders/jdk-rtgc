@@ -37,10 +37,15 @@ class ShortOOP {
     uint32_t _ofs;
 public:
     ShortOOP(GCObject* ptr) {
+        precond(ptr != NULL);
         _ofs = _pointer2offset(ptr, this);
     }
 
     operator GCObject* () {
+        return (GCObject*)_offset2Pointer(_ofs, this);
+    }
+
+    GCObject* operator -> () {
         return (GCObject*)_offset2Pointer(_ofs, this);
     }
 };
