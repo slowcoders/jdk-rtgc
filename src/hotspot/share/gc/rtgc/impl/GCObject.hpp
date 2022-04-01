@@ -108,8 +108,6 @@ public:
 
 	bool isValid() { return *(int32_t*)&_anchor != 0; }
 
-	void clear() { *(int32_t*)&_anchor = 0; }
-
 	static int getIndex(SafeShortcut* circuit);
 
 	static SafeShortcut* getPointer(int idx);
@@ -128,9 +126,11 @@ public:
 		return (_mark & 1);
 	}
 
-	ShortOOP& anchor() { return _anchor; }
+	const ShortOOP& anchor() { return _anchor; }
 
-	ShortOOP& tail() { return _tail; }
+	const ShortOOP& tail() { return _tail; }
+
+	ShortOOP& anchor_ref() { return _anchor; }
 
 	void split(GCObject* newTail, GCObject* newAnchor);
 
@@ -142,8 +142,10 @@ public:
 
 	void vailidateShortcut() {
 		precond(_anchor->getShortcut() != this);
+		precond(_anchor->isTrackable());
 	    GCObject* anchor = _anchor;
 		for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
+			precond(obj->isTrackable());
 			precond(obj->getShortcut() == this);
 		}
 	}

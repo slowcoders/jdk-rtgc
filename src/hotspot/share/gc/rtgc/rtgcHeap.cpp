@@ -385,6 +385,23 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   return size; 
 }
 
+bool adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
+  oopDesc* old_p = cast_to_oop((void*)p[0]);
+  if (!IS_GC_MARKED(old_p)) {
+    rtgc_log(LOG_OPT(11), "garbage anchor %p in %p\n", old_p, node);
+    return false;
+  }
+
+  GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
+  if (new_obj != NULL) {
+    precond(new_obj != (void*)0xbaadbabebaadbabc);
+    rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p\n", 
+      old_p, new_obj, node);
+    p[0] = new_obj;
+  }  
+  return true;
+}
+
 void rtHeap::adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
   precond(old_p->is_gc_marked() || 
       (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER));
@@ -411,51 +428,56 @@ void rtHeap::adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
     return;
   }
 
-  void* moved_to = old_p->mark().decode_pointer();
   const bool CHECK_GARBAGE = RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER;
+  bool check_shortcut = false;
 
   if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
-    for (int idx = 0; idx < referrers->size(); ) {
-      oopDesc* old_p = cast_to_oop((void*)referrers->at(idx));
-      if (CHECK_GARBAGE && !IS_GC_MARKED(old_p)) {
-        rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", old_p, obj, moved_to);
-        referrers->removeFast(idx);
-        continue;
+    ShortOOP* ppAnchor = referrers->adr_at(0);
+    int cntAnchor = referrers->size();
+    check_shortcut = !cast_to_oop((void*)ppAnchor[0])->is_gc_marked();
+    for (int idx = 0; idx < cntAnchor; ) {
+      if (adjust_anchor_pointer(ppAnchor, obj) || !CHECK_GARBAGE) {
+        ppAnchor++; idx++;
+      } else {
+        ppAnchor[0] = referrers->at(--cntAnchor);
       }
-      GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
-      if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
-          old_p, new_obj, obj);
-        referrers->at(idx) = new_obj;
-      }
-      idx ++;
     }
 
-    if (CHECK_GARBAGE && referrers->size() < 2) {
+    if (CHECK_GARBAGE && cntAnchor < 2) {
       obj->setHasMultiRef(false);
-      if (referrers->size() == 0) {
+      if (cntAnchor == 0) {
         obj->_refs = 0;
       }
       else {
         GCObject* remained = referrers->at(0);
-        obj->_refs = _pointer2offset(remained, &obj->_refs);
+        obj->_refs = _pointer2offset(remained);
       }
       _rtgc.gRefListPool.delete_(referrers);
     }
+    else if (cntAnchor != referrers->size()) {
+      referrers->resize(cntAnchor);
+    }
   }
   else {
-    oopDesc* old_p = cast_to_oop(_offset2Object(obj->_refs, &obj->_refs));
-    if (CHECK_GARBAGE && !IS_GC_MARKED(old_p)) {
-      rtgc_log(LOG_OPT(11), "remove garbage ref %p in %p(move to->%p)\n", old_p, obj, moved_to);
+    if (!adjust_anchor_pointer((ShortOOP*)&obj->_refs, obj) && CHECK_GARBAGE) {
+      check_shortcut = true;
       obj->_refs = 0;
     }
-    else {
-      GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
-      if (new_obj != NULL && new_obj != (void*)0xbaadbabebaadbabc) {
-        rtgc_log(LOG_OPT(11), "ref moved %p->%p in %p\n", 
-          old_p, new_obj, obj);
-        obj->_refs = _pointer2offset(new_obj, &obj->_refs);
+  }
+
+  if (check_shortcut) {
+    int s_id = obj->getShortcutId();
+    if (s_id > INVALID_SHORTCUT) {
+      rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, obj);
+      // node 가 가비지면 생존경로가 존재하지 않는다.
+      SafeShortcut* ss = obj->getShortcut();
+      if (ss->tail() != obj) {
+        // adjust_point 가 완료되지 않아 validateShortcut() 실행 불가.
+        ss->anchor_ref() = obj;
+        obj->setShortcutId_unsafe(obj->hasReferrer() ? INVALID_SHORTCUT : 0);
+      } else {
+        delete ss;
       }
     }
   }
@@ -522,18 +544,23 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     node->removeAnchorList();
     debug_only(g_cntTrackable --);
   }
-  if (!node->isTrackable()) return;
+  if (!node->isTrackable()) {
+    precond(node->getShortcutId() == 0);
+    return;
+  }
 
   int s_id = node->getShortcutId();
   if (s_id > INVALID_SHORTCUT) {
-    rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
-    // node 가 가비지면 생존경로가 존재하지 않는다.
     SafeShortcut* ss = node->getShortcut();
-    ss->shrinkAnchorTo(node);
+    if (ss->tail() == node) {
+      rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
+      // node 가 가비지면 생존경로가 존재하지 않는다.
+      delete ss;
+    }
   }
 
-  RtAnchorRemoveClosure r(node);
-  cast_to_oop(node)->oop_iterate(&r);
+  //RtAnchorRemoveClosure r(node);
+  //cast_to_oop(node)->oop_iterate(&r);
   node->markGarbage();
 }
 

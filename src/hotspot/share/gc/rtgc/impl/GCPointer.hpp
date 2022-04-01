@@ -24,11 +24,11 @@ class GCObjectArray;
 template <class T> 
 class GCPrimitiveArray;
 
-uint32_t _pointer2offset(void* ref, void* origin);
+uint32_t _pointer2offset(void* ref);
 
-void* _offset2Pointer(uint32_t offset, void* origin);
+void* _offset2Pointer(uint32_t offset);
 
-#define _offset2Object(offset, origin) (GCObject*)RTGC::_offset2Pointer(offset, origin)
+#define _offset2Object(offset) (GCObject*)RTGC::_offset2Pointer(offset)
 #define USE_32BIT_POINTER 1
 
 class GCObject;
@@ -38,15 +38,16 @@ class ShortOOP {
 public:
     ShortOOP(GCObject* ptr) {
         precond(ptr != NULL);
-        _ofs = _pointer2offset(ptr, this);
+        _ofs = _pointer2offset(ptr);
+        postcond(_ofs != 0);
     }
 
-    operator GCObject* () {
-        return (GCObject*)_offset2Pointer(_ofs, this);
+    operator GCObject* () const {
+        return (GCObject*)_offset2Pointer(_ofs);
     }
 
-    GCObject* operator -> () {
-        return (GCObject*)_offset2Pointer(_ofs, this);
+    GCObject* operator -> () const {
+        return (GCObject*)_offset2Pointer(_ofs);
     }
 };
 
@@ -70,7 +71,7 @@ public:
 
 	T* getPointer() {
 #if USE_32BIT_POINTER
-		return (_offset == 0) ? nullptr : (T*)_offset2Pointer(_offset, this);
+		return (_offset == 0) ? nullptr : (T*)_offset2Pointer(_offset);
 #else
 		return _ptr;
 #endif

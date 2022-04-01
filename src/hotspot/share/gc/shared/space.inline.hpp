@@ -177,19 +177,29 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       cur_obj += size;
       end_of_live = cur_obj;
     } else {
+      // run over all the contiguous dead objects
+      HeapWord* end = cur_obj;
 #if USE_RTGC_COMPACT_1
       if (space->scanned_block_is_obj(cur_obj)) {
         // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
         rtHeap::destroy_trackable(cast_to_oop(cur_obj));
       }
-#endif
-      // run over all the contiguous dead objects
-      HeapWord* end = cur_obj;
+
+      while (true) {
+        Prefetch::write(end, interval);
+        end += space->scanned_block_size(end);
+        if (end >= scan_limit) break;
+        if (!space->scanned_block_is_obj(end)) continue;
+        if (cast_to_oop(end)->is_gc_marked()) break;
+        rtHeap::destroy_trackable(cast_to_oop(end));
+      }
+#else
       do {
         // prefetch beyond end
         Prefetch::write(end, interval);
         end += space->scanned_block_size(end);
       } while (end < scan_limit && (!space->scanned_block_is_obj(end) || !cast_to_oop(end)->is_gc_marked()));
+#endif
 
       // see if we might want to pretend this object is alive so that
       // we don't have to compact quite as often.

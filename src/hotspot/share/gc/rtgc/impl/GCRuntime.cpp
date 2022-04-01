@@ -153,7 +153,7 @@ void GCRuntime::replaceMemberVariable(
     RTGC::publish_and_lock_heap(assigned, owner->isPublished());
     GCObject* erased = pField->getPointer();
 	if (sizeof(*pField) < sizeof(void*)) {
-		*(uint32_t*)pField = (assigned == nullptr) ? 0 : _pointer2offset(assigned, 0);
+		*(uint32_t*)pField = (assigned == nullptr) ? 0 : _pointer2offset(assigned);
 	}
     else {
 		*(void**)pField = assigned;

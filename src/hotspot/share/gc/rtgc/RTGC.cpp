@@ -168,6 +168,7 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj) {
+  precond(cast_to_oop(obj)->is_gc_marked());
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
 }

@@ -8,7 +8,7 @@ namespace RTGC {
 
     static const int OBJ_ALIGN = 8;
 
-    uint32_t _pointer2offset(void* ref, void* origin) {
+    uint32_t _pointer2offset(void* ref) {
         precond(ref != nullptr);
         assert(((uintptr_t)ref & (OBJ_ALIGN-1)) == 0, "invalid_short_oop %p\n", ref);
         precond((address)ref > CompressedOops::base());
@@ -17,7 +17,7 @@ namespace RTGC {
         return (uint32_t)offset;
     }
 
-    void* _offset2Pointer(uint32_t offset, void* origin) {
+    void* _offset2Pointer(uint32_t offset) {
         precond(offset != 0);
 		return (void*)(CompressedOops::base() + (uintptr_t)offset * OBJ_ALIGN);
     }
