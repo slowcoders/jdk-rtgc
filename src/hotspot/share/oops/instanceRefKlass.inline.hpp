@@ -129,13 +129,6 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
       trace_reference_gc<T>("do_fields_except_referent", obj);
       oop_oop_iterate_fields_except_referent<T>(obj, closure, contains);
       break;
-    case OopIterateClosure::DO_DISCOVERY_ALWAYS:
-      trace_reference_gc<T>("do_custom_discovery", obj);
-      closure->ref_discoverer()->discover_reference(obj, reference_type());
-      break;
-    case OopIterateClosure::DO_NOTHING:
-      trace_reference_gc<T>("do_nothing", obj);
-      break;
     default:
       ShouldNotReachHere();
   }

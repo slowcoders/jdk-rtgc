@@ -91,8 +91,6 @@ public:
   template <typename T>
   void trackable_barrier(T* p, oop obj);
 
-  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY_ALWAYS; }
-
   void do_iterate(oop obj) {
     _is_java_reference = obj->klass()->id() == InstanceRefKlassID;
     _trackable_anchor = obj;
