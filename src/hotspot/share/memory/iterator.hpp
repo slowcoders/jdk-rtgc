@@ -86,7 +86,9 @@ class OopIterateClosure : public OopClosure {
     DO_DISCOVERY,                // Apply closure and discover references
     DO_DISCOVERED_AND_DISCOVERY, // Apply closure to discovered field and do discovery
     DO_FIELDS,                   // Apply closure to all fields
-    DO_FIELDS_EXCEPT_REFERENT    // Apply closure to all fields except the referent field
+    DO_FIELDS_EXCEPT_REFERENT,   // Apply closure to all fields except the referent field
+    DO_DISCOVERY_ALWAYS,         // Apply ReferenceDiscoverer of closure always. 
+    DO_NOTHING                   // Apply clousre to nothing. 
   };
 
   // The default iteration mode is to do discovery.

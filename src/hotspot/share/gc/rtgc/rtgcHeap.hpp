@@ -43,10 +43,12 @@ public:
   static void mark_promoted_trackable(oopDesc* new_p);
   static void add_promoted_link(oopDesc* promoted_anchor, oopDesc* linked, bool link_is_tenured);
   static void iterate_young_roots(BoolObjectClosure* young_root_closure, OopClosure* survivor_closure);
-  static void mark_survivor_reachable(oopDesc* tenured_p);
+  static void mark_survivor_reachable(oopDesc* tenured_p, bool as_java_referent = false);
+  static void mark_keep_alive(oopDesc* referent);
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
 
   // for full gc
+  static void prepare_full_gc();
   static void refresh_young_roots();
   static size_t adjust_pointers(oopDesc* old_p);
   static void adjust_anchor_pointers(oopDesc* old_p, bool has_young_ref);
@@ -54,6 +56,9 @@ public:
   static bool finish_collection(bool is_tenure_gc);
   static void mark_forwarded(oopDesc* p);
   static void destroy_trackable(oopDesc* p);
+
+  // for jni
+  static void release_handle(oopDesc* p);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

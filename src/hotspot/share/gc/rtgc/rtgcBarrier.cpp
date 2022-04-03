@@ -25,18 +25,20 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER, function);
 }
 
-static void check_field_addr(oopDesc* base, volatile void* addr) {
-  assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
-      && addr < (address)base + MAX_OBJ_SIZE
-      , "invalid field addr %p of base %p\n", addr, base);
-}
-
 static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
   return ds & ON_STRONG_OOP_REF;
 }
+
+static void check_field_addr(oopDesc* base, volatile void* addr) {
+  precond(is_strong_ref(addr, base));
+  assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
+      && addr < (address)base + MAX_OBJ_SIZE
+      , "invalid field addr %p of base %p\n", addr, base);
+}
+
 
 static bool is_valid_decorators(DecoratorSet decorators) {
   const DecoratorSet java_refs = ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;

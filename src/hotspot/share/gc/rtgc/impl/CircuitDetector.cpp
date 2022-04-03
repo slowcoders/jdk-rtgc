@@ -35,7 +35,7 @@ int SafeShortcut::getIndex(SafeShortcut* circuit) {
 }
 
 void SafeShortcut::operator delete(void* ptr) {
-    rtgc_log(true, "shortcut[%d] deleted\n", getIndex((SafeShortcut*)ptr));
+    rtgc_log(LOG_OPT(10), "shortcut[%d] deleted\n", getIndex((SafeShortcut*)ptr));
 	_rtgc.g_shortcutPool.delete_((SafeShortcut*)ptr);
 }
 
@@ -67,7 +67,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         GCObject* R;
         while (!it->hasNext()) {
             _trackers.pop_back();
-            rtgc_log(true || LOG_OPT(0x10), "SurvivalPath pop [%d]\n", _trackers.size());
+            rtgc_log(LOG_OPT(0x10), "SurvivalPath pop [%d]\n", _trackers.size());
             if (_trackers.empty()) return false;
             it = &_trackers.back();
 
@@ -77,7 +77,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
                 precond(shortcut->inTracing());
                 precond(R->hasReferrer());
                 shortcut->unmarkInTracing();
-                rtgc_log(true || LOG_OPT(0x10), "shortcut poped %p:%d\n", R, R->getShortcutId());
+                rtgc_log(LOG_OPT(0x10), "shortcut poped %p:%d\n", R, R->getShortcutId());
                 shortcut->shrinkAnchorTo(R);
                 it = _trackers.push_empty();
                 R->initIterator(it);
@@ -96,17 +96,17 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
         /* 중복 추적 회피 단계(S341) */
         if (R->isGarbageMarked() ||
             shortcut->inTracing()) {
-            rtgc_log(true || LOG_OPT(0x10), "pass marked %p:%d[%d](gm=%d)\n", 
+            rtgc_log(LOG_OPT(0x10), "pass marked %p:%d[%d](gm=%d)\n", 
                 R, R->getShortcutId(), _trackers.size(), R->isGarbageMarked());
             continue;
         }
 
         if (R->getRootRefCount() > ZERO_ROOT_REF) {
-            rtgc_log(true || LOG_OPT(0x10), "SurvivalPath found %p[%d]\n", R, _trackers.size());
+            rtgc_log(LOG_OPT(0x10), "SurvivalPath found %p[%d]\n", R, _trackers.size());
             return true;
         }
 
-        rtgc_log(true || LOG_OPT(0x10), "findSurvivalPath %p:%d[%d]\n", 
+        rtgc_log(LOG_OPT(0x10), "findSurvivalPath %p:%d[%d]\n", 
             R, R->getShortcutId(), _trackers.size());
 
         if (R->hasReferrer()) {
@@ -114,7 +114,7 @@ bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
             if (shortcut->isValid()) {
                 shortcut->markInTracing();
                 it->initSingleIterator(&shortcut->anchor_ref());
-                rtgc_log(true || LOG_OPT(0x10), "shortcut[%d] pushed %p(anchor = %p->%p)\n", 
+                rtgc_log(LOG_OPT(0x10), "shortcut[%d] pushed %p(anchor = %p->%p)\n", 
                     shortcut->getIndex(shortcut), R, (void*)shortcut->anchor(), (void*)shortcut->tail());
                 shortcut->vailidateShortcut();
             }
@@ -153,7 +153,7 @@ void PathFinder::constructShortcut() {
     int cntNode = 0;
     for (; ait < end; ait++) {
         GCObject* obj = ait->peekPrev();        
-        rtgc_log(true || LOG_OPT(0x10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
+        rtgc_log(LOG_OPT(0x10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
         if (link != NULL) {
             assert(link->hasReferrer(),
                 "link has no anchor %p:%d\n", obj, obj->getShortcutId());
@@ -226,7 +226,7 @@ bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObj
     precond(!unsafeObj->isGarbageMarked());
     int cntUnreachable = unreachableNodes.size();
 
-    rtgc_log(true || LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
+    rtgc_log(LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
     PathFinder pf(unreachableNodes);
     bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
 
@@ -330,17 +330,30 @@ void GarbageProcessor::reclaimObjects() {
     delete_q = nullptr;
 }
 
+void SafeShortcut::vailidateShortcut() {
+    precond(_anchor->getShortcut() != this);
+    precond(_anchor->isTrackable());
+    GCObject* anchor = _anchor;
+    for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
+        precond(obj->isTrackable());
+        assert(obj->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
+            obj, RTGC::getClassName(obj), getIndex(this));
+    }
+}
 
 void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
-    assert(this->isValid(), "shotcut[%d] is invalid\n", getIndex(this));
+    assert(this->isValid(), "shotcut[%d] is invalid newAnchar=%p tail=%p\n", 
+        getIndex(this), newAnchor, (void*)_tail);
     precond(newAnchor->getShortcut() == this);
     precond(newTail->getShortcut() == this || newTail == this->anchor());
     newAnchor->setShortcutId_unsafe(0);
+
     if (newTail == this->_anchor) {
         if (clearTooShort(newAnchor, _tail)) {
             delete this;
         } else {
             this->_anchor = newAnchor;
+            rtgc_log(LOG_OPT(10), "cut anchor\n");
             this->vailidateShortcut();
         }
         return;
@@ -349,7 +362,7 @@ void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
         if (clearTooShort(_anchor, newTail)) {
             delete this;
         } else {
-            newTail->setShortcutId_unsafe(0);
+            rtgc_log(LOG_OPT(10), "cut tail\n");
             this->_tail = newTail;
             this->vailidateShortcut();
         }
@@ -363,13 +376,16 @@ void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
             delete this;
             return;
         }
+        rtgc_log(LOG_OPT(10), "cut heads\n");
         this->_anchor = newAnchor;
     }
     else if (cut_tail) {
+        rtgc_log(LOG_OPT(10), "cut tails\n");
         this->_tail = newTail;
     }
     else {
         this->_tail = newTail;
+        rtgc_log(LOG_OPT(10), "spilt shortcut\n");
         SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1);
     }
     this->vailidateShortcut();
@@ -389,16 +405,16 @@ bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
 
 void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     precond(newAnchor->getShortcut() == this);
-    //rtgc_log(true, "shrink anchor to %p [%d]", newAnchor, this->getIndex(this));
+    //rtgc_log(LOG_OPT(10), "shrink anchor to %p [%d]", newAnchor, this->getIndex(this));
     GCObject* old_anchor = _anchor;
     for (GCObject* obj = newAnchor; obj != old_anchor; obj = obj->getSafeAnchor()) {
         obj->setShortcutId_unsafe(INVALID_SHORTCUT);
     }
     if (clearTooShort(newAnchor, _tail)) {
-        rtgc_log(true, "shortcut deleted[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
+        rtgc_log(LOG_OPT(10), "shortcut deleted[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
         delete this;
     } else {
         this->_anchor = newAnchor;
-        rtgc_log(true, "shortcut shrinked[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
+        rtgc_log(LOG_OPT(10), "shortcut shrinked[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
     }
 }

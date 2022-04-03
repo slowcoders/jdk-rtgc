@@ -335,6 +335,13 @@ STATIC_ASSERT(sizeof(oop) == sizeof(uintptr_t));
 #ifdef ASSERT
 void JNIHandleBlock::zap() {
   // Zap block values
+// #ifdef USE_RTGC  
+//   for (int index = _top; --index >= 0;) {
+//     // NOT using Access here; just bare clobbering to NULL, since the
+//     // block no longer contains valid oops.
+//     _handles[index] = 0;
+//   }
+// #endif
   _top = 0;
   for (int index = 0; index < block_size_in_oops; index++) {
     // NOT using Access here; just bare clobbering to NULL, since the
@@ -394,8 +401,24 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(Thread* thread, AllocFailType all
   return block;
 }
 
+#if USE_RTGC
+class HandleEraser : public OopClosure {
+    template <typename T> void do_oop_work(T* p) {
+      T heap_oop = RawAccess<>::oop_load(p);
+      if (!CompressedOops::is_null(heap_oop)) {
+        oop obj = CompressedOops::decode_not_null(heap_oop);
+        rtHeap::release_handle(obj);
+      }
+    }
+    virtual void do_oop(oop* p)       { do_oop_work(p); }
+    virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+} _handle_eraser;
+#endif
 
 void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
+#if USE_RTGC
+  block->oops_do(&_handle_eraser);
+#endif
   assert(thread == NULL || thread == Thread::current(), "sanity check");
   JNIHandleBlock* pop_frame_link = block->pop_frame_link();
   // Put returned block at the beginning of the thread-local free list.

@@ -29,10 +29,11 @@ namespace RTGC {
 
 }
 
-static void check_valid_obj(void* p) {
+static void check_valid_obj(void* p, void* base) {
   GCObject* obj = (GCObject*)p;
   assert(obj == NULL || !obj->isGarbageMarked(), 
-      "incorrect garbage mark %p(%s)\n", obj, RTGC::getClassName(obj));
+      "incorrect garbage mark %p(%s) anchor=%p(%s)\n", 
+      obj, RTGC::getClassName(obj), base, RTGC::getClassName((GCObject*)base));
 }
 
 int GCNode::_cntTrackable = 0;
@@ -89,10 +90,11 @@ bool RTGC::needTrack(oopDesc* obj) {
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
-  check_valid_obj(p);
+  check_valid_obj(p, base);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
+  ptrdiff_t offset = (address)p - (address)base;
 
   // rtgc_log(p != NULL && p->klass() == vmClasses::Module_klass(), 
   //     "Module anchored %p -> %p\n", (void*)base, (void*)p);
@@ -103,9 +105,10 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
-  check_valid_obj(newValue);
-  check_valid_obj(oldValue);
-  check_valid_obj(base);
+  check_valid_obj(newValue, base);
+  check_valid_obj(oldValue, base);
+  assert(!to_obj(base)->isGarbageMarked(), 
+      "incorrect anchor %p(%s)\n", base, RTGC::getClassName((GCObject*)base));
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
@@ -133,8 +136,8 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
 }
 
 void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
-  check_valid_obj(newValue);
-  check_valid_obj(oldValue);
+  check_valid_obj(newValue, newValue);
+  check_valid_obj(oldValue, newValue);
 
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
@@ -221,8 +224,8 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-
-  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  RTGC::debug_obj = (void*)0x7f00444a8;
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;

@@ -75,6 +75,7 @@ private:
 #if RTGC_OPT_YOUNG_ROOTS
   oopDesc* _trackable_anchor;
   bool _is_young_root;
+  bool _is_java_reference;
 #endif
 
 public:
@@ -85,9 +86,15 @@ public:
 
 #if RTGC_OPT_YOUNG_ROOTS
   template <typename T>
+  void add_promoted_link(T* p, oop obj, bool root_reahchable);
+
+  template <typename T>
   void trackable_barrier(T* p, oop obj);
 
+  // virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERY_ALWAYS; }
+
   void do_iterate(oop obj) {
+    _is_java_reference = obj->klass()->id() == InstanceRefKlassID;
     _trackable_anchor = obj;
     _is_young_root = false;
     rtHeap::mark_promoted_trackable(obj);
@@ -95,10 +102,32 @@ public:
     if (_is_young_root) {
       rtHeap::add_young_root(obj, obj);
     }
+    // if (obj->klass()->id() == InstanceRefKlassID) {
+    //   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
+    //   if ((void*)referent >= _old_gen_start) {
+    //     rtHeap::mark_keep_alive(referent);
+    //   }
+    // }
     debug_only(_trackable_anchor = NULL;)
   }
-#endif
 
+  // bool discover_reference(oop obj, ReferenceType rt) {
+  //   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
+  //   precond(!referent->is_gc_marked());
+  //   if (!ReferenceProcessor::discover_reference(obj, rt)) {
+  //     if (referent >= _young_gen_end) {
+  //       rtHeap::mark_keep_alive(referent);
+  //     }
+  //     else {
+
+  //     }
+  //     return false;
+  //   }
+  //     fatal("something wrong!");
+  //   return true;
+  // }
+
+#endif
 };
 
 #if RTGC_OPT_YOUNG_ROOTS

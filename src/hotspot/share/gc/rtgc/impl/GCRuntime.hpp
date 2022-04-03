@@ -14,8 +14,8 @@ public:
 		MemoryPool::initialize();
 		_no_safe_anchor = MemoryPool::allocate();
 		_no_safe_shortcut = MemoryPool::allocate();
-		_no_safe_anchor->clear();
-		_no_safe_shortcut->clear();
+		_no_safe_anchor->~SafeShortcut();
+		_no_safe_shortcut->~SafeShortcut();
 	}
 };
 

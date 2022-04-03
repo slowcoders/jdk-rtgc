@@ -87,7 +87,7 @@ class SafeShortcut {
 
 	SafeShortcut(GCObject* anchor, GCObject* tail) : _anchor(anchor), _tail(tail) {}
 public:
-	~SafeShortcut() { clear(); }
+	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
 
 	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
 		int s_id = INVALID_SHORTCUT;
@@ -140,15 +140,7 @@ public:
 		_anchor = anchor; _tail = tail;
 	}
 
-	void vailidateShortcut() {
-		precond(_anchor->getShortcut() != this);
-		precond(_anchor->isTrackable());
-	    GCObject* anchor = _anchor;
-		for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
-			precond(obj->isTrackable());
-			precond(obj->getShortcut() == this);
-		}
-	}
+	void vailidateShortcut();
 
 	void extendTail(GCObject* tail) {
 		precond(tail != NULL); 

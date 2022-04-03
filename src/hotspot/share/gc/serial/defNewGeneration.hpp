@@ -199,6 +199,10 @@ protected:
                    size_t max_byte_size,
                    const char* policy="Serial young collection pauses");
 
+// #if RTGC_OPT_YOUNG_ROOTS
+//   ReferenceProcessor*  _younger_gen_ref_processor;
+// #endif
+
   virtual void ref_processor_init();
 
   virtual Generation::Name kind() { return Generation::DefNew; }

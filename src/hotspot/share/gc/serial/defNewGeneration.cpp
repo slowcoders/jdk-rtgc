@@ -70,7 +70,17 @@ DefNewGeneration::IsAliveClosure::IsAliveClosure(Generation* young_gen) : _young
 }
 
 bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
+#if RTGC_OPT_YOUNG_ROOTS
+  if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
+    // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
+    rtHeap::mark_survivor_reachable(p);
+  } else if (!p->is_forwarded()) {
+    return false;
+  }
+  return true;
+#else
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
+#endif
 }
 
 DefNewGeneration::KeepAliveClosure::
@@ -758,15 +768,12 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
-  // rtgc_trace(10, "forwarded %p->(%p)\n", (void*)old, (void*)obj);
 
-    // rtgc_log(old->klass() == vmClasses::Module_klass(), 
-    //     "Module moved %p -> %p\n", (void*)old, (void*)obj);
-    if (old == RTGC::debug_obj) {
-      RTGC::debug_obj = obj;
-      // rtgc_log(true, 
-      //   "ClassLoader moved %p -> %p\n", (void*)old, (void*)obj);
-    }
+	// assert(obj != (void*) 0x7f0265108, "gotcha (%p)\n", (void*)old);//, RTGC::getClassName((GCObject)obj));
+  if (old == RTGC::debug_obj) {
+    RTGC::debug_obj = obj;
+    rtgc_log(true, "debug_obj moved %p -> %p\n", (void*)old, (void*)obj);
+  }
   return obj;
 }
 
@@ -908,8 +915,35 @@ void DefNewGeneration::record_spaces_top() {
   from()->set_top_for_allocations();
 }
 
+// #if RTGC_OPT_YOUNG_ROOTS  
+// class RtReferenceProcessor : public ReferenceProcessor {
+//   void * _young_gen_end;
+
+// public:  
+//   RtReferenceProcessor(BoolObjectClosure* is_subject_to_discovery, DefNewGeneration* g) 
+//     : ReferenceProcessor(is_subject_to_discovery), 
+//       _young_gen_end(g->reserved().end()) {}
+
+//   bool discover_reference(oop obj, ReferenceType rt) {
+//     oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
+//     precond(!referent->is_gc_marked());
+//     if (!ReferenceProcessor::discover_reference(obj, rt)) {
+//       if (referent >= _young_gen_end) {
+//         rtHeap::mark_keep_alive(referent);
+//       }
+//       return false;
+//     }
+//       fatal("something wrong!");
+//     return true;
+//   }
+// };
+// #endif
+
 void DefNewGeneration::ref_processor_init() {
   Generation::ref_processor_init();
+// #if RTGC_OPT_YOUNG_ROOTS  
+//   _younger_gen_ref_processor = new RtReferenceProcessor(&_span_based_discoverer, this);    // a vanilla reference processor
+// #endif
 }
 
 

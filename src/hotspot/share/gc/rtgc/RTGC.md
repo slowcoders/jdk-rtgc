@@ -371,11 +371,12 @@ DefNewGeneration::collect() ...
                            !is_subject_to_discovery(obj)) {
                         // Reference 가 YG인 경우, referent 도 무조건 marking 한다.
                         // 즉, 일반 객체와 동일. 즉, Reference 가 OldG로 옮겨진 경우에만,
-                        // unmarked referent를 discovered-list 에 추가한다.
+                        // unmarked referent를 가진 Reference를 discovered-list 에 추가한다.
                         // referent 는 계속적인 scanning 과정에서 marked 상태로 변경될 수 있다.
                         // Reference 는 referent 보다 나중에 생성되므로, promotion_fail 이
                         // 발생하지 않는 한 reference 만 old-G 로 옮겨질 가능성은 없다.
-                        // promotion_fail 에 대한 예외처리 외에도 referent 가 먼저 marking 되어 // YG에 남아있고, reference 만 old-G 로 옮겨질 가능성에 대한 검토도 필요.
+                        // promotion_fail 에 대한 예외처리 외에도 referent 가 먼저 marking 되어 
+                        // YG에 남아있고, reference 만 old-G 로 옮겨질 가능성에 대한 검토도 필요.
                         return false;
                      }
                      ...

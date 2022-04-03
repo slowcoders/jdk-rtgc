@@ -87,9 +87,8 @@ template <typename T>
 void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
 #if RTGC_OPT_YOUNG_ROOTS
-    precond(_trackable_anchor != NULL);
-    _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
-    rtHeap::add_promoted_link(_trackable_anchor, new_obj, false);
+  _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
+  add_promoted_link(p, new_obj, false);
 #endif
   if (RTGC_NO_DIRTY_CARD_MARKING) return;
 
@@ -100,13 +99,33 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 }
 
 #if RTGC_OPT_YOUNG_ROOTS
+
+template <typename T>
+void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
+  precond(_trackable_anchor != NULL);
+  if (_is_java_reference) {
+    ptrdiff_t offset = (address)p - (address)_trackable_anchor;
+    if (offset == java_lang_ref_Reference::discovered_offset()
+    ||  offset == java_lang_ref_Reference::referent_offset()) {
+      // maybe obj is not marked as trackable yet.
+      if ((void*)obj >= _old_gen_start) {
+        rtgc_log(obj == RTGC::debug_obj, "mark keep alive referent %p(%s) young_ref_reahcable=%d\n", 
+            (void*)obj, obj->klass()->internal_name(), young_ref_reahcable);
+        rtHeap::mark_keep_alive(obj);
+      }
+      return;
+    }
+  }
+  rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
+}
+
 template <typename T>
 void DefNewYoungerGenClosure::trackable_barrier(T* p, oop obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
-  precond(_trackable_anchor != NULL);
-  rtHeap::add_promoted_link(_trackable_anchor, obj, true);
+  add_promoted_link(p, obj, true);
 }
+
 #endif
 
 inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :

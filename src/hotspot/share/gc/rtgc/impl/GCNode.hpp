@@ -109,6 +109,19 @@ public:
 		_flags.isGarbage = false;
 	}
 
+	bool isKeepAlive() {
+		return *(int32_t*)&_flags < 0;
+	}
+
+	void markKeepAlive() {
+		*(int32_t*)&_flags |= (1 << 31);
+	}
+
+	void unmarkKeepAlive() {
+		*(int32_t*)&_flags &= ~(1 << 31);
+	}
+
+
 	bool hasReferrer() {
 		return this->_refs != 0;
 	}
