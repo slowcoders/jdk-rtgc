@@ -24,6 +24,7 @@ namespace RTGC {
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
+  volatile void* debug_obj2 = (void*)-1;
   bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
 

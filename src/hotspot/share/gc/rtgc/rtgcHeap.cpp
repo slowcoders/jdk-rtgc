@@ -550,7 +550,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   assert(node->getRootRefCount() == 0, "wrong refCount(%d) on garbage %p(%s)\n", 
       node->getRootRefCount(), node, RTGC::getClassName(node));
-#if 0 //def ASSERT
+#ifdef ASSERT
   AnchorIterator it(node);
   while (it.hasNext()) {
     GCObject* n = it.next();
@@ -622,7 +622,7 @@ bool rtHeap::finish_collection(bool is_tenure_gc) {
   return true;
 }
 
-void rtHeap::release_handle(oopDesc* p) {
+void rtHeap::release_jni_handle(oopDesc* p) {
   assert(to_obj(p)->getRootRefCount() > 0, "wrong handle %p\n", p);
   rtgc_log(p == RTGC::debug_obj, "release_handle %p\n", p);
   GCRuntime::onEraseRootVariable_internal(to_obj(p));

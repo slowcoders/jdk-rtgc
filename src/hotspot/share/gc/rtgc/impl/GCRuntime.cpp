@@ -94,7 +94,7 @@ void GCRuntime::disconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-    // precond(assigned != RTGC::debug_obj);
+    RTGC::debugOptions[1] |= (assigned == RTGC::debug_obj ? 1 : 0);
 	rtgc_log(assigned == RTGC::debug_obj, "onAssignRootVariable_internal %p\n", assigned);
     assigned->incrementRootRefCount();
 }

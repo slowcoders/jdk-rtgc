@@ -13,6 +13,7 @@
 #define RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER true
 
 #define RTGC_OPT_CLD_SCAN             true
+#define RTGC_LOCAL_JNI_HANDLE_IS_ROOT false
 #define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_NO_DIRTY_CARD_MARKING    true
 #define RTGC_OPT_YG_SCAN              true
@@ -58,7 +59,7 @@ public:
   static void destroy_trackable(oopDesc* p);
 
   // for jni
-  static void release_handle(oopDesc* p);
+  static void release_jni_handle(oopDesc* p);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

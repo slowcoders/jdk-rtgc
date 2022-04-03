@@ -54,6 +54,7 @@
 #include "utilities/align.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "vmreg_x86.inline.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
@@ -2286,7 +2287,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   if (!is_critical_native) {
     // reset handle block
     __ movptr(rcx, Address(r15_thread, JavaThread::active_handles_offset()));
+#if RTGC_LOCAL_JNI_HANDLE_IS_ROOT
+    fatal("not implemented")
+#else    
     __ movl(Address(rcx, JNIHandleBlock::top_offset_in_bytes()), (int32_t)NULL_WORD);
+#endif
   }
 
   // pop our frame

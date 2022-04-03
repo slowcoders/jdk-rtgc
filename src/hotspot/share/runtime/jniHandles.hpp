@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class JavaThread;
 class OopStorage;
@@ -172,11 +173,15 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   void rebuild_free_list();
 
   // No more handles in the both the current and following blocks
-  void clear() { _top = 0; }
+  void clear(); // { _top = 0; }
 
  public:
   // Handle allocation
+#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
+  jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM, bool keep_alive = true);
+#else
   jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+#endif
 
   // Block allocation and block free list management
   static JNIHandleBlock* allocate_block(Thread* thread = NULL, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
