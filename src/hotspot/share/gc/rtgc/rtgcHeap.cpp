@@ -553,9 +553,11 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 #ifdef ASSERT
   AnchorIterator it(node);
   while (it.hasNext()) {
-    GCObject* n = it.next();
-    assert(!cast_to_oop(n)->is_gc_marked(), "garbage %p(%s) has alive anchor %p(%s)\n", 
-        node, RTGC::getClassName(node), n, RTGC::getClassName(n));
+    GCObject* anchor = it.next();
+    // anchor maybe a deadspace.
+    assert(!cast_to_oop(anchor)->is_gc_marked() || anchor->isGarbageMarked(), 
+        "garbage %p(%s) has alive anchor %p(%s)\n", 
+        node, RTGC::getClassName(node), anchor, RTGC::getClassName(anchor));
   }
 #endif
   if (node->hasMultiRef()) {
