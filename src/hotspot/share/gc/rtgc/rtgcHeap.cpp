@@ -19,25 +19,25 @@ namespace RTGC {
     template <typename T> void do_oop_work(T* p);
     virtual void do_oop(oop* p)       { do_oop_work(p); }
     virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-    virtual ReferenceIterationMode reference_iteration_mode() { return DO_NOTHING; }
+    virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
     void init_old_gen_start() {
       _old_gen_start = GenCollectedHeap::heap()->old_gen()->reserved().start(); 
       _old_anchor_p = NULL;
     }
     bool is_in_young(void* p) { return p < _old_gen_start; }
-    bool has_young_ref() { return _has_young_ref; }
-    void set_has_young_ref(bool has_young_ref) { _has_young_ref = has_young_ref; }
-    void set_old_anchor_p(oopDesc* old_anchor_p, oopDesc* new_anchor_p) { 
+    void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_java_reference) { 
       _old_anchor_p = old_anchor_p; 
       _new_anchor_p = new_anchor_p; 
+      _is_java_reference = is_java_reference;
       _has_young_ref = false; 
     }
-  private:
     bool _has_young_ref;
+  private:
     HeapWord* _old_gen_start;
     oopDesc* _old_anchor_p;
     oopDesc* _new_anchor_p;
+    bool _is_java_reference;
   };
 
   class RtAnchorRemoveClosure: public BasicOopIterateClosure {
@@ -317,25 +317,28 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (old_p != NULL && _new_anchor_p != NULL) {
-    if (is_in_young(new_p)) {
-      set_has_young_ref(true);
-    }
-    if (USE_PENDING_TRACKABLES) return;
+  if (old_p == NULL) return;
 
+  _has_young_ref |= is_in_young(new_p);
+  if (_new_anchor_p == NULL) return;
+
+  if (USE_PENDING_TRACKABLES) return;
+  if (_is_java_reference) {
     ptrdiff_t offset = (address)p - (address)_old_anchor_p;
-    assert(!is_java_reference(_old_anchor_p) ||
-        (offset != java_lang_ref_Reference::discovered_offset() && 
-         offset != java_lang_ref_Reference::referent_offset()), "something wrong!");
-    // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
-    if (to_obj(old_p)->isDirtyReferrerPoints()) {
-      // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
-      RTGC::add_referrer_unsafe(old_p, _old_anchor_p);
+    if (offset == java_lang_ref_Reference::discovered_offset()
+    ||  offset == java_lang_ref_Reference::referent_offset()) {
+      return;
     }
-    else {
-      // old_p 에 대해 이미 adjust_pointers 가 수행됨.
-      RTGC::add_referrer_unsafe(old_p, _new_anchor_p);
-    }
+  }
+
+  // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
+  if (to_obj(old_p)->isDirtyReferrerPoints()) {
+    // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
+    RTGC::add_referrer_unsafe(old_p, _old_anchor_p);
+  }
+  else {
+    // old_p 에 대해 이미 adjust_pointers 가 수행됨.
+    RTGC::add_referrer_unsafe(old_p, _new_anchor_p);
   }
 }
 
@@ -370,23 +373,24 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   oopDesc* new_anchor_p = NULL;
+  bool is_java_reference = false;
   if (!to_obj(old_p)->isTrackable()) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(p)) {
       mark_pending_trackable(old_p, p);
       new_anchor_p = p;
+      is_java_reference = old_p->klass()->id() == InstanceRefKlassID;
     }
   }
-  g_adjust_pointer_closure.set_old_anchor_p(old_p, new_anchor_p);
+  g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_reference);
   /**
    * @brief oop_iterate, oop_iterate_size 는 Reference.referent 와 discovered 도
    * Scan 한다. 이 때, Reference 를 referent 의 anchor 로 추가하지 않아야 한다.
    */
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
-
-  bool has_young_ref = g_adjust_pointer_closure.has_young_ref();
-  adjust_anchor_pointers(old_p, has_young_ref); 
+  bool is_young_root = g_adjust_pointer_closure._has_young_ref && to_obj(old_p)->isTrackable();
+  adjust_anchor_pointers(old_p, is_young_root); 
   if (!USE_PENDING_TRACKABLES) {
     to_obj(old_p)->unmarkDirtyReferrerPoints();
   }
@@ -428,7 +432,7 @@ void rtHeap::adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
       if (forwardee == NULL) forwardee = old_p;
       add_young_root(old_p, forwardee);
     } else {
-      postcond(is_java_reference(old_p));
+      //postcond(is_java_reference(old_p));
     }
   }
 
