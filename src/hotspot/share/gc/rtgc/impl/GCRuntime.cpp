@@ -1,7 +1,8 @@
 #include "GCObject.hpp"
 #include "gc/rtgc/RTGC.hpp"
 #include "GCRuntime.hpp" 
-
+#include "oops/oop.inline.hpp"
+#include "classfile/vmClasses.hpp"
 
 using namespace RTGC;
 namespace RTGC {
@@ -94,8 +95,8 @@ void GCRuntime::disconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-    RTGC::debugOptions[1] |= (assigned == RTGC::debug_obj ? 1 : 0);
-	rtgc_log(assigned == RTGC::debug_obj, "onAssignRootVariable_internal %p\n", assigned);
+	rtgc_log(++RTGC::debugOptions[1] && cast_to_oop(assigned)->klass() == vmClasses::String_klass(), 
+            "onAssignRootVariable_internal %p\n", assigned);
     assigned->incrementRootRefCount();
 }
 

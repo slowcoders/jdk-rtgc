@@ -207,7 +207,7 @@ const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
       //   return klass->internal_name();
       // }
     }
-    return klass->internal_name();
+    return (const char*)klass->name()->bytes();// internal_name();
 }
 
 
@@ -225,7 +225,7 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)0x7f00444a8;
+  RTGC::debug_obj = (void*)0x7f5bf5f50;
   if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

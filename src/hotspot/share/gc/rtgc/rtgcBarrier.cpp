@@ -134,6 +134,9 @@ void rtgc_store_not_in_heap(T* addr, oopDesc* new_value) {
   RTGC::publish_and_lock_heap(new_value);
   oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
   raw_set_volatile_field(addr, new_value);
+    	assert(!(!dest_uninitialized && new_value != NULL && 
+          RTGC::debugOptions[2] >= 16 && new_value->klass() == vmClasses::String_klass()), 
+            "rtgc_store_not_in_heap %p\n", (void*)new_value);
   RTGC::on_root_changed(old, new_value, addr, "stor");
   RTGC::unlock_heap(true);
 }

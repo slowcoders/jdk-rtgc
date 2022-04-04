@@ -135,7 +135,7 @@ GCObject* GCObject::getSingleAnchor() {
 }
 
 GCObject* GCObject::getSafeAnchor() {
-    assert(hasReferrer(), "no anchors %p\n", this); 
+    assert(hasReferrer(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
     GCObject* front;
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();

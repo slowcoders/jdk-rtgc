@@ -60,6 +60,8 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
+#include "gc/rtgc/RTGC.hpp"
 //
 // DefNewGeneration functions.
 
@@ -769,10 +771,14 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-	// assert(obj != (void*) 0x7f0265108, "gotcha (%p)\n", (void*)old);//, RTGC::getClassName((GCObject)obj));
+  rtgc_log(RTGC::debugOptions[1] && 
+          RTGC::to_node(old)->getRootRefCount() > 0 && old->klass() == vmClasses::String_klass(),
+      "str moveed %p -> %p\n", (void*)old, (void*)obj); 
   if (old == RTGC::debug_obj) {
     RTGC::debug_obj = obj;
     rtgc_log(true, "debug_obj moved %p -> %p\n", (void*)old, (void*)obj);
+  } else if (obj == RTGC::debug_obj) {
+    rtgc_log(true, "object %p moved into debug_obj %p\n", (void*)old, (void*)obj);
   }
   return obj;
 }

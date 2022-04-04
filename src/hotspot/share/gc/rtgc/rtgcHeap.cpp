@@ -181,12 +181,13 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
 /**
  * @brief YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
  */
+static int cntDD = 0;
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   if (RTGC_CHECK_EMPTY_TRACKBLE && new_p == empty_trackable) {
     empty_trackable = NULL;
   }
-	// assert(new_p != (void*) 0x7f55bbfc0 || to_obj(new_p)->getRootRefCount() == 0, 
-  //     "gotcha %s\n", RTGC::getClassName(to_obj(new_p)));
+  // rtgc_log(to_obj(new_p)->getRootRefCount() > 0 && new_p->klass() == vmClasses::String_klass(),
+  //     "mark_promoted_trackable %p(%d)\n", new_p, ++cntDD); 
 
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
@@ -213,7 +214,8 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool as_java_referent) {
   precond(node->isTrackable());// || as_java_referent);
   if (node->getRootRefCount() > 0) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
-  GCRuntime::onAssignRootVariable_internal(node);
+  node->_flags.rootRefCount += 100;
+  //GCRuntime::onAssignRootVariable_internal(node);
   g_stack_roots.append(node);
 }
 
@@ -269,7 +271,8 @@ void rtHeap__clear_garbage_young_roots() {
   if ((idx_root = g_stack_roots.length()) > 0) {
     GCNode** src = &g_stack_roots.at(0);
     for (;--idx_root >= 0; src++) {
-      src[0]->decrementRootRefCount();
+      src[0]->_flags.rootRefCount -= 100;
+      //src[0]->decrementRootRefCount();
     }
     rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", 
         g_stack_roots.length());
@@ -292,8 +295,9 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* survivo
       oopDesc* anchor = *src;
       precond(INGNORE_GARBAGE_MARK || !to_obj(anchor)->isGarbageMarked());
       rtgc_log(LOG_OPT(11), "iterate anchor %p\n", (void*)anchor);
-      bool is_root = closure->do_object_b(anchor)
-                  || is_java_reference_with_young_referent(anchor);
+      // referent 자동 검사됨.
+      bool is_root = closure->do_object_b(anchor);
+                   //|| is_java_reference_with_young_referent(anchor);
       if (!is_root) {
         to_obj(anchor)->unmarkYoungRoot();
       }
@@ -363,17 +367,19 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   if (USE_PENDING_TRACKABLES) {
     g_pending_trackables.append((oopDesc*)new_p);
   }
-  if (is_java_reference_with_young_referent(old_p)) {
-    /* adjust_pointers 수행 전에 referent 검사하여야 한다.
-       또는 객체 복사가 모두 종료된 시점에 referent를 검사할 수 있다.
-    */
-    add_young_root(old_p, (oopDesc*)new_p);
-  }
+  // if (is_java_reference_with_young_referent(old_p)) {
+  //   /* adjust_pointers 수행 전에 referent 검사하여야 한다.
+  //      또는 객체 복사가 모두 종료된 시점에 referent를 검사할 수 있다.
+  //   */
+  //   add_young_root(old_p, (oopDesc*)new_p);
+  // }
 }
 
+static int cntGG = 0;
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   oopDesc* new_anchor_p = NULL;
   bool is_java_reference = false;
+  int rc = to_obj(old_p)->getRootRefCount();
   if (!to_obj(old_p)->isTrackable()) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
@@ -383,6 +389,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       is_java_reference = old_p->klass()->id() == InstanceRefKlassID;
     }
   }
+  rtgc_log(g_adjust_pointer_closure.is_in_young(old_p) && 
+          to_obj(old_p)->getRootRefCount() > 0 && old_p->klass() == vmClasses::String_klass(),
+      "adjust_pointers %p(%d:%d) %p(%d)\n", old_p, g_adjust_pointer_closure.is_in_young(old_p), rc,
+        RTGC::getForwardee(to_obj(old_p)), ++cntGG); 
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_reference);
   /**
    * @brief oop_iterate, oop_iterate_size 는 Reference.referent 와 discovered 도
@@ -604,6 +614,8 @@ bool rtHeap::finish_collection(bool is_tenure_gc) {
   if (RTGC_CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
+  RTGC::debugOptions[1] |= is_tenure_gc;
+  RTGC::debugOptions[2] ++;
 
   if (is_tenure_gc) {
     GCRuntime::adjustShortcutPoints();

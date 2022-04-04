@@ -1459,13 +1459,13 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, Thread::current());
   }
 
   if (free_handle_block() != NULL) {
     JNIHandleBlock* block = free_handle_block();
     set_free_handle_block(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, Thread::current());
   }
 
   // These have to be removed while this is still a valid thread.
