@@ -9,7 +9,7 @@ class RtgcBarrierSetC1 : public BarrierSetC1 {
 public:
   RtgcBarrierSetC1();
 
-  static bool needBarrier_onResolvedAddress(LIRAccess& access);
+  static bool needBarrier_onResolvedAddress(LIRAccess& access, bool op_store);
 
 protected:
   virtual void load_at_resolved(LIRAccess& access, LIR_Opr result);

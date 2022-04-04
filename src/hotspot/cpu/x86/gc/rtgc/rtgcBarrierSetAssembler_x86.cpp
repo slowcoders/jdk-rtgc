@@ -78,8 +78,8 @@ RtgcBarrierSetAssembler::RtgcBarrierSetAssembler() {
   RtgcBarrier::init_barrier_runtime();
 }
 
-static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst) {
-  if (!is_reference_type(type) || RtgcBarrier::is_raw_access(decorators)) return false;
+static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst, bool op_store) {
+  if (!is_reference_type(type) || RtgcBarrier::is_raw_access(decorators, op_store)) return false;
   bool is_array = dst.index() != noreg;
   return is_array || dst.disp() > oopDesc::klass_offset_in_bytes();
 }
@@ -87,8 +87,8 @@ static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst) 
 void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread) {
   BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
-  if (__needBarrier(type, decorators, src)) {
-    /// ...
+  if (__needBarrier(type, decorators, src, false)) {
+    fatal("parallel gc is not implmented.");
   }
 }
 
@@ -114,7 +114,7 @@ static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAcces
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
-  if (!__needBarrier(type, decorators, dst)) {
+  if (!__needBarrier(type, decorators, dst, true)) {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
     return;
   }

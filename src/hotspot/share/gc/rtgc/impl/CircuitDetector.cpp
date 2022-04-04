@@ -384,9 +384,9 @@ void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
         this->_tail = newTail;
     }
     else {
-        this->_tail = newTail;
         rtgc_log(LOG_OPT(10), "spilt shortcut\n");
         SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1);
+        this->_tail = newTail;
     }
     this->vailidateShortcut();
 }

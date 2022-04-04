@@ -41,15 +41,19 @@ class RtgcBarrier : public AllStatic {
 public:
   static void init_barrier_runtime();
 
-  static inline bool is_raw_access(DecoratorSet decorators) {
+  static inline bool is_raw_access(DecoratorSet decorators, bool op_store = true) {
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
+#if RTGC_PARALLEL
+    if (op_store) no_barrier |= ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
+#else
+    no_barrier |= ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
+#endif    
     return (no_barrier & decorators) != 0;
   }
 
   static inline bool needBarrier(DecoratorSet decorators, oopDesc* base,
-                                 ptrdiff_t offset) {
-    DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
-    return !is_raw_access(decorators)
+                                 ptrdiff_t offset, bool op_store) {
+    return !is_raw_access(decorators, op_store)
         && offset > oopDesc::klass_offset_in_bytes()
         && reinterpret_cast<RTGC::GCNode*>(base)->isTrackable();
   }

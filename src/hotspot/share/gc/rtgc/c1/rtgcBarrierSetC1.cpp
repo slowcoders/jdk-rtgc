@@ -108,14 +108,14 @@ RtgcBarrierSetC1::RtgcBarrierSetC1() {
   RtgcBarrier::init_barrier_runtime();
 }
 
-bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access) {
-  return access.is_oop() && !RtgcBarrier::is_raw_access(access.decorators())
+bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access, bool op_store) {
+  return access.is_oop() && !RtgcBarrier::is_raw_access(access.decorators(), op_store)
       && !access.resolved_addr()->is_stack();
 }
 
 LIR_Opr RtgcBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
   resolve_in_register |= access.is_oop()
-      && !RtgcBarrier::is_raw_access(access.decorators())
+      && !RtgcBarrier::is_raw_access(access.decorators(), false)
       && !access.base().opr()->is_stack();
   return BarrierSetC1::resolve_address(access, resolve_in_register);
 }
@@ -134,7 +134,7 @@ oopDesc* __rtgc_load(narrowOop* addr) {
 
 void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   DecoratorSet decorators = access.decorators();
-  if (true || !needBarrier_onResolvedAddress(access)) {
+  if (true || !needBarrier_onResolvedAddress(access, false)) {
     BarrierSetC1::load_at_resolved(access, result);
     return;
   }
@@ -145,6 +145,7 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   LIR_OprList* args = new LIR_OprList();
   args->append(result);
 
+  fatal("not_implemented");
   // address fn = RtgcBarrier::getPostLoadFunction(docorators);
 
   // LIR_Opr res = gen->call_runtime(&signature, args,
@@ -165,7 +166,7 @@ void __rtgc_store(narrowOop* addr, oopDesc* new_value, oopDesc* base) {
 }
 
 void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
-  bool need_barrier = needBarrier_onResolvedAddress(access);
+  bool need_barrier = needBarrier_onResolvedAddress(access, true);
   if (!need_barrier) {
     LIR_Opr offset = access.offset().opr();
     bool setKlass = (access.decorators() & IN_HEAP) && 
@@ -196,7 +197,7 @@ oopDesc* __rtgc_xchg_nih(volatile narrowOop* addr, oopDesc* new_value) {
 }
 
 LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& value) {
-  if (!needBarrier_onResolvedAddress(access)) {
+  if (!needBarrier_onResolvedAddress(access, true)) {
     return BarrierSetC1::atomic_xchg_at_resolved(access, value);
   }
 
@@ -222,7 +223,7 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
 }
 
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
-  if (!needBarrier_onResolvedAddress(access)) {
+  if (!needBarrier_onResolvedAddress(access, true)) {
     return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 
