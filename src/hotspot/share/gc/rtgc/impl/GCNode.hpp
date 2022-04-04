@@ -1,9 +1,11 @@
 #ifndef SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 #define SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 
+#define RTGC_PARALLEL		false
+#define ZERO_ROOT_REF 		0
+
 namespace RTGC {
 
-#define 			ZERO_ROOT_REF 	0
 static const int 	TRACKABLE_BIT = 1;
 enum class TraceState : int {
 	NOT_TRACED,
