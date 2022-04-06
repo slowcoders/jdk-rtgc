@@ -33,6 +33,7 @@
 #include "utilities/align.hpp"
 #include "utilities/constantTag.hpp"
 #include "utilities/growableArray.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class PSPromotionManager;
 
@@ -446,7 +447,14 @@ class ConstantPoolCache: public MetaspaceObj {
   void clear_archived_references() NOT_CDS_JAVA_HEAP_RETURN;
 
   inline oop resolved_references();
+#if USE_RTGC
+  void init_resolved_references(OopHandle s) { 
+    _resolved_references.clear_uninitalized(); _resolved_references = s; 
+  }
+  void set_resolved_references(OopHandle s);
+#else  
   void set_resolved_references(OopHandle s) { _resolved_references = s; }
+#endif  
   Array<u2>* reference_map() const        { return _reference_map; }
   void set_reference_map(Array<u2>* o)    { _reference_map = o; }
 

@@ -618,6 +618,19 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
+#if USE_RTGC
+class HandleReleaseClosure : public OopClosure {
+  void do_oop(oop* p) {
+    oop obj = *p;
+    if (obj != NULL) rtHeap::release_jni_handle(obj);
+  }
+
+  void do_oop(narrowOop* p) {
+    // The ChunkedHandleList should not contain any narrowOop
+    ShouldNotReachHere();
+  }  
+};
+#endif
 void ClassLoaderData::unload() {
   _unloading = true;
 
@@ -641,6 +654,11 @@ void ClassLoaderData::unload() {
 
   // Clean up global class iterator for compiler
   ClassLoaderDataGraph::adjust_saved_class(this);
+
+#if USE_RTGC
+  HandleReleaseClosure handleRelease; 
+  _handles.oops_do(&handleRelease);
+#endif
 }
 
 ModuleEntryTable* ClassLoaderData::modules() {
@@ -884,6 +902,8 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
+    assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
+        "Illegal Object%p\n", (void*)*ptr);
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
 }
@@ -922,6 +942,7 @@ void ClassLoaderData::free_deallocate_list() {
   if (_deallocate_list == NULL) {
     return;
   }
+
   // Go backwards because this removes entries that are freed.
   for (int i = _deallocate_list->length() - 1; i >= 0; i--) {
     Metadata* m = _deallocate_list->at(i);
@@ -934,6 +955,7 @@ void ClassLoaderData::free_deallocate_list() {
       } else if (m->is_constantPool()) {
         MetadataFactory::free_metadata(this, (ConstantPool*)m);
       } else if (m->is_klass()) {
+        rtgc_log(true, "free_metadata %p(%s)\n", m, ((InstanceKlass*)m)->name()->bytes());
         MetadataFactory::free_metadata(this, (InstanceKlass*)m);
       } else {
         ShouldNotReachHere();
@@ -961,6 +983,7 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
   if (_deallocate_list == NULL) {
     return;
   }
+
   // Go backwards because this removes entries that are freed.
   for (int i = _deallocate_list->length() - 1; i >= 0; i--) {
     Metadata* m = _deallocate_list->at(i);
@@ -969,6 +992,8 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       ((ConstantPool*)m)->release_C_heap_structures();
     } else if (m->is_klass()) {
       InstanceKlass* ik = (InstanceKlass*)m;
+      rtgc_log(true, "free_deallocate_list_C_heap_structures %p(%s)\n", ik, ik->name()->bytes());
+
       // also releases ik->constants() C heap memory
       ik->release_C_heap_structures();
       // Remove the class so unloading events aren't triggered for

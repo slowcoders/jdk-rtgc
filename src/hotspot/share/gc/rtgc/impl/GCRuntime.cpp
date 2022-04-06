@@ -95,9 +95,10 @@ void GCRuntime::disconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-	rtgc_log(++RTGC::debugOptions[1] && cast_to_oop(assigned)->klass() == vmClasses::String_klass(), 
-            "onAssignRootVariable_internal %p\n", assigned);
     assigned->incrementRootRefCount();
+    // const char* name = RTGC::getClassName(assigned);
+    // rtgc_log(strstr(name, "MH+0x0000000") != 0 && assigned->getRootRefCount() > 1,
+    //      "gotcha %s(%d)\n", name, assigned->getRootRefCount());
 }
 
 void GCRuntime::onAssignRootVariable(GCObject* assigned) {
@@ -108,8 +109,6 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
-	rtgc_log(erased == RTGC::debug_obj, "onAssignRootVariable_internal %p\n", erased);
-
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
@@ -209,15 +208,15 @@ void GCRuntime::adjustShortcutPoints() {
     int allocSize = _rtgc.g_shortcutPool.size();
     allocSize -= INVALID_SHORTCUT + 1;
     if (allocSize <= 0) return;
-    rtgc_log(true, "g_shortcutPool allocSize %d\n", allocSize);
+    //rtgc_log(true, "g_shortcutPool allocSize %d\n", allocSize);
     SafeShortcut* p = SafeShortcut::getPointer(INVALID_SHORTCUT + 1);
     SafeShortcut* end = p + allocSize;
     for (; p < end; p++) {
         if (p->isValid()) {
             GCObject* anchor = RTGC::getForwardee(p->anchor());
             GCObject* tail = RTGC::getForwardee(p->tail());
-            rtgc_log(true, "adjustShortcutPoints[%d] %p->%p, %p->%p\n", 
-                p->getIndex(p), (void*)p->anchor(), anchor, (void*)p->tail(), tail);
+            // rtgc_log(LOG_OPT(10), "adjustShortcutPoints[%d] %p->%p, %p->%p\n", 
+            //     p->getIndex(p), (void*)p->anchor(), anchor, (void*)p->tail(), tail);
             p->adjustPointUnsafe(anchor, tail);
         }
     }

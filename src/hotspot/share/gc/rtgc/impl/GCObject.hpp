@@ -146,7 +146,7 @@ public:
 		precond(tail != NULL); 
 		precond(tail != _tail); 
 		int s_id = getIndex(this);
-	    rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
+	    // rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
 		GCObject* old_tail = _tail;
 		for (GCObject* node = tail; node != old_tail; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
@@ -159,7 +159,7 @@ public:
 		precond(anchor != NULL); 
 		precond(anchor != _anchor); 
 		int s_id = getIndex(this);
-	    rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
+	    // rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
 		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
 			node->setShortcutId_unsafe(s_id);
 		}

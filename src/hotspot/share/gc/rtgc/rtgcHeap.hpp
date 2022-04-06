@@ -33,7 +33,8 @@
 class Thread;
 class oopDesc;
 class OopIterateClosure;
-
+class BoolObjectClosure;
+class OopClosure;
 
 class rtHeap : AllStatic {
 public:

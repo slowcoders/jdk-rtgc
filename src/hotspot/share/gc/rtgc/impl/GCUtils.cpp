@@ -2,6 +2,7 @@
 #include "oops/compressedOops.hpp"
 #include "GCObject.hpp"
 #include "memory/virtualspace.hpp"
+#include "oops/oopHandle.inline.hpp"
 
 using namespace RTGC;
 namespace RTGC {

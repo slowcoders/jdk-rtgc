@@ -82,8 +82,13 @@ private:
 
 public:
   void init() {
+#if USE_RTGC
+    _module.clear_uninitalized();
+    _shared_pd.clear_uninitalized();
+#else
     _module = OopHandle();
     _shared_pd = OopHandle();
+#endif
     _loader_data = NULL;
     _reads = NULL;
     _version = NULL;

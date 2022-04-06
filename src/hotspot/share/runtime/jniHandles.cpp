@@ -404,7 +404,6 @@ class HandleEraser : public OopClosure {
       T heap_oop = RawAccess<>::oop_load(p);
       if (!CompressedOops::is_null(heap_oop)) {
         oop obj = CompressedOops::decode_not_null(heap_oop);
-        rtgc_log(RTGC::debugOptions[1] == 3, "release_handle %p at %p\n", (void*)obj, p);
         rtHeap::release_jni_handle(obj);
       }
     }

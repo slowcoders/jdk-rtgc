@@ -771,9 +771,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-  rtgc_log(RTGC::debugOptions[1] && 
-          RTGC::to_node(old)->getRootRefCount() > 0 && old->klass() == vmClasses::String_klass(),
-      "str moveed %p -> %p\n", (void*)old, (void*)obj); 
   if (old == RTGC::debug_obj) {
     RTGC::debug_obj = obj;
     rtgc_log(true, "debug_obj moved %p -> %p\n", (void*)old, (void*)obj);

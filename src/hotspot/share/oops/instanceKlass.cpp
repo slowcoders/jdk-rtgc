@@ -578,6 +578,9 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   // Also remove mirror from handles
   loader_data->remove_handle(_java_mirror);
+#if USE_RTGC
+  _java_mirror.clear_uninitalized();
+#endif  
 
   // Need to take this class off the class loader data list.
   loader_data->remove_class(this);

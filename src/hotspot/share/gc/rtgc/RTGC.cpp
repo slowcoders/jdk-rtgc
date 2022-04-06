@@ -198,7 +198,11 @@ bool RTGC::collectGarbage(oopDesc* obj) {
 
 const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
     Klass* klass = cast_to_oop(obj)->klass();
-    if (vmClasses::Class_klass() == klass || vmClasses::Class_klass() == (void*)obj) {
+    if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
+      Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
+      if (k2 != NULL) {
+        klass = k2;
+      }
       if (showClassInfo) {
         printf("Class of class\n");
         cast_to_oop(obj)->print_on(tty);
@@ -207,7 +211,8 @@ const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
       //   return klass->internal_name();
       // }
     }
-    return (const char*)klass->name()->bytes();// internal_name();
+    //return (const char*)klass->name()->bytes();
+    return (const char*)klass->name()->bytes();
 }
 
 

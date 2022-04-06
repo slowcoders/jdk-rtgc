@@ -30,6 +30,7 @@
 #include "oops/oopHandle.hpp"
 #include "utilities/hashtable.hpp"
 #include "utilities/ostream.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class DictionaryEntry;
 class ProtectionDomainEntry;
@@ -174,7 +175,11 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
   void set_method_type(oop p);
 
   // We need to clear the OopHandle because these hashtable entries are not constructed properly.
+#if USE_RTGC
+  void clear_method_type() { _method_type.clear_uninitalized(); }
+#else   
   void clear_method_type() { _method_type = OopHandle(); }
+#endif
 
   void free_entry();
 

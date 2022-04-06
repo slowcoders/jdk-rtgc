@@ -562,6 +562,7 @@ void RtAnchorRemoveClosure::do_oop_work(T* p) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
+  
   assert(node->getRootRefCount() == 0, "wrong refCount(%d) on garbage %p(%s)\n", 
       node->getRootRefCount(), node, RTGC::getClassName(node));
 #ifdef ASSERT
@@ -587,7 +588,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   if (s_id > INVALID_SHORTCUT) {
     SafeShortcut* ss = node->getShortcut();
     if (ss->tail() == node) {
-      rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
+      // rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
       // node 가 가비지면 생존경로가 존재하지 않는다.
       delete ss;
     }
@@ -606,7 +607,7 @@ void rtHeap::prepare_full_gc() {
     node->unmarkKeepAlive();
     postcond(!node->isKeepAlive());
   }
-  rtgc_log(true, "clear keep_alives %d\n", g_keep_alives.length());
+  rtgc_log(LOG_OPT(1), "clear keep_alives %d\n", g_keep_alives.length());
   g_keep_alives.trunc_to(0);
 }
 
@@ -614,8 +615,6 @@ bool rtHeap::finish_collection(bool is_tenure_gc) {
   if (RTGC_CHECK_EMPTY_TRACKBLE) {
     assert(empty_trackable == NULL, "empty_trackable is not catched!");
   }
-  RTGC::debugOptions[1] |= is_tenure_gc;
-  RTGC::debugOptions[2] ++;
 
   if (is_tenure_gc) {
     GCRuntime::adjustShortcutPoints();
