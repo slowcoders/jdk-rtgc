@@ -131,11 +131,13 @@ public:
 #if RTGC_OPT_YOUNG_ROOTS
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
   int _cnt_young_ref;
+  debug_only(oop anchor;)
 public:
   YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
   
   bool do_object_b(oop obj) {
     _cnt_young_ref = 0;
+    debug_only(anchor = obj;)
     obj->oop_iterate(this);
     return _cnt_young_ref > 0;
   }
@@ -146,7 +148,9 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    precond(rtHeap::is_alive(obj));
+    assert(rtHeap::is_alive(obj), "invalid ref-link %p(%s)->%p(%s)\n",
+      (void*)anchor, anchor->klass()->name()->bytes(),
+      (void*)obj, obj->klass()->name()->bytes());
   }
 };
 #endif

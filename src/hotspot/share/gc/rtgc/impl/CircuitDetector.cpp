@@ -209,7 +209,7 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 
     // if (link->removeReferrer(garbageAnchor) == 0
     // &&  link->isUnsafe()) {
-    //     if (link->isGarbage()) {
+    //     if (!link->isAnchored()) {
     //         link->markGarbage();
     //         link->removeAnchorList();
     //         rtgc_log(LOG_OPT(0x10), "Mark new garbage.\n");
@@ -301,7 +301,7 @@ void GarbageProcessor::destroyObject(GCObject* garbage) {
         else if (!link->isDestroyed()) {
             if (!link->isGarbageMarked()) {
                 if (link->removeReferrer(it->getContainerObject()) > 0
-                ||  !link->isGarbage()) {
+                ||  link->isAnchored()) {
                     if (link->isUnsafe()) {
                         _unsafeObjects.push_back(link);
                     }

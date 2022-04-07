@@ -108,8 +108,8 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
   check_valid_obj(newValue, base);
   check_valid_obj(oldValue, base);
-  assert(!to_obj(base)->isGarbageMarked(), 
-      "incorrect anchor %p(%s)\n", base, RTGC::getClassName((GCObject*)base));
+  assert(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d\n", 
+          base, RTGC::getClassName((GCObject*)base), to_obj(base)->getRootRefCount());
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");

@@ -153,8 +153,8 @@ public:
 		return _flags.isGarbage;
 	}
 
-	bool isGarbage() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && !this->hasReferrer();
+	bool isAnchored() {
+		return _flags.rootRefCount > ZERO_ROOT_REF || this->hasReferrer();
 	}
 
 	bool isUnsafe() {
