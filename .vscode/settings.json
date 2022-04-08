@@ -79,5 +79,6 @@
         "__debug": "cpp",
         "__threading_support": "cpp"
     },
-    "terminal.integrated.defaultProfile.osx": "bash"
+    "terminal.integrated.defaultProfile.osx": "bash",
+    "cmake.configureOnOpen": false
 }

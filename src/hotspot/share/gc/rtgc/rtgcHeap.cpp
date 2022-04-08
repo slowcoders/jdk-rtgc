@@ -173,9 +173,6 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   if (RTGC_CHECK_EMPTY_TRACKBLE && new_p == empty_trackable) {
     empty_trackable = NULL;
   }
-  // rtgc_log(to_obj(new_p)->getRootRefCount() > 0 && new_p->klass() == vmClasses::String_klass(),
-  //     "mark_promoted_trackable %p(%d)\n", new_p, ++cntDD); 
-
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
@@ -230,7 +227,11 @@ static bool check_garbage(GCObject* node) {
   AnchorIterator ai(node);
   while (ai.hasNext()) {
     GCObject* anchor = ai.next();
-    if (!anchor->isGarbageMarked()) return false;
+    if (!anchor->isGarbageMarked()) {
+      rtgc_log(true, "invalid anchor yg-root %p, yg-r=%d, rc=%d:%d\n",
+            anchor, anchor->isYoungRoot(), anchor->getRootRefCount(), anchor->hasReferrer());
+      return false;
+    }
   }
   return true;
 }
@@ -243,7 +244,7 @@ void rtHeap__clear_garbage_young_roots() {
     for (; src < end; src++) {
       GCObject* node = to_obj(*src);
       if (node->isGarbageMarked()) {
-        assert(check_garbage(node), "invalid yg-root %p, %d, rc=%d:%d\n",
+        assert(check_garbage(node), "invalid yg-root %p, yg-r=%d, rc=%d:%d\n",
               node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
       }
       else if (node->isUnsafe() && 
