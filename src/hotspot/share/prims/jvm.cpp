@@ -3208,6 +3208,13 @@ JVM_ENTRY(jobject, JVM_GetAndClearDiscovered(JNIEnv* env, jobject ref))
   java_lang_ref_Reference::set_discovered_raw(ref_oop, NULL);
   return JNIHandles::make_local(THREAD, discovered);
 JVM_END
+
+JVM_ENTRY(void, JVM_SetReferent0(JNIEnv *env, jobject ref, jobject referent))
+  oop ref_oop = JNIHandles::resolve_non_null(ref);
+  oop referent_oop = referent == NULL ? NULL : JNIHandles::resolve_non_null(referent);
+  rtHeap::init_java_reference(ref_oop, referent_oop);
+  return;
+JVM_END
 #endif
 
 JVM_ENTRY(jboolean, JVM_HasReferencePendingList(JNIEnv* env))

@@ -325,6 +325,9 @@ JVM_GetAndClearReferencePendingList(JNIEnv *env);
 #ifdef SAFE_CLEAR_DISCOVERED
 JNIEXPORT jobject JNICALL
 JVM_GetAndClearDiscovered(JNIEnv *env, jobject ref);
+
+JNIEXPORT void JNICALL
+JVM_SetReferent0(JNIEnv *env, jobject ref, jobject referent);
 #endif
 
 JNIEXPORT jboolean JNICALL

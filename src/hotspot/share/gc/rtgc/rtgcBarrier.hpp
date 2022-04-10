@@ -4,7 +4,7 @@
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
-#include "gc/rtgc/impl/GCNode.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class RtgcBarrier : public AllStatic {
   static void (*rt_store)(void* p, oopDesc* new_value, oopDesc* base);
@@ -45,7 +45,7 @@ public:
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
 #if RTGC_PARALLEL
     if (op_store) no_barrier |= ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
-#else
+#elif RTGC_IGNORE_JREF
     no_barrier |= ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
 #endif    
     return (no_barrier & decorators) != 0;
@@ -55,7 +55,7 @@ public:
                                  ptrdiff_t offset, bool op_store) {
     return !is_raw_access(decorators, op_store)
         && offset > oopDesc::klass_offset_in_bytes()
-        && reinterpret_cast<RTGC::GCNode*>(base)->isTrackable();
+        && rtHeap::is_trackable(base);
   }
 
   static address getStoreFunction(DecoratorSet decorators);

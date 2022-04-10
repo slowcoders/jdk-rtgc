@@ -84,9 +84,11 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
     return;
   }
 
+  rtgc_log(type == REF_PHANTOM, "phantom %p {{\n", (void*)obj); // rtgc
   // Treat referent and discovered as normal oops.
   do_referent<T>(obj, closure, contains);
   do_discovered<T>(obj, closure, contains);
+  rtgc_log(type == REF_PHANTOM, "phantom }}\n"); // rtgc
 }
 
 template <typename T, class OopClosureType, class Contains>

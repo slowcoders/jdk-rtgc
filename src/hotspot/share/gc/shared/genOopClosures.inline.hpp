@@ -103,6 +103,7 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 template <typename T>
 void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
   precond(_trackable_anchor != NULL);
+#if RTGC_IGNORE_JREF
   if (_is_java_reference) {
     ptrdiff_t offset = (address)p - (address)_trackable_anchor;
     if (offset == java_lang_ref_Reference::discovered_offset()
@@ -116,6 +117,7 @@ void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_re
       return;
     }
   }
+#endif  
   rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
 }
 

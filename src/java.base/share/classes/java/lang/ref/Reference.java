@@ -228,6 +228,11 @@ public abstract class Reference<T> {
     private native Reference<?> getAndClearDiscovered();
 
     /*
+     * Safely set referent with REF_TYPE in RTGC collector.
+     */
+    private native void setReferent0(Object referent);
+
+    /*
      * Test whether the VM's pending-Reference list contains any entries.
      */
     private static native boolean hasReferencePendingList();
@@ -496,7 +501,7 @@ public abstract class Reference<T> {
     }
 
     Reference(T referent, ReferenceQueue<? super T> queue) {
-        this.referent = referent;
+        this.setReferent0(referent);
         this.queue = (queue == null) ? ReferenceQueue.NULL : queue;
     }
 

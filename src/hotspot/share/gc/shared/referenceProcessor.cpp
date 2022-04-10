@@ -300,9 +300,16 @@ void DiscoveredListIterator::clear_referent() {
 }
 
 void DiscoveredListIterator::enqueue() {
+// #if USE_RTGC  
+//   // referenePendingList 에 대한 처리가 끝나기 전까지 KeepAlive 상태가 유지되어야 한다.
+//   HeapAccess<IS_DEST_UNINITIALIZED>::oop_store_at(_current_discovered,
+//                                             java_lang_ref_Reference::discovered_offset(),
+//                                             _next_discovered);
+// #else 
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_current_discovered,
                                             java_lang_ref_Reference::discovered_offset(),
                                             _next_discovered);
+// #endif                                            
 }
 
 void DiscoveredListIterator::complete_enqueue() {
@@ -451,7 +458,7 @@ size_t ReferenceProcessor::process_phantom_refs_work(DiscoveredList&    refs_lis
       iter.move_to_next();
     } else {
       iter.clear_referent();
-      iter.enqueue(); /// ZZZ check
+      iter.enqueue(); 
       log_enqueued_ref(iter, "cleared Phantom");
       iter.next();
     }
@@ -1046,6 +1053,12 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   if (!_discovering_refs || !RegisterReferences) {
     return false;
   }
+
+#if RTGC_OPT_PHANTOM_REF
+  if (rt == REF_PHANTOM) {
+    return true;
+  }
+#endif    
 
   if ((rt == REF_FINAL) && (java_lang_ref_Reference::next(obj) != NULL)) {
     // Don't rediscover non-active FinalReferences.

@@ -7,6 +7,33 @@
    1) YG 객체도 AnchorList를 생성한다. - 데이터 소비 및 속도 문제.
    2) YG 객체에 의한 참조는 Ref-Count 변경 - YG Garbage 객체에 대한 추가적 Scan 필요 (Old 객체에 대한 refCount 감소를 위해).
    3) YG 객체에 의한 참조 시 unmarkGarbage 실행.
+- Reference 처리 문제
+   1) Reference 를 referent 의 anchor 로 등록하면,
+      referent 만 따로 가비지 처리하지 못한다.
+      - 단, YG GC 시에는 문제가 없다.
+      - Full GC 시에는 각 Reference 의 referent 별로, Reference 를 제외한 Anchor 의 수를 세어
+        Garbage 검사를 할 수 있다.
+      - FinalizeReference(=Finalizer) 의 경우, 별도의 List-Q 를 통해 저장된다. 이에 매우 긴 SafeShorcut 이 생성된다.
+      - PhantomReference 는 존속기간을 늘리는 문제가 발생.
+   2) Reference 를 referent 의 anchor 로 등록하지 않으면,
+      referent 값을 지우지 않은 채 referent 가 삭제될 수 있다.
+      이를 방지하려면, stringRefCount 와 별도로 weakRefCount 가 관리되어야 한다.
+      (stringRefCount 하나로 관리하면, 순환 가비지 처리 불가)
+      softRefCount 도 별도 관리 필요??? ㅡ,.ㅡ
+   3) GC Root marking 시에, 가비지 처리 대상이 아닌 referent 를 stack-root-marking 한다.
+      YG-GC 시에는 reference 를 일반 객체와 동일하게 처리하므로, referent 가 별도 GC 되지 않는다.
+         referent 만 old-G 에 allocation 되거나, forwaring 된 경우에 대해 확인 필요!!
+      Full-GC 시에 WeakReferent 는 항상 별도 GC 대상이므로 stack-root-marking 이 필요없다.
+      SoftReference 에 한해서 별도 관리가 필요하다. (1차 Full-GC 후, SoftReference 를 재처리하는 경우도 대비.)
+        -> SoftReference 를 일반 anchor 로 등록한 후, 
+           soft-referent 의 anchor 중 SoftReference 를 제외한 anchor 의 수를 세어 GC 여부 재판별 가능.
+           soft-referent 가 가비지로 판별되면 그 ref-link 에 대해서도 동일 조건으로 GC 여부 재판별 가능.
+      FinalizeReference 에 대한 resurrection 처리 또한 필요하다.
+         -> 필드 변경 시마다 resurrection 을 하기 보다는 finalize 처리 전에 resurrection 을 일괄 처리(?)
+         -> finalizable 객체가 가비지로 판별 시, 해당 객체를 가비지 markging 하지 않고, finalizeQueue 에만 push!
+
+
+      
 
 ## RTGC 1차 구현
 1. Ref Counting 방식의 단점.

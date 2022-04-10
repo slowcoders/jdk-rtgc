@@ -12,6 +12,10 @@
 
 #define RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER true
 
+#define RTGC_PARALLEL		              false
+
+#define RTGC_OPT_PHANTOM_REF          true
+#define RTGC_IGNORE_JREF              false
 #define RTGC_OPT_CLD_SCAN             true
 #define RTGC_LOCAL_JNI_HANDLE_IS_ROOT false
 #define RTGC_OPT_YOUNG_ROOTS          true
@@ -35,6 +39,7 @@ class oopDesc;
 class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
+class ReferenceDiscoverer;
 
 class rtHeap : AllStatic {
 public:
@@ -55,12 +60,15 @@ public:
   static size_t adjust_pointers(oopDesc* old_p);
   static void adjust_anchor_pointers(oopDesc* old_p, bool has_young_ref);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
-  static bool finish_collection(bool is_tenure_gc);
   static void mark_forwarded(oopDesc* p);
   static void destroy_trackable(oopDesc* p);
 
   // for jni
   static void release_jni_handle(oopDesc* p);
+
+  // for reference management
+  static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
+  static void discover_java_references(ReferenceDiscoverer* rp, bool is_tenure_gc);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

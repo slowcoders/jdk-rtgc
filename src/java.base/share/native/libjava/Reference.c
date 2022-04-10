@@ -38,6 +38,12 @@ Java_java_lang_ref_Reference_getAndClearDiscovered(JNIEnv *env, jobject ref)
 {
     return JVM_GetAndClearDiscovered(env, ref);
 }
+
+JNIEXPORT void JNICALL
+Java_java_lang_ref_Reference_setReferent0(JNIEnv *env, jobject ref, jobject referent)
+{
+    JVM_SetReferent0(env, ref, referent);
+}
 #endif
 
 JNIEXPORT jboolean JNICALL

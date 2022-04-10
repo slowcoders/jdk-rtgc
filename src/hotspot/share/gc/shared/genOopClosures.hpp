@@ -75,7 +75,9 @@ private:
 #if RTGC_OPT_YOUNG_ROOTS
   oopDesc* _trackable_anchor;
   bool _is_young_root;
+#if RTGC_IGNORE_JREF
   bool _is_java_reference;
+#endif  
 #endif
 
 public:
@@ -92,7 +94,9 @@ public:
   void trackable_barrier(T* p, oop obj);
 
   void do_iterate(oop obj) {
+#if RTGC_IGNORE_JREF
     _is_java_reference = obj->klass()->id() == InstanceRefKlassID;
+#endif    
     _trackable_anchor = obj;
     _is_young_root = false;
     rtHeap::mark_promoted_trackable(obj);

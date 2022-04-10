@@ -67,6 +67,7 @@ JVM_GC
 JVM_GetAllThreads
 JVM_GetAndClearReferencePendingList
 JVM_GetAndClearDiscovered
+JVM_SetReferent0
 JVM_GetArrayElement
 JVM_GetArrayLength
 JVM_GetCallerClass
