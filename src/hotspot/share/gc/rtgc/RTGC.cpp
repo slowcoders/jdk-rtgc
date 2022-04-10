@@ -114,9 +114,9 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
-  precond(base->klass()->id() != InstanceRefKlassID
-    || ((address)addr - (address)base != java_lang_ref_Reference::referent_offset() &&
-        (address)addr - (address)base != java_lang_ref_Reference::discovered_offset()));
+  rtgc_log(base->klass()->id() == InstanceRefKlassID &&
+      (address)addr - (address)base == java_lang_ref_Reference::discovered_offset(),
+      "discover changed %p.%p -> %p\n", base, oldValue, newValue);
 
   if (oldValue == newValue) return;
   // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 

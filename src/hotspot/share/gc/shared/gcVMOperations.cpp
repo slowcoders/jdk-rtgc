@@ -128,7 +128,9 @@ void VM_GC_Operation::doit_epilogue() {
   // Clean up old interpreter OopMap entries that were replaced
   // during the GC thread root traversal.
   OopMapCache::cleanup_old_entries();
+  printf("--------------------------------\n");
   if (Universe::has_reference_pending_list()) {
+    printf("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH\n");
     Heap_lock->notify_all();
   }
   VM_GC_Sync_Operation::doit_epilogue();

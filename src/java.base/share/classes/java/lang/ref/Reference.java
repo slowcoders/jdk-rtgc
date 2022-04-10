@@ -223,11 +223,6 @@ public abstract class Reference<T> {
     private static native Reference<?> getAndClearReferencePendingList();
 
     /*
-     * Safely clear discovered with AS_NO_KEEPALIVE in RTGC collector.
-     */
-    private native Reference<?> getAndClearDiscovered();
-
-    /*
      * Safely set referent with REF_TYPE in RTGC collector.
      */
     private native void setReferent0(Object referent);
@@ -268,9 +263,8 @@ public abstract class Reference<T> {
         }
         while (pendingList != null) {
             Reference<?> ref = pendingList;
-            pendingList = ref.getAndClearDiscovered();
-            // pendingList = ref.discovered;
-            // ref.discovered = null;
+            pendingList = ref.discovered;
+            ref.discovered = null;
 
             if (ref instanceof Cleaner) {
                 ((Cleaner)ref).clean();

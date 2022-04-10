@@ -80,15 +80,19 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
+#if RTGC_OPT_PHANTOM_REF
+  if (type == REF_PHANTOM) {
+    return;
+  }
+#endif    
+
   if (try_discover<T>(obj, type, closure)) {
     return;
   }
 
-  rtgc_log(type == REF_PHANTOM, "phantom %p {{\n", (void*)obj); // rtgc
   // Treat referent and discovered as normal oops.
   do_referent<T>(obj, closure, contains);
   do_discovered<T>(obj, closure, contains);
-  rtgc_log(type == REF_PHANTOM, "phantom }}\n"); // rtgc
 }
 
 template <typename T, class OopClosureType, class Contains>
@@ -102,7 +106,9 @@ void InstanceRefKlass::oop_oop_iterate_discovered_and_discovery(oop obj, Referen
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_fields(oop obj, OopClosureType* closure, Contains& contains) {
   assert(closure->ref_discoverer() == NULL, "ReferenceDiscoverer should not be set");
+#if !RTGC_OPT_PHANTOM_REF
   do_referent<T>(obj, closure, contains);
+#endif    
   do_discovered<T>(obj, closure, contains);
 }
 
@@ -163,21 +169,18 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing_bounded(oop obj, OopClosur
 template <typename T, class OopClosureType>
 void InstanceRefKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   InstanceKlass::oop_oop_iterate<T>(obj, closure);
-
   oop_oop_iterate_ref_processing<T>(obj, closure);
 }
 
 template <typename T, class OopClosureType>
 void InstanceRefKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   InstanceKlass::oop_oop_iterate_reverse<T>(obj, closure);
-
   oop_oop_iterate_ref_processing<T>(obj, closure);
 }
 
 template <typename T, class OopClosureType>
 void InstanceRefKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
   InstanceKlass::oop_oop_iterate_bounded<T>(obj, closure, mr);
-
   oop_oop_iterate_ref_processing_bounded<T>(obj, closure, mr);
 }
 

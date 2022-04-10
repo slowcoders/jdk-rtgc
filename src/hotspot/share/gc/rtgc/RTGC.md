@@ -1,4 +1,5 @@
 ## TODO
+- Old-G 에 객체 A를 allocate 하고, 바로 full-GC 수행 시, A 의 trackable-marking 여부 확인!!
 - YoungRoot resurrection.
 - lock temporary WeakHandles. (YG GC 시에는 GC 되지 않음).
 - SafepointSynchronize::begin()/end()확인.
@@ -92,8 +93,8 @@ bash configure --with-jvm-variants=client \
 ```
 
 ## 3. Make Images
-    `make images CONF=linux debug`
-    `make images CONF=macosx debug`
+    `make images CONF=linux debug LOG_LVEL=info`
+    `make images CONF=macosx debug LOG_LVEL=info`
 
 ## 4. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`

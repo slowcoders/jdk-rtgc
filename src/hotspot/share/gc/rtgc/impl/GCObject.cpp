@@ -58,11 +58,14 @@ int GCObject::removeReferrer(GCObject* referrer) {
         rtgc_log(idx < 0, "referrer %p(%s) is not found in %p(%s) \n", 
             referrer, RTGC::getClassName(referrer),
             this, RTGC::getClassName(this));
+#ifdef ASSERT            
         if (idx < 0) {
             for (int i = 0; i < referrers->size(); i ++) {
-                rtgc_log(true, "at[%d] %p\n", i, (void*)referrers->at(i));
+                GCObject* anchor = referrers->at(i);
+                rtgc_log(true, "at[%d] %p(%s)\n", i, anchor, RTGC::getClassName(anchor));
             }
         }
+#endif        
         precond(idx >= 0);
         if (referrers->size() == 2) {
             GCObject* remained = referrers->at(1 - idx);

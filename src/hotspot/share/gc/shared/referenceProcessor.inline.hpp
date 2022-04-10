@@ -62,6 +62,9 @@ DiscoveredListIterator::DiscoveredListIterator(DiscoveredList&    refs_list,
   _current_discovered(refs_list.head()),
   _current_discovered_addr(NULL),
   _next_discovered(NULL),
+#if USE_RTGC
+  _discovered_tail(NULL),
+#endif  
   _referent(NULL),
   _keep_alive(keep_alive),
   _is_alive(is_alive),

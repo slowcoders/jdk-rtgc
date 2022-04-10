@@ -3197,18 +3197,11 @@ JVM_ENTRY(jobject, JVM_GetAndClearReferencePendingList(JNIEnv* env))
   return JNIHandles::make_local(THREAD, ref);
 JVM_END
 
-#if USE_RTGC  // JVM_GetAndClearDiscovered
+#if USE_RTGC  // JVM_SetReferent0
 /*
 !! /Users/zeedh/slowcoders/jdk-rtgc/make/data/hotspot-symbols/symbols-unix 에
-JVM_GetAndClearDiscovered 를 추가해야 한다.
+JVM_SetReferent0 를 추가해야 한다.
 */
-JVM_ENTRY(jobject, JVM_GetAndClearDiscovered(JNIEnv* env, jobject ref))
-  oop ref_oop = JNIHandles::resolve_non_null(ref);
-  oop discovered = java_lang_ref_Reference::discovered(ref_oop);
-  java_lang_ref_Reference::set_discovered_raw(ref_oop, NULL);
-  return JNIHandles::make_local(THREAD, discovered);
-JVM_END
-
 JVM_ENTRY(void, JVM_SetReferent0(JNIEnv *env, jobject ref, jobject referent))
   oop ref_oop = JNIHandles::resolve_non_null(ref);
   oop referent_oop = referent == NULL ? NULL : JNIHandles::resolve_non_null(referent);
