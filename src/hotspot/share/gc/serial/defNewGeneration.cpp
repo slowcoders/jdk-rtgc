@@ -771,7 +771,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-  if (old == RTGC::debug_obj || (old->klass()->id() == InstanceRefKlassID && java_lang_ref_Reference::is_phantom(old))) {
+  if (old == RTGC::debug_obj) {
     RTGC::debug_obj = obj;
     rtgc_log(true, "debug_obj moved %p -> %p\n", (void*)old, (void*)obj);
   } else if (obj == RTGC::debug_obj) {
@@ -779,6 +779,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   }
   return obj;
 }
+
 
 void DefNewGeneration::drain_promo_failure_scan_stack() {
   while (!_promo_failure_scan_stack.is_empty()) {

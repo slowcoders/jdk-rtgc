@@ -1,5 +1,8 @@
 ## TODO
 - Old-G 에 객체 A를 allocate 하고, 바로 full-GC 수행 시, A 의 trackable-marking 여부 확인!!
+  -> rtHeap::adjust_points 을 통해 처리.
+- FinalReference 의 referent 는 rootRefCount 만 증가시킨다. 
+  즉, rootRefCount 가 1인 final-referent 는 garbage.
 - YoungRoot resurrection.
 - lock temporary WeakHandles. (YG GC 시에는 GC 되지 않음).
 - SafepointSynchronize::begin()/end()확인.

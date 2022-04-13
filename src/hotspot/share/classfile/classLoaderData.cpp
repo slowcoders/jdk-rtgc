@@ -955,7 +955,6 @@ void ClassLoaderData::free_deallocate_list() {
       } else if (m->is_constantPool()) {
         MetadataFactory::free_metadata(this, (ConstantPool*)m);
       } else if (m->is_klass()) {
-        rtgc_log(true, "free_metadata %p(%s)\n", m, ((InstanceKlass*)m)->name()->bytes());
         MetadataFactory::free_metadata(this, (InstanceKlass*)m);
       } else {
         ShouldNotReachHere();

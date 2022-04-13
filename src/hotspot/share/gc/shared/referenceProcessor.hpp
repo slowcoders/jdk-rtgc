@@ -72,9 +72,6 @@ private:
   oop                _current_discovered;
   HeapWord*          _current_discovered_addr;
   oop                _next_discovered;
-#if USE_RTGC
-  oop                _discovered_tail;
-#endif
 
   oop                _referent;
 
@@ -102,10 +99,6 @@ public:
   // Get oop to the referent object.
   inline oop referent() const { return _referent; }
 
-#if USE_RTGC
-  inline oop discovered_head() const { return _prev_discovered; }
-#endif
-
   // Returns true if referent is alive.
   inline bool is_referent_alive() const {
     return _is_alive->do_object_b(_referent);
@@ -126,11 +119,7 @@ public:
   }
 
   // Remove the current reference from the list
-#ifdef USE_RTGC
-  void remove(bool connect_prev_to_next_discovered = false);
-#else
   void remove();
-#endif
 
   // Apply the keep_alive function to the referent address.
   void make_referent_alive();

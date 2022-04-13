@@ -29,7 +29,13 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
+#if RTGC_IGNORE_JREF
   return ds & ON_STRONG_OOP_REF;
+#elif RTGC_OPT_PHANTOM_REF      
+  return (ds & ON_PHANTOM_OOP_REF) == 0;
+#else
+  return true;
+#endif
 }
 
 static void check_field_addr(oopDesc* base, volatile void* addr) {
@@ -124,8 +130,10 @@ void rtgc_store(T* addr, oopDesc* new_value, oopDesc* base) {
   RTGC::publish_and_lock_heap(new_value, base);
   //oopDesc* old = raw_atomic_xchg(addr, new_value);
   oopDesc* old = CompressedOops::decode(*addr);
-  raw_set_field(addr, new_value);
-  RTGC::on_field_changed(base, old, new_value, addr, "stor");
+  if (old != new_value) {
+    raw_set_field(addr, new_value);
+    RTGC::on_field_changed(base, old, new_value, addr, "stor");
+  }
   RTGC::unlock_heap(true);
 }
 
@@ -244,8 +252,10 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_value, oopDesc* base) {
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
   oop old = RawAccess<>::oop_load(addr);
-  raw_set_volatile_field(addr, new_value);
-  RTGC::on_field_changed(base, old, new_value, addr, "xchg");
+  if ((void*)old != new_value) {
+    raw_set_volatile_field(addr, new_value);
+    RTGC::on_field_changed(base, old, new_value, addr, "xchg");
+  }
   RTGC::unlock_heap(true);
   return old;
 }
@@ -489,7 +499,9 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
     // 사용불가 memmove 필요
     // dst_p[i] = s_raw;
-    RTGC::on_field_changed(dst_array, old, new_value, &dst_p[i], "arry");
+    if (old != new_value) {
+      RTGC::on_field_changed(dst_array, old, new_value, &dst_p[i], "arry");
+    }
   } 
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   RTGC::unlock_heap(true);

@@ -47,19 +47,7 @@ namespace RTGC {
 #endif    
   };
 
-  class RtAnchorRemoveClosure: public BasicOopIterateClosure {
-  public:
-    RtAnchorRemoveClosure(GCObject* garbage) : _garbage_anchor(garbage) {}
-    template <typename T> void do_oop_work(T* p);
-    virtual void do_oop(oop* p)       { do_oop_work(p); }
-    virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  private:
-    GCObject* _garbage_anchor;
-  };
-
-
-
-
+  
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
   GrowableArrayCHeap<oop, mtGC> g_keep_alives;
@@ -360,6 +348,8 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
 
 
 void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool young_ref_reahcable) {
+  if (anchor == link) return;
+
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
   if (young_ref_reahcable) {
     rtHeap::mark_survivor_reachable(link);
@@ -370,22 +360,26 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool young_ref_re
   RTGC::add_referrer_unsafe(link, anchor);
 }
 
-
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
+      ptrdiff_t offset = (address)p - (address)_old_anchor_p;
+  rtgc_log(false && _old_anchor_p->klass()->id() == InstanceRefKlassID &&
+          ((InstanceRefKlass*)_old_anchor_p->klass())->reference_type() == REF_WEAK,
+      "referent changed %p[%d].%p -> %p\n", _old_anchor_p, (int)offset, old_p, (void*)new_p);
   if (old_p == NULL) return;
 
 #ifdef ASSERT
-  rtgc_log(is_java_reference(old_p), "ref(%p) moved tp(%p) new_anc=%p\n", old_p, (void*)new_p, _new_anchor_p);
-  precond(old_p != (void*)0x7f026abd8);
+  rtgc_log(false && old_p->klass()->id() == InstanceRefKlassID && ((InstanceRefKlass*)old_p->klass())->reference_type() == REF_WEAK, 
+          "reference(%p) moved -> %p\n", (void*)old_p, (void*)new_p);
+  rtgc_log(LOG_OPT(3), "ref(%p) moved tp(%p) new_anc=%p\n", old_p, (void*)new_p, _new_anchor_p);
 #endif   
 
   _has_young_ref |= is_in_young(new_p);
   if (_new_anchor_p == NULL) return;
-
   if (USE_PENDING_TRACKABLES) return;
+
 #if RTGC_IGNORE_JREF
   if (_is_java_reference) {
     ptrdiff_t offset = (address)p - (address)_old_anchor_p;
@@ -450,12 +444,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 #endif      
     }
   }
+  // rtgc_log(false && old_p->klass()->id() == InstanceRefKlassID && ((InstanceRefKlass*)old_p->klass())->reference_type() == REF_WEAK,
+  //     "adjust_pointers of reference %p.%p\n", old_p, (void*)java_lang_ref_Reference::unknown_referent_no_keepalive(old_p));
 
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_reference);
-  /**
-   * @brief oop_iterate, oop_iterate_size 는 Reference.referent 와 discovered 도
-   * Scan 한다. 이 때, Reference 를 referent 의 anchor 로 추가하지 않아야 한다.
-   */
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
   bool is_young_root = g_adjust_pointer_closure._has_young_ref && to_obj(old_p)->isTrackable();
   adjust_anchor_pointers(old_p, is_young_root); 
@@ -606,18 +598,6 @@ void rtHeap::refresh_young_roots() {
   g_young_roots.trunc_to(cnt_young_root);
 }
 
-template <typename T>
-void RtAnchorRemoveClosure::do_oop_work(T* p) {
-  T heap_oop = RawAccess<>::oop_load(p);
-  if (!CompressedOops::is_null(heap_oop)) {
-    oop obj = CompressedOops::decode_not_null(heap_oop);
-    if (obj->is_gc_marked() && to_obj(obj)->hasReferrer()) {
-      rtgc_log(true, "remove garbage anchor(%p) from %p\n", _garbage_anchor, (void*)obj);
-      to_obj(obj)->removeMatchedReferrers(_garbage_anchor);
-    }
-  }
-}
-
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   
@@ -645,8 +625,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     }
   }
 
-  //RtAnchorRemoveClosure r(node);
-  //cast_to_oop(node)->oop_iterate(&r);
   node->markGarbage();
 }
 
@@ -711,14 +689,23 @@ void rtHeap::init_java_reference(oopDesc* ref_oop, oopDesc* referent) {
   ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  
   if (!java_lang_ref_Reference::is_phantom(ref_oop)) {
     HeapAccess<>::oop_store_at(ref_oop, referent_offset, referent);
+    rtgc_log(false && ((InstanceRefKlass*)ref_oop->klass())->reference_type() == REF_WEAK, 
+          "weak ref %p for %p\n", (void*)ref_oop, referent);
     return;
   }
 
-  rtgc_log(true, "created phantom %p for %p\n", (void*)ref_oop, referent);
+  rtgc_log(LOG_OPT(3), "created phantom %p for %p\n", (void*)ref_oop, referent);
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_oop, referent_offset, referent);
   oop next_discovered = Atomic::xchg(&g_phantom_ref, ref_oop);
   java_lang_ref_Reference::set_discovered_raw(ref_oop, next_discovered);
   return;
+}
+
+void rtHeap::link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered) {
+  precond(ref_oop != discovered);
+  if (to_obj(ref_oop)->isTrackable()) {
+    RTGC::add_referrer_unsafe(discovered, ref_oop);
+  }
 }
 
 void __discover_java_references(ReferenceDiscoverer* rp, bool is_full_gc) {
@@ -738,7 +725,7 @@ void __discover_java_references(ReferenceDiscoverer* rp, bool is_full_gc) {
 #endif
   for (oop ref = g_phantom_ref; ref != NULL; ref = next_ref) {
     debug_only(cnt_phantom++;)
-    //rtgc_log(true, "phantom ref %p %d\n", (void*)ref, ref->is_gc_marked());
+    //rtgc_log(LOG_OPT(3), "phantom ref %p %d\n", (void*)ref, ref->is_gc_marked());
     next_ref = RawAccess<>::oop_load_at(ref, discovered_off);
     precond(ref != next_ref);
     if (!ref->is_gc_marked()) {
@@ -747,17 +734,17 @@ void __discover_java_references(ReferenceDiscoverer* rp, bool is_full_gc) {
     }
 
     oop new_ref = cast_to_oop(RTGC::getForwardee(to_obj(ref)));
-    rtgc_log(true, "phantom ref %p moved %p\n", (void*)ref, (void*)new_ref);
+    rtgc_log(LOG_OPT(3), "phantom ref %p moved %p\n", (void*)ref, (void*)new_ref);
     oop referent = RawAccess<>::oop_load_at(ref, referent_off);
     if (referent == NULL) {
       debug_only(cnt_cleared++;)
-      rtgc_log(true, "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref);
+      rtgc_log(LOG_OPT(3), "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref);
       continue;
     }
 
     if (!referent->is_gc_marked()) {
       debug_only(cnt_discovered++;)
-      rtgc_log(true, "reference %p(->%p) has garbafe referent\n", (void*)ref, (void*)new_ref);
+      rtgc_log(LOG_OPT(3), "reference %p(->%p) has garbafe referent\n", (void*)ref, (void*)new_ref);
       if (!is_full_gc) ref = new_ref;
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_off, oop(NULL));
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, discovered_off, oop(NULL));
@@ -777,7 +764,7 @@ void __discover_java_references(ReferenceDiscoverer* rp, bool is_full_gc) {
 
     prev = is_full_gc ? ref : new_ref;
     oop new_referent = cast_to_oop(RTGC::getForwardee(to_obj(referent)));
-    rtgc_log(true, "referent marked %p -> %p\n", (void*)referent, (void*)new_referent);
+    rtgc_log(LOG_OPT(3), "referent marked %p -> %p\n", (void*)referent, (void*)new_referent);
     if (referent != new_referent) {
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(prev, referent_off, new_referent);
     }

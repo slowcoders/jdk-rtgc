@@ -264,7 +264,7 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
          p2i(_referent));
 }
 
-void DiscoveredListIterator::remove(bool connect_prev_to_next_discovered) {
+void DiscoveredListIterator::remove() {
   assert(oopDesc::is_oop(_current_discovered), "Dropping a bad reference");
   RawAccess<>::oop_store(_current_discovered_addr, oop(NULL));
 
@@ -281,9 +281,7 @@ void DiscoveredListIterator::remove(bool connect_prev_to_next_discovered) {
   // Remove Reference object from discovered list. Note that G1 does not need a
   // pre-barrier here because we know the Reference has already been found/marked,
   // that's how it ended up in the discovered list in the first place.
-  if (!USE_RTGC || connect_prev_to_next_discovered) {
-    RawAccess<>::oop_store(_prev_discovered_addr, new_next);
-  }
+  RawAccess<>::oop_store(_prev_discovered_addr, new_next);
   _removed++;
   _refs_list.dec_length(1);
 }
@@ -302,23 +300,9 @@ void DiscoveredListIterator::clear_referent() {
 }
 
 void DiscoveredListIterator::enqueue() {
-#if USE_RTGC  
-  // referenePendingList 에 대한 처리가 끝나기 전까지 KeepAlive 상태가 유지되어야 한다.
-  rtgc_log(true, //rtHeap::is_trackable(_current_discovered),
-      "enqueue discovered %p -> %p\n", (void*)_current_discovered, (void*)_prev_discovered);
-  HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_current_discovered, 
-      java_lang_ref_Reference::discovered_offset(), oop(NULL));
-  HeapAccess<>::oop_store_at(_current_discovered, 
-      java_lang_ref_Reference::discovered_offset(), _prev_discovered);
-  if (_discovered_tail == NULL) {
-    precond(_prev_discovered == NULL);
-    _discovered_tail = _current_discovered;
-  }
-#else 
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_current_discovered,
                                             java_lang_ref_Reference::discovered_offset(),
                                             _next_discovered);
-#endif                                            
 }
 
 void DiscoveredListIterator::complete_enqueue() {
@@ -326,14 +310,17 @@ void DiscoveredListIterator::complete_enqueue() {
     // This is the last object.
     // Swap refs_list into pending list and set obj's
     // discovered to what we read from the pending list.
-#if USE_RTGC
-    oop old = Universe::swap_reference_pending_list(_prev_discovered);
-    rtgc_log(rtHeap::is_trackable(_prev_discovered),
-      "complete_enqueue discovered %p <- (old)%p\n", (void*)_prev_discovered, (void*)old);
-    HeapAccess<>::oop_store_at(_discovered_tail, java_lang_ref_Reference::discovered_offset(), old);
-#else    
     oop old = Universe::swap_reference_pending_list(_refs_list.head());
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_prev_discovered, java_lang_ref_Reference::discovered_offset(), old);
+#if USE_RTGC
+    if (old == NULL) {
+      old = _prev_discovered;
+    }
+    oop discovered;
+    for (oop obj = _refs_list.head(); obj != old; obj = discovered) {
+      discovered = java_lang_ref_Reference::discovered(obj);
+      rtHeap::link_discovered_pending_reference(obj, discovered);
+    }
 #endif    
   }
 }
@@ -371,7 +358,7 @@ size_t ReferenceProcessor::process_soft_ref_reconsider_work(DiscoveredList&    r
         !policy->should_clear_reference(iter.obj(), _soft_ref_timestamp_clock)) {
       log_dropped_ref(iter, "by policy");
       // Remove Reference object from list
-      iter.remove(true);
+      iter.remove();
       // keep the referent around
       iter.make_referent_alive();
       iter.move_to_next();
@@ -425,11 +412,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
     iter.complete_enqueue();
     refs_list.clear();
   }
-#if USE_RTGC  
-  else {
-    refs_list.set_head(iter.discovered_head());
-  }
-#endif
 
   log_develop_trace(gc, ref)(" Dropped " SIZE_FORMAT " active Refs out of " SIZE_FORMAT
                              " Refs in discovered list " INTPTR_FORMAT,
@@ -437,7 +419,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   return iter.removed();
 }
 
-// RTGC. It called discovered FinalReferece's
 size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_list,
                                                          OopClosure*     keep_alive,
                                                          VoidClosure*    complete_gc) {
@@ -1090,7 +1071,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   }
 
   // We only discover references whose referents are not (yet)
-  // known to be strongly reachable.
+  // known to be strongly reachable.  
   if (is_alive_non_header() != NULL) {
     verify_referent(obj);
     oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
@@ -1175,10 +1156,9 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
 
     log_develop_trace(gc, ref)("Discovered reference (" INTPTR_FORMAT ": %s)", p2i(obj), obj->klass()->internal_name());
   }
-  assert(oopDesc::is_oop(obj), "Discovered a bad reference");
+  assert(oopDesc::is_oop(obj), "Discovered a bad reference.");
   verify_referent(obj);
 
-  // rtgc_log(true, "ref discoverd %p\n", (void*)obj);
   return true;
 }
 
@@ -1293,10 +1273,9 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
       // Remove Reference object from list
 #if USE_RTGC      
-      iter.remove(true);
-#else      
-      iter.remove();
+      fatal("gotcha!");
 #endif      
+      iter.remove();
       // Keep alive its cohort.
       iter.make_referent_alive();
       iter.move_to_next();

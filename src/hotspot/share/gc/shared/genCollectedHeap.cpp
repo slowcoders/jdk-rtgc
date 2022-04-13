@@ -555,7 +555,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
   AutoModifyRestore<bool> temporarily(_is_gc_active, true);
 
-  // rtgc_log(true, "do_clear_all_soft_refs=%d\n", do_clear_all_soft_refs);
   bool complete = full && (max_generation == OldGen);
   bool old_collects_young = complete && !ScavengeBeforeFullGC;
   bool do_young_collection = !old_collects_young && _young_gen->should_collect(full, size, is_tlab);

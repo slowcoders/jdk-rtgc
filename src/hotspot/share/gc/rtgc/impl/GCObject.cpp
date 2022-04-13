@@ -12,8 +12,7 @@ static const int LOG_OPT(int function) {
 }
 
 void GCObject::addReferrer(GCObject* referrer) {
-    //rtgc_log(true, "addReferrer %p<-%p hasRef=%d hasMulti=%d\n", 
-    //        this, referrer, hasReferrer(), _hasMultiRef);
+    precond(referrer != this);
     if (!hasReferrer()) {
         precond(!hasMultiRef());
         this->_refs = _pointer2offset(referrer);
@@ -40,6 +39,7 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 
 int GCObject::removeReferrer(GCObject* referrer) {
+    precond(referrer != this);
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));

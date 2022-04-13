@@ -92,10 +92,11 @@ bool RTGC::needTrack(oopDesc* obj) {
 
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
   check_valid_obj(p, base);
+  precond(p != NULL);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  ptrdiff_t offset = (address)p - (address)base;
+  if (p == base) return;
 
   // rtgc_log(p != NULL && p->klass() == vmClasses::Module_klass(), 
   //     "Module anchored %p -> %p\n", (void*)base, (void*)p);
@@ -108,23 +109,23 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
   check_valid_obj(newValue, base);
   check_valid_obj(oldValue, base);
+  precond (oldValue != newValue);
   assert(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d\n", 
           base, RTGC::getClassName((GCObject*)base), to_obj(base)->getRootRefCount());
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
-  rtgc_log(base->klass()->id() == InstanceRefKlassID &&
+  rtgc_log(false && base->klass()->id() == InstanceRefKlassID &&
       (address)addr - (address)base == java_lang_ref_Reference::discovered_offset(),
       "discover changed %p.%p -> %p\n", base, oldValue, newValue);
 
-  if (oldValue == newValue) return;
   // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 
   //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
-  if (newValue != NULL) {
+  if (newValue != NULL && newValue != base) {
 #if RTGC_OPT_YOUNG_ROOTS 
     if (!to_obj(newValue)->isTrackable() && !to_obj(base)->isYoungRoot()) {
       rtHeap::add_young_root(base, base);
@@ -133,7 +134,9 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
     add_referrer_unsafe(newValue, base);
   }
   if (!REF_LINK_ENABLED) return;
-  if (oldValue != NULL) GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
+  if (oldValue != NULL && oldValue != base) {
+    GCRuntime::disconnectReferenceLink(to_obj(oldValue), to_obj(base));
+  }
 }
 
 void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -230,7 +233,7 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)0x7f5bf5f50;
+  RTGC::debug_obj = (void*)-1;
   if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

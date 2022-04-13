@@ -543,10 +543,6 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
 #else
     NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
 #endif    
-    if (obj == RTGC::debug_obj) {
-      RTGC::debug_obj2 = this;
-      rtgc_log(true, "jni handle(%p) allocated (%p) at last %p(%d)\n", (void*)obj, this, _last, _last->_top);
-    }
     return (jobject) handle;
   }
 
@@ -563,10 +559,6 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
 #else
     NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
 #endif    
-    if (obj == RTGC::debug_obj) {
-      RTGC::debug_obj2 = this;
-      rtgc_log(true, "jni handle(%p) allocated (%p) at free %p\n", (void*)obj, this, handle);
-    }
     return (jobject) handle;
   }
   // Check if unused block follow last
