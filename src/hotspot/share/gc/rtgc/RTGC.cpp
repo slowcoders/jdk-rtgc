@@ -152,6 +152,7 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
+  //rtgc_debug_point_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
 }
 
 const char* RTGC::baseFileName(const char* filePath) {
@@ -175,7 +176,7 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj) {
-  precond(cast_to_oop(obj)->is_gc_marked());
+  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee on garbage %p\n", obj);
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
 }
@@ -225,6 +226,41 @@ oop rtgc_break(const char* file, int line, const char* function) {
   return NULL;
 } 
 
+void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
+  if (is_debug_pointer(old_p)) {
+    RTGC::debug_obj = new_p;
+    rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
+  } else if (RTGC::debug_obj == new_p) {
+    rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
+  }
+}
+
+static void* debugKlass = NULL;
+bool RTGC::is_debug_pointer(void* ptr) {
+  if (ptr == NULL) return false;
+
+  oopDesc* obj = (oopDesc*)ptr;
+  return obj->klass()->id() == InstanceRefKlassID && 
+        ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
+
+
+  if (debugKlass == NULL) {
+    if (strstr((char*)obj->klass()->name()->bytes(), "[Ljava/nio/file/Path;")) {
+      debugKlass = obj->klass();
+      return true;
+    }
+    return false;
+  } else {
+    return obj->klass() == debugKlass;
+  }
+
+  // return cast_to_oop(obj)->klass() == vmClasses::String_klass() 
+  //     && to_obj(obj)->getRootRefCount() == 1;
+
+  // return obj == debug_obj;
+}
+
+
 void RTGC::initialize() {
 #ifdef _LP64
   is_narrow_oop_mode = UseCompressedOops;
@@ -238,10 +274,11 @@ void RTGC::initialize() {
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  debugOptions[0] = true || UnlockExperimentalVMOptions;
+  debugOptions[0] = UnlockExperimentalVMOptions;
+  logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 1 << 8;
+    logOptions[LOG_HEAP] = 1 << 3;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }

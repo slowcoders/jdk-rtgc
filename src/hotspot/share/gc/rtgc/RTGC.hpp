@@ -16,10 +16,10 @@ namespace RTGC {
 
   extern bool is_narrow_oop_mode;
 
-  inline static GCNode* to_node(oopDesc* obj) {
+  inline static GCNode* to_node(void* obj) {
     return reinterpret_cast<GCNode*>(obj);
   }
-  inline static GCObject* to_obj(oopDesc* obj) {
+  inline static GCObject* to_obj(void* obj) {
     return reinterpret_cast<GCObject*>(obj);
   }
 

@@ -17,7 +17,6 @@
 #define RTGC_OPT_PHANTOM_REF          true
 #define RTGC_IGNORE_JREF              false
 #define RTGC_OPT_CLD_SCAN             true
-#define RTGC_LOCAL_JNI_HANDLE_IS_ROOT false
 #define RTGC_OPT_YOUNG_ROOTS          true
 #define RTGC_NO_DIRTY_CARD_MARKING    true
 #define RTGC_OPT_YG_SCAN              true

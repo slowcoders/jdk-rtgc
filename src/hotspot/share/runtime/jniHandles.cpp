@@ -68,11 +68,7 @@ jobject JNIHandles::make_local(Thread* thread, oop obj, AllocFailType alloc_fail
     assert(oopDesc::is_oop(obj), "not an oop");
     assert(thread->is_Java_thread(), "not a Java thread");
     assert(!current_thread_in_native(), "must not be in native");
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-    return thread->active_handles()->allocate_handle(obj, alloc_failmode, RTGC_LOCAL_JNI_HANDLE_IS_ROOT);
-#else
     return thread->active_handles()->allocate_handle(obj, alloc_failmode);
-#endif
   }
 }
 
@@ -391,6 +387,9 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(Thread* thread, AllocFailType all
   block->_next = NULL;
   block->_pop_frame_link = NULL;
   block->_planned_capacity = block_size_in_oops;
+#ifdef USE_RTGC
+  block->_local_thead = thread;
+#endif  
   // _last, _free_list & _allocate_before_rebuild initialized in allocate_handle
   debug_only(block->_last = NULL);
   debug_only(block->_free_list = NULL);
@@ -412,9 +411,10 @@ class HandleEraser : public OopClosure {
 } _handle_eraser;
 #endif
 
+
 void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-  if (RTGC_LOCAL_JNI_HANDLE_IS_ROOT || thread == NULL) {
+#ifdef USE_RTGC
+  if (thread == NULL) {
     block->oops_do(&_handle_eraser);
     rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
   }
@@ -497,11 +497,7 @@ void JNIHandleBlock::clear() {
 }
 
 
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode, bool keep_alive) {
-#else
 jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
-#endif
   assert(Universe::heap()->is_in(obj), "sanity check");
   if (_top == 0) {
     // This is the first allocation or the initial block got zapped when
@@ -534,15 +530,11 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   // Try last block
   if (_last->_top < block_size_in_oops) {
     oop* handle = (oop*)&(_last->_handles)[_last->_top++];
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-    if (keep_alive) {
-      NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
-    } else {
+    if (USE_RTGC && _local_thead != NULL) {
       RawAccess<>::oop_store(handle, obj);
+    } else {
+      NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     }
-#else
-    NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
-#endif    
     return (jobject) handle;
   }
 
@@ -550,15 +542,11 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   if (_free_list != NULL) {
     oop* handle = (oop*)_free_list;
     _free_list = (uintptr_t*) untag_free_list(*_free_list);
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-    if (keep_alive) {
-      NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
-    } else {
+    if (USE_RTGC && _local_thead != NULL) {
       RawAccess<>::oop_store(handle, obj);
+    } else {
+      NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     }
-#else
-    NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
-#endif    
     return (jobject) handle;
   }
   // Check if unused block follow last

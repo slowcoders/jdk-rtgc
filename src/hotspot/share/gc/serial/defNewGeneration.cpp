@@ -771,12 +771,9 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-  if (old == RTGC::debug_obj) {
-    RTGC::debug_obj = obj;
-    rtgc_log(true, "debug_obj moved %p -> %p\n", (void*)old, (void*)obj);
-  } else if (obj == RTGC::debug_obj) {
-    rtgc_log(true, "object %p moved into debug_obj %p\n", (void*)old, (void*)obj);
-  }
+#ifdef ASSERT
+  RTGC::adjust_debug_pointer(old, obj);
+#endif
   return obj;
 }
 

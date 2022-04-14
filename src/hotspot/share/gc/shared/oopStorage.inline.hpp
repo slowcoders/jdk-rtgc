@@ -36,6 +36,7 @@
 #include "utilities/count_trailing_zeros.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 // Array of all active blocks.  Refcounted for lock-free reclaim of
 // old array when a new array is allocated for expansion.

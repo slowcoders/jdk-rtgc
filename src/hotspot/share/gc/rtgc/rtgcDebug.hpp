@@ -35,13 +35,19 @@ namespace RTGC {
   void mark_dead_space(void* obj);
   bool is_young_root(void* obj);
   void print_anchor_list(void* obj);
+  bool is_debug_pointer(void* obj);
+  void adjust_debug_pointer(void* old_p, void* new_p);
 };
+
 
 #define rtgc_log(logOption, ...) \
   if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { \
     printf("%p] %s:%d ", RTGC::currentThreadId(), RTGC::baseFileName(__FILE__), __LINE__); \
     printf(__VA_ARGS__); \
   }
+
+#define rtgc_debug_point_log(obj, ...) \
+  rtgc_log(RTGC::is_debug_pointer((void*)obj), __VA_ARGS__)
 
 #define rtgc_trace(opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)
 

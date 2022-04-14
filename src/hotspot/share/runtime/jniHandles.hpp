@@ -154,7 +154,9 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   JNIHandleBlock* _pop_frame_link;              // Block to restore on PopLocalFrame call
   uintptr_t*      _free_list;                   // Handle free list
   int             _allocate_before_rebuild;     // Number of blocks to allocate before rebuilding free list
-
+#if USE_RTGC
+  Thread*         _local_thead;
+#endif
   // Check JNI, "planned capacity" for current frame (or push/ensure)
   size_t          _planned_capacity;
 
@@ -177,11 +179,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
 
  public:
   // Handle allocation
-#ifdef RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-  jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM, bool keep_alive = true);
-#else
   jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
-#endif
 
   // Block allocation and block free list management
   static JNIHandleBlock* allocate_block(Thread* thread = NULL, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);

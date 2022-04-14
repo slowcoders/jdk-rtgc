@@ -2061,11 +2061,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   if (!is_critical_native) {
     // reset handle block
     __ movptr(rcx, Address(thread, JavaThread::active_handles_offset()));
-#if RTGC_LOCAL_JNI_HANDLE_IS_ROOT
-    fatal("not implemented")
-#else    
     __ movl(Address(rcx, JNIHandleBlock::top_offset_in_bytes()), NULL_WORD);
-#endif
     // Any exception pending?
     __ cmpptr(Address(thread, in_bytes(Thread::pending_exception_offset())), (int32_t)NULL_WORD);
     __ jcc(Assembler::notEqual, exception_pending);
