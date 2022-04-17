@@ -321,19 +321,19 @@ void rtHeap__clear_garbage_young_roots() {
           dst ++;
         }
       }
-
       remain_roots = dst - src_0;
-      int new_roots = g_young_roots.length() - cnt_root;
-      if (new_roots > 0) {
-        int space = cnt_root - remain_roots;
-        if (space >= new_roots) {
-          memcpy(dst, g_young_roots.adr_at(cnt_root), new_roots * sizeof(void*));
-        }
-        else if (space > 0) {
-          memcpy(dst, g_young_roots.adr_at(g_young_roots.length() - space), space * sizeof(void*));
-        }
-        remain_roots += new_roots;
+    }
+
+    int new_roots = g_young_roots.length() - cnt_root;
+    if (new_roots > 0) {
+      int space = cnt_root - remain_roots;
+      if (space >= new_roots) {
+        memcpy(dst, g_young_roots.adr_at(cnt_root), new_roots * sizeof(void*));
       }
+      else if (space > 0) {
+        memcpy(dst, g_young_roots.adr_at(g_young_roots.length() - space), space * sizeof(void*));
+      }
+      remain_roots += new_roots;
     }
 
     rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
@@ -598,7 +598,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       add_young_root(old_p, forwardee);
     }
   } else if (to_obj(old_p)->isYoungRoot()) {
-    to_obj(old_p)->unmarkYoungRoot();
+    //to_obj(old_p)->unmarkYoungRoot();
   }
 
   __adjust_anchor_pointers(old_p, is_young_root); 
