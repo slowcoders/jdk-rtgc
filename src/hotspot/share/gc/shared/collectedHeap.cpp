@@ -423,6 +423,29 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 }
 #endif // ASSERT
 
+#ifdef USE_RTGC
+inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
+  precond(!rtHeap::is_alive(cast_to_oop(mem)));
+  if (UseBiasedLocking) {
+    oopDesc::set_mark(mem, klass->prototype_header());
+  } else {
+    // May be bootstrapping
+    oopDesc::set_mark(mem, markWord::prototype());
+  }
+
+  char* raw_mem = ((char*)mem + oopDesc::klass_offset_in_bytes());
+  if (UseCompressedClassPointers) {
+    Atomic::release_store((narrowKlass*)raw_mem,
+                          CompressedKlassPointers::encode_not_null(klass));
+  } else {
+    Atomic::release_store((Klass**)raw_mem, klass);
+  }
+  if (array_length >= 0) {
+    arrayOopDesc::set_length(mem, array_length);
+  }
+}
+#endif
+
 void
 CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
 {
@@ -433,27 +456,28 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
   const size_t len = payload_size * HeapWordSize / sizeof(jint);
   assert((int)len >= 0, "size too large " SIZE_FORMAT " becomes %d", words, (int)len);
 
+#if USE_RTGC 
+  init_dead_space(start, Universe::intArrayKlassObj(), len);
+#else
   ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
   allocator.initialize(start);
-#if USE_RTGC 
-  DEBUG_ONLY(RTGC::mark_dead_space(start);)
-#endif    
   DEBUG_ONLY(zap_filler_array(start, words, zap);)
+#endif    
 }
 
 void
 CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 {
   assert(words <= filler_array_max_size(), "too big for a single object");
-
   if (words >= filler_array_min_size()) {
     fill_with_array(start, words, zap);
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
+#if USE_RTGC 
+    init_dead_space(start, vmClasses::Object_klass(), -1);
+#else    
     ObjAllocator allocator(vmClasses::Object_klass(), words);
     allocator.initialize(start);
-#if USE_RTGC 
-    DEBUG_ONLY(RTGC::mark_dead_space(start);)
 #endif    
   }
 }
