@@ -46,7 +46,7 @@ namespace RTGC {
     printf(__VA_ARGS__); \
   }
 
-#define rtgc_debug_point_log(obj, ...) \
+#define rtgc_debug_log(obj, ...) \
   rtgc_log(RTGC::is_debug_pointer((void*)obj), __VA_ARGS__)
 
 #define rtgc_trace(opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)

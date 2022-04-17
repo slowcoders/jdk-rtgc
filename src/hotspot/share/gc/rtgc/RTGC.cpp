@@ -152,7 +152,7 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
-  //rtgc_debug_point_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
+  //rtgc_debug_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
 }
 
 const char* RTGC::baseFileName(const char* filePath) {
@@ -239,6 +239,8 @@ static void* debugKlass = NULL;
 bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == NULL) return false;
 
+  return ptr == debug_obj;
+
   oopDesc* obj = (oopDesc*)ptr;
   return obj->klass()->id() == InstanceRefKlassID && 
         ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
@@ -257,7 +259,6 @@ bool RTGC::is_debug_pointer(void* ptr) {
   // return cast_to_oop(obj)->klass() == vmClasses::String_klass() 
   //     && to_obj(obj)->getRootRefCount() == 1;
 
-  // return obj == debug_obj;
 }
 
 
@@ -275,7 +276,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  logOptions[LOG_HEAP] = 1 << 3;
+  // logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 3;

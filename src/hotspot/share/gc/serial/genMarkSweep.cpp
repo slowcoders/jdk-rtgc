@@ -107,7 +107,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #endif
 
 #if USE_RTGC_COMPACT_1
-  rtHeap::refresh_young_roots();
+  rtHeap::prepare_point_adjustment(gch->old_gen()->reserved().start());
 #endif
 
   mark_sweep_phase3();
