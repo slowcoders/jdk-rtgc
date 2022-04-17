@@ -200,7 +200,7 @@ bool RTGC::collectGarbage(oopDesc* obj) {
   return erased->isGarbageMarked();
 }
 
-const char* RTGC::getClassName(GCObject* obj, bool showClassInfo) {
+const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
       Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));

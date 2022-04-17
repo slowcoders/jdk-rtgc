@@ -102,9 +102,7 @@ public:
 		_flags.traceState = (int)state;
 	}
 
-	void markGarbage() {
-		_flags.isGarbage = true;
-	}
+	void markGarbage();
 
 	void unmarkGarbage() {
 		_flags.isGarbage = false;

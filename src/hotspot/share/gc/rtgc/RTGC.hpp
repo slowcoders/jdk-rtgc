@@ -61,7 +61,7 @@ namespace RTGC {
 
   bool collectGarbage(oopDesc* obj);
 
-  const char* getClassName(GCObject* obj, bool showClassInfo = false);
+  const char* getClassName(GCNode* obj, bool showClassInfo = false);
 };
 
 

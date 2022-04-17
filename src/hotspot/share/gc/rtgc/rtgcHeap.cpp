@@ -109,18 +109,25 @@ static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
 // }
 
 
-bool rtHeap::is_alive(oopDesc* p) {
+bool rtHeap::is_alive(oopDesc* p, bool assert_alive) {
+  if (assert_alive) {
+    assert(!to_obj(p)->isGarbageMarked(), "invalid pointer %p(%s) isClass=%d\n", 
+        p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
+  }
   return !to_obj(p)->isGarbageMarked();
 }
 
 
 
-static bool is_dead_space(GCObject* node) {
-  if (node->isGarbageMarked()) {
-    return true;
-  }
-  Klass* klass = cast_to_oop(node)->klass();
+static bool is_dead_space(oopDesc* obj) {
+  Klass* klass = obj->klass();
   return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
+}
+
+static void ensure_alive_or_deadsapce(oopDesc* old_p) {
+  assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
+        "invalid pointer %p(%s) isClass=%d\n", 
+        old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass());
 }
 
 
@@ -231,7 +238,7 @@ static bool check_garbage(GCObject* node, bool checkByGarbageMark) {
   AnchorIterator ai(node);
   while (ai.hasNext()) {
     GCObject* anchor = ai.next();
-    if (is_dead_space(anchor)) continue;
+    if (anchor->isGarbageMarked() || is_dead_space(cast_to_oop(anchor))) continue;
     if (checkByGarbageMark) {
       if (!anchor->isGarbageMarked()) {
         rtgc_log(true, "invalid anchor yg-root %p(%s), yg-r=%d, rc=%d:%d\n",
@@ -336,7 +343,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
     precond(!node->isGarbageMarked());
     if (!node->isAnchored()) {
       node->markGarbage();
-      rtgc_log(LOG_OPT(11), "skip garbage node %p\n", (void*)node);
+      rtgc_log(LOG_OPT(3), "skip garbage node %p\n", (void*)node);
       continue;
     }
 
@@ -406,7 +413,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   if (old_p == NULL) return;
 
 #ifdef ASSERT
-  precond(!to_obj(old_p)->isGarbageMarked());
+  ensure_alive_or_deadsapce(old_p);
   RTGC::adjust_debug_pointer(old_p, new_p);
 #endif   
 
@@ -435,8 +442,12 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 }
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
-  assert(is_dead_space(to_obj(old_p)), "invalid pointer %p(%s)\n", 
-        old_p, RTGC::getClassName(to_obj(old_p)));
+  if (!is_alive(old_p)) {
+    precond(!old_p->is_gc_marked() || is_dead_space(old_p));
+    int size = old_p->size_given_klass(old_p->klass());
+    return size;
+  }
+
   oopDesc* new_anchor_p = NULL;
   bool is_java_ref = false;
   if (!to_obj(old_p)->isTrackable()) {
@@ -607,6 +618,14 @@ void rtHeap::refresh_young_roots() {
   g_young_roots.trunc_to(cnt_young_root);
 }
 
+void GCNode::markGarbage()  {
+    assert(this->isTrackable() || is_dead_space(cast_to_oop(this)),
+        "invalid garbage marking on %p(%s)\n", this, getClassName(this));
+    assert(!cast_to_oop(this)->is_gc_marked(),
+        "invalid garbage marking on %p(%s)\n", this, getClassName(this));
+		_flags.isGarbage = true;
+}
+
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   
@@ -614,6 +633,8 @@ void rtHeap::destroy_trackable(oopDesc* p) {
       node->getRootRefCount(), node, RTGC::getClassName(node));
   assert(check_garbage(node, false), "invalid trackable garbage %p, yg-r=%d, rc=%d:%d\n",
       node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+  rtgc_log(is_java_reference(p, REF_PHANTOM), "phantom ref destroyed %p, yg-r=%d, discovered=%p\n",
+      node, node->isYoungRoot(), (void*)java_lang_ref_Reference::discovered(p));
 
   if (node->hasMultiRef()) {
     node->removeAnchorList();
@@ -725,10 +746,15 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discov
 template <bool is_full_gc>
 static oopDesc* get_valid_forwardee(oopDesc* obj) {
   if (is_full_gc) {
-    if (!obj->is_gc_marked()) return NULL;
-
-    oopDesc* p = obj->forwardee();
-    return (p == NULL) ? obj : p;
+    if (to_obj(obj)->isGarbageMarked()) {
+      assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p(%s)\n", 
+          obj, RTGC::getClassName(to_obj(obj)));
+      return NULL;
+    } else {
+      precond(obj->is_gc_marked());
+      oopDesc* p = obj->forwardee();
+      return (p == NULL) ? obj : p;
+    }
   } 
 
   if (to_obj(obj)->isTrackable()) {
@@ -737,6 +763,7 @@ static oopDesc* get_valid_forwardee(oopDesc* obj) {
   }
 
   if (!obj->is_gc_marked()) return NULL;
+  postcond(!to_obj(obj)->isGarbageMarked());
   return obj->forwardee();
 }
 
@@ -760,7 +787,7 @@ void __discover_java_references(ReferenceDiscoverer* rp) {
 #endif
   
   for (oop ref = g_phantom_ref; ref != NULL; ref = next_ref) {
-    debug_only(cnt_phantom++;)
+    rtgc_log(LOG_OPT(3), "check phantom ref %p\n", (void*)ref);
     next_ref = RawAccess<>::oop_load_at(ref, discovered_off);
     precond(ref != next_ref);
     oop new_ref = get_valid_forwardee<is_full_gc>(ref);

@@ -43,7 +43,7 @@ class ReferenceDiscoverer;
 class rtHeap : AllStatic {
 public:
   static bool is_trackable(oopDesc* p);
-  static bool is_alive(oopDesc* p);
+  static bool is_alive(oopDesc* p, bool assert_alive = false);
 
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
