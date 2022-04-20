@@ -106,10 +106,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
-#if USE_RTGC_COMPACT_1
-  rtHeap::prepare_point_adjustment(gch->old_gen()->reserved().start());
-#endif
-
   mark_sweep_phase3();
 
 #if USE_RTGC  

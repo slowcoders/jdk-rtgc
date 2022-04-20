@@ -24,9 +24,6 @@ namespace RTGC {
     virtual void do_oop(narrowOop* p) { do_oop_work(p); }
     virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
-    void init_old_gen_start(void* old_gen_heap_start) {
-      _old_gen_start = (HeapWord*)old_gen_heap_start; 
-    }
     bool is_in_young(void* p) { return p < _old_gen_start; }
     void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_java_reference) { 
       _old_anchor_p = old_anchor_p; 
@@ -37,8 +34,8 @@ namespace RTGC {
       _has_young_ref = false; 
     }
     bool _has_young_ref;
-  private:
     HeapWord* _old_gen_start;
+  private:
     oopDesc* _old_anchor_p;
     oopDesc* _new_anchor_p;
 #if RTGC_IGNORE_JREF
@@ -281,7 +278,6 @@ static bool check_garbage(GCObject* node, bool checkByGarbageMark) {
 }
 #endif
 
-template <bool is_root_object_moved>
 void rtHeap__clear_garbage_young_roots() {
   int cnt_root = g_saved_young_root_count;
   if (cnt_root > 0) {
@@ -291,39 +287,27 @@ void rtHeap__clear_garbage_young_roots() {
     for (oop* src = src_0; src < end; src++) {
       GCObject* node = to_obj(*src);
       if (node->isGarbageMarked()) {
-        assert(check_garbage(node, is_root_object_moved), "invalid yg-root %p, yg-r=%d, rc=%x:%d\n",
+        assert(check_garbage(node, false), "invalid yg-root %p, yg-r=%d, rc=%x:%d\n",
               node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
-      }
-      else if (is_root_object_moved) {
-        if (node->isYoungRoot()) {
-          *dst = get_valid_forwardee<true>(cast_to_oop(node));
-          postcond(*dst != NULL);
-          dst ++;
-        }
       } else if (node->isUnsafe() && 
         GarbageProcessor::detectUnreachable(node, g_garbage_list)) {
         rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)node, RTGC::getClassName(node));
       }  
     }
 
-    int remain_roots;
-    if (is_root_object_moved) {
-      remain_roots = dst - src_0;
-    }
-    else {
-      // unsafe 상태가 아니었던 root 객체가 다른 root 객체를 scan 하는 도중 garbage 로 마킹될 수 있다.
-      for (oop* src = src_0; src < end; src++) {
-        GCObject* node = to_obj(*src);
-        if (!node->isGarbageMarked() && node->isYoungRoot()) {
-          if (dst != src) {
-            *dst = cast_to_oop(node);
-          }
-          dst ++;
+    // 1차 검사시 unsafe 상태가 아니었으나, 다른 root 객체를 scan 하는 도중 garbage 로 마킹된 root 객체가 있을 수 있다.
+    // 이에 가비지 검색 종료 후, 다시 가비지 여부를 판별하여야 한다.
+    for (oop* src = src_0; src < end; src++) {
+      GCObject* node = to_obj(*src);
+      if (!node->isGarbageMarked() && node->isYoungRoot()) {
+        if (dst != src) {
+          *dst = cast_to_oop(node);
         }
+        dst ++;
       }
-      remain_roots = dst - src_0;
     }
 
+    int remain_roots = dst - src_0;
     int new_roots = g_young_roots.length() - cnt_root;
     if (new_roots > 0) {
       int space = cnt_root - remain_roots;
@@ -336,19 +320,11 @@ void rtHeap__clear_garbage_young_roots() {
       remain_roots += new_roots;
     }
 
-    rtgc_log(is_root_object_moved || LOG_OPT(8), 
-        "clear_garbage_young_roots %d -> %d + %d = %d new_tenured=%d / %d\n", 
-        g_saved_young_root_count, remain_roots - new_roots, new_roots, remain_roots, 
-        g_cntTrackable, g_cntScan);
-#ifdef ASSERT
-    g_cntTrackable = 0;
-    g_cntScan = 0;
-#endif
+    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
+        g_young_roots.length(), remain_roots, g_garbage_list.size());
     g_young_roots.trunc_to(remain_roots);
     g_saved_young_root_count = 0;
   }
-
-  if (is_root_object_moved) return;
 
 #ifdef ASSERT
   if ((cnt_root = g_young_roots.length()) > 0) {
@@ -436,9 +412,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
-#ifdef ASSERT
-  g_cntTrackable ++;
-#endif  
+  debug_only(g_cntTrackable++);
   if (USE_PENDING_TRACKABLES) {
     g_pending_trackables.append((oopDesc*)new_p);
   }
@@ -558,7 +532,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   if (check_shortcut) {
     int s_id = obj->getShortcutId();
     if (s_id > INVALID_SHORTCUT) {
-      rtgc_log(true, "broken shortcut found [%d] %p\n", s_id, obj);
+      rtgc_log(RTGC_LOG(9), "broken shortcut found [%d] %p\n", s_id, obj);
       // node 가 가비지면 생존경로가 존재하지 않는다.
       SafeShortcut* ss = obj->getShortcut();
       if (ss->tail() != obj) {
@@ -604,13 +578,9 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 
   bool is_young_root = g_adjust_pointer_closure._has_young_ref && to_obj(old_p)->isTrackable();
   if (is_young_root) {
-    if (!to_obj(old_p)->isYoungRoot()) {
-      oopDesc* forwardee = old_p->forwardee();
-      if (forwardee == NULL) forwardee = old_p;
-      add_young_root(old_p, forwardee);
-    }
-  } else if (to_obj(old_p)->isYoungRoot()) {
-    to_obj(old_p)->unmarkYoungRoot();
+    oopDesc* forwardee = old_p->forwardee();
+    if (forwardee == NULL) forwardee = old_p;
+    add_young_root(old_p, forwardee);
   }
 
   __adjust_anchor_pointers(old_p); 
@@ -622,8 +592,17 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 }
 
 void rtHeap::prepare_point_adjustment(void* old_gen_heap_start) {
-  g_adjust_pointer_closure.init_old_gen_start(old_gen_heap_start);
-  g_saved_young_root_count = g_young_roots.length();
+  if (g_adjust_pointer_closure._old_gen_start != NULL) return;
+
+  g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
+  oop* src_0 = g_young_roots.adr_at(0);
+  oop* dst = src_0;
+  oop* end = src_0 + g_young_roots.length();
+  for (oop* src = src_0; src < end; src++) {
+    GCObject* node = to_obj(*src);
+    node->unmarkYoungRoot();
+  }
+  g_young_roots.trunc_to(0);
 }
 
 void GCNode::markGarbage()  {
@@ -692,17 +671,15 @@ void rtHeap::discover_java_references(ReferenceDiscoverer* rp, bool is_tenure_gc
   if (is_tenure_gc) {
     GCRuntime::adjustShortcutPoints();
   }
-//#if RTGC_OPT_PHANTOM_REF  
+
   if (is_tenure_gc) {
     __discover_java_references<true>(rp);
-    rtHeap__clear_garbage_young_roots<true>();
   } else {
     __discover_java_references<false>(rp);
-    rtHeap__clear_garbage_young_roots<false>();
+    rtHeap__clear_garbage_young_roots();
   }
-//#endif
-  // precond(g_pending_trackables.length() == 0);
-  // rtHeap__clear_garbage_young_roots<is_tenure_gc>();
+
+  g_adjust_pointer_closure._old_gen_start = NULL;
 
   g_garbage_list.resize(0);
   if (!USE_PENDING_TRACKABLES) return;
