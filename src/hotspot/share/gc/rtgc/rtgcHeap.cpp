@@ -54,6 +54,7 @@ namespace RTGC {
   SimpleVector<GCObject*> g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
+  int g_cntScan = 0;
   int g_saved_young_root_count = 0;
   oopDesc* g_phantom_ref = NULL;
   RtAdjustPointerClosure g_adjust_pointer_closure;
@@ -189,7 +190,6 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   rtgc_log(LOG_OPT(11), "mark_promoted_trackable %p, tr=%d\n", new_p, to_obj(new_p)->isTrackable());
   if (to_obj(new_p)->isTrackable()) return;
   to_obj(new_p)->markTrackable();
-  debug_only(g_cntTrackable++);
 }
 
 static void resurrect_young_root(GCObject* node) {
@@ -336,8 +336,14 @@ void rtHeap__clear_garbage_young_roots() {
       remain_roots += new_roots;
     }
 
-    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
-        g_young_roots.length(), remain_roots, g_garbage_list.size());
+    rtgc_log(is_root_object_moved || LOG_OPT(8), 
+        "clear_garbage_young_roots %d -> %d + %d = %d new_tenured=%d / %d\n", 
+        g_saved_young_root_count, remain_roots - new_roots, new_roots, remain_roots, 
+        g_cntTrackable, g_cntScan);
+#ifdef ASSERT
+    g_cntTrackable = 0;
+    g_cntScan = 0;
+#endif
     g_young_roots.trunc_to(remain_roots);
     g_saved_young_root_count = 0;
   }
@@ -430,7 +436,9 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
-  debug_only(g_cntTrackable++);
+#ifdef ASSERT
+  g_cntTrackable ++;
+#endif  
   if (USE_PENDING_TRACKABLES) {
     g_pending_trackables.append((oopDesc*)new_p);
   }
@@ -498,7 +506,7 @@ static bool adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   return true;
 }
 
-static void __adjust_anchor_pointers(oopDesc* old_p, bool is_young_root) {
+static void __adjust_anchor_pointers(oopDesc* old_p) {
   precond(old_p->is_gc_marked() || 
       (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER));
 
@@ -571,6 +579,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     return size;
   }
 
+#ifdef ASSERT
+  g_cntScan ++;
+#endif
+
   oopDesc* new_anchor_p = NULL;
   bool is_java_ref = false;
   if (!to_obj(old_p)->isTrackable()) {
@@ -598,10 +610,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       add_young_root(old_p, forwardee);
     }
   } else if (to_obj(old_p)->isYoungRoot()) {
-    //to_obj(old_p)->unmarkYoungRoot();
+    to_obj(old_p)->unmarkYoungRoot();
   }
 
-  __adjust_anchor_pointers(old_p, is_young_root); 
+  __adjust_anchor_pointers(old_p); 
 
   if (!USE_PENDING_TRACKABLES) {
     to_obj(old_p)->unmarkDirtyReferrerPoints();
@@ -629,7 +641,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
       node->getRootRefCount(), node, RTGC::getClassName(node));
   assert(check_garbage(node, false), "invalid trackable garbage %p, yg-r=%d, rc=%d:%d\n",
       node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
-  rtgc_log(true, "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
+  rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   if (node->hasMultiRef()) {
     node->removeAnchorList();
@@ -640,7 +652,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     return;
   }
 
-  debug_only(g_cntTrackable --);
   int s_id = node->getShortcutId();
   if (s_id > INVALID_SHORTCUT) {
     SafeShortcut* ss = node->getShortcut();
@@ -809,7 +820,7 @@ void __discover_java_references(ReferenceDiscoverer* rp) {
   }
 
   g_phantom_ref = alive_head;
-  rtgc_log(true, "total phatom scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
+  rtgc_log(LOG_OPT(3), "total phatom scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
         cnt_phantom, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
 
   if (pending_head != NULL) {
@@ -817,7 +828,6 @@ void __discover_java_references(ReferenceDiscoverer* rp) {
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail, discovered_off, oop(NULL));
     HeapAccess<>::oop_store_at(pending_tail, discovered_off, old);
   }
-  rtgc_log(true, "====\n");
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
