@@ -189,15 +189,8 @@ void RTGC::print_anchor_list(void* obj) {
   }
 }
 
-bool RTGC::collectGarbage(oopDesc* obj) {
-  GCObject* erased = to_obj(obj); 
-  ResourceMark rm;
-  if (erased->isUnsafe() && !erased->isGarbageMarked()) {
-      GCRuntime::detectGarbages(erased);
-  }
-  // rtgc_log(erased->isGarbageMarked(), "garbage deteted %p[%d](%s)\n", obj, 
-  //     vmClasses::Class_klass() == obj->klass(),  RTGC::getClassName(erased));
-  return erased->isGarbageMarked();
+void RTGC::collectGarbage(GCObject** nodes, int count) {
+  GarbageProcessor::collectGarbage(nodes, count);
 }
 
 const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {

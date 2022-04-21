@@ -282,18 +282,19 @@ void rtHeap__clear_garbage_young_roots() {
   int cnt_root = g_saved_young_root_count;
   if (cnt_root > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
+    RTGC::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
-    for (oop* src = src_0; src < end; src++) {
-      GCObject* node = to_obj(*src);
-      if (node->isGarbageMarked()) {
-        assert(check_garbage(node, false), "invalid yg-root %p, yg-r=%d, rc=%x:%d\n",
-              node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
-      } else if (node->isUnsafe() && 
-        GarbageProcessor::detectUnreachable(node, g_garbage_list)) {
-        rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)node, RTGC::getClassName(node));
-      }  
-    }
+    // for (oop* src = src_0; src < end; src++) {
+    //   GCObject* node = to_obj(*src);
+    //   if (node->isGarbageMarked()) {
+    //     assert(check_garbage(node, false), "invalid yg-root %p, yg-r=%d, rc=%x:%d\n",
+    //           node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+    //   } else if (node->isUnsafe() && 
+    //     GarbageProcessor::detectGarbage(node)) {
+    //     rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)node, RTGC::getClassName(node));
+    //   }  
+    // }
 
     // 1차 검사시 unsafe 상태가 아니었으나, 다른 root 객체를 scan 하는 도중 garbage 로 마킹된 root 객체가 있을 수 있다.
     // 이에 가비지 검색 종료 후, 다시 가비지 여부를 판별하여야 한다.
@@ -532,7 +533,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   if (check_shortcut) {
     int s_id = obj->getShortcutId();
     if (s_id > INVALID_SHORTCUT) {
-      rtgc_log(RTGC_LOG(9), "broken shortcut found [%d] %p\n", s_id, obj);
+      rtgc_log(LOG_OPT(9), "broken shortcut found [%d] %p\n", s_id, obj);
       // node 가 가비지면 생존경로가 존재하지 않는다.
       SafeShortcut* ss = obj->getShortcut();
       if (ss->tail() != obj) {

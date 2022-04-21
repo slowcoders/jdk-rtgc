@@ -80,12 +80,14 @@ static const int MIN_SHORTCUT_LENGTH = 3;
 static const bool _EnableShortcut = true;
 
 class SafeShortcut {
-	int _mark;
-	int _cntNode;
+	uint16_t _mark;
+	uint16_t _cntNode;
+	uint32_t _next;
 	ShortOOP _anchor;
 	ShortOOP _tail;
 
-	SafeShortcut(GCObject* anchor, GCObject* tail) : _anchor(anchor), _tail(tail) {}
+	SafeShortcut(GCObject* anchor, GCObject* tail) :  
+			_mark(0), _cntNode(0), _next(0), _anchor(anchor), _tail(tail) {}
 public:
 	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
 
@@ -115,6 +117,23 @@ public:
 	void* operator new (std::size_t size);
 
 	void operator delete(void* ptr);
+
+	bool isReachable() {
+		return _mark & 2;
+	}
+
+	SafeShortcut* nextReachable() {
+		return getPointer(_next);
+	}
+
+	void markReachable(SafeShortcut* next) {
+		_mark |= 2;
+		_next = getIndex(next);
+	}
+
+	void unmarkReachable() {
+		_mark &= ~2;
+	}
 
 	void markInTracing() {
 		_mark |= 1;

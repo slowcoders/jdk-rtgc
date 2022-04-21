@@ -22,7 +22,7 @@ public:
 class GarbageProcessor {
 	SimpleVector<LinkIterator> _traceStack;
 	GCObject* delete_q;
-	SimpleVector<GCObject*> _visitedNodes;
+
 public:
 	SimpleVector<GCObject*> _unsafeObjects;
 	GarbageProcessor() : _traceStack(255) {
@@ -31,8 +31,8 @@ public:
 
 	void destroyObject(GCObject* garbage);
 	void reclaimObjects();
-	void scanGarbages(GCObject* unsafeObj);
-	static bool detectUnreachable(GCObject* node, SimpleVector<GCObject*>& garbage_list);
+	static bool detectGarbage(GCObject* unsafeObj);
+	static void collectGarbage(GCObject** ppNode, int cntNode);
 
 private:
 	void addGarbage(GCObject* garbage);
@@ -67,8 +67,6 @@ public:
 	static void NO_INLINE replaceStaticVariable(GCObject** pField, GCObject* assigned);
 
 	static void NO_INLINE dumpDebugInfos();
-
-	static void NO_INLINE detectGarbages(GCObject* unsafeObject);
 
 	static bool markPublished(GCObject* obj) {
 		if (!obj->isPublished()) {

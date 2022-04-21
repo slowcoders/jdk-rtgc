@@ -46,23 +46,42 @@ void* SafeShortcut::operator new (std::size_t size) {
 }
 
 class PathFinder {
-    SimpleVector<GCObject*>& _visitedNodes;
+    SimpleVector<GCObject*> _visitedNodes;
     SimpleVector<AnchorIterator> _trackers;
-    SimpleVector<ShortOOP> _tempOops;
-    GCObject* _temp;
+    SafeShortcut* reachableShortcurQ;
+
+    bool findSurvivalPath(ShortOOP& tail);
+
 public:
-    PathFinder(SimpleVector<GCObject*>& nodes) : _visitedNodes(nodes) {}
+    PathFinder() : reachableShortcurQ(NULL) {}
 
-    bool findSurvivalPath(GCObject* tracingNode);
+    ~PathFinder() { clearReachableShortcutMarks(); }
 
+    bool constructSurvivalPath(GCObject* tail);
     void constructShortcut();
+    void clearReachableShortcutMarks();
 };
 
+void PathFinder::clearReachableShortcutMarks() {
+    for (SafeShortcut* path = reachableShortcurQ; path != NULL; path = path->nextReachable()) {
+        path->unmarkReachable();
+    }
+}
 
-bool PathFinder::findSurvivalPath(GCObject* tracingNode) {
-    _tempOops.push_back(tracingNode);
+bool PathFinder::constructSurvivalPath(GCObject* node) {
+    ShortOOP tail = node;
+    bool hasSurvivalPath = findSurvivalPath(tail);
+    if (hasSurvivalPath) {
+        constructShortcut();
+    }
+    _visitedNodes.resize(0);
+    _trackers.resize(0);
+    return hasSurvivalPath;
+}
+
+bool PathFinder::findSurvivalPath(ShortOOP& tail) {
     AnchorIterator* it = _trackers.push_empty();
-    it->initSingleIterator(&_tempOops.back());
+    it->initSingleIterator(&tail);
     while (true) {
         GCObject* R;
         while (!it->hasNext()) {
@@ -222,38 +241,41 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 }
 
 
-bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
-    precond(!unsafeObj->isGarbageMarked());
-    int cntUnreachable = unreachableNodes.size();
-
-    rtgc_log(LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
-    PathFinder pf(unreachableNodes);
-    bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
-
-    if (hasSurvivalPath) {
-        pf.constructShortcut();
-        unreachableNodes.resize(cntUnreachable);
-        return false;
+void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode) {
+    GCObject** end = ppNode + cntNode;
+    PathFinder pf;
+    for (; ppNode < end; ppNode ++) {
+        GCObject* node = *ppNode;
+        if (node->isGarbageMarked()) continue;
+        pf.constructSurvivalPath(node);
     }
-        unreachableNodes.resize(cntUnreachable);
-    // for (int i = unreachableNodes.size(); --i >= 0; ) {
-    //     GCObject* obj = (GCObject*)unreachableNodes.at(i);
-    //     obj->unmarkGarbage();
-    // }
-
-    return true;
+    
 }
 
-void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
+// bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
+//     precond(!unsafeObj->isGarbageMarked());
+//     int cntUnreachable = unreachableNodes.size();
+
+//     rtgc_log(LOG_OPT(0x10), "detectUnreachable %p\n", unsafeObj);
+//     PathFinder pf(unreachableNodes);
+//     bool hasSurvivalPath = pf.constructSurvivalPath(unsafeObj);
+
+//     if (hasSurvivalPath) {
+//         pf.constructShortcut();
+//         unreachableNodes.resize(cntUnreachable);
+//         return false;
+//     }
+//     return true;
+// }
+
+bool GarbageProcessor::detectGarbage(GCObject* unsafeObj) {
+    PathFinder pf;
     while (true) {
         rtgc_log(LOG_OPT(1), "scan Garbage %p\n", unsafeObj);
+        bool hasSurvivalPath = pf.constructSurvivalPath(unsafeObj);
 
-        PathFinder pf(_visitedNodes);
-        bool hasSurvivalPath = pf.findSurvivalPath(unsafeObj);
-
-        if (hasSurvivalPath) {
-            pf.constructShortcut();
-        }
+        return hasSurvivalPath;
+#if 0        
         else {
             for (int i = _visitedNodes.size(); --i >= 0; ) {
                 GCObject* obj = (GCObject*)_visitedNodes.at(i);
@@ -273,6 +295,7 @@ void GarbageProcessor::scanGarbages(GCObject* unsafeObj) {
             _unsafeObjects.pop_back();
             if (!unsafeObj->isGarbageMarked()) break;
         }
+#endif         
     }
 }
 

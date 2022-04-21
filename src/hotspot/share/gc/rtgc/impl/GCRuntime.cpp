@@ -194,10 +194,6 @@ void GCRuntime::publishInstance(GCObject* obj) {
 }
 #endif
 
-void GCRuntime::detectGarbages(GCObject* unsafeObj) {
-    _rtgc.g_pGarbageProcessor->scanGarbages(unsafeObj);
-}
-
 #if GC_DEBUG
 int GCRuntime::getCircuitCount() {
 	return 0;//g_shortcutPool.getAllocatedItemCount();
