@@ -27,12 +27,6 @@
 #define RTGC_EXPLICT_NULL_CHCECK_ALWAYS true
 #define RTGC_CHECK_EMPTY_TRACKBLE      true
 
-#ifdef USE_RTGC
-  #define RTGC_ONLY(t)                  t
-#else
-  #define RTGC_ONLY(t)                  
-#endif
-
 class Thread;
 class oopDesc;
 class OopIterateClosure;

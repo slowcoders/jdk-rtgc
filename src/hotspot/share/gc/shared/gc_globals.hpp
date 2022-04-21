@@ -110,6 +110,9 @@
                                                                             \
   /* gc */                                                                  \
                                                                             \
+  product(bool, EnableRTGC, false,                                          \
+          "Enable Reverse Tracking garbage collection method")              \
+                                                                            \
   product(bool, UseSerialGC, false,                                         \
           "Use the Serial garbage collector")                               \
                                                                             \

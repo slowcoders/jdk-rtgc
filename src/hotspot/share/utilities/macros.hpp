@@ -203,6 +203,24 @@
 #define NOT_SERIALGC_RETURN_(code) { return code; }
 #endif // INCLUDE_SERIALGC
 
+#ifndef INCLUDE_RTGC
+#define INCLUDE_RTGC (INCLUDE_SERIALGC)
+#endif // INCLUDE_RTGC
+
+#if INCLUDE_RTGC
+#define RTGC_ONLY(x) x
+#define RTGC_ONLY_ARG(arg) arg,
+#define NOT_RTGC(x)
+#define NOT_RTGC_RETURN        /* next token must be ; */
+#define NOT_RTGC_RETURN_(code) /* next token must be ; */
+#else
+#define RTGC_ONLY(x)
+#define RTGC_ONLY_ARG(arg)
+#define NOT_RTGC(x) x
+#define NOT_RTGC_RETURN        {}
+#define NOT_RTGC_RETURN_(code) { return code; }
+#endif // INCLUDE_RTGC
+
 #ifndef INCLUDE_SHENANDOAHGC
 #define INCLUDE_SHENANDOAHGC 1
 #endif // INCLUDE_SHENANDOAHGC
