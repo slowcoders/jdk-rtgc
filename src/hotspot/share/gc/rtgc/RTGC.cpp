@@ -126,11 +126,9 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
-#if RTGC_OPT_YOUNG_ROOTS 
     if (!to_obj(newValue)->isTrackable() && !to_obj(base)->isYoungRoot()) {
       rtHeap::add_young_root(base, base);
     }
-#endif  
     add_referrer_unsafe(newValue, base);
   }
   if (!REF_LINK_ENABLED) return;

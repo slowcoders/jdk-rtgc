@@ -72,7 +72,7 @@ private:
   Generation*  _old_gen;
   HeapWord*    _old_gen_start;
   CardTableRS* _rs;
-#if RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   oopDesc* _trackable_anchor;
   bool _is_young_root;
 #endif
@@ -83,7 +83,7 @@ public:
   template <typename T>
   void barrier(T* p, oop forwardee);
 
-#if RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   template <typename T>
   void add_promoted_link(T* p, oop obj, bool root_reahchable);
 
@@ -100,27 +100,10 @@ public:
     }
     debug_only(_trackable_anchor = NULL;)
   }
-
-  // bool discover_reference(oop obj, ReferenceType rt) {
-  //   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
-  //   precond(!referent->is_gc_marked());
-  //   if (!ReferenceProcessor::discover_reference(obj, rt)) {
-  //     if (referent >= _young_gen_end) {
-  //       rtHeap::mark_keep_alive(referent);
-  //     }
-  //     else {
-
-  //     }
-  //     return false;
-  //   }
-  //     fatal("something wrong!");
-  //   return true;
-  // }
-
 #endif
 };
 
-#if RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
   int _cnt_young_ref;
   debug_only(oop anchor;)
@@ -164,7 +147,7 @@ public:
   template <typename T>
   void barrier(T* p, oop new_obj);
 
-#if RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
     rtHeap::mark_survivor_reachable(obj);
   }

@@ -72,17 +72,18 @@ DefNewGeneration::IsAliveClosure::IsAliveClosure(Generation* young_gen) : _young
 }
 
 bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
-#if RTGC_OPT_YOUNG_ROOTS
-  if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-    // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
-    rtHeap::mark_survivor_reachable(p);
-  } else if (!p->is_forwarded()) {
-    return false;
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
+      // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
+      rtHeap::mark_survivor_reachable(p);
+    } else if (!p->is_forwarded()) {
+      return false;
+    }
+    return true;
   }
-  return true;
-#else
-  return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
 #endif
+  return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
 }
 
 DefNewGeneration::KeepAliveClosure::
@@ -582,16 +583,19 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if RTGC_OPT_YOUNG_ROOTS
-  assert(this->no_allocs_since_save_marks(),
+#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-#else
-  assert(heap->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+  } else 
 #endif
+  {
+    assert(heap->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+  }
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
-#if RTGC_OPT_YOUNG_ROOTS  
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS  
   YoungRootClosure        young_root_closure(this);
 #endif
 
@@ -602,23 +606,23 @@ void DefNewGeneration::collect(bool   full,
                                                   &scan_closure,
                                                   &younger_gen_closure);
 
-#if RTGC_OPT_YOUNG_ROOTS
-  assert(this->no_allocs_since_save_marks(),
+#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-#else
-  assert(heap->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+  } else 
 #endif
+  {
+    assert(heap->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+  }
 
   {
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-#if RTGC_OPT_YOUNG_ROOTS  
-                              &young_root_closure,
-#else
-                              &younger_gen_closure,
-#endif
+                              RTGC_ONLY(EnableRTGC ? &young_root_closure : &younger_gen_closure,)
+                              NOT_RTGC(&younger_gen_closure,)
                               &cld_scan_closure);
   }
 
@@ -919,35 +923,9 @@ void DefNewGeneration::record_spaces_top() {
   from()->set_top_for_allocations();
 }
 
-// #if RTGC_OPT_YOUNG_ROOTS  
-// class RtReferenceProcessor : public ReferenceProcessor {
-//   void * _young_gen_end;
-
-// public:  
-//   RtReferenceProcessor(BoolObjectClosure* is_subject_to_discovery, DefNewGeneration* g) 
-//     : ReferenceProcessor(is_subject_to_discovery), 
-//       _young_gen_end(g->reserved().end()) {}
-
-//   bool discover_reference(oop obj, ReferenceType rt) {
-//     oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
-//     precond(!referent->is_gc_marked());
-//     if (!ReferenceProcessor::discover_reference(obj, rt)) {
-//       if (referent >= _young_gen_end) {
-//         rtHeap::mark_keep_alive(referent);
-//       }
-//       return false;
-//     }
-//       fatal("something wrong!");
-//     return true;
-//   }
-// };
-// #endif
 
 void DefNewGeneration::ref_processor_init() {
   Generation::ref_processor_init();
-// #if RTGC_OPT_YOUNG_ROOTS  
-//   _younger_gen_ref_processor = new RtReferenceProcessor(&_span_based_discoverer, this);    // a vanilla reference processor
-// #endif
 }
 
 

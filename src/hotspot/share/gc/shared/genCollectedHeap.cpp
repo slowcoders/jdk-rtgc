@@ -490,11 +490,15 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
-#if RTGC_OPT_YOUNG_ROOTS
-    _young_gen->save_marks();
-#else
-    save_marks();   // save marks for all gens
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    if (EnableRTGC) {
+      _young_gen->save_marks();
+    } 
+    else
 #endif    
+    {
+      save_marks();   // save marks for all gens
+    }
     // We want to discover references, but not process them yet.
     // This mode is disabled in process_discovered_references if the
     // generation does some collection work, or in

@@ -400,13 +400,17 @@ void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
       Prefetch::write(p, interval);
       debug_only(HeapWord* prev = p);
       oop m = cast_to_oop(p);
-#if RTGC_OPT_YOUNG_ROOTS
-      rtgc_trace(10, "iterate new oop %p\n", p);
-      p += m->size_given_klass(m->klass());
-      blk->do_iterate(m);
-#else
-      p += m->oop_iterate_size(blk);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC) {
+        rtgc_trace(10, "iterate new oop %p\n", p);
+        p += m->size_given_klass(m->klass());
+        blk->do_iterate(m);
+      }
+      else
 #endif
+      {
+        p += m->oop_iterate_size(blk);
+      }
     }
   } while (t < top());
 

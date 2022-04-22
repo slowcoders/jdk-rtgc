@@ -96,11 +96,9 @@ void DirtyCardToOopClosure::walk_mem_region(MemRegion mr,
     // block alignment or minimum block size restrictions. XXX
     if (_sp->block_is_obj(bottom) &&
         !_sp->obj_allocated_since_save_marks(cast_to_oop(bottom))) {
-#if RTGC_NO_DIRTY_CARD_MARKING          
-      fatal("should not be here!!");
-#endif
-#if RTGC_OPT_YOUNG_ROOTS
-      if (!rtHeap::is_alive(cast_to_oop(bottom))) continue;
+      RTGC_ONLY(precond(!RtNoDirtyCardMarking));
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC && !rtHeap::is_alive(cast_to_oop(bottom))) continue;
 #endif          
       cast_to_oop(bottom)->oop_iterate(_cl, mr);
     }
