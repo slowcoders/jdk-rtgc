@@ -104,7 +104,9 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::iterate_young_roots(static_cast<YoungRootClosure*>(old_gen_closure), root_closure);
-  }
+  } else 
 #endif
-  old_gen()->younger_refs_iterate(old_gen_closure);
+  {
+    old_gen()->younger_refs_iterate(old_gen_closure);
+  }
 }

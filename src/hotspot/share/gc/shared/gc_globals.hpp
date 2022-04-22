@@ -45,6 +45,9 @@
 #if INCLUDE_ZGC
 #include "gc/z/z_globals.hpp"
 #endif
+#if INCLUDE_RTGC
+#include "gc/rtgc/rt_globals.hpp"
+#endif
 
 #define GC_FLAGS(develop,                                                   \
                  develop_pd,                                                \

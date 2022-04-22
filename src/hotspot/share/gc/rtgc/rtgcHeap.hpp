@@ -8,7 +8,6 @@
 #define USE_RTGC_COMPACT_0            false
 #define USE_RTGC_COMPACT_1            true
 #define USE_RTGC_TLAB_ALLOC           false
-#define RTGC_TRACK_ALL_GENERATION     false
 
 #define RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER true
 

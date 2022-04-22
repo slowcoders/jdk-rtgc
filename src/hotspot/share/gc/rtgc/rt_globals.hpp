@@ -12,8 +12,11 @@
   product(bool, EnableRTGC, false,                                          \
           "Enable Reverse Tracking garbage collection(RTGC) method")        \
                                                                             \
-  product(bool, RtNoDirtyCardMarking, false,                                  \
-          "Enable Reverse Tracking garbage collection(RTGC) method")
+  product(bool, RtNoDiscoverPhantom, false,                                 \
+          "Disable discovering of phantom reference")                       \
+                                                                            \
+  product(bool, RtNoDirtyCardMarking, false,                                \
+          "Disable dirty card marking")
 
 // end of GC_RT_FLAGS
 

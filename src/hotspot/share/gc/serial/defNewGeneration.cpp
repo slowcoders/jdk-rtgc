@@ -621,8 +621,8 @@ void DefNewGeneration::collect(bool   full,
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-                              RTGC_ONLY(EnableRTGC ? &young_root_closure : &younger_gen_closure,)
-                              NOT_RTGC(&younger_gen_closure,)
+                              RTGC_ONLY(EnableRTGC ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
+                              NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
 

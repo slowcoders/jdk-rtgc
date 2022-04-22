@@ -29,11 +29,10 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
-#if RTGC_OPT_PHANTOM_REF      
-  return (ds & ON_PHANTOM_OOP_REF) == 0;
-#else
+  if (RtNoDiscoverPhantom) {
+    return (ds & ON_PHANTOM_OOP_REF) == 0;
+  }
   return true;
-#endif
 }
 
 static void check_field_addr(oopDesc* base, volatile void* addr) {
@@ -560,7 +559,6 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
   void do_work(T* p) {
-    fatal("its not used. in Generational GC");
     oop obj = CompressedOops::decode(*p);
     if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie);
   }
@@ -574,7 +572,7 @@ public:
 
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
   ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clear();
-  if (RTGC_TRACK_ALL_GENERATION) {
+  if (RTGC::to_node(new_obj)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);

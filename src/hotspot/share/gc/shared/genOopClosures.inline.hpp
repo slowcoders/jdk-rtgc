@@ -123,7 +123,7 @@ inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
 template <class T>
 void DefNewScanClosure::barrier(T* p, oop new_obj) {
 #if INCLUDE_RTGC // RTGC_NO_DIRTY_CARD_MARKING
-  if (EnableRTGC) return;
+  if (RtNoDirtyCardMarking) return;
 #endif    
   if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
     _scanned_cld->record_modified_oops();
