@@ -53,7 +53,9 @@ CardGeneration::CardGeneration(ReservedSpace rs,
   _bts = new BlockOffsetSharedArray(reserved_mr,
                                     heap_word_size(initial_byte_size));
   MemRegion committed_mr(start, heap_word_size(initial_byte_size));
-  if (!RTGC_NO_DIRTY_CARD_MARKING) _rs->resize_covered_region(committed_mr);
+  RTGC_ONLY(if (!RtNoDirtyCardMarking)) { 
+    _rs->resize_covered_region(committed_mr);
+  }
 
   // Verify that the start and end of this generation is the start of a card.
   // If this wasn't true, a single card could span more than on generation,

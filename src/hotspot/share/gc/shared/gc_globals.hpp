@@ -119,9 +119,6 @@
                                                                             \
   /* gc */                                                                  \
                                                                             \
-  product(bool, NoDirtyCardMarking, false,                                  \
-          "Disable dirty card markining in RTGC mode")                      \
-                                                                            \
   product(bool, UseSerialGC, false,                                         \
           "Use the Serial garbage collector")                               \
                                                                             \
