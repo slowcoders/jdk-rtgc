@@ -380,8 +380,10 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-#if !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER
-    q->init_mark();
+#if INCLUDE_RTGC 
+    if (!RtLateClearGcMark) {
+      q->init_mark();
+    }
 #endif
     assert(q->forwardee() == NULL, "should be forwarded to NULL");
   }

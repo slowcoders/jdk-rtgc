@@ -9,7 +9,6 @@
 #define USE_RTGC_COMPACT_1            true
 #define USE_RTGC_TLAB_ALLOC           false
 
-#define RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER true
 
 #define RTGC_PARALLEL		              false
 

@@ -468,7 +468,7 @@ static bool adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
 
 static void __adjust_anchor_pointers(oopDesc* old_p) {
   precond(old_p->is_gc_marked() || 
-      (old_p->forwardee() == NULL && !RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER));
+      (old_p->forwardee() == NULL && !RtLateClearGcMark));
 
   GCObject* obj = to_obj(old_p);
   precond(!obj->isGarbageMarked());
@@ -477,7 +477,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
     return;
   }
 
-  const bool CHECK_GARBAGE = RTGC_REMOVE_GARBAGE_REFERRER_ON_ADJUST_POINTER;
+  const bool CHECK_GARBAGE = RtLateClearGcMark;
   bool check_shortcut = false;
 
   if (obj->hasMultiRef()) {
