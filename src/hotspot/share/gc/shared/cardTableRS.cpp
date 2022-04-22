@@ -429,7 +429,7 @@ void CardTableRS::verify_space(Space* s, HeapWord* gen_boundary) {
 }
 
 void CardTableRS::verify() {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
   // At present, we only know how to verify the card table RS for
   // generational heaps.
   VerifyCTGenClosure blk(this);

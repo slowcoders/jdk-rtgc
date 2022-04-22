@@ -29,9 +29,7 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
-#if RTGC_IGNORE_JREF
-  return ds & ON_STRONG_OOP_REF;
-#elif RTGC_OPT_PHANTOM_REF      
+#if RTGC_OPT_PHANTOM_REF      
   return (ds & ON_PHANTOM_OOP_REF) == 0;
 #else
   return true;

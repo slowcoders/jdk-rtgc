@@ -80,17 +80,17 @@ CardTableBarrierSet::~CardTableBarrierSet() {
 }
 
 void CardTableBarrierSet::write_ref_array_work(MemRegion mr) {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
   _card_table->dirty_MemRegion(mr);
 }
 
 void CardTableBarrierSet::invalidate(MemRegion mr) {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
   _card_table->invalidate(mr);
 }
 
 void CardTableBarrierSet::print_on(outputStream* st) const {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
   _card_table->print_on(st);
 }
 

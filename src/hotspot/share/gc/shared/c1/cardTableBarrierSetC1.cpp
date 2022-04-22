@@ -38,7 +38,7 @@
 #endif
 
 void CardTableBarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprDesc* new_val) {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   DecoratorSet decorators = access.decorators();
   LIRGenerator* gen = access.gen();

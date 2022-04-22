@@ -28,9 +28,6 @@ namespace RTGC {
     void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_java_reference) { 
       _old_anchor_p = old_anchor_p; 
       _new_anchor_p = new_anchor_p; 
-#if RTGC_IGNORE_JREF
-      _is_java_reference = is_java_reference;
-#endif      
       _has_young_ref = false; 
     }
     bool _has_young_ref;
@@ -38,9 +35,6 @@ namespace RTGC {
   private:
     oopDesc* _old_anchor_p;
     oopDesc* _new_anchor_p;
-#if RTGC_IGNORE_JREF
-    bool _is_java_reference;
-#endif    
   };
 
   
@@ -443,15 +437,6 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   if (_new_anchor_p == NULL) return;
   if (USE_PENDING_TRACKABLES) return;
 
-#if RTGC_IGNORE_JREF
-  if (_is_java_reference) {
-    ptrdiff_t offset = (address)p - (address)_old_anchor_p;
-    if (offset == java_lang_ref_Reference::discovered_offset()
-    ||  offset == java_lang_ref_Reference::referent_offset()) {
-      return;
-    }
-  }
-#endif
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
@@ -566,9 +551,6 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     if (!g_adjust_pointer_closure.is_in_young(p)) {
       mark_pending_trackable(old_p, p);
       new_anchor_p = p;
-#if RTGC_IGNORE_JREF
-      is_java_ref = old_p->klass()->id() == InstanceRefKlassID;
-#endif      
     }
   }
   rtgc_debug_log(old_p, 

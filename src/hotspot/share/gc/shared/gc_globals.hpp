@@ -108,10 +108,19 @@
     range,                                                                  \
     constraint))                                                            \
                                                                             \
+  RTGC_ONLY(GC_RT_FLAGS(                                                    \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    notproduct,                                                             \
+    range,                                                                  \
+    constraint))                                                            \
+                                                                            \
   /* gc */                                                                  \
                                                                             \
-  product(bool, EnableRTGC, false,                                          \
-          "Enable Reverse Tracking garbage collection method")              \
+  product(bool, NoDirtyCardMarking, false,                                  \
+          "Disable dirty card markining in RTGC mode")                      \
                                                                             \
   product(bool, UseSerialGC, false,                                         \
           "Use the Serial garbage collector")                               \

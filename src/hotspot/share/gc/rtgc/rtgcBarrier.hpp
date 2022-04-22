@@ -43,16 +43,9 @@ public:
 
   static inline bool is_raw_access(DecoratorSet decorators, bool op_store = true) {
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
-#if RTGC_IGNORE_JREF
-    no_barrier |= ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF;
-#else     
     if (op_store) {
       no_barrier |= ON_PHANTOM_OOP_REF;
-#if RTGC_PARALLEL
-      no_barrier |= ON_WEAK_OOP_REF;
-#endif
     }
-#endif    
     return (no_barrier & decorators) != 0;
   }
 

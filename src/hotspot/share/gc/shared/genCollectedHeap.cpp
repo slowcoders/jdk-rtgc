@@ -1162,7 +1162,7 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());
   _young_gen->verify();
 
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   log_debug(gc, verify)("RemSet");
   rem_set()->verify();

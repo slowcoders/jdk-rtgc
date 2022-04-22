@@ -199,10 +199,6 @@ protected:
                    size_t max_byte_size,
                    const char* policy="Serial young collection pauses");
 
-// #if RTGC_OPT_YOUNG_ROOTS
-//   ReferenceProcessor*  _younger_gen_ref_processor;
-// #endif
-
   virtual void ref_processor_init();
 
   virtual Generation::Name kind() { return Generation::DefNew; }
@@ -318,7 +314,7 @@ protected:
 
   oop copy_to_survivor_space(oop old);
   uint tenuring_threshold() { return _tenuring_threshold; }
-#if RTGC_OPT_CLD_SCAN
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   uint xchg_tenuring_threshold(int new_threshold) {
     int old_threshold = _tenuring_threshold;
     _tenuring_threshold = new_threshold;

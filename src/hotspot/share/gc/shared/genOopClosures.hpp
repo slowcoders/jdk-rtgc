@@ -55,7 +55,7 @@ protected:
   FastScanClosure(DefNewGeneration* g);
 
 public:
-#if RTGC_OPT_CLD_SCAN
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
   void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
 #endif 
@@ -75,9 +75,6 @@ private:
 #if RTGC_OPT_YOUNG_ROOTS
   oopDesc* _trackable_anchor;
   bool _is_young_root;
-#if RTGC_IGNORE_JREF
-  bool _is_java_reference;
-#endif  
 #endif
 
 public:
@@ -94,9 +91,6 @@ public:
   void trackable_barrier(T* p, oop obj);
 
   void do_iterate(oop obj) {
-#if RTGC_IGNORE_JREF
-    _is_java_reference = obj->klass()->id() == InstanceRefKlassID;
-#endif    
     _trackable_anchor = obj;
     _is_young_root = false;
     rtHeap::mark_promoted_trackable(obj);
@@ -104,12 +98,6 @@ public:
     if (_is_young_root) {
       rtHeap::add_young_root(obj, obj);
     }
-    // if (obj->klass()->id() == InstanceRefKlassID) {
-    //   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
-    //   if ((void*)referent >= _old_gen_start) {
-    //     rtHeap::mark_keep_alive(referent);
-    //   }
-    // }
     debug_only(_trackable_anchor = NULL;)
   }
 

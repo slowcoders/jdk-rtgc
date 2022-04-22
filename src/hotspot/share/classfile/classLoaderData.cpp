@@ -192,7 +192,7 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 }
 
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
-#if RTGC_OPT_CLD_SCAN
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   Chunk* c = Atomic::load_acquire(&_tail);
   if (c == NULL || c->_size == Chunk::CAPACITY) {
     Chunk* next = new Chunk(NULL);
@@ -214,7 +214,7 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
-  precond(RTGC::to_node(o)->getRootRefCount() > 0);
+  RTGC_ONLY(postcond(RTGC::to_node(o)->getRootRefCount() > 0);)
 
   return OopHandle(handle);
 }
@@ -248,7 +248,7 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
   }
 }
 
-#if RTGC_OPT_CLD_SCAN    
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN    
 bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
          "not gc thread");
@@ -388,7 +388,7 @@ void ClassLoaderData::dec_keep_alive() {
   }
 }
 
-#if RTGC_OPT_CLD_SCAN
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
 void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
   if (clear_mod_oops) {
     clear_modified_oops();

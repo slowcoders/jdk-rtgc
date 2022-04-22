@@ -32,7 +32,7 @@
 
 void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
@@ -60,7 +60,7 @@ void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Decorat
 
 void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                    Register src, Register dst, Register count) {
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   bool checkcast = (decorators & ARRAYCOPY_CHECKCAST) != 0;
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;

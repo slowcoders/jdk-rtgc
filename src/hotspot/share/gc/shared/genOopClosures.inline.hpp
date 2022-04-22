@@ -90,7 +90,7 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
   add_promoted_link(p, new_obj, false);
 #endif
-  if (RTGC_NO_DIRTY_CARD_MARKING) return;
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
     // If p points to a younger generation, mark the card.
   if (cast_from_oop<HeapWord*>(new_obj) < _old_gen_start) {
@@ -103,21 +103,6 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 template <typename T>
 void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
   precond(_trackable_anchor != NULL);
-#if RTGC_IGNORE_JREF
-  if (_is_java_reference) {
-    ptrdiff_t offset = (address)p - (address)_trackable_anchor;
-    if (offset == java_lang_ref_Reference::discovered_offset()
-    ||  offset == java_lang_ref_Reference::referent_offset()) {
-      // maybe obj is not marked as trackable yet.
-      if ((void*)obj >= _old_gen_start) {
-        rtgc_log(obj == RTGC::debug_obj, "mark keep alive referent %p(%s) young_ref_reahcable=%d\n", 
-            (void*)obj, obj->klass()->internal_name(), young_ref_reahcable);
-        rtHeap::mark_keep_alive(obj);
-      }
-      return;
-    }
-  }
-#endif  
   rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
 }
 
@@ -135,10 +120,11 @@ inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
 
 template <class T>
 void DefNewScanClosure::barrier(T* p, oop new_obj) {
-  if (!RTGC_OPT_CLD_SCAN) {  
-    if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
-      _scanned_cld->record_modified_oops();
-    }
+#if INCLUDE_RTGC // RTGC_NO_DIRTY_CARD_MARKING
+  if (EnableRTGC) return;
+#endif    
+  if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
+    _scanned_cld->record_modified_oops();
   }
 }
 
