@@ -447,7 +447,7 @@ class ConstantPoolCache: public MetaspaceObj {
   void clear_archived_references() NOT_CDS_JAVA_HEAP_RETURN;
 
   inline oop resolved_references();
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   void init_resolved_references(OopHandle s) { 
     _resolved_references.clear_uninitalized(); _resolved_references = s; 
   }

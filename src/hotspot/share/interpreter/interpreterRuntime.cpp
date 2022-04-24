@@ -241,12 +241,22 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   //       because the _breakpoint bytecode would be lost.
   oop obj = klass->allocate_instance(CHECK);
   current->set_vm_result(obj);
+#if INCLUDE_RTGC // on_slowpath_allocation_exit
+  if (EnableRTGC) {
+    SharedRuntime::on_slowpath_allocation_exit(current);
+  }
+#endif
 JRT_END
 
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
   oop obj = oopFactory::new_typeArray(type, size, CHECK);
   current->set_vm_result(obj);
+#if INCLUDE_RTGC // on_slowpath_allocation_exit
+  if (EnableRTGC) {
+    SharedRuntime::on_slowpath_allocation_exit(current);
+  }
+#endif
 JRT_END
 
 
@@ -254,6 +264,11 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   Klass*    klass = pool->klass_at(index, CHECK);
   objArrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
   current->set_vm_result(obj);
+#if INCLUDE_RTGC // on_slowpath_allocation_exit
+  if (EnableRTGC) {
+    SharedRuntime::on_slowpath_allocation_exit(current);
+  }
+#endif
 JRT_END
 
 
@@ -282,6 +297,11 @@ JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* fi
   }
   oop obj = ArrayKlass::cast(klass)->multi_allocate(nof_dims, dims, CHECK);
   current->set_vm_result(obj);
+#if INCLUDE_RTGC // on_slowpath_allocation_exit
+  if (EnableRTGC) {
+    SharedRuntime::on_slowpath_allocation_exit(current);
+  }
+#endif
 JRT_END
 
 

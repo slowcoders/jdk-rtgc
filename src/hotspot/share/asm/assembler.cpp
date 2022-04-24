@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "asm/codeBuffer.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
@@ -236,7 +237,6 @@ bool MacroAssembler::uses_implicit_null_check(void* address) {
   return addr < page_size;
 }
 
-#include "gc/rtgc/rtgcHeap.hpp"
 bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
   // The offset -1 is used (hardcoded) in a number of places in C1 and MacroAssembler
   // to indicate an unknown offset. For example, TemplateTable::pop_and_check_object(Register r)
@@ -246,9 +246,11 @@ bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
   // and may lie outside of the zero-trapping page, and thus we need to ensure we're forcing
   // an explicit null check for -1.
   
-  if (RTGC_EXPLICT_NULL_CHCECK_ALWAYS) {
+#ifdef INCLUDE_RTGC  
+  if (RtExplictNullCheckAlways) {
     return offset < 0 || offset > oopDesc::klass_offset_in_bytes();
   }
+#endif
   // Check if offset is outside of [0, os::vm_page_size()]
   return offset < 0 || offset >= os::vm_page_size();
 }

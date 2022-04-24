@@ -387,7 +387,7 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(Thread* thread, AllocFailType all
   block->_next = NULL;
   block->_pop_frame_link = NULL;
   block->_planned_capacity = block_size_in_oops;
-#ifdef USE_RTGC
+#if INCLUDE_RTGC // local jni handle owner
   block->_local_thead = thread;
 #endif  
   // _last, _free_list & _allocate_before_rebuild initialized in allocate_handle
@@ -397,7 +397,7 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(Thread* thread, AllocFailType all
   return block;
 }
 
-#if USE_RTGC
+#if INCLUDE_RTGC // global jni handle owner
 class HandleEraser : public OopClosure {
     template <typename T> void do_oop_work(T* p) {
       T heap_oop = RawAccess<>::oop_load(p);
@@ -413,8 +413,8 @@ class HandleEraser : public OopClosure {
 
 
 void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
-#ifdef USE_RTGC
-  if (thread == NULL) {
+#if INCLUDE_RTGC // local jni handle owner
+  if (EnableRTGC && thread == NULL) {
     block->oops_do(&_handle_eraser);
     rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
   }
@@ -530,9 +530,12 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   // Try last block
   if (_last->_top < block_size_in_oops) {
     oop* handle = (oop*)&(_last->_handles)[_last->_top++];
-    if (USE_RTGC && _local_thead != NULL) {
+#if INCLUDE_RTGC // local jni handle owner
+    if (EnableRTGC && _local_thead != NULL) {
       RawAccess<>::oop_store(handle, obj);
-    } else {
+    } else 
+#endif
+    {
       NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     }
     return (jobject) handle;
@@ -542,9 +545,12 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   if (_free_list != NULL) {
     oop* handle = (oop*)_free_list;
     _free_list = (uintptr_t*) untag_free_list(*_free_list);
-    if (USE_RTGC && _local_thead != NULL) {
+#if INCLUDE_RTGC // local jni handle owner
+    if (EnableRTGC && _local_thead != NULL) {
       RawAccess<>::oop_store(handle, obj);
-    } else {
+    } else 
+#endif
+    {
       NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     }
     return (jobject) handle;

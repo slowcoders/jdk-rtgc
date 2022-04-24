@@ -46,7 +46,7 @@
 #include "vmreg_x86.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
-#define ENABLE_ARRAY_COPY_HOOK USE_RTGC
+#define ENABLE_ARRAY_COPY_HOOK  INCLUDE_RTGC
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
 // instructions, to allow sign-masking or sign-bit flipping.  They allow

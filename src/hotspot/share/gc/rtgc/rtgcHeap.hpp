@@ -7,22 +7,13 @@
 #define USE_RTGC                      true
 #define USE_RTGC_COMPACT_0            false
 #define USE_RTGC_COMPACT_1            true
-#define USE_RTGC_TLAB_ALLOC           false
 
+#define RTGC_EXPLICT_CLEAR_HANDLE     true
 
-#define RTGC_PARALLEL		              false
-
-#define RTGC_OPT_PHANTOM_REF          true
-#define RTGC_IGNORE_JREF              false
-#define RTGC_OPT_CLD_SCAN             true
-#define RTGC_OPT_YOUNG_ROOTS          true
-#define RTGC_NO_DIRTY_CARD_MARKING    true
-#define RTGC_OPT_YG_SCAN              true
 #define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
 #define USE_RTGC_BARRIERSET           (true && USE_RTGC)
 
-#define RTGC_EXPLICT_NULL_CHCECK_ALWAYS true
 #define RTGC_CHECK_EMPTY_TRACKBLE      true
 
 class Thread;

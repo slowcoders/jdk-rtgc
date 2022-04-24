@@ -73,10 +73,6 @@ public:
   virtual bool is_maximal_no_gc() const;
   virtual bool is_in(const void* p) const;
 
-#if USE_RTGC  // is_in_trackable_space
-  virtual bool is_in_trackable_space(const void* p) const;
-#endif
-
   virtual uint32_t hash_oop(oop obj) const;
 
   virtual oop array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS);

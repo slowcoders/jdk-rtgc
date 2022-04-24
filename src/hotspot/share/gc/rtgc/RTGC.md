@@ -194,7 +194,7 @@ export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fas
 - JNI jni_SetObjectField jni_SetObjectArrayElement
 
 ### null point emplicit check 관련 정리.
-RTGC_EXPLICT_NULL_CHCECK_ALWAYS 를 사용하여 임시 조치.<br>
+RtExplictNullCheckAlways 를 사용하여 임시 조치.<br>
 -> 이후 assembly 코드를 분석하여 문제 원인을 정확히 파악
 - signal hnadler
    os_bsd_x86.cpp: pd_hotspot_signal_handler
@@ -303,7 +303,7 @@ void GenCollectedHeap::collect_generation()
 
 
 * MemAllocator
-void LIR_Lis::allocate_object(LIR_Opr dst..) 
+void LIR_List::allocate_object(LIR_Opr dst..) 
    solw_path = new NewInstanceStub(klass_reg, Runtime1::fast_new_instance_id : ..)
    append(new LIR_OpAllocObj..., slow_path = 
    void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op, slow_path)

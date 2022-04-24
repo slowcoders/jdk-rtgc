@@ -228,17 +228,13 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
 
 static void* debugKlass = NULL;
 bool RTGC::is_debug_pointer(void* ptr) {
-  if (ptr == NULL) return false;
+  oopDesc* obj = (oopDesc*)ptr;
+  if (obj == NULL) return false;
 
   return ptr == debug_obj;
 
-  oopDesc* obj = (oopDesc*)ptr;
-  return obj->klass()->id() == InstanceRefKlassID && 
-        ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
-
-
   if (debugKlass == NULL) {
-    if (strstr((char*)obj->klass()->name()->bytes(), "[Ljava/nio/file/Path;")) {
+    if (strstr((char*)obj->klass()->name()->bytes(), "[I") && obj->is_typeArray()) {
       debugKlass = obj->klass();
       return true;
     }
@@ -246,6 +242,10 @@ bool RTGC::is_debug_pointer(void* ptr) {
   } else {
     return obj->klass() == debugKlass;
   }
+
+  return obj->klass()->id() == InstanceRefKlassID && 
+        ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
+
 
   // return cast_to_oop(obj)->klass() == vmClasses::String_klass() 
   //     && to_obj(obj)->getRootRefCount() == 1;
@@ -261,7 +261,7 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)-1;
+  RTGC::debug_obj = (void*)0x7f0016188;
   if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

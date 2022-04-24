@@ -99,11 +99,13 @@ inline oop JNIHandles::resolve_non_null(jobject handle) {
 inline void JNIHandles::destroy_local(jobject handle) {
   if (handle != NULL) {
     assert(!is_jweak(handle), "Invalid JNI local handle");
-#if USE_RTGC    
-    NativeAccess<AS_NO_KEEPALIVE>::oop_store(jobject_ptr(handle), (oop)NULL);
-#else
-    NativeAccess<>::oop_store(jobject_ptr(handle), (oop)NULL);
+#if INCLUDE_RTGC // local jni handle owner
+    if (EnableRTGC) {
+      NativeAccess<AS_NO_KEEPALIVE>::oop_store(jobject_ptr(handle), (oop)NULL);
+    }
+    else
 #endif
+    NativeAccess<>::oop_store(jobject_ptr(handle), (oop)NULL);
   }
 }
 

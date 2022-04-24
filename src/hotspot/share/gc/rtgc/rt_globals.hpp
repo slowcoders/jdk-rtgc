@@ -16,13 +16,15 @@
           "Disable discovering of phantom reference")                       \
                                                                             \
   product(bool, RtNoDirtyCardMarking, false,                                \
-          "Disable dirty card marking")                                     \
+          "Disable dirty card marking")
+
 
 #ifdef ASSERT
-        const bool RtLateClearGcMark = true;
+  const bool RtLateClearGcMark = true;        
 #else 
-        const bool RtLateClearGcMark = false;
+  const bool RtLateClearGcMark = false;
 #endif
+const bool RtExplictNullCheckAlways = true;
 
 // end of GC_RT_FLAGS
 

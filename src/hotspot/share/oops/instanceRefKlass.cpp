@@ -43,7 +43,6 @@ void InstanceRefKlass::update_nonstatic_oop_maps(Klass* k) {
 
   OopMapBlock* map = ik->start_of_nonstatic_oop_maps();
 
-  // USE_RTGC AS_NO_KEEPALIVE field 설정.
 #ifdef ASSERT
   // Verify fields are in the expected places.
   int referent_offset = java_lang_ref_Reference::referent_offset();

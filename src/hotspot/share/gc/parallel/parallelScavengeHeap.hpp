@@ -167,12 +167,6 @@ class ParallelScavengeHeap : public CollectedHeap {
   bool is_in_young(oop p);  // reserved part
   bool is_in_old(oop p);    // reserved part
 
-#if USE_RTGC // is_in_trackable_space
-  virtual bool is_in_trackable_space(const void* p) const;
-  virtual HeapWord* mem_allocate_klass(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded);
-#endif
-
   MemRegion reserved_region() const { return _reserved; }
   HeapWord* base() const { return _reserved.start(); }
 

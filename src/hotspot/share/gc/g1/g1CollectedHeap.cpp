@@ -2247,13 +2247,6 @@ bool G1CollectedHeap::is_in(const void* p) const {
   return is_in_reserved(p) && _hrm.is_available(addr_to_region((HeapWord*)p));
 }
 
-#if USE_RTGC // is_in_trackable_space
-bool G1CollectedHeap::is_in_trackable_space(const void* p) const {
-  assert(!RTGC::debugOptions[0], "not impemented");
-  return false;
-}
-#endif
-
 // Iteration functions.
 
 // Iterates an ObjectClosure over all objects within a HeapRegion.

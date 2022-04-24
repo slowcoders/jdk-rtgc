@@ -3197,7 +3197,7 @@ JVM_ENTRY(jobject, JVM_GetAndClearReferencePendingList(JNIEnv* env))
   return JNIHandles::make_local(THREAD, ref);
 JVM_END
 
-#if USE_RTGC  // JVM_SetReferent0
+#if INCLUDE_RTGC // JVM_SetReferent0
 /*
 !! /Users/zeedh/slowcoders/jdk-rtgc/make/data/hotspot-symbols/symbols-unix 에
 JVM_SetReferent0 를 추가해야 한다.

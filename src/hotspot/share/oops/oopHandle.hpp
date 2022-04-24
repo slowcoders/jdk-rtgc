@@ -67,7 +67,7 @@ public:
 
   inline oop xchg(oop new_value);
 
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   void clear_uninitalized() { _obj = NULL; }
   void reset_handle();
 #endif

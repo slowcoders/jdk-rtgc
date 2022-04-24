@@ -53,7 +53,7 @@ class oopDesc {
   friend class JVMCIVMStructs;
  private:
   volatile markWord _mark;
-#if USE_RTGC  // _rtNode
+#if INCLUDE_RTGC // rtNode
   int64_t _rtNode[2];
 #endif
   union _metadata {
@@ -88,6 +88,9 @@ class oopDesc {
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
   static inline void set_klass_gap(HeapWord* mem, int z);
+#if INCLUDE_RTGC
+  static inline void clear_rt_node(HeapWord* mem);
+#endif  
 
   // size of object header, aligned to platform wordSize
   static int header_size() { return sizeof(oopDesc)/HeapWordSize; }

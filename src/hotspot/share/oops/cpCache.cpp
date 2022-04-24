@@ -771,7 +771,7 @@ void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
 void ConstantPoolCache::deallocate_contents(ClassLoaderData* data) {
   assert(!is_shared(), "shared caches are not deallocated");
   data->remove_handle(_resolved_references);
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   _resolved_references.clear_uninitalized();
 #else
   set_resolved_references(OopHandle());
@@ -788,7 +788,7 @@ oop ConstantPoolCache::archived_references() {
   return HeapShared::get_root(_archived_references_index);
 }
 
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
 void ConstantPoolCache::set_resolved_references(OopHandle s) {
   _resolved_references.reset_handle();
   _resolved_references = s;

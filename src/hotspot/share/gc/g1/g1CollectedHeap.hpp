@@ -1298,10 +1298,6 @@ public:
 
   inline bool is_in_young(const oop obj);
 
-#if USE_RTGC // is_in_trackable_space
-  virtual bool is_in_trackable_space(const void* p) const;
-#endif
-
   // Returns "true" iff the given word_size is "very large".
   static bool is_humongous(size_t word_size) {
     // Note this has to be strictly greater-than as the TLABs

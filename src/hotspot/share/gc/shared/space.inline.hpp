@@ -165,12 +165,15 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   HeapWord* cur_obj = space->bottom();
   HeapWord* scan_limit = space->scan_limit();
 
+  rtgc_log(true, "scan_and_forward %p -> %p\n", cur_obj, scan_limit);
   while (cur_obj < scan_limit) {
     if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
 #if USE_RTGC_COMPACT_1
-      rtHeap::mark_forwarded(cast_to_oop(cur_obj));
+      if (EnableRTGC) {
+        rtHeap::mark_forwarded(cast_to_oop(cur_obj));
+      }
 #endif
       size_t size = space->scanned_block_size(cur_obj);
       compact_top = cp->space->forward(cast_to_oop(cur_obj), size, cp, compact_top);
@@ -180,27 +183,30 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       // run over all the contiguous dead objects
       HeapWord* end = cur_obj;
 #if USE_RTGC_COMPACT_1
-      if (space->scanned_block_is_obj(cur_obj)) {
-        // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
-        rtHeap::destroy_trackable(cast_to_oop(cur_obj));
-      }
+      if (EnableRTGC) {
+        if (space->scanned_block_is_obj(cur_obj)) {
+          // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
+          rtHeap::destroy_trackable(cast_to_oop(cur_obj));
+        }
 
-      while (true) {
-        Prefetch::write(end, interval);
-        end += space->scanned_block_size(end);
-        if (end >= scan_limit) break;
-        if (!space->scanned_block_is_obj(end)) continue;
-        if (cast_to_oop(end)->is_gc_marked()) break;
-        rtHeap::destroy_trackable(cast_to_oop(end));
+        while (true) {
+          Prefetch::write(end, interval);
+          end += space->scanned_block_size(end);
+          if (end >= scan_limit) break;
+          if (!space->scanned_block_is_obj(end)) continue;
+          if (cast_to_oop(end)->is_gc_marked()) break;
+          rtHeap::destroy_trackable(cast_to_oop(end));
+        }
       }
-#else
-      do {
-        // prefetch beyond end
-        Prefetch::write(end, interval);
-        end += space->scanned_block_size(end);
-      } while (end < scan_limit && (!space->scanned_block_is_obj(end) || !cast_to_oop(end)->is_gc_marked()));
+      else
 #endif
-
+      {
+        do {
+          // prefetch beyond end
+          Prefetch::write(end, interval);
+          end += space->scanned_block_size(end);
+        } while (end < scan_limit && (!space->scanned_block_is_obj(end) || !cast_to_oop(end)->is_gc_marked()));
+      }
       // see if we might want to pretend this object is alive so that
       // we don't have to compact quite as often.
       if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {

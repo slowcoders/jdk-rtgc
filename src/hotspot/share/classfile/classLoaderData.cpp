@@ -618,7 +618,7 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
-#if USE_RTGC
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
 class HandleReleaseClosure : public OopClosure {
   void do_oop(oop* p) {
     oop obj = *p;
@@ -631,6 +631,7 @@ class HandleReleaseClosure : public OopClosure {
   }  
 };
 #endif
+
 void ClassLoaderData::unload() {
   _unloading = true;
 
@@ -655,7 +656,7 @@ void ClassLoaderData::unload() {
   // Clean up global class iterator for compiler
   ClassLoaderDataGraph::adjust_saved_class(this);
 
-#if USE_RTGC
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   HandleReleaseClosure handleRelease; 
   _handles.oops_do(&handleRelease);
 #endif

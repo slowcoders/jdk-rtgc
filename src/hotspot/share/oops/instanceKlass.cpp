@@ -578,7 +578,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   // Also remove mirror from handles
   loader_data->remove_handle(_java_mirror);
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   _java_mirror.clear_uninitalized();
 #endif  
 

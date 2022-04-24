@@ -423,7 +423,7 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 }
 #endif // ASSERT
 
-#ifdef USE_RTGC
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
   precond(!rtHeap::is_alive(cast_to_oop(mem)));
   if (UseBiasedLocking) {
@@ -456,13 +456,18 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
   const size_t len = payload_size * HeapWordSize / sizeof(jint);
   assert((int)len >= 0, "size too large " SIZE_FORMAT " becomes %d", words, (int)len);
 
-#if USE_RTGC 
-  init_dead_space(start, Universe::intArrayKlassObj(), len);
-#else
-  ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
-  allocator.initialize(start);
-  DEBUG_ONLY(zap_filler_array(start, words, zap);)
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    precond(start != RTGC::debug_obj);
+    init_dead_space(start, Universe::intArrayKlassObj(), len);
+  }
+  else 
 #endif    
+  {
+    ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
+    allocator.initialize(start);
+    DEBUG_ONLY(zap_filler_array(start, words, zap);)
+  }
 }
 
 void
@@ -473,12 +478,17 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
     fill_with_array(start, words, zap);
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
-#if USE_RTGC 
-    init_dead_space(start, vmClasses::Object_klass(), -1);
-#else    
-    ObjAllocator allocator(vmClasses::Object_klass(), words);
-    allocator.initialize(start);
-#endif    
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    precond(start != RTGC::debug_obj);
+    if (EnableRTGC) {
+      init_dead_space(start, vmClasses::Object_klass(), -1);
+    }
+    else
+#endif
+    {        
+      ObjAllocator allocator(vmClasses::Object_klass(), words);
+      allocator.initialize(start);
+    }   
   }
 }
 
@@ -511,6 +521,11 @@ void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 
 void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
   CollectedHeap::fill_with_object(start, end, zap);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    oopDesc::clear_rt_node(start);
+  }
+#endif
 }
 
 size_t CollectedHeap::min_dummy_object_size() const {

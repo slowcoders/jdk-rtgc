@@ -312,14 +312,16 @@ void DiscoveredListIterator::complete_enqueue() {
     // discovered to what we read from the pending list.
     oop old = Universe::swap_reference_pending_list(_refs_list.head());
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_prev_discovered, java_lang_ref_Reference::discovered_offset(), old);
-#if USE_RTGC
-    if (old == NULL) {
-      old = _prev_discovered;
-    }
-    oop discovered;
-    for (oop obj = _refs_list.head(); obj != old; obj = discovered) {
-      discovered = java_lang_ref_Reference::discovered(obj);
-      rtHeap::link_discovered_pending_reference(obj, discovered);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    if (EnableRTGC) {
+      if (old == NULL) {
+        old = _prev_discovered;
+      }
+      oop discovered;
+      for (oop obj = _refs_list.head(); obj != old; obj = discovered) {
+        discovered = java_lang_ref_Reference::discovered(obj);
+        rtHeap::link_discovered_pending_reference(obj, discovered);
+      }
     }
 #endif    
   }
@@ -1272,8 +1274,10 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
       log_develop_trace(gc, ref)("Precleaning Reference (" INTPTR_FORMAT ": %s)",
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
       // Remove Reference object from list
-#if USE_RTGC      
-      fatal("gotcha!");
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC) {
+          fatal("gotcha!");
+      }
 #endif      
       iter.remove();
       // Keep alive its cohort.

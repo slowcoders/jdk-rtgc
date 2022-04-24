@@ -113,24 +113,11 @@ void oopDesc::set_klass(Klass* k) {
   } else {
     _metadata._klass = k;
   }
-#if USE_RTGC  // clear _rtNode
-  _rtNode[0] = _rtNode[1] = 0;
-  if (RTGC_CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(this)) {
-    rtHeap::mark_empty_trackable(this);
-  }
-#endif
 }
 
 void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
   assert(Universe::is_bootstrapping() || (k != NULL && k->is_klass()), "incorrect Klass");
   char* raw_mem = ((char*)mem + klass_offset_in_bytes());
-#if USE_RTGC  // clear _rtNode
-  cast_to_oop(mem)->_rtNode[0] = 0;
-  cast_to_oop(mem)->_rtNode[1] = 0;
-  if (RTGC_CHECK_EMPTY_TRACKBLE && Universe::heap()->is_in_trackable_space(mem)) {
-    rtHeap::mark_empty_trackable(cast_to_oop(mem));
-  }
-#endif
   if (UseCompressedClassPointers) {
     Atomic::release_store((narrowKlass*)raw_mem,
                           CompressedKlassPointers::encode_not_null(k));
@@ -147,7 +134,17 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
   if (UseCompressedClassPointers) {
     *(int*)(((char*)mem) + klass_gap_offset_in_bytes()) = v;
   }
+#if INCLUDE_RTGC // clear rtNode
+  clear_rt_node(mem);
+#endif
 }
+
+#if INCLUDE_RTGC // clear rtNode
+void oopDesc::clear_rt_node(HeapWord* mem) {
+  cast_to_oop(mem)->_rtNode[0] = 0;
+  cast_to_oop(mem)->_rtNode[1] = 0;
+}
+#endif
 
 void oopDesc::set_klass_gap(int v) {
   set_klass_gap((HeapWord*)this, v);

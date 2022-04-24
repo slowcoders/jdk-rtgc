@@ -147,24 +147,12 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return obj->isTrackable();
 }
 
-#if RTGC_CHECK_EMPTY_TRACKBLE
 void rtHeap::mark_empty_trackable(oopDesc* p) {
-  bool dead_space = SafepointSynchronize::is_at_safepoint()
-      && Thread::current()->is_VM_thread();
-  if (!dead_space) {
-    rtgc_log(true, "mark_empty_trackable. It must be found in promoted trackable !!! %p\n", p);
-    empty_trackable = p;
-  }
-  else {
-    debug_only(to_obj(p)->isGarbageMarked();)
-  }
-  /** 주로 dead-space 가 등록된다. 크기가 큰 array 나, young-space 가 부족한 경우 */
-  // rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
-  // GCObject* obj = to_obj(p);
-  // obj->markTrackable();
-  // debug_only(g_cntTrackable++);
+  rtgc_log(true || LOG_OPT(9), "mark_empty_trackable %p\n", p);
+  GCObject* obj = to_obj(p);
+  obj->markTrackable();
+  debug_only(g_cntTrackable++);
 }
-#endif
 
 
 /**
@@ -172,9 +160,6 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
  */
 static int cntDD = 0;
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
-  if (RTGC_CHECK_EMPTY_TRACKBLE && new_p == empty_trackable) {
-    empty_trackable = NULL;
-  }
   // 이미 객체가 복사된 상태이다.
   // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
   // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
@@ -390,6 +375,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool young_ref_re
 }
 
 void rtHeap::mark_forwarded(oopDesc* p) {
+  rtgc_log(RTGC::debugOptions[0], "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
   if (!USE_PENDING_TRACKABLES) {
     to_obj(p)->markDirtyReferrerPoints();
@@ -401,9 +387,6 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
    * @brief Full-GC 과정에서 adjust_pointers 를 수행하기 직전에 호출된다.
    * 즉, old_p 객체의 field는 유효한 old 객체를 가리키고 있다.
    */
-  if (RTGC_CHECK_EMPTY_TRACKBLE) {
-    empty_trackable = NULL;
-  }
   rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
@@ -598,11 +581,12 @@ void GCNode::markGarbage()  {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
+  rtgc_log(RTGC::debugOptions[0], "destroyed %p\n", node);
   
-  assert(node->getRootRefCount() == 0, "wrong refCount(%d) on garbage %p(%s)\n", 
+  assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
       node->getRootRefCount(), node, RTGC::getClassName(node));
-  assert(check_garbage(node, false), "invalid trackable garbage %p, yg-r=%d, rc=%d:%d\n",
-      node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+  assert(check_garbage(node, false), "invalid trackable garbage %p(%s), yg-r=%d, rc=%d:%d\n",
+      node, RTGC::getClassName(node), node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   if (node->hasMultiRef()) {
@@ -647,10 +631,6 @@ template <bool is_full_gc>
 static void __discover_java_references(ReferenceDiscoverer* rp);
 
 void rtHeap::discover_java_references(ReferenceDiscoverer* rp, bool is_tenure_gc) {
-  if (RTGC_CHECK_EMPTY_TRACKBLE) {
-    assert(empty_trackable == NULL, "empty_trackable is not catched!");
-  }
-
   if (is_tenure_gc) {
     GCRuntime::adjustShortcutPoints();
   }

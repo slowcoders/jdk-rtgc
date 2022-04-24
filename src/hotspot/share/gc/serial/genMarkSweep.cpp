@@ -108,8 +108,10 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 
-#if USE_RTGC  
-  rtHeap::discover_java_references(rp, true);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::discover_java_references(rp, true);
+  }
 #endif
 
   mark_sweep_phase4();

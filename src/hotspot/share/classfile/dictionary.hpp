@@ -175,7 +175,7 @@ class SymbolPropertyEntry : public HashtableEntry<Symbol*, mtSymbol> {
   void set_method_type(oop p);
 
   // We need to clear the OopHandle because these hashtable entries are not constructed properly.
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   void clear_method_type() { _method_type.clear_uninitalized(); }
 #else   
   void clear_method_type() { _method_type = OopHandle(); }

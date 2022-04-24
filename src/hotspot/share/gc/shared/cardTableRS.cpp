@@ -438,9 +438,11 @@ void CardTableRS::verify() {
 }
 
 CardTableRS::CardTableRS(MemRegion whole_heap) :
-  CardTable(whole_heap) { }
+    CardTable(whole_heap) { 
+}
 
 void CardTableRS::initialize() {
+  RTGC_ONLY(assert(!RtNoDirtyCardMarking, "cardTable is disabled");)
   CardTable::initialize();
 }
 

@@ -242,14 +242,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // code.
   virtual bool is_in(const void* p) const = 0;
 
-#if USE_RTGC // is_in_trackable_space
-  virtual bool is_in_trackable_space(const void* p) const { fatal("not implemented"); return false; }
-  virtual HeapWord* mem_allocate_klass(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded) {
-    return mem_allocate(size, gc_overhead_limit_was_exceeded);
-  };
-#endif
-
   DEBUG_ONLY(bool is_in_or_null(const void* p) const { return p == NULL || is_in(p); })
 
   virtual uint32_t hash_oop(oop obj) const;

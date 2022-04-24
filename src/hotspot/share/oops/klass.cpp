@@ -67,7 +67,7 @@ void Klass::replace_java_mirror(oop mirror) {
   _java_mirror.replace(mirror);
 }
 
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
 void Klass::clear_java_mirror_handle() { 
   _java_mirror.reset_handle(); 
 }

@@ -646,8 +646,10 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-#if USE_RTGC
-  rtHeap::discover_java_references(rp, false);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::discover_java_references(rp, false);
+  }
 #endif
 
   if (!_promotion_failed) {

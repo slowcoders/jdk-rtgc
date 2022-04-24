@@ -267,7 +267,7 @@ protected:
   // Temporary mirror switch used by RedefineClasses
   void replace_java_mirror(oop mirror);
 
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
   void clear_java_mirror_handle();
 #else 
   // Set java mirror OopHandle to NULL for CDS

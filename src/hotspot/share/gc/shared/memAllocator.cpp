@@ -276,14 +276,6 @@ HeapWord* MemAllocator::allocate_inside_tlab(Allocation& allocation) const {
     return mem;
   }
 
-#if USE_RTGC_TLAB_ALLOC
-  // new_instance() 가 호출되는 시점의 모든 register 는 저장된 상태이다.
-  // 즉 current-thread 는 safe-point 상태이다. 
-  mem = rtHeap::allocate_tlab(_thread, _word_size);
-  if (mem != NULL) {
-    return mem;
-  }
-#endif
   // Try refilling the TLAB and allocating the object in it.
   return allocate_inside_tlab_slow(allocation);
 }
@@ -356,7 +348,7 @@ HeapWord* MemAllocator::allocate_inside_tlab_slow(Allocation& allocation) const 
 }
 
 HeapWord* MemAllocator::mem_allocate(Allocation& allocation) const {
-#if USE_RTGC && 0
+#if INCLUDE_RTGC && 0
   if (_klass == vmClasses::Class_klass()) {
     HeapWord* result = Universe::heap()->mem_allocate_klass(_word_size, &allocation._overhead_limit_exceeded);
     if (result != NULL) {
@@ -436,6 +428,11 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   if (_do_zero) {
     mem_clear(mem);
   }
+#if INCLUDE_RTGC // clear rtNode
+  else {
+    oopDesc::clear_rt_node(mem);
+  }
+#endif  
   arrayOopDesc::set_length(mem, _length);
   return finish(mem);
 }

@@ -28,12 +28,14 @@
 #include "utilities/macros.hpp"
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
-RtgcBarrierSet::RtgcBarrierSet() : ModRefBarrierSet(
-          make_barrier_set_assembler<RtgcBarrierSetAssembler>(),
-          make_barrier_set_c1<RtgcBarrierSetC1>(),
-          make_barrier_set_c2<BarrierSetC2>(),
-          BarrierSet::FakeRtti(BarrierSet::RtgcBarrierSet)) {
+RtgcBarrierSet::RtgcBarrierSet(CardTable* card_table) :  
+    ModRefBarrierSet(make_barrier_set_assembler<RtgcBarrierSetAssembler>(),
+                     make_barrier_set_c1<RtgcBarrierSetC1>(),
+                     make_barrier_set_c2<BarrierSetC2>(),
+                     BarrierSet::FakeRtti(BarrierSet::RtgcBarrierSet)), 
+    _card_table(card_table) {
   initialize();
 };
 
@@ -47,3 +49,9 @@ void RtgcBarrierSet::on_thread_create(Thread *thread) {
 void RtgcBarrierSet::on_thread_destroy(Thread *thread) {
 }
 
+void RtgcBarrierSet::on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {
+  rtgc_debug_log(new_obj, "on_slowpath_allocation_exit %p\n", (void*)new_obj);
+  if (!_card_table->is_in_young(new_obj)) {
+    rtHeap::mark_empty_trackable(new_obj);
+  }
+}

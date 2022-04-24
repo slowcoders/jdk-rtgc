@@ -124,12 +124,17 @@ jint GenCollectedHeap::initialize() {
 
   initialize_reserved_region(heap_rs);
 
+  ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
-  RTGC_ONLY(if (!RtNoDirtyCardMarking)) {  
-    _rem_set->initialize();
+  RTGC_ONLY(if (RtNoDirtyCardMarking)) {  
+    bs = new RtgcBarrierSet(_rem_set);
   }
-  CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
-  bs->initialize();
+  else {
+    _rem_set = create_rem_set(heap_rs.region());
+    _rem_set->initialize();
+    bs = new CardTableBarrierSet(_rem_set);
+    ((CardTableBarrierSet*)bs)->initialize();
+  }
   BarrierSet::set_barrier_set(bs);
 
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
@@ -149,7 +154,6 @@ jint GenCollectedHeap::initialize() {
 }
 
 CardTableRS* GenCollectedHeap::create_rem_set(const MemRegion& reserved_region) {
-  RTGC_ONLY(if (RtNoDirtyCardMarking) return NULL;)
   return new CardTableRS(reserved_region);
 }
 
@@ -677,8 +681,10 @@ void GenCollectedHeap::do_collection(bool           full,
     print_heap_after_gc();
   }
 #ifdef ASSERT
-#if USE_RTGC
-  rtHeap::print_heap_after_gc(do_full_collection);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::print_heap_after_gc(do_full_collection);
+  }
 #endif  
 #endif
 }
@@ -944,12 +950,6 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
                   false,               // is_tlab
                   OldGen);             // last_generation
   }
-}
-
-#if USE_RTGC  // is_in_trackable_space
-bool GenCollectedHeap::is_in_trackable_space(const void* p) const {
-  bool is_young = p < _old_gen->reserved().start();
-  return !is_young;
 }
 
 HeapWord* GenCollectedHeap::mem_allocate_klass(size_t size, bool* gc_overhead_limit_was_exceeded) {

@@ -197,7 +197,7 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
     // methodTypes, invokedynamic and invokehandle appendix objects, etc.
     objArrayOop stom = oopFactory::new_objArray(vmClasses::Object_klass(), map_length, CHECK);
     Handle refs_handle (THREAD, stom);  // must handleize.
-#if USE_RTGC
+#if RTGC_EXPLICT_CLEAR_HANDLE
     init_resolved_references(loader_data->add_handle(refs_handle));
 #else
     set_resolved_references(loader_data->add_handle(refs_handle));

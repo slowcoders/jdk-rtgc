@@ -154,7 +154,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   JNIHandleBlock* _pop_frame_link;              // Block to restore on PopLocalFrame call
   uintptr_t*      _free_list;                   // Handle free list
   int             _allocate_before_rebuild;     // Number of blocks to allocate before rebuilding free list
-#if USE_RTGC
+#if INCLUDE_RTGC // local jin handle owner
   Thread*         _local_thead;
 #endif
   // Check JNI, "planned capacity" for current frame (or push/ensure)

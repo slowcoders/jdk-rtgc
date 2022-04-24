@@ -21,30 +21,30 @@
  *
  */
 
-#ifndef SHARE_GC_RTGC_RTGCBARRIERSET_HPP
-#define SHARE_GC_RTGC_RTGCBARRIERSET_HPP
+#ifndef SHARE_GC_RT_RTBARRIERSET_HPP
+#define SHARE_GC_RT_RTBARRIERSET_HPP
 
-#include "gc/shared/cardTable.hpp"
-#include "gc/shared/modRefBarrierSet.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 
 // No interaction with application is required for Rtgc, and therefore
 // the barrier set is empty.
-class RtgcBarrierSet: public ModRefBarrierSet {
+class RtBarrierSet: public CardTableBarrierSet {
+  friend class VMStructs;
 
-  CardTable* _card_table;
   void initialize();
 
 public:
-  RtgcBarrierSet(CardTable* _card_table);
+  RtBarrierSet();
 
-  RtgcBarrierSet(BarrierSetAssembler* barrier_set_assembler,
-                 BarrierSetC1* barrier_set_c1,
-                 BarrierSetC2* barrier_set_c2,
-                 const BarrierSet::FakeRtti& fake_rtti)
-    : ModRefBarrierSet(barrier_set_assembler,
+  RtBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                BarrierSetC1* barrier_set_c1,
+                BarrierSetC2* barrier_set_c2,
+                CardTable* card_table)
+    : CardTableBarrierSet(barrier_set_assembler,
                  barrier_set_c1,
                  barrier_set_c2,
-                 fake_rtti.add_tag(BarrierSet::RtgcBarrierSet)) { 
+                 CardTable* card_table,
+                 fake_rtti.add_tag(BarrierSet::RtBarrierSet)) { 
     initialize();
   }
 
@@ -57,12 +57,11 @@ public:
   virtual void write_region(MemRegion mr) {};
   virtual void write_ref_array_work(MemRegion mr) {};
 
-  virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj);
 
-  template <DecoratorSet decorators, typename BarrierSetT = RtgcBarrierSet>
-  class AccessBarrier: public ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> {
+  template <DecoratorSet decorators, typename BarrierSetT = RtBarrierSet>
+  class AccessBarrier: public CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT> {
   private:
-    typedef ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> ModRef;
+    typedef CardTableBarrierSet::AccessBarrier<decorators, BarrierSetT> ModRef;
 
   public:
     //
@@ -109,13 +108,13 @@ public:
 };
 
 template<>
-struct BarrierSet::GetName<RtgcBarrierSet> {
-  static const BarrierSet::Name value = BarrierSet::RtgcBarrierSet;
+struct BarrierSet::GetName<RtBarrierSet> {
+  static const BarrierSet::Name value = BarrierSet::RtBarrierSet;
 };
 
 template<>
-struct BarrierSet::GetType<BarrierSet::RtgcBarrierSet> {
-  typedef ::RtgcBarrierSet type;
+struct BarrierSet::GetType<BarrierSet::RtBarrierSet> {
+  typedef ::RtBarrierSet type;
 };
 
 #endif // SHARE_GC_RTGC_RTGCBARRIERSET_HPP
