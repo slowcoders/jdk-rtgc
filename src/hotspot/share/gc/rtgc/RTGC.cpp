@@ -231,6 +231,8 @@ bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
+  if (debugOptions[0]) return obj->klass() == Universe::byteArrayKlassObj();
+
   return ptr == debug_obj;
 
   if (debugKlass == NULL) {
@@ -261,7 +263,7 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)0x7f0016188;
+  RTGC::debug_obj = (void*)-1;
   if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

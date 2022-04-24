@@ -561,14 +561,16 @@ void rtHeap::prepare_point_adjustment(void* old_gen_heap_start) {
   if (g_adjust_pointer_closure._old_gen_start != NULL) return;
 
   g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
-  oop* src_0 = g_young_roots.adr_at(0);
-  oop* dst = src_0;
-  oop* end = src_0 + g_young_roots.length();
-  for (oop* src = src_0; src < end; src++) {
-    GCObject* node = to_obj(*src);
-    node->unmarkYoungRoot();
+  if (g_young_roots.length() > 0) {
+    oop* src_0 = g_young_roots.adr_at(0);
+    oop* dst = src_0;
+    oop* end = src_0 + g_young_roots.length();
+    for (oop* src = src_0; src < end; src++) {
+      GCObject* node = to_obj(*src);
+      node->unmarkYoungRoot();
+    }
+    g_young_roots.trunc_to(0);
   }
-  g_young_roots.trunc_to(0);
 }
 
 void GCNode::markGarbage()  {

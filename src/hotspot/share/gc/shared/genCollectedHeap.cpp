@@ -816,6 +816,7 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   CodeBlobToOopClosure* roots_from_code_p = (so & SO_AllCodeCache) ? NULL : code_roots;
 
   Threads::oops_do(strong_roots, roots_from_code_p);
+
   OopStorageSet::strong_oops_do(strong_roots);
 
   if (so & SO_ScavengeCodeCache) {
@@ -951,20 +952,6 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
                   OldGen);             // last_generation
   }
 }
-
-HeapWord* GenCollectedHeap::mem_allocate_klass(size_t size, bool* gc_overhead_limit_was_exceeded) {
-  HeapWord* mem;
-  {
-    MutexLocker ml(Heap_lock);
-    mem = _old_gen->allocate(size, false);
-  }
-  if (mem == NULL) {
-    mem = mem_allocate(size, gc_overhead_limit_was_exceeded);
-  }
-  return mem;
-}
-
-#endif
 
 bool GenCollectedHeap::is_in_young(oop p) {
   bool result = cast_from_oop<HeapWord*>(p) < _old_gen->reserved().start();

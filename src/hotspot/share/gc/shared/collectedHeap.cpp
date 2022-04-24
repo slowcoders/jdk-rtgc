@@ -458,7 +458,6 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    precond(start != RTGC::debug_obj);
     init_dead_space(start, Universe::intArrayKlassObj(), len);
   }
   else 

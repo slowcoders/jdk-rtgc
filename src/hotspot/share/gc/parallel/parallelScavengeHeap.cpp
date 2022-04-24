@@ -219,19 +219,6 @@ bool ParallelScavengeHeap::is_in_reserved(const void* p) const {
   return young_gen()->is_in_reserved(p) || old_gen()->is_in_reserved(p);
 }
 
-HeapWord* ParallelScavengeHeap::mem_allocate_klass(size_t size, bool* gc_overhead_limit_was_exceeded) {
-  HeapWord* mem;
-  {
-    MutexLocker ml(Heap_lock);
-    mem = old_gen()->allocate(size);
-  }
-  if (mem == NULL) {
-    mem = mem_allocate(size, gc_overhead_limit_was_exceeded);
-  }
-  return mem;
-}
-#endif
-
 // There are two levels of allocation policy here.
 //
 // When an allocation request fails, the requesting thread must invoke a VM

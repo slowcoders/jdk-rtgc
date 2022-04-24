@@ -68,6 +68,7 @@ jobject JNIHandles::make_local(Thread* thread, oop obj, AllocFailType alloc_fail
     assert(oopDesc::is_oop(obj), "not an oop");
     assert(thread->is_Java_thread(), "not a Java thread");
     assert(!current_thread_in_native(), "must not be in native");
+    RTGC_ONLY(precond(thread->active_handles()->local_thread() == thread));
     return thread->active_handles()->allocate_handle(obj, alloc_failmode);
   }
 }
@@ -388,7 +389,7 @@ JNIHandleBlock* JNIHandleBlock::allocate_block(Thread* thread, AllocFailType all
   block->_pop_frame_link = NULL;
   block->_planned_capacity = block_size_in_oops;
 #if INCLUDE_RTGC // local jni handle owner
-  block->_local_thead = thread;
+  block->_local_thread = thread;
 #endif  
   // _last, _free_list & _allocate_before_rebuild initialized in allocate_handle
   debug_only(block->_last = NULL);
@@ -414,6 +415,7 @@ class HandleEraser : public OopClosure {
 
 void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
 #if INCLUDE_RTGC // local jni handle owner
+  RTGC_ONLY(precond(thread == block->local_thread());)
   if (EnableRTGC && thread == NULL) {
     block->oops_do(&_handle_eraser);
     rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
@@ -433,7 +435,10 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
 
     // Add original freelist to end of chain
     if ( freelist != NULL ) {
-      while ( block->_next != NULL ) block = block->_next;
+      while ( block->_next != NULL ) {
+        block = block->_next;
+        RTGC_ONLY(precond(thread == block->local_thread());)
+      }
       block->_next = freelist;
     }
     block = NULL;
@@ -447,6 +452,7 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
     MutexLocker ml(JNIHandleBlockFreeList_lock,
                    Mutex::_no_safepoint_check_flag);
     while (block != NULL) {
+      RTGC_ONLY(precond(thread == block->local_thread());)
       block->zap();
       JNIHandleBlock* next = block->_next;
       block->_next = _block_free_list;
@@ -498,6 +504,8 @@ void JNIHandleBlock::clear() {
 
 
 jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
+  RTGC_ONLY(Thread* owner = local_thread());
+
   assert(Universe::heap()->is_in(obj), "sanity check");
   if (_top == 0) {
     // This is the first allocation or the initial block got zapped when
@@ -505,6 +513,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
     // not valid anymore.
     for (JNIHandleBlock* current = _next; current != NULL;
          current = current->_next) {
+      RTGC_ONLY(precond(owner == current->local_thread());)
       assert(current->_last == NULL, "only first block should have _last set");
       assert(current->_free_list == NULL,
              "only first block should have _free_list set");
@@ -531,7 +540,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   if (_last->_top < block_size_in_oops) {
     oop* handle = (oop*)&(_last->_handles)[_last->_top++];
 #if INCLUDE_RTGC // local jni handle owner
-    if (EnableRTGC && _local_thead != NULL) {
+    if (EnableRTGC && _local_thread != NULL) {
       RawAccess<>::oop_store(handle, obj);
     } else 
 #endif
@@ -546,7 +555,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
     oop* handle = (oop*)_free_list;
     _free_list = (uintptr_t*) untag_free_list(*_free_list);
 #if INCLUDE_RTGC // local jni handle owner
-    if (EnableRTGC && _local_thead != NULL) {
+    if (EnableRTGC && _local_thread != NULL) {
       RawAccess<>::oop_store(handle, obj);
     } else 
 #endif

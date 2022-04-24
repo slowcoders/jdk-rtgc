@@ -421,7 +421,11 @@ class Thread: public ThreadShadow {
 
   // JNI handle support
   JNIHandleBlock* active_handles() const         { return _active_handles; }
+#ifdef ASSERT  
+  void set_active_handles(JNIHandleBlock* block);
+#else  
   void set_active_handles(JNIHandleBlock* block) { _active_handles = block; }
+#endif
   JNIHandleBlock* free_handle_block() const      { return _free_handle_block; }
   void set_free_handle_block(JNIHandleBlock* block) { _free_handle_block = block; }
 

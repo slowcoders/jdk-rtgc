@@ -323,6 +323,13 @@ void Thread::initialize_tlab() {
   }
 }
 
+#ifdef ASSERT  
+void Thread::set_active_handles(JNIHandleBlock* block) { 
+  RTGC_ONLY(precond(block == NULL || this == block->local_thread());)
+  _active_handles = block; 
+}
+#endif
+
 void Thread::initialize_thread_current() {
 #ifndef USE_LIBRARY_BASED_TLS_ONLY
   assert(_thr_current == NULL, "Thread::current already initialized");
@@ -1277,7 +1284,7 @@ void JavaThread::run() {
 
   // This operation might block. We call that after all safepoint checks for a new thread has
   // been completed.
-  set_active_handles(JNIHandleBlock::allocate_block());
+  set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
 
   if (JvmtiExport::should_post_thread_life()) {
     JvmtiExport::post_thread_start(this);
@@ -2830,7 +2837,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // must do this before set_active_handles
   main_thread->record_stack_base_and_size();
   main_thread->register_thread_stack_with_NMT();
-  main_thread->set_active_handles(JNIHandleBlock::allocate_block());
+  main_thread->set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(main_thread)));
+
   MACOS_AARCH64_ONLY(main_thread->init_wx());
 
   if (!main_thread->set_as_starting_thread()) {
