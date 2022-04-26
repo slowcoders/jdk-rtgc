@@ -231,12 +231,11 @@ bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
-  if (debugOptions[0]) return obj->klass() == Universe::byteArrayKlassObj();
-
   return ptr == debug_obj;
 
   if (debugKlass == NULL) {
-    if (strstr((char*)obj->klass()->name()->bytes(), "[I") && obj->is_typeArray()) {
+    const char* className = "java/lang/invoke/ConstantCallSite";
+    if (strstr((char*)obj->klass()->name()->bytes(), className) && obj->is_typeArray()) {
       debugKlass = obj->klass();
       return true;
     }
@@ -244,6 +243,8 @@ bool RTGC::is_debug_pointer(void* ptr) {
   } else {
     return obj->klass() == debugKlass;
   }
+
+  if (debugOptions[0]) return obj->klass() == Universe::byteArrayKlassObj();
 
   return obj->klass()->id() == InstanceRefKlassID && 
         ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
@@ -264,12 +265,12 @@ void RTGC::initialize() {
 
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
-  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  // logOptions[LOG_HEAP] = 1 << 3;
+  //logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 3;
@@ -277,4 +278,3 @@ void RTGC::initialize() {
     logOptions[LOG_BARRIER] = 0;
   }
 }
-

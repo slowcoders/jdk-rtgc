@@ -186,7 +186,8 @@ static oopDesc* get_valid_forwardee(oopDesc* obj) {
           obj, RTGC::getClassName(to_obj(obj)));
       return NULL;
     } else {
-      precond(obj->is_gc_marked());
+      assert(obj->is_gc_marked(), "must be gc_marked %p(%s)\n", 
+          obj, RTGC::getClassName(to_obj(obj)));
       oopDesc* p = obj->forwardee();
       return (p == NULL) ? obj : p;
     }
@@ -344,7 +345,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
     if (!node->isAnchored()) {
       node->markGarbage();
-      rtgc_log(LOG_OPT(3), "skip garbage node %p\n", (void*)node);
+      rtgc_log(LOG_OPT(8), "skip garbage node %p\n", (void*)node);
       continue;
     }
 
@@ -574,8 +575,8 @@ void rtHeap::prepare_point_adjustment(void* old_gen_heap_start) {
 }
 
 void GCNode::markGarbage()  {
-    assert(this->isTrackable() || is_dead_space(cast_to_oop(this)),
-        "invalid garbage marking on %p(%s)\n", this, getClassName(this));
+    // assert(this->isTrackable() || is_dead_space(cast_to_oop(this)),
+    //     "invalid garbage marking on %p(%s)\n", this, getClassName(this));
     assert(!cast_to_oop(this)->is_gc_marked(),
         "invalid garbage marking on %p(%s)\n", this, getClassName(this));
 		_flags.isGarbage = true;
@@ -591,10 +592,13 @@ void rtHeap::destroy_trackable(oopDesc* p) {
       node, RTGC::getClassName(node), node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
+  node->markGarbage();
+
   if (node->hasMultiRef()) {
     node->removeAnchorList();
   }
 
+  rtgc_log(true || RTGC::debugOptions[0], "destroyed done %p\n", node);
   if (!node->isTrackable()) {
     precond(node->getShortcutId() == 0);
     return;
@@ -610,7 +614,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     }
   }
 
-  node->markGarbage();
 }
 
 void rtHeap::prepare_full_gc() {
@@ -695,10 +698,10 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discov
 template <bool is_full_gc>
 void __discover_java_references(ReferenceDiscoverer* rp) {
   precond(rp != NULL);
-  oop last_ref = NULL;
+  oop acc_ref = NULL;
   oop next_ref;
-  oop pending_head = NULL;
-  oop pending_tail = NULL;
+  oopDesc* pending_head = NULL;
+  oopDesc* pending_tail = NULL;
   oop alive_head = NULL;
   const int referent_off = java_lang_ref_Reference::referent_offset();
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
@@ -711,53 +714,56 @@ void __discover_java_references(ReferenceDiscoverer* rp) {
   int cnt_alive = 0;
 #endif
   
-  for (oop ref = g_phantom_ref; ref != NULL; ref = next_ref) {
-    rtgc_log(LOG_OPT(3), "check phantom ref %p\n", (void*)ref);
-    next_ref = RawAccess<>::oop_load_at(ref, discovered_off);
-    precond(ref != next_ref);
-    oop new_ref = get_valid_forwardee<is_full_gc>(ref);
-    if (new_ref == NULL) {
-      rtgc_log(LOG_OPT(3), "garbage phantom ref %p removed\n", (void*)ref);
-      // to_obj(ref)->markGarbage();
+  for (oop ref_op = g_phantom_ref; ref_op != NULL; ref_op = next_ref) {
+    rtgc_log(LOG_OPT(3), "check phantom ref %p\n", (void*)ref_op);
+    next_ref = RawAccess<>::oop_load_at(ref_op, discovered_off);
+    precond(ref_op != next_ref);
+    oop ref_np = get_valid_forwardee<is_full_gc>(ref_op);
+    if (ref_np == NULL) {
+      rtgc_log(LOG_OPT(3), "garbage phantom ref %p removed\n", (void*)ref_op);
       debug_only(cnt_garbage++;)
       continue;
     }
 
-    rtgc_log(LOG_OPT(3), "phantom ref %p moved %p\n", (void*)ref, (void*)new_ref);
-    oop referent = RawAccess<>::oop_load_at(ref, referent_off);
-    if (referent == NULL) {
+    rtgc_log(LOG_OPT(3), "phantom ref %p moved %p\n", (void*)ref_op, (void*)ref_np);
+    oop referent_op = RawAccess<>::oop_load_at(ref_op, referent_off);
+    acc_ref = is_full_gc ? ref_op : ref_np;
+    if (referent_op == NULL) {
       debug_only(cnt_cleared++;)
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, discovered_off, oop(NULL));
-      rtgc_log(LOG_OPT(3), "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref);
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, discovered_off, oop(NULL));
+      rtgc_log(LOG_OPT(3), "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref_op);
       continue;
     }
 
-    last_ref = is_full_gc ? ref : new_ref;
-    oop new_referent = get_valid_forwardee<is_full_gc>(referent);
-    if (new_referent == NULL) {
+    oop referent_np = get_valid_forwardee<is_full_gc>(referent_op);
+    if (referent_np == NULL) {
       debug_only(cnt_pending++;)
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(last_ref, referent_off, oop(NULL));
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(last_ref, discovered_off, oop(NULL));
-      HeapAccess<>::oop_store_at(last_ref, discovered_off, pending_head);
-      rtgc_log(LOG_OPT(3), "reference %p(->%p) with garbage referent linked (%p)\n", 
-            (void*)ref, (void*)new_ref, (void*)pending_head);
-      if (pending_tail == NULL) {
-        precond(pending_head == NULL);
-        pending_tail = last_ref;
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));
+      rtgc_log(LOG_OPT(3), "reference %p(->%p) with garbage referent linked after (%p)\n", 
+            (void*)ref_op, (void*)ref_np, (void*)pending_tail);
+      if (pending_head == NULL) {
+        precond(pending_tail == NULL);
+        pending_head = ref_np;
+      } else {
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail, discovered_off, ref_np);
+        if (to_node(pending_tail)->isTrackable()) {
+          oopDesc* tail_np = is_full_gc ? get_valid_forwardee<is_full_gc>(pending_tail) : pending_tail;
+          RTGC::add_referrer_unsafe(acc_ref, tail_np);
+        }
       }
-      pending_head = new_ref;
-      continue;
-    }
+      pending_tail = acc_ref;
 
-    rtgc_log(LOG_OPT(3), "alive reference %p(->%p) linked (%p)\n", 
-          (void*)ref, (void*)new_ref, (void*)alive_head);
-    java_lang_ref_Reference::set_discovered_raw(last_ref, alive_head);
-    alive_head = new_ref;
-    debug_only(cnt_alive++;)
+    } else {
+      rtgc_log(LOG_OPT(3), "alive reference %p(->%p) linked (%p)\n", 
+            (void*)ref_op, (void*)ref_np, (void*)alive_head);
+      java_lang_ref_Reference::set_discovered_raw(acc_ref, alive_head);
+      alive_head = ref_np;
+      debug_only(cnt_alive++;)
 
-    rtgc_log(LOG_OPT(3), "referent of (%p) marked %p -> %p\n", (void*)ref, (void*)referent, (void*)new_referent);
-    if (referent != new_referent) {
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(last_ref, referent_off, new_referent);
+      rtgc_log(LOG_OPT(3), "referent of (%p) marked %p -> %p\n", (void*)ref_op, (void*)referent_op, (void*)referent_np);
+      if (referent_op != referent_np) {
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
+      }
     }
   }
 
@@ -766,11 +772,17 @@ void __discover_java_references(ReferenceDiscoverer* rp) {
         cnt_phantom, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
 
   if (pending_head != NULL) {
-    oop old = Universe::swap_reference_pending_list(pending_head);
-    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail, discovered_off, oop(NULL));
-    HeapAccess<>::oop_store_at(pending_tail, discovered_off, old);
+    oopDesc* pending_q = Universe::swap_reference_pending_list(pending_head);
+    oopDesc* pending_nq = pending_q == NULL || !is_full_gc ? pending_q : get_valid_forwardee<true>(pending_q);
+    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail, discovered_off, pending_nq);
+    if (pending_nq != NULL &&  to_node(pending_tail)->isTrackable()) {
+      acc_ref = is_full_gc ? pending_q : pending_nq;
+      oopDesc* tail_np = is_full_gc ? get_valid_forwardee<true>(pending_tail) : pending_tail;
+      RTGC::add_referrer_unsafe(acc_ref, tail_np);
+    }
   }
 }
+
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
