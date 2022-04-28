@@ -106,13 +106,13 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
-  mark_sweep_phase3();
-
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::discover_java_references(rp, true);
+    rtHeap::discover_java_references(true);
   }
 #endif
+
+  mark_sweep_phase3();
 
   mark_sweep_phase4();
 

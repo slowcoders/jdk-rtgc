@@ -130,7 +130,7 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
     case OopIterateClosure::DO_FIELDS:
       trace_reference_gc<T>("do_fields", obj);
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
-      if (RtNoDiscoverPhantom && reference_type() == REF_PHANTOM) {
+      if (false && RtNoDiscoverPhantom && reference_type() == REF_PHANTOM) {
         if (java_lang_ref_Reference::unknown_referent_no_keepalive(obj) == NULL) {
           oop_oop_iterate_fields_except_referent<T>(obj, closure, contains);
         }

@@ -50,7 +50,8 @@ public:
   // for reference management
   static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered);
-  static void discover_java_references(ReferenceDiscoverer* rp, bool is_tenure_gc);
+  static void discover_java_references(bool is_tenure_gc);
+  static void finish_compaction_gc(bool is_tenure_gc);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

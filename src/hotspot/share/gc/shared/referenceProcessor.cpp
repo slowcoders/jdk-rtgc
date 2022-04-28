@@ -317,11 +317,7 @@ void DiscoveredListIterator::complete_enqueue() {
       if (old == NULL) {
         old = _prev_discovered;
       }
-      oop discovered;
-      for (oop obj = _refs_list.head(); obj != old; obj = discovered) {
-        discovered = java_lang_ref_Reference::discovered(obj);
-        rtHeap::link_discovered_pending_reference(obj, discovered);
-      }
+      rtHeap::link_discovered_pending_reference(_refs_list.head(), old);
     }
 #endif    
   }
