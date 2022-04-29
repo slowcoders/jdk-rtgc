@@ -114,6 +114,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::finish_compaction_gc(true);
+  }
+#endif
+
   mark_sweep_phase4();
 
   restore_marks();

@@ -649,6 +649,7 @@ void DefNewGeneration::collect(bool   full,
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::discover_java_references(false);
+    rtHeap::finish_compaction_gc(false);
   }
 #endif
 

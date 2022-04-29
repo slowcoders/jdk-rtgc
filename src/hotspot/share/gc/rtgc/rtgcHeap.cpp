@@ -655,10 +655,6 @@ void rtHeap::prepare_full_gc() {
 
 void rtHeap::discover_java_references(bool is_tenure_gc) {
   if (is_tenure_gc) {
-    GCRuntime::adjustShortcutPoints();
-  }
-
-  if (is_tenure_gc) {
     g_rtRefProcessor.process_phantom_references<true>();
   } else {
     g_rtRefProcessor.process_phantom_references<false>();
@@ -809,14 +805,14 @@ void RtRefProcessor::process_phantom_references() {
       RTGC::add_referrer_unsafe(enqueued_top_np, pending_tail_acc);
     }
   }
-  printf("*******************************");
   _enqueued_top = NULL;
 }
 
-void rtHeap::finish_compaction_gc(bool is_full_gc) {  
-  //g_rtRefProcessor.register_pending_refereneces();
+void rtHeap::finish_compaction_gc(bool is_full_gc) {
+  if (is_full_gc) {
+    GCRuntime::adjustShortcutPoints();
+  }
 }
-
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 

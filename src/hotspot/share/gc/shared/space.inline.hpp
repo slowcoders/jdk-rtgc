@@ -165,7 +165,6 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   HeapWord* cur_obj = space->bottom();
   HeapWord* scan_limit = space->scan_limit();
 
-  rtgc_log(true, "scan_and_forward %p -> %p\n", cur_obj, scan_limit);
   while (cur_obj < scan_limit) {
     if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj

@@ -174,7 +174,8 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj) {
-  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee on garbage %p\n", obj);
+  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee on garbage %p(%s)\n", 
+      obj, RTGC::getClassName(obj));
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
 }
@@ -265,7 +266,7 @@ void RTGC::initialize() {
 
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
-  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
