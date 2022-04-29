@@ -169,7 +169,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
-#if USE_RTGC_COMPACT_1
+#if INCLUDE_RTGC
       if (EnableRTGC) {
         rtHeap::mark_forwarded(cast_to_oop(cur_obj));
       }
@@ -181,7 +181,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     } else {
       // run over all the contiguous dead objects
       HeapWord* end = cur_obj;
-#if USE_RTGC_COMPACT_1
+#if INCLUDE_RTGC
       if (EnableRTGC) {
         if (space->scanned_block_is_obj(cur_obj)) {
           // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
@@ -245,8 +245,10 @@ template <class SpaceType>
 inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   // adjust all the interior pointers to point at the new locations of objects
   // Used by MarkSweep::mark_sweep_phase3()
-#if USE_RTGC_COMPACT_1
-  rtHeap::prepare_point_adjustment(GenCollectedHeap::heap()->old_gen()->reserved().start());
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rtHeap::prepare_point_adjustment(GenCollectedHeap::heap()->old_gen()->reserved().start());
+  }
 #endif
   HeapWord* cur_obj = space->bottom();
   HeapWord* const end_of_live = space->_end_of_live;  // Established by "scan_and_forward".
@@ -262,11 +264,15 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
     if (cur_obj < first_dead || cast_to_oop(cur_obj)->is_gc_marked()) {
       // cur_obj is alive
       // point all the oops to the new location
-#if USE_RTGC_COMPACT_1
-      size_t size = rtHeap::adjust_pointers(cast_to_oop(cur_obj));
-#else      
-      size_t size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
+#if INCLUDE_RTGC
+      size_t size;
+      if (EnableRTGC) {
+        size = rtHeap::adjust_pointers(cast_to_oop(cur_obj));
+      } else
 #endif
+      {
+        size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
+      }
       size = space->adjust_obj_size(size);
       debug_only(prev_obj = cur_obj);
       cur_obj += size;

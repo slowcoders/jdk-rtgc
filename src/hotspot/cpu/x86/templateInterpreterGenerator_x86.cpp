@@ -50,7 +50,6 @@
 #include "runtime/vframeArray.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 
 #define __ Disassembler::hook<InterpreterMacroAssembler>(__FILE__, __LINE__, _masm)->
 

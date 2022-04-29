@@ -29,7 +29,6 @@
 #include "memory/allocation.hpp"
 #include "oops/access.hpp"
 
-#define ENABLE_ARRAY_COPY_HOOK true
 class InterpreterMacroAssembler;
 
 class BarrierSetAssembler: public CHeapObj<mtGC> {
@@ -43,15 +42,13 @@ public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
 
-#if ENABLE_ARRAY_COPY_HOOK
-  virtual 
-#endif
-  void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+#if INCLUDE_RTGC
+  virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count, 
                                   Register dst_array, Label& copy_done, Register saved_count = noreg) {
     arraycopy_prologue(masm, decorators, type, src, dst, count); 
   }
-
+#endif
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
 

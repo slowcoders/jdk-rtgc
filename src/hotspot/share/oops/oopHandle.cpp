@@ -27,10 +27,12 @@
 #include "oops/oopHandle.hpp"
 #include "oops/oopHandle.inline.hpp"
 
+#if RTGC_EXPLICT_CLEAR_HANDLE
 void OopHandle::reset_handle() {
   if (this->_obj != NULL) {
     this->replace(NULL);
     this->_obj = NULL;
   }
 }
+#endif
 

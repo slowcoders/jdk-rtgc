@@ -28,13 +28,7 @@
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/modRefBarrierSet.hpp"
 #include "utilities/align.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
-#if USE_RTGC_BARRIERSET
-  #include "gc/rtgc/rtgcBarrierSet.hpp"
-  typedef RtgcBarrierSet   _RefBarrierSet;
-#else
-  typedef ModRefBarrierSet _RefBarrierSet;
-#endif
+
 // This kind of "BarrierSet" allows a "CollectedHeap" to detect and
 // enumerate ref fields that have been modified (since the last
 // enumeration.)
@@ -47,7 +41,7 @@
 // Closures used to scan dirty cards should take these
 // considerations into account.
 
-class CardTableBarrierSet: public _RefBarrierSet {
+class CardTableBarrierSet: public ModRefBarrierSet {
   // Some classes get to look at some private stuff.
   friend class VMStructs;
 
@@ -117,7 +111,7 @@ protected:
   virtual void print_on(outputStream* st) const;
 
   template <DecoratorSet decorators, typename BarrierSetT = CardTableBarrierSet>
-  class AccessBarrier: public _RefBarrierSet::AccessBarrier<decorators, BarrierSetT> {};
+  class AccessBarrier: public ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT> {};
 };
 
 template<>

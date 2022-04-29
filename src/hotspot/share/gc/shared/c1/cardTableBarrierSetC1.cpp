@@ -29,7 +29,6 @@
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/macros.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 #ifdef ASSERT
 #define __ gen->lir(__FILE__, __LINE__)->

@@ -1152,8 +1152,9 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(rdi, rcx); // c_rarg0
     __ mov(rsi, rdx); // c_rarg1
     __ mov(rdx, r8);  // c_rarg2
-    if (ENABLE_ARRAY_COPY_HOOK)
-      __ mov(rcx, rax); // c_rarg3 (via rax)
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+    __ mov(rcx, rax); // c_rarg3 (via rax)
+#endif
 #else
     assert(c_rarg0 == rdi && c_rarg1 == rsi && c_rarg2 == rdx && c_rarg3 == rcx,
            "unexpected argument registers");
@@ -1791,8 +1792,8 @@ class StubGenerator: public StubCodeGenerator {
   address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_disjoint_copy_avx3_masked(entry, "jbyte_disjoint_arraycopy_avx3", 0,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_disjoint_copy_avx3_masked(entry, "jbyte_disjoint_arraycopy_avx3", 0,
                                                  aligned, false, false);
     }
 #endif
@@ -1908,8 +1909,8 @@ class StubGenerator: public StubCodeGenerator {
                                       address* entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_conjoint_copy_avx3_masked(entry, "jbyte_conjoint_arraycopy_avx3", 0,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_conjoint_copy_avx3_masked(entry, "jbyte_conjoint_arraycopy_avx3", 0,
                                                  nooverlap_target, aligned, false, false);
     }
 #endif
@@ -2020,8 +2021,8 @@ class StubGenerator: public StubCodeGenerator {
   address generate_disjoint_short_copy(bool aligned, address *entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_disjoint_copy_avx3_masked(entry, "jshort_disjoint_arraycopy_avx3", 1,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_disjoint_copy_avx3_masked(entry, "jshort_disjoint_arraycopy_avx3", 1,
                                                  aligned, false, false);
     }
 #endif
@@ -2152,8 +2153,8 @@ class StubGenerator: public StubCodeGenerator {
                                        address *entry, const char *name) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_conjoint_copy_avx3_masked(entry, "jshort_conjoint_arraycopy_avx3", 1,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_conjoint_copy_avx3_masked(entry, "jshort_conjoint_arraycopy_avx3", 1,
                                                  nooverlap_target, aligned, false, false);
     }
 #endif
@@ -2257,8 +2258,8 @@ class StubGenerator: public StubCodeGenerator {
                                          const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_disjoint_copy_avx3_masked(entry, "jint_disjoint_arraycopy_avx3", 2,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_disjoint_copy_avx3_masked(entry, "jint_disjoint_arraycopy_avx3", 2,
                                                  aligned, is_oop, dest_uninitialized);
     }
 #endif
@@ -2368,8 +2369,8 @@ class StubGenerator: public StubCodeGenerator {
                                          bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_conjoint_copy_avx3_masked(entry, "jint_conjoint_arraycopy_avx3", 2,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_conjoint_copy_avx3_masked(entry, "jint_conjoint_arraycopy_avx3", 2,
                                                  nooverlap_target, aligned, is_oop, dest_uninitialized);
     }
 #endif
@@ -2481,8 +2482,8 @@ class StubGenerator: public StubCodeGenerator {
                                           const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_disjoint_copy_avx3_masked(entry, "jlong_disjoint_arraycopy_avx3", 3,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_disjoint_copy_avx3_masked(entry, "jlong_disjoint_arraycopy_avx3", 3,
                                                  aligned, is_oop, dest_uninitialized);
     }
 #endif
@@ -2592,8 +2593,8 @@ class StubGenerator: public StubCodeGenerator {
                                           const char *name, bool dest_uninitialized = false) {
 #if COMPILER2_OR_JVMCI
     if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
-      fatal("avx33333333333333333");
-       return generate_conjoint_copy_avx3_masked(entry, "jlong_conjoint_arraycopy_avx3", 3,
+      RTGC_ONLY("not tested in RTGC");)
+      return generate_conjoint_copy_avx3_masked(entry, "jlong_conjoint_arraycopy_avx3", 3,
                                                  nooverlap_target, aligned, is_oop, dest_uninitialized);
     }
 #endif
@@ -2706,10 +2707,11 @@ class StubGenerator: public StubCodeGenerator {
   //       c_rarg0   - source array address
   //       c_rarg1   - destination array address
   //       c_rarg2   - element count, treated as ssize_t, can be zero
-  // ENABLE_ARRAY_COPY_HOOK
+  // #if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
   //       c_rarg3   - dst_array
-  // not ENABLE_ARRAY_COPY_HOOK
+  // #else
   //       c_rarg3   - size_t ckoff (super_check_offset)
+  // #endif
   //    not Win64
   //       c_rarg4   - oop ckval (super_klass)
   //    Win64
@@ -2770,10 +2772,10 @@ class StubGenerator: public StubCodeGenerator {
                        // ckoff => rcx, ckval => r8
                        // r9 and r10 may be used to save non-volatile registers
 #ifdef _WIN64
-    if (!ENABLE_ARRAY_COPY_HOOK) {
+#if !INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
       // last argument (#4) is on stack on Win64
-      __ movptr(ckval, Address(rsp, 6 * wordSize));
-    }
+    __ movptr(ckval, Address(rsp, 6 * wordSize));
+#endif
 #endif
 
     // Caller of this entry point must set up the argument registers.
@@ -2813,12 +2815,12 @@ class StubGenerator: public StubCodeGenerator {
 
     BasicType type = T_OBJECT;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    if (ENABLE_ARRAY_COPY_HOOK) {
-      bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_copy_done, r14_length);
-      __ load_klass(ckval, c_rarg3, rax);
-      __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
-      __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
-    }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+    bs->arraycopy_prologue_ex(_masm, decorators, type, from, to, count, c_rarg3, L_copy_done, r14_length);
+    __ load_klass(ckval, c_rarg3, rax);
+    __ movptr(ckval, Address(ckval, ObjArrayKlass::element_klass_offset()));
+    __ movl(ckoff, Address(ckval, Klass::super_check_offset_offset()));
+#endif
     assert_clean_int(ckoff, rax);
 
 #ifdef ASSERT
@@ -2841,9 +2843,9 @@ class StubGenerator: public StubCodeGenerator {
     Address from_element_addr(end_from, count, TIMES_OOP, 0);
     Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-    if (!ENABLE_ARRAY_COPY_HOOK) {
-      bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
-    }
+#if !INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+    bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
+#endif
 
     // Copy from low to high addresses, indexed from the end of each array.
     __ lea(end_from, end_from_addr);
@@ -3269,9 +3271,9 @@ class StubGenerator: public StubCodeGenerator {
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // src_addr
     __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                  arrayOopDesc::base_offset_in_bytes(T_OBJECT))); // dst_addr
-    if (ENABLE_ARRAY_COPY_HOOK) { // dst = count = c_rarg2
-      __ movptr(c_rarg3, dst);
-    }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK // dst = count = c_rarg2
+    __ movptr(c_rarg3, dst);
+#endif
     __ movl2ptr(count, r11_length); // length
   __ BIND(L_plain_copy);
 #ifdef _WIN64
@@ -3298,7 +3300,7 @@ class StubGenerator: public StubCodeGenerator {
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
       __ lea(to,   Address(dst, dst_pos, TIMES_OOP,
                    arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
-#if ENABLE_ARRAY_COPY_HOOK
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
       __ mov(c_rarg3, dst/*c_rarg2*/);
       __ movl(count/*c_rarg2*/, length/*c_rarg4*/);
       Register sco_temp = rklass_tmp;
@@ -3306,10 +3308,6 @@ class StubGenerator: public StubCodeGenerator {
       __ movl(count, length);           // length (reloaded)
       Register sco_temp = c_rarg3;      // this register is free now
 #endif      
-      if (0) {
-        __ xorptr(count, count);    
-        __ movl(count/*c_rarg2*/, Address(count, 8)); // error
-      }
       assert_different_registers(from, to, count, sco_temp,
                                  r11_dst_klass, r10_src_klass);
       assert_clean_int(count, sco_temp);
@@ -3320,7 +3318,7 @@ class StubGenerator: public StubCodeGenerator {
       assert_clean_int(sco_temp, rax);
       generate_type_check(r10_src_klass, sco_temp, r11_dst_klass, L_plain_copy);
 
-#if !ENABLE_ARRAY_COPY_HOOK
+#if !INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
       // Fetch destination element klass from the ObjArrayKlass header.
       int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
       __ movptr(r11_dst_klass, Address(r11_dst_klass, ek_offset));

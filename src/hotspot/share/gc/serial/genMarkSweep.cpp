@@ -74,8 +74,10 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   }
 #endif
 
-#if USE_RTGC_COMPACT_1
-  rtHeap::prepare_full_gc();
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rtHeap::prepare_full_gc();
+  }
 #endif
 
   // hook up weak ref data so it can be used during Mark-Sweep

@@ -51,7 +51,11 @@ public:
   OopHandle& operator=(const OopHandle& copy) {
     // Allow "this" to be junk if copy is empty; needed by initialization of
     // raw memory in hashtables.
+#if RTGC_EXPLICT_CLEAR_HANDLE
     assert(is_empty()/* || copy.is_empty()*/, "can only copy if empty");
+#else
+    assert(is_empty() || copy.is_empty(), "can only copy if empty");
+#endif
     _obj = copy._obj;
     return *this;
   }

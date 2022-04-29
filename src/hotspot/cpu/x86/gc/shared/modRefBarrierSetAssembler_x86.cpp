@@ -26,8 +26,6 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/modRefBarrierSetAssembler.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 #define __ masm->
 
@@ -90,7 +88,6 @@ void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, Decorat
   }
 }
 
-#if !USE_RTGC_BARRIERSET_ASSEMBLER
 void ModRefBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
   if (is_reference_type(type)) {
@@ -99,6 +96,3 @@ void ModRefBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet deco
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
   }
 }
-#endif
-
-

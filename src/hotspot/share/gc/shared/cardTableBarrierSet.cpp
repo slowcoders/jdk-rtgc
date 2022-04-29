@@ -54,7 +54,7 @@ CardTableBarrierSet::CardTableBarrierSet(BarrierSetAssembler* barrier_set_assemb
                                          BarrierSetC2* barrier_set_c2,
                                          CardTable* card_table,
                                          const BarrierSet::FakeRtti& fake_rtti) :
-  _RefBarrierSet(barrier_set_assembler,
+  ModRefBarrierSet(barrier_set_assembler,
                    barrier_set_c1,
                    barrier_set_c2,
                    fake_rtti.add_tag(BarrierSet::CardTableBarrierSet)),
@@ -63,7 +63,7 @@ CardTableBarrierSet::CardTableBarrierSet(BarrierSetAssembler* barrier_set_assemb
 {}
 
 CardTableBarrierSet::CardTableBarrierSet(CardTable* card_table) :
-  _RefBarrierSet(make_barrier_set_assembler<CardTableBarrierSetAssembler>(),
+  ModRefBarrierSet(make_barrier_set_assembler<CardTableBarrierSetAssembler>(),
                 make_barrier_set_c1<CardTableBarrierSetC1>(),
                 make_barrier_set_c2<CardTableBarrierSetC2>(),
                 BarrierSet::FakeRtti(BarrierSet::CardTableBarrierSet)),

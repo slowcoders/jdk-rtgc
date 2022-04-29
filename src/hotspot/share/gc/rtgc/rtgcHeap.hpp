@@ -3,25 +3,15 @@
 
 #include "utilities/macros.hpp"
 #include "memory/allStatic.hpp"
+#include "rtgcDebug.hpp"
 
-#define USE_RTGC                      true
-#define USE_RTGC_COMPACT_0            false
-#define USE_RTGC_COMPACT_1            true
-
-#define RTGC_EXPLICT_CLEAR_HANDLE     true
-
-#define USE_RTGC_BARRIERSET_ASSEMBLER (true && USE_RTGC)
-#define USE_RTGC_BARRIERSET_C1        (true && USE_RTGC)
-#define USE_RTGC_BARRIERSET           (true && USE_RTGC)
-
-#define RTGC_CHECK_EMPTY_TRACKBLE      true
+#define RTGC_EXPLICT_CLEAR_HANDLE     false
 
 class Thread;
 class oopDesc;
 class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
-class ReferenceDiscoverer;
 
 class rtHeap : AllStatic {
 public:

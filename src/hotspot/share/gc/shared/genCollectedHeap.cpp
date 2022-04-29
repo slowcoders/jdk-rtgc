@@ -74,7 +74,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
 #include "utilities/vmError.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"

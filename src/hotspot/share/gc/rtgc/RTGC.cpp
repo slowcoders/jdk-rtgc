@@ -4,7 +4,6 @@
 #include "runtime/globals.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "logging/logConfiguration.hpp"

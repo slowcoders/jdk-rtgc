@@ -40,7 +40,6 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/nonJavaThread.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
 ReferencePolicy* ReferenceProcessor::_always_clear_soft_ref_policy = NULL;

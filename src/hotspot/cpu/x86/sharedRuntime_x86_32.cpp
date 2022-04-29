@@ -48,7 +48,6 @@
 #include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "vmreg_x86.inline.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
@@ -2062,6 +2061,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // reset handle block
     __ movptr(rcx, Address(thread, JavaThread::active_handles_offset()));
     __ movl(Address(rcx, JNIHandleBlock::top_offset_in_bytes()), NULL_WORD);
+
     // Any exception pending?
     __ cmpptr(Address(thread, in_bytes(Thread::pending_exception_offset())), (int32_t)NULL_WORD);
     __ jcc(Assembler::notEqual, exception_pending);

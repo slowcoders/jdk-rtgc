@@ -38,7 +38,6 @@
 #include "runtime/os.hpp"
 #include "utilities/macros.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 inline bool ClearNoncleanCardWrapper::clear_card(CardValue* entry) {
   assert(*entry == CardTableRS::dirty_card_val(), "Only look at dirty cards.");

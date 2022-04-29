@@ -46,7 +46,6 @@
 #include "vmreg_x86.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
-#define ENABLE_ARRAY_COPY_HOOK  INCLUDE_RTGC
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
 // instructions, to allow sign-masking or sign-bit flipping.  They allow
@@ -3363,26 +3362,24 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #ifdef _WIN64
         // Allocate abi space for args but be sure to keep stack aligned
         __ subptr(rsp, 6*wordSize);
-        if (ENABLE_ARRAY_COPY_HOOK) {
-          __ movptr(c_rarg3, dst);
-        }
-        else {
-          __ load_klass(c_rarg3, dst, tmp_load_klass);
-          __ movptr(c_rarg3, Address(c_rarg3, ObjArrayKlass::element_klass_offset()));
-          store_parameter(c_rarg3, 4);
-          __ movl(c_rarg3, Address(c_rarg3, Klass::super_check_offset_offset()));
-        }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+        __ movptr(c_rarg3, dst);
+#else
+        __ load_klass(c_rarg3, dst, tmp_load_klass);
+        __ movptr(c_rarg3, Address(c_rarg3, ObjArrayKlass::element_klass_offset()));
+        store_parameter(c_rarg3, 4);
+        __ movl(c_rarg3, Address(c_rarg3, Klass::super_check_offset_offset()));
+#endif
         __ call(RuntimeAddress(copyfunc_addr));
         __ addptr(rsp, 6*wordSize);
 #else
-        if (ENABLE_ARRAY_COPY_HOOK) {
-          __ movptr(c_rarg3, dst);
-        }
-        else {
-          __ load_klass(c_rarg4, dst, tmp_load_klass);
-          __ movptr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
-          __ movl(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
-        }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+        __ movptr(c_rarg3, dst);
+#else
+        __ load_klass(c_rarg4, dst, tmp_load_klass);
+        __ movptr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
+        __ movl(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
+#endif
         __ call(RuntimeAddress(copyfunc_addr));
 #endif
 
@@ -3483,18 +3480,18 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   __ lea(c_rarg1, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   assert_different_registers(c_rarg2, dst);
   __ mov(c_rarg2, length);
-  if (ENABLE_ARRAY_COPY_HOOK) {
-    __ movptr(c_rarg3, dst);
-  }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+  __ movptr(c_rarg3, dst);
+#endif
 #else
   __ lea(tmp, Address(src, src_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   store_parameter(tmp, 0);
   __ lea(tmp, Address(dst, dst_pos, scale, arrayOopDesc::base_offset_in_bytes(basic_type)));
   store_parameter(tmp, 1);
   store_parameter(length, 2);
-  if (ENABLE_ARRAY_COPY_HOOK) {
-    store_parameter(dst, 3);
-  }
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
+  store_parameter(dst, 3);
+#endif
 #endif // _LP64
 
   bool disjoint = (flags & LIR_OpArrayCopy::overlapping) == 0;

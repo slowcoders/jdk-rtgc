@@ -27,38 +27,32 @@
 
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
-
-#if USE_RTGC_BARRIERSET_ASSEMBLER
-  #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
-  typedef RtgcBarrierSetAssembler   _RawBarrierSetAssembler;
-#else
-  typedef BarrierSetAssembler _RawBarrierSetAssembler;
-#endif
+#include "gc/shared/gc_globals.hpp"
 
 // The ModRefBarrierSetAssembler filters away accesses on BasicTypes other
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-class ModRefBarrierSetAssembler: public _RawBarrierSetAssembler {
+class ModRefBarrierSetAssembler: public BarrierSetAssembler {
 protected:
   virtual void gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                Register addr, Register count) {}
   virtual void gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                 Register addr, Register count, Register tmp) {}
-#if !USE_RTGC_BARRIERSET_ASSEMBLER
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
-#endif                            
 public:
+#if INCLUDE_RTGC // check !EnableRTGC
+  ModRefBarrierSetAssembler() { precond(!EnableRTGC); }
+#endif
+
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
-#if !USE_RTGC_BARRIERSET_ASSEMBLER
+
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
-#endif
 };
 
 #endif // CPU_X86_GC_SHARED_MODREFBARRIERSETASSEMBLER_X86_HPP

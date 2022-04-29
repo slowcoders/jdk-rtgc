@@ -36,7 +36,6 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/defNewGeneration.inline.hpp"
 #endif

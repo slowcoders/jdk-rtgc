@@ -29,8 +29,6 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableBarrierSetAssembler.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 #define __ masm->
 
@@ -143,11 +141,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
 
   bool needs_post_barrier = val != noreg && in_heap;
 
-#if USE_RTGC_BARRIERSET_ASSEMBLER
-  _RawBarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
-#else
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
-#endif  
   RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   if (needs_post_barrier) {

@@ -59,6 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 /**
  * Implementation of the jdk.internal.misc.Unsafe class
@@ -756,7 +757,6 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
   }
 } UNSAFE_END
 
-#include "gc/rtgc/rtgcDebug.hpp"
 
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
