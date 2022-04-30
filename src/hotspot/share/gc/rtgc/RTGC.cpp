@@ -273,7 +273,7 @@ void RTGC::initialize() {
   //logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 1 << 3;
+    logOptions[LOG_HEAP] = 0;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }

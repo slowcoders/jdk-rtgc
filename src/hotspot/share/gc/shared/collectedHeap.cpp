@@ -58,6 +58,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 
 class ClassLoaderData;
 
@@ -517,12 +518,13 @@ void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 }
 
 void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
-  CollectedHeap::fill_with_object(start, end, zap);
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     oopDesc::clear_rt_node(start);
+    RTGC::to_node(cast_to_oop(start))->markGarbage();
   }
 #endif
+  CollectedHeap::fill_with_object(start, end, zap);
 }
 
 size_t CollectedHeap::min_dummy_object_size() const {

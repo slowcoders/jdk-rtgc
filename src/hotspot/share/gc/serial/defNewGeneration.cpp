@@ -782,6 +782,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 #ifdef INCLUDE_RTGC
 #ifdef ASSERT
   if (EnableRTGC) {
+    oopDesc::clear_rt_node(cast_from_oop<HeapWord*>(old));
     RTGC::adjust_debug_pointer(old, obj);
   }
 #endif

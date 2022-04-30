@@ -7,8 +7,6 @@
 
 #include "rtgcDebug.hpp"
 
-#define RTGC_EXPLICT_CLEAR_HANDLE     false
-
 class Thread;
 class oopDesc;
 class OopIterateClosure;
