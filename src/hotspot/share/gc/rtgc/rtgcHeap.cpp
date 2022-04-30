@@ -687,7 +687,7 @@ void rtHeap::release_jni_handle(oopDesc* p) {
 }
 
 void rtHeap::init_java_reference(oopDesc* ref_oop, oopDesc* referent) {
-  if (referent == NULL) return;
+  precond(referent != NULL);
 
   ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  
   if (!java_lang_ref_Reference::is_phantom(ref_oop)) {

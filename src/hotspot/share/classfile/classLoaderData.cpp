@@ -190,29 +190,33 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 }
 
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
+  Chunk* c;
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  Chunk* c = Atomic::load_acquire(&_tail);
-  if (c == NULL || c->_size == Chunk::CAPACITY) {
-    Chunk* next = new Chunk(NULL);
-    if (c == NULL) {
-      Atomic::release_store(&_head, next);
-    } else {
-      c->_next = next;
+  if (EnableRTGC) {
+    c = Atomic::load_acquire(&_tail);
+    if (c == NULL || c->_size == Chunk::CAPACITY) {
+      Chunk* next = new Chunk(NULL);
+      if (c == NULL) {
+        Atomic::release_store(&_head, next);
+      } else {
+        c->_next = next;
+      }
+      Atomic::release_store(&_tail, next);
+      c = next;
     }
-    Atomic::release_store(&_tail, next);
-    c = next;
+  } else
+#endif
+  {
+    c = Atomic::load_acquire(&_head);
+    if (c == NULL || c->_size == Chunk::CAPACITY) {
+      c = new Chunk(c);
+      Atomic::release_store(&_head, c);
+    }
   }
-#else
-  Chunk* c = Atomic::load_acquire(&_head);
-  if (c == NULL || c->_size == Chunk::CAPACITY) {
-    c = new Chunk(c);
-    Atomic::release_store(&_head, c);
-  }
-#endif  
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
-  RTGC_ONLY(postcond(RTGC::to_node(o)->getRootRefCount() > 0);)
+  RTGC_ONLY(postcond(!EnableRTGC || RTGC::to_node(o)->getRootRefCount() > 0);)
 
   return OopHandle(handle);
 }
@@ -655,8 +659,10 @@ void ClassLoaderData::unload() {
   ClassLoaderDataGraph::adjust_saved_class(this);
 
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  HandleReleaseClosure handleRelease; 
-  _handles.oops_do(&handleRelease);
+  if (EnableRTGC) {
+    HandleReleaseClosure handleRelease; 
+    _handles.oops_do(&handleRelease);
+  }
 #endif
 }
 
