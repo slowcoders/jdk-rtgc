@@ -129,7 +129,6 @@ jint GenCollectedHeap::initialize() {
     bs = new RtgcBarrierSet(_rem_set);
   }
   else {
-    _rem_set = create_rem_set(heap_rs.region());
     _rem_set->initialize();
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();
@@ -142,10 +141,6 @@ jint GenCollectedHeap::initialize() {
 
   old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
-
-  rtgc_log(false, "heap max_size young=%p old=%p\n", 
-    (void*)(_young_gen_spec->max_size() / 1024),
-    (void*)(_old_gen_spec->max_size() / 1024))
 
   GCInitLogger::print();
 
@@ -808,7 +803,6 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   // General roots.
   assert(code_roots != NULL, "code root closure should always be set");
 
-  rtgc_trace(10, "GenCollectedHeap::process_roots\n");
   ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
 
   // Only process code roots from thread stacks if we aren't visiting the entire CodeCache anyway

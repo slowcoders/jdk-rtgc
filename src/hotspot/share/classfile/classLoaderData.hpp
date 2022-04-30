@@ -215,7 +215,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     _claim_none         = 0,
     _claim_finalizable  = 2,
     _claim_strong       = 3,
-    _claim_other        = 4,
+    _claim_other        = 4
   };
   void clear_claim() { _claim = 0; }
   void clear_claim(int claim);

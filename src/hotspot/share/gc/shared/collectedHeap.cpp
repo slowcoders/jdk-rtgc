@@ -58,7 +58,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 class ClassLoaderData;
 
@@ -478,7 +477,6 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-    precond(start != RTGC::debug_obj);
     if (EnableRTGC) {
       init_dead_space(start, vmClasses::Object_klass(), -1);
     }

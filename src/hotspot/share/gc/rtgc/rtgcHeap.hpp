@@ -28,7 +28,7 @@ public:
 
   // for full gc
   static void prepare_full_gc();
-  static void prepare_point_adjustment(void* old_gen_heap_start);
+  static void prepare_point_adjustment();
   static size_t adjust_pointers(oopDesc* old_p);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
   static void mark_forwarded(oopDesc* p);

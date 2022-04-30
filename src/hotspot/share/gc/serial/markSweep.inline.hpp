@@ -35,13 +35,12 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
-  precond(rtHeap::is_alive(obj, true));
+  RTGC_ONLY(precond(rtHeap::is_alive(obj, true));)
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
 
@@ -95,24 +94,27 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned");
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
+#if INCLUDE_RTGC
       if (new_oop != NULL) {
         *new_oop = new_obj;
       }
+#endif      
     }
+#if INCLUDE_RTGC
     else if (new_oop != NULL) {
       *new_oop = obj;
     }
+#endif      
     return obj;
   }
   return NULL;
 }
 
 template <typename T>
-void AdjustPointerClosure::do_oop_work(T* p) { 
-  MarkSweep::adjust_pointer(p); 
-}
+void AdjustPointerClosure::do_oop_work(T* p)           { MarkSweep::adjust_pointer(p); }
 inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
+
 
 inline int MarkSweep::adjust_pointers(oop obj) {
   return obj->oop_iterate_size(&MarkSweep::adjust_pointer_closure);

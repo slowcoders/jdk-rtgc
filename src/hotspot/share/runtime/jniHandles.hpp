@@ -175,7 +175,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   void rebuild_free_list();
 
   // No more handles in the both the current and following blocks
-  void clear(); // { _top = 0; }
+  void clear() { _top = 0; }
 
  public:
   // Handle allocation

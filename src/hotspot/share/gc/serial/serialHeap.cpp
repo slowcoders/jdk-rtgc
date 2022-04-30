@@ -31,8 +31,6 @@
 #include "memory/universe.hpp"
 #include "services/memoryManager.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
-#include "memory/iterator.inline.hpp"
 
 SerialHeap* SerialHeap::heap() {
   return named_heap<SerialHeap>(CollectedHeap::Serial);
@@ -91,7 +89,6 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   memory_pools.append(_old_pool);
   return memory_pools;
 }
-
 
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,

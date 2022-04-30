@@ -53,7 +53,6 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/g1BarrierSetRuntime.hpp"
 #endif // INCLUDE_G1GC

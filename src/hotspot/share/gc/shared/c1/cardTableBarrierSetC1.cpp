@@ -28,7 +28,6 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 
 #ifdef ASSERT
 #define __ gen->lir(__FILE__, __LINE__)->

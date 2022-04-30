@@ -902,8 +902,8 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
-    assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
-        "Illegal Object%p\n", (void*)*ptr);
+    RTGC_ONLY(assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
+        "Illegal Object%p\n", (void*)*ptr);)
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
 }
@@ -942,7 +942,6 @@ void ClassLoaderData::free_deallocate_list() {
   if (_deallocate_list == NULL) {
     return;
   }
-
   // Go backwards because this removes entries that are freed.
   for (int i = _deallocate_list->length() - 1; i >= 0; i--) {
     Metadata* m = _deallocate_list->at(i);
@@ -982,7 +981,6 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
   if (_deallocate_list == NULL) {
     return;
   }
-
   // Go backwards because this removes entries that are freed.
   for (int i = _deallocate_list->length() - 1; i >= 0; i--) {
     Metadata* m = _deallocate_list->at(i);
@@ -991,8 +989,7 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       ((ConstantPool*)m)->release_C_heap_structures();
     } else if (m->is_klass()) {
       InstanceKlass* ik = (InstanceKlass*)m;
-      rtgc_log(true, "free_deallocate_list_C_heap_structures %p(%s)\n", ik, ik->name()->bytes());
-
+      RTGC_ONLY(fatal("Not tested in RTGC");)
       // also releases ik->constants() C heap memory
       ik->release_C_heap_structures();
       // Remove the class so unloading events aren't triggered for

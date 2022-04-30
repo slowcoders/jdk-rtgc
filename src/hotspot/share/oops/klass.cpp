@@ -67,12 +67,6 @@ void Klass::replace_java_mirror(oop mirror) {
   _java_mirror.replace(mirror);
 }
 
-#if RTGC_EXPLICT_CLEAR_HANDLE
-void Klass::clear_java_mirror_handle() { 
-  _java_mirror.reset_handle(); 
-}
-#endif
-
 bool Klass::is_cloneable() const {
   return _access_flags.is_cloneable_fast() ||
          is_subtype_of(vmClasses::Cloneable_klass());

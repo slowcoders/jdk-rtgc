@@ -1,6 +1,8 @@
 #ifndef SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 #define SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 
+#include "../RTGC.hpp"
+
 #define ZERO_ROOT_REF 		0
 
 namespace RTGC {

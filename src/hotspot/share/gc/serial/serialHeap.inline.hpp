@@ -29,7 +29,6 @@
 
 #include "gc/serial/defNewGeneration.inline.hpp"
 #include "gc/serial/tenuredGeneration.inline.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 
 template <typename OopClosureType1, typename OopClosureType2>
 void SerialHeap::oop_since_save_marks_iterate(OopClosureType1* cur,

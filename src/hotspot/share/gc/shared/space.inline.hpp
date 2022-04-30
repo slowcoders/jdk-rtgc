@@ -36,7 +36,6 @@
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/markSweep.inline.hpp"
 #endif
@@ -247,7 +246,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   // Used by MarkSweep::mark_sweep_phase3()
 #if INCLUDE_RTGC
   if (EnableRTGC) {
-    rtHeap::prepare_point_adjustment(GenCollectedHeap::heap()->old_gen()->reserved().start());
+    rtHeap::prepare_point_adjustment();
   }
 #endif
   HeapWord* cur_obj = space->bottom();

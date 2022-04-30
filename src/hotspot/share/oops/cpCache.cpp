@@ -49,7 +49,6 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 
 // Implementation of ConstantPoolCacheEntry
 

@@ -129,6 +129,7 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
   // If the cld has not been dirtied we know that there's
   // no references into  the young gen and we can skip it.
   if (cld->has_modified_oops()) {
+
     // Tell the closure which CLD is being scanned so that it can be dirtied
     // if oops are left pointing into the young gen.
     _scavenge_closure->set_scanned_cld(cld);
@@ -761,7 +762,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   if (obj == NULL) {
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
-      rtgc_log(true, "promotion fail %p(%s)\n", (void*)obj, obj->klass()->internal_name());
       handle_promotion_failure(old);
       return old;
     }
@@ -781,12 +781,15 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
+#ifdef INCLUDE_RTGC
 #ifdef ASSERT
-  RTGC::adjust_debug_pointer(old, obj);
+  if (EnableRTGC) {
+    RTGC::adjust_debug_pointer(old, obj);
+  }
+#endif
 #endif
   return obj;
 }
-
 
 void DefNewGeneration::drain_promo_failure_scan_stack() {
   while (!_promo_failure_scan_stack.is_empty()) {
@@ -803,8 +806,6 @@ void DefNewGeneration::save_marks() {
 
 
 void DefNewGeneration::reset_saved_marks() {
-  rtgc_trace(10, "reset_saved_marks\n");
-
   eden()->reset_saved_mark();
   to()->reset_saved_mark();
   from()->reset_saved_mark();
@@ -925,7 +926,6 @@ void DefNewGeneration::record_spaces_top() {
   to()->set_top_for_allocations();
   from()->set_top_for_allocations();
 }
-
 
 void DefNewGeneration::ref_processor_init() {
   Generation::ref_processor_init();

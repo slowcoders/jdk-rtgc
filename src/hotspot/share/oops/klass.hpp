@@ -267,13 +267,9 @@ protected:
   // Temporary mirror switch used by RedefineClasses
   void replace_java_mirror(oop mirror);
 
-#if RTGC_EXPLICT_CLEAR_HANDLE
-  void clear_java_mirror_handle();
-#else 
   // Set java mirror OopHandle to NULL for CDS
   // This leaves the OopHandle in the CLD, but that's ok, you can't release them.
   void clear_java_mirror_handle() { _java_mirror = OopHandle(); }
-#endif
 
   // modifier flags
   jint modifier_flags() const          { return _modifier_flags; }

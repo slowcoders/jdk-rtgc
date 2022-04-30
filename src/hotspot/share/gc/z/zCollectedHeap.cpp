@@ -40,7 +40,6 @@
 #include "memory/iterator.hpp"
 #include "memory/universe.hpp"
 #include "utilities/align.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 ZCollectedHeap* ZCollectedHeap::heap() {
   return named_heap<ZCollectedHeap>(CollectedHeap::Z);

@@ -458,7 +458,7 @@ size_t ReferenceProcessor::process_phantom_refs_work(DiscoveredList&    refs_lis
       iter.move_to_next();
     } else {
       iter.clear_referent();
-      iter.enqueue(); 
+      iter.enqueue();
       log_enqueued_ref(iter, "cleared Phantom");
       iter.next();
     }
@@ -1068,7 +1068,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   }
 
   // We only discover references whose referents are not (yet)
-  // known to be strongly reachable.  
+  // known to be strongly reachable.
   if (is_alive_non_header() != NULL) {
     verify_referent(obj);
     oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
@@ -1076,7 +1076,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       return false;  // referent is reachable
     }
   }
-
   if (rt == REF_SOFT) {
     // For soft refs we can decide now if these are not
     // current candidates for clearing, in which case we
@@ -1153,9 +1152,8 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
 
     log_develop_trace(gc, ref)("Discovered reference (" INTPTR_FORMAT ": %s)", p2i(obj), obj->klass()->internal_name());
   }
-  assert(oopDesc::is_oop(obj), "Discovered a bad reference.");
+  assert(oopDesc::is_oop(obj), "Discovered a bad reference");
   verify_referent(obj);
-
   return true;
 }
 

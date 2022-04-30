@@ -87,7 +87,6 @@
 #include "services/memTracker.hpp"
 #include "utilities/events.hpp"
 #include "utilities/powerOfTwo.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 class ShenandoahPretouchHeapTask : public AbstractGangTask {
 private:
@@ -714,8 +713,6 @@ bool ShenandoahHeap::is_in(const void* p) const {
   HeapWord* last_region_end = heap_base + ShenandoahHeapRegion::region_size_words() * num_regions();
   return p >= heap_base && p < last_region_end;
 }
-
-
 
 void ShenandoahHeap::op_uncommit(double shrink_before, size_t shrink_until) {
   assert (ShenandoahUncommit, "should be enabled");

@@ -31,7 +31,7 @@
 #include "utilities/macros.hpp"
 
 Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   DecoratorSet decorators = access.decorators();
 
   const TypePtr* adr_type = access.addr().type();
@@ -66,7 +66,7 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
 Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                          Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   if (!access.is_oop()) {
     return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
@@ -87,7 +87,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& ac
 Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                           Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   if (!access.is_oop()) {
     return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
@@ -123,7 +123,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& a
 
 Node* ModRefBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   Node* result = BarrierSetC2::atomic_xchg_at_resolved(access, new_val, value_type);
   if (!access.is_oop()) {

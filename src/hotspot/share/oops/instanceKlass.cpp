@@ -89,7 +89,6 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stringUtils.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #endif
@@ -578,9 +577,6 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   // Also remove mirror from handles
   loader_data->remove_handle(_java_mirror);
-#if RTGC_EXPLICT_CLEAR_HANDLE
-  _java_mirror.clear_uninitalized();
-#endif  
 
   // Need to take this class off the class loader data list.
   loader_data->remove_class(this);

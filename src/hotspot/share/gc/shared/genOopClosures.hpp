@@ -28,7 +28,6 @@
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 
 class Generation;
 class CardTableRS;

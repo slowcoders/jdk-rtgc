@@ -11,6 +11,7 @@
 #include "gc/serial/markSweep.inline.hpp"
 #include "gc/shared/referenceDiscoverer.hpp"
 #include "oops/instanceRefKlass.inline.hpp"
+#include "gc/shared/genCollectedHeap.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
@@ -579,9 +580,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   return size; 
 }
 
-void rtHeap::prepare_point_adjustment(void* old_gen_heap_start) {
+void rtHeap::prepare_point_adjustment() {
   if (g_adjust_pointer_closure._old_gen_start != NULL) return;
 
+  void* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
   g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
   if (g_young_roots.length() > 0) {
     oop* src_0 = g_young_roots.adr_at(0);

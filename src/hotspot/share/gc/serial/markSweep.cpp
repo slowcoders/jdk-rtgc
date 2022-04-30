@@ -112,14 +112,12 @@ void MarkSweep::follow_stack() {
   do {
     while (!_marking_stack.is_empty()) {
       oop obj = _marking_stack.pop();
-      rtgc_trace(10, "follow_stack %p, yg=%d tr=%d\n", (void*)obj, RTGC::is_young_root(obj), rtHeap::is_trackable(obj));
       assert (obj->is_gc_marked(), "p must be marked");
       follow_object(obj);
     }
     // Process ObjArrays one at a time to avoid marking stack bloat.
     if (!_objarray_stack.is_empty()) {
       ObjArrayTask task = _objarray_stack.pop();
-      rtgc_trace(10, "follow_stack array %p, yg=%d tr=%d\n", (void*)task.obj(), RTGC::is_young_root(task.obj()), rtHeap::is_trackable(task.obj()));
       follow_array_chunk(objArrayOop(task.obj()), task.index());
     }
   } while (!_marking_stack.is_empty() || !_objarray_stack.is_empty());

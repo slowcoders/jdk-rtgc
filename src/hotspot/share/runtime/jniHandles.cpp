@@ -497,11 +497,6 @@ void JNIHandleBlock::oops_do(OopClosure* f) {
   }
 }
 
-void JNIHandleBlock::clear() {
-  precond(this != RTGC::debug_obj2);
-  _top = 0;
-}
-
 
 jobject JNIHandleBlock::allocate_handle(oop obj, AllocFailType alloc_failmode) {
   RTGC_ONLY(Thread* owner = local_thread());

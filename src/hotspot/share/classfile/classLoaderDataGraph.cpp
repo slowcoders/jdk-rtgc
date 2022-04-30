@@ -275,8 +275,6 @@ void ClassLoaderDataGraph::roots_cld_do(CLDClosure* strong, CLDClosure* weak) {
   for (ClassLoaderData* cld = _head;  cld != NULL; cld = cld->_next) {
     CLDClosure* closure = cld->keep_alive() ? strong : weak;
     if (closure != NULL) {
-      rtgc_trace(10, "cld = %p, keep_alive %d\n", //, last %p:%d\n", 
-          cld, cld->keep_alive());
       closure->do_cld(cld);
     }
   }
