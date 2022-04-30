@@ -77,6 +77,8 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -188,13 +190,30 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 }
 
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
-  if (_head == NULL || _head->_size == Chunk::CAPACITY) {
-    Chunk* next = new Chunk(_head);
-    Atomic::release_store(&_head, next);
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+  Chunk* c = Atomic::load_acquire(&_tail);
+  if (c == NULL || c->_size == Chunk::CAPACITY) {
+    Chunk* next = new Chunk(NULL);
+    if (c == NULL) {
+      Atomic::release_store(&_head, next);
+    } else {
+      c->_next = next;
+    }
+    Atomic::release_store(&_tail, next);
+    c = next;
   }
-  oop* handle = &_head->_data[_head->_size];
+#else
+  Chunk* c = Atomic::load_acquire(&_head);
+  if (c == NULL || c->_size == Chunk::CAPACITY) {
+    c = new Chunk(c);
+    Atomic::release_store(&_head, c);
+  }
+#endif  
+  oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
-  Atomic::release_store(&_head->_size, _head->_size + 1);
+  Atomic::release_store(&c->_size, c->_size + 1);
+  RTGC_ONLY(postcond(RTGC::to_node(o)->getRootRefCount() > 0);)
+
   return OopHandle(handle);
 }
 
@@ -226,6 +245,57 @@ void ClassLoaderData::ChunkedHandleList::oops_do(OopClosure* f) {
     }
   }
 }
+
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN    
+bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
+  assert(SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread(),
+         "not gc thread");
+
+  Chunk* c = Atomic::load_acquire(&_last_chunk);
+  juint idx;
+  if (c == NULL) {
+    c = Atomic::load_acquire(&_head);
+    if (c == NULL) return true;
+    idx = 0;
+  } else {
+    idx = _last_idx;
+  }
+  
+  bool promotion_failed = false;
+  debug_only(int cnt_handle = 0;)
+  debug_only(int cnt_promoted = 0;)
+  for (; c != NULL; c = c->_next, idx = 0) {
+    juint size = Atomic::load_acquire(&c->_size);
+    for (; idx < size; idx++) {
+      if (c->_data[idx] != NULL) {
+        oop* p = &c->_data[idx];
+        oop old = *p;
+        f->do_oop(p);
+        debug_only(cnt_handle ++;)
+        debug_only(cnt_promoted += rtHeap::is_trackable(old) ? 1 : 0;) 
+
+        // check on old_p. new_p may not copyed yet;
+        if (!promotion_failed && !rtHeap::is_trackable(old)) {
+          promotion_failed = true;
+          Atomic::release_store(&_last_chunk, c);
+          Atomic::release_store(&_last_idx, idx);
+          postcond(_last_chunk != NULL);
+          postcond(_last_idx == idx);
+        }
+        rtgc_trace(10, "%p promoted -> %p\n", (void*)old, (void*)*p);
+      }
+    }
+  }
+  if (!promotion_failed) {
+    Atomic::release_store(&_last_chunk, _tail);
+    Atomic::release_store(&_last_idx, _tail->_size);
+  }
+
+  rtgc_trace(10, "cld_oops_do has_fail=%d, count %d, promoted=%d, last %p:%d\n", 
+          promotion_failed, cnt_handle, cnt_promoted, _last_chunk, _last_idx);
+  return !promotion_failed;
+}
+#endif
 
 class VerifyContainsOopClosure : public OopClosure {
   oop  _target;
@@ -315,6 +385,23 @@ void ClassLoaderData::dec_keep_alive() {
     _keep_alive--;
   }
 }
+
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
+  if (clear_mod_oops) {
+    clear_modified_oops();
+  }
+
+  if (_handles.incremental_oops_do(f)) {
+    record_modified_oops();
+  }
+  rtgc_trace(10, "incremental_oops_do = %p, keep_alive %d\n", //, last %p:%d\n", 
+          this, this->keep_alive());//, _last_chunk, _last_idx);
+
+
+
+}
+#endif
 
 void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oops) {
   if (claim_value != ClassLoaderData::_claim_none && !try_claim(claim_value)) {
@@ -529,6 +616,20 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+class HandleReleaseClosure : public OopClosure {
+  void do_oop(oop* p) {
+    oop obj = *p;
+    if (obj != NULL) rtHeap::release_jni_handle(obj);
+  }
+
+  void do_oop(narrowOop* p) {
+    // The ChunkedHandleList should not contain any narrowOop
+    ShouldNotReachHere();
+  }  
+};
+#endif
+
 void ClassLoaderData::unload() {
   _unloading = true;
 
@@ -552,6 +653,11 @@ void ClassLoaderData::unload() {
 
   // Clean up global class iterator for compiler
   ClassLoaderDataGraph::adjust_saved_class(this);
+
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+  HandleReleaseClosure handleRelease; 
+  _handles.oops_do(&handleRelease);
+#endif
 }
 
 ModuleEntryTable* ClassLoaderData::modules() {
@@ -795,6 +901,8 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
+    RTGC_ONLY(assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
+        "Illegal Object%p\n", (void*)*ptr);)
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
 }
@@ -880,6 +988,7 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       ((ConstantPool*)m)->release_C_heap_structures();
     } else if (m->is_klass()) {
       InstanceKlass* ik = (InstanceKlass*)m;
+      RTGC_ONLY(fatal("Not tested in RTGC");)
       // also releases ik->constants() C heap memory
       ik->release_C_heap_structures();
       // Remove the class so unloading events aren't triggered for

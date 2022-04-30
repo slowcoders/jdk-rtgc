@@ -81,7 +81,7 @@ void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
   // Verify referent field
   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
   if (referent != NULL) {
-    guarantee(oopDesc::is_oop(referent), "referent field heap failed");
+    guarantee(oopDesc::is_oop(referent), "referent field heap failed %p.%p", (void*)obj, (void*)referent);
   }
   // Additional verification for next field, which must be a Reference or null
   oop next = java_lang_ref_Reference::next(obj);

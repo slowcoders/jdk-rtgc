@@ -162,6 +162,12 @@ GCArguments* GCConfig::select_gc() {
     vm_exit_during_initialization("Multiple garbage collectors selected", NULL);
   }
 
+#if INCLUDE_RTGC
+  EnableRTGC = UseSerialGC;
+  RtNoDirtyCardMarking = EnableRTGC & UseSerialGC;
+  RtNoDiscoverPhantom  = EnableRTGC & UseSerialGC;
+#endif  
+
   // Exactly one GC selected
   FOR_EACH_INCLUDED_GC(gc) {
     if (gc->_flag) {

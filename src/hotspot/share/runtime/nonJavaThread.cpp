@@ -35,6 +35,7 @@
 #include "utilities/defaultStream.hpp"
 #include "utilities/singleWriterSynchronizer.hpp"
 #include "utilities/vmError.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
@@ -234,7 +235,7 @@ int WatcherThread::sleep() const {
 void WatcherThread::run() {
   assert(this == watcher_thread(), "just checking");
 
-  this->set_active_handles(JNIHandleBlock::allocate_block());
+  this->set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
   while (true) {
     assert(watcher_thread() == Thread::current(), "thread consistency check");
     assert(watcher_thread() == this, "thread consistency check");

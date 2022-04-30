@@ -142,7 +142,14 @@ oop java_lang_ref_Reference::unknown_referent_no_keepalive(oop ref) {
 }
 
 void java_lang_ref_Reference::clear_referent(oop ref) {
-  ref->obj_field_put_raw(_referent_offset, nullptr);
+#if INCLUDE_RTGC
+  if (EnableRTGC && is_phantom(ref)) {
+    ref->obj_field_put_raw(_referent_offset, nullptr);
+  } else
+#endif
+  {
+    ref->obj_field_put(_referent_offset, nullptr);
+  }
 }
 
 HeapWord* java_lang_ref_Reference::referent_addr_raw(oop ref) {

@@ -39,6 +39,7 @@
 #include "services/lowMemoryDetector.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class MemAllocator::Allocation: StackObj {
   friend class MemAllocator;
@@ -417,6 +418,11 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   if (_do_zero) {
     mem_clear(mem);
   }
+#if INCLUDE_RTGC // clear rtNode
+  else {
+    oopDesc::clear_rt_node(mem);
+  }
+#endif  
   arrayOopDesc::set_length(mem, _length);
   return finish(mem);
 }

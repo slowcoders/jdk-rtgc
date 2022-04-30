@@ -58,6 +58,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // no precompiled headers
 
@@ -1870,8 +1871,12 @@ run:
               //   - in debug mode, ThreadLocalAllocBuffer::allocate mangles
               //     this area, and we still need to initialize it
               if (DEBUG_ONLY(true ||) !ZeroTLAB) {
+#if INCLUDE_RTGC
+                Copy::fill_to_words(result, obj_size, 0);
+#else                
                 size_t hdr_size = oopDesc::header_size();
                 Copy::fill_to_words(result + hdr_size, obj_size - hdr_size, 0);
+#endif                
               }
 
               oop obj = cast_to_oop(result);

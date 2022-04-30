@@ -29,6 +29,7 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableBarrierSetAssembler.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 #define __ masm->
 
@@ -44,6 +45,8 @@
 
 void CardTableBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                                     Register addr, Register count, Register tmp) {
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
+
   BarrierSet *bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
@@ -86,6 +89,8 @@ __ BIND(L_done);
 }
 
 void CardTableBarrierSetAssembler::store_check(MacroAssembler* masm, Register obj, Address dst) {
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
+
   // Does a store check for the oop in register obj. The content of
   // register obj is destroyed afterwards.
   BarrierSet* bs = BarrierSet::barrier_set();
@@ -138,6 +143,8 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
   bool needs_post_barrier = val != noreg && in_heap;
 
   BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
+
   if (needs_post_barrier) {
     // flatten object address if needed
     if (!precise || (dst.index() == noreg && dst.disp() == 0)) {

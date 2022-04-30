@@ -57,6 +57,7 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class ClassLoaderData;
 
@@ -421,6 +422,29 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 }
 #endif // ASSERT
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
+  precond(!rtHeap::is_alive(cast_to_oop(mem)));
+  if (UseBiasedLocking) {
+    oopDesc::set_mark(mem, klass->prototype_header());
+  } else {
+    // May be bootstrapping
+    oopDesc::set_mark(mem, markWord::prototype());
+  }
+
+  char* raw_mem = ((char*)mem + oopDesc::klass_offset_in_bytes());
+  if (UseCompressedClassPointers) {
+    Atomic::release_store((narrowKlass*)raw_mem,
+                          CompressedKlassPointers::encode_not_null(klass));
+  } else {
+    Atomic::release_store((Klass**)raw_mem, klass);
+  }
+  if (array_length >= 0) {
+    arrayOopDesc::set_length(mem, array_length);
+  }
+}
+#endif
+
 void
 CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
 {
@@ -431,22 +455,37 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
   const size_t len = payload_size * HeapWordSize / sizeof(jint);
   assert((int)len >= 0, "size too large " SIZE_FORMAT " becomes %d", words, (int)len);
 
-  ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
-  allocator.initialize(start);
-  DEBUG_ONLY(zap_filler_array(start, words, zap);)
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    init_dead_space(start, Universe::intArrayKlassObj(), len);
+  }
+  else 
+#endif    
+  {
+    ObjArrayAllocator allocator(Universe::intArrayKlassObj(), words, (int)len, /* do_zero */ false);
+    allocator.initialize(start);
+    DEBUG_ONLY(zap_filler_array(start, words, zap);)
+  }
 }
 
 void
 CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 {
   assert(words <= filler_array_max_size(), "too big for a single object");
-
   if (words >= filler_array_min_size()) {
     fill_with_array(start, words, zap);
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
-    ObjAllocator allocator(vmClasses::Object_klass(), words);
-    allocator.initialize(start);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    if (EnableRTGC) {
+      init_dead_space(start, vmClasses::Object_klass(), -1);
+    }
+    else
+#endif
+    {        
+      ObjAllocator allocator(vmClasses::Object_klass(), words);
+      allocator.initialize(start);
+    }   
   }
 }
 
@@ -479,6 +518,11 @@ void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 
 void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
   CollectedHeap::fill_with_object(start, end, zap);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    oopDesc::clear_rt_node(start);
+  }
+#endif
 }
 
 size_t CollectedHeap::min_dummy_object_size() const {

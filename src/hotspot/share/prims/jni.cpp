@@ -94,6 +94,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
 #endif
@@ -3832,7 +3833,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
   { MutexLocker ml(Threads_lock);
     // This must be inside this lock in order to get FullGCALot to work properly, i.e., to
     // avoid this thread trying to do a GC before it is added to the thread-list
-    thread->set_active_handles(JNIHandleBlock::allocate_block());
+    thread->set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(thread)));
     Threads::add(thread, daemon);
   }
   // Create thread group and name info from attach arguments

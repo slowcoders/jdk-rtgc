@@ -32,6 +32,7 @@
 #include "oops/metadata.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
 // the format of Java objects so the fields can be accessed from C++.
@@ -52,6 +53,9 @@ class oopDesc {
   friend class JVMCIVMStructs;
  private:
   volatile markWord _mark;
+#if INCLUDE_RTGC // rtNode
+  int64_t _rtNode[2];
+#endif
   union _metadata {
     Klass*      _klass;
     narrowKlass _compressed_klass;
@@ -84,6 +88,9 @@ class oopDesc {
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
   static inline void set_klass_gap(HeapWord* mem, int z);
+#if INCLUDE_RTGC
+  static inline void clear_rt_node(HeapWord* mem);
+#endif  
 
   // size of object header, aligned to platform wordSize
   static int header_size() { return sizeof(oopDesc)/HeapWordSize; }

@@ -59,6 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
@@ -70,6 +71,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #ifdef ASSERT
   if (gch->soft_ref_policy()->should_clear_all_soft_refs()) {
     assert(clear_all_softrefs, "Policy should have been checked earlier");
+  }
+#endif
+
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rtHeap::prepare_full_gc();
   }
 #endif
 
@@ -101,7 +108,19 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::discover_java_references(true);
+  }
+#endif
+
   mark_sweep_phase3();
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::finish_compaction_gc(true);
+  }
+#endif
 
   mark_sweep_phase4();
 
@@ -120,14 +139,16 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   CardTableRS* rs = gch->rem_set();
   Generation* old_gen = gch->old_gen();
 
-  // Clear/invalidate below make use of the "prev_used_regions" saved earlier.
-  if (gch->young_gen()->used() == 0) {
-    // We've evacuated the young generation.
-    rs->clear_into_younger(old_gen);
-  } else {
-    // Invalidate the cards corresponding to the currently used
-    // region and clear those corresponding to the evacuated region.
-    rs->invalidate_or_clear(old_gen);
+  RTGC_ONLY(if (!RtNoDirtyCardMarking)) {
+    // Clear/invalidate below make use of the "prev_used_regions" saved earlier.
+    if (gch->young_gen()->used() == 0) {
+      // We've evacuated the young generation.
+      rs->clear_into_younger(old_gen);
+    } else {
+      // Invalidate the cards corresponding to the currently used
+      // region and clear those corresponding to the evacuated region.
+      rs->invalidate_or_clear(old_gen);
+    }
   }
 
   gch->prune_scavengable_nmethods();

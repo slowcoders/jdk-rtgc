@@ -46,6 +46,7 @@
 #include "runtime/vframeArray.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // Implementation of StubAssembler
 
@@ -1620,5 +1621,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 #undef __
 
 const char *Runtime1::pd_name_for_address(address entry) {
+#if INCLUDE_RTGC
+  return "rtgc method";
+#endif
   return "<unknown function>";
 }

@@ -59,6 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 /**
  * Implementation of the jdk.internal.misc.Unsafe class
@@ -401,6 +402,8 @@ UNSAFE_ENTRY(void, Unsafe_CopyMemory0(JNIEnv *env, jobject unsafe, jobject srcOb
 
   oop srcp = JNIHandles::resolve(srcObj);
   oop dstp = JNIHandles::resolve(dstObj);
+  precond(srcp == NULL || !srcp->is_objArray());
+  precond(dstp == NULL || !dstp->is_objArray());
 
   void* src = index_oop_from_field_offset_long(srcp, srcOffset);
   void* dst = index_oop_from_field_offset_long(dstp, dstOffset);
@@ -756,6 +759,13 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
 
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    if (e == (jlong)0x876543DB876543DB && (x >> 32) == (jlong)0x123456DB) {
+      RTGC::enableLog((int)x / RTGC::LOG_CATEGORY_BASE, (int)x & RTGC::LOG_FUNCTION_MASK);
+    }
+  }
+#endif
   if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(addr, e, x);

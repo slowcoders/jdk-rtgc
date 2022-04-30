@@ -35,10 +35,12 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
+  RTGC_ONLY(precond(rtHeap::is_alive(obj, true));)
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
 
@@ -74,7 +76,7 @@ inline void MarkAndPushClosure::do_oop(narrowOop* p)         { do_oop_work(p); }
 inline void MarkAndPushClosure::do_klass(Klass* k)           { MarkSweep::follow_klass(k); }
 inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow_cld(cld); }
 
-template <class T> inline void MarkSweep::adjust_pointer(T* p) {
+template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
@@ -84,6 +86,7 @@ template <class T> inline void MarkSweep::adjust_pointer(T* p) {
 
     assert(new_obj != NULL ||                      // is forwarding ptr?
            obj->mark() == markWord::prototype() || // not gc marked?
+           RTGC_ONLY(RtLateClearGcMark ||)
            (UseBiasedLocking && obj->mark().has_bias_pattern()),
            // not gc marked?
            "should be forwarded");
@@ -91,8 +94,20 @@ template <class T> inline void MarkSweep::adjust_pointer(T* p) {
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned");
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
+#if INCLUDE_RTGC
+      if (new_oop != NULL) {
+        *new_oop = new_obj;
+      }
+#endif      
     }
+#if INCLUDE_RTGC
+    else if (new_oop != NULL) {
+      *new_oop = obj;
+    }
+#endif      
+    return obj;
   }
+  return NULL;
 }
 
 template <typename T>

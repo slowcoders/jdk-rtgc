@@ -30,6 +30,7 @@
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/universe.hpp"
 #include "services/memoryManager.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 SerialHeap* SerialHeap::heap() {
   return named_heap<SerialHeap>(CollectedHeap::Serial);
@@ -97,5 +98,12 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
-  old_gen()->younger_refs_iterate(old_gen_closure);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::iterate_young_roots(static_cast<YoungRootClosure*>(old_gen_closure), root_closure);
+  } else 
+#endif
+  {
+    old_gen()->younger_refs_iterate(old_gen_closure);
+  }
 }

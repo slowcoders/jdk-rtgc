@@ -79,8 +79,13 @@ class arrayOopDesc : public oopDesc {
   // declared nonstatic fields in arrayOopDesc if not compressed, otherwise
   // it occupies the second half of the _klass field in oopDesc.
   static int length_offset_in_bytes() {
+#if INCLUDE_RTGC // clear rtNode
     return UseCompressedClassPointers ? klass_gap_offset_in_bytes() :
                                sizeof(arrayOopDesc);
+#else 
+    return UseCompressedClassPointers ? klass_gap_offset_in_bytes() :
+                               sizeof(arrayOopDesc);
+#endif                               
   }
 
   // Returns the offset of the first element.

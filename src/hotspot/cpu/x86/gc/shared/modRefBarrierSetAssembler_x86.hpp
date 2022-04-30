@@ -27,6 +27,7 @@
 
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // The ModRefBarrierSetAssembler filters away accesses on BasicTypes other
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
@@ -41,6 +42,10 @@ protected:
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 public:
+#if INCLUDE_RTGC // check !EnableRTGC
+  ModRefBarrierSetAssembler() { precond(!EnableRTGC); }
+#endif
+
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

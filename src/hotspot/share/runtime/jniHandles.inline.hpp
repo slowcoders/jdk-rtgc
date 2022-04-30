@@ -31,6 +31,7 @@
 #include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 inline bool JNIHandles::is_jweak(jobject handle) {
   STATIC_ASSERT(weak_tag_size == 1);
@@ -98,6 +99,12 @@ inline oop JNIHandles::resolve_non_null(jobject handle) {
 inline void JNIHandles::destroy_local(jobject handle) {
   if (handle != NULL) {
     assert(!is_jweak(handle), "Invalid JNI local handle");
+#if INCLUDE_RTGC // local jni handle owner
+    if (EnableRTGC) {
+      NativeAccess<AS_NO_KEEPALIVE>::oop_store(jobject_ptr(handle), (oop)NULL);
+    }
+    else
+#endif
     NativeAccess<>::oop_store(jobject_ptr(handle), (oop)NULL);
   }
 }

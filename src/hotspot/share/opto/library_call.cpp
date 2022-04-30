@@ -1414,6 +1414,7 @@ bool LibraryCallKit::inline_string_toBytesU() {
     // Figure out which arraycopy runtime method to call (disjoint, uninitialized).
     const char* copyfunc_name = "arraycopy";
     address     copyfunc_addr = StubRoutines::select_arraycopy_function(T_CHAR, aligned, true, copyfunc_name, true);
+    RTGC_ONLY(precond(!EnableRTGC);)
     Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
                       OptoRuntime::fast_arraycopy_Type(),
                       copyfunc_addr, copyfunc_name, TypeRawPtr::BOTTOM,
@@ -1496,6 +1497,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
     // Figure out which arraycopy runtime method to call (disjoint, uninitialized).
     const char* copyfunc_name = "arraycopy";
     address     copyfunc_addr = StubRoutines::select_arraycopy_function(T_CHAR, aligned, true, copyfunc_name, true);
+    RTGC_ONLY(precond(!EnableRTGC);)
     Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
                       OptoRuntime::fast_arraycopy_Type(),
                       copyfunc_addr, copyfunc_name, TypeRawPtr::BOTTOM,
@@ -4526,6 +4528,7 @@ bool LibraryCallKit::inline_arraycopy() {
   Node* dest_offset = argument(3);  // type: int
   Node* length      = argument(4);  // type: int
 
+  RTGC_ONLY(precond(!EnableRTGC);)
   uint new_idx = C->unique();
 
   // Check for allocation before we add nodes that would confuse

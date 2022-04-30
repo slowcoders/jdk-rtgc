@@ -1457,6 +1457,7 @@ void PhaseStringOpts::arraycopy(GraphKit& kit, IdealKit& ideal, Node* src_array,
   // Figure out which arraycopy runtime method to call (disjoint, uninitialized).
   const char* copyfunc_name = "arraycopy";
   address     copyfunc_addr = StubRoutines::select_arraycopy_function(elembt, aligned, true, copyfunc_name, true);
+  RTGC_ONLY(precond(!EnableRTGC);)
   ideal.make_leaf_call_no_fp(OptoRuntime::fast_arraycopy_Type(), copyfunc_addr, copyfunc_name,
                              TypeAryPtr::BYTES, src_ptr, dst_ptr, count, extra);
 }

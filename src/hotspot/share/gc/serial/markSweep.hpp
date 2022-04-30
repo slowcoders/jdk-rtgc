@@ -150,7 +150,7 @@ class MarkSweep : AllStatic {
 
   static void follow_cld(ClassLoaderData* cld);
 
-  template <class T> static inline void adjust_pointer(T* p);
+  template <class T> static inline oopDesc* adjust_pointer(T* p, oop* new_oop = NULL);
 
   // Check mark and maybe push on marking stack
   template <class T> static void mark_and_push(T* p);

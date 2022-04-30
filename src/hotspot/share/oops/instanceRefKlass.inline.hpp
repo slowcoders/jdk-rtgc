@@ -36,6 +36,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::do_referent(oop obj, OopClosureType* closure, Contains& contains) {
@@ -79,6 +80,12 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
+#if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
+  if (RtNoDiscoverPhantom && type == REF_PHANTOM) {
+    return;
+  }
+#endif    
+
   if (try_discover<T>(obj, type, closure)) {
     return;
   }

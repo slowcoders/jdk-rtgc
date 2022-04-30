@@ -45,6 +45,9 @@
 #if INCLUDE_ZGC
 #include "gc/z/z_globals.hpp"
 #endif
+#if INCLUDE_RTGC
+#include "gc/rtgc/rt_globals.hpp"
+#endif
 
 #define GC_FLAGS(develop,                                                   \
                  develop_pd,                                                \
@@ -100,6 +103,15 @@
     constraint))                                                            \
                                                                             \
   ZGC_ONLY(GC_Z_FLAGS(                                                      \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    notproduct,                                                             \
+    range,                                                                  \
+    constraint))                                                            \
+                                                                            \
+  RTGC_ONLY(GC_RT_FLAGS(                                                    \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \

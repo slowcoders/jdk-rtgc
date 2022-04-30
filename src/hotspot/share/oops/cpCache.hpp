@@ -33,6 +33,7 @@
 #include "utilities/align.hpp"
 #include "utilities/constantTag.hpp"
 #include "utilities/growableArray.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class PSPromotionManager;
 

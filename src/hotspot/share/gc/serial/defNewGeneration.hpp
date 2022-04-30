@@ -314,6 +314,13 @@ protected:
 
   oop copy_to_survivor_space(oop old);
   uint tenuring_threshold() { return _tenuring_threshold; }
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+  uint xchg_tenuring_threshold(int new_threshold) {
+    int old_threshold = _tenuring_threshold;
+    _tenuring_threshold = new_threshold;
+    return old_threshold;
+  }
+#endif
 
   // Performance Counter support
   void update_counters();

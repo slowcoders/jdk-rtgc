@@ -41,6 +41,14 @@ private:
 public:
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
+
+#if INCLUDE_RTGC
+  virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                                  Register src, Register dst, Register count, 
+                                  Register dst_array, Label& copy_done, Register saved_count = noreg) {
+    arraycopy_prologue(masm, decorators, type, src, dst, count); 
+  }
+#endif
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count) {}
 

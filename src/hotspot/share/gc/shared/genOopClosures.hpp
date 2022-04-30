@@ -27,6 +27,7 @@
 
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 class Generation;
 class CardTableRS;
@@ -53,6 +54,11 @@ protected:
   FastScanClosure(DefNewGeneration* g);
 
 public:
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+  DefNewGeneration* young_gen() { return _young_gen; }
+  void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
+#endif 
+
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 };
@@ -65,13 +71,63 @@ private:
   Generation*  _old_gen;
   HeapWord*    _old_gen_start;
   CardTableRS* _rs;
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  oopDesc* _trackable_anchor;
+  bool _is_young_root;
+#endif
 
 public:
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen);
 
   template <typename T>
-  void barrier(T* p);
+  void barrier(T* p, oop forwardee);
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  template <typename T>
+  void add_promoted_link(T* p, oop obj, bool root_reahchable);
+
+  template <typename T>
+  void trackable_barrier(T* p, oop obj);
+
+  void do_iterate(oop obj) {
+    _trackable_anchor = obj;
+    _is_young_root = false;
+    rtHeap::mark_promoted_trackable(obj);
+    obj->oop_iterate(this);
+    if (_is_young_root) {
+      rtHeap::add_young_root(obj, obj);
+    }
+    debug_only(_trackable_anchor = NULL;)
+  }
+#endif
 };
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
+  int _cnt_young_ref;
+  debug_only(oop anchor;)
+public:
+  YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
+  
+  bool do_object_b(oop obj) {
+    _cnt_young_ref = 0;
+    debug_only(anchor = obj;)
+    obj->oop_iterate(this);
+    return _cnt_young_ref > 0;
+  }
+
+  template <typename T>
+  void barrier(T* p, oop new_obj) {
+    if (!rtHeap::is_trackable(new_obj)) _cnt_young_ref ++;
+  }
+
+  void trackable_barrier(void* p, oop obj) {
+    assert(rtHeap::is_alive(obj), "invalid ref-link %p(%s)->%p(%s)\n",
+      (void*)anchor, anchor->klass()->name()->bytes(),
+      (void*)obj, obj->klass()->name()->bytes());
+  }
+};
+#endif
 
 // Closure for scanning DefNewGeneration when *not* iterating over the old generation.
 //
@@ -88,7 +144,17 @@ public:
   }
 
   template <typename T>
-  void barrier(T* p);
+  void barrier(T* p, oop new_obj);
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  void trackable_barrier(void* p, oop obj) { 
+    rtHeap::mark_survivor_reachable(obj);
+  }
+
+  void do_iterate(oop obj) {
+    obj->oop_iterate(this);
+  }
+#endif
 };
 
 class CLDScanClosure: public CLDClosure {

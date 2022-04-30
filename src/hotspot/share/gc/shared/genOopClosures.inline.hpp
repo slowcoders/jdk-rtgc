@@ -35,6 +35,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/defNewGeneration.inline.hpp"
 #endif
@@ -60,8 +61,13 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
                                         : _young_gen->copy_to_survivor_space(obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
 
-      static_cast<Derived*>(this)->barrier(p);
+      static_cast<Derived*>(this)->barrier(p, new_obj);
     }
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    else if (EnableRTGC) {
+      static_cast<Derived*>(this)->trackable_barrier(p, obj);
+    }
+#endif
   }
 }
 
@@ -77,22 +83,47 @@ inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_
     _rs(GenCollectedHeap::heap()->rem_set()) {}
 
 template <typename T>
-void DefNewYoungerGenClosure::barrier(T* p) {
+void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
-  T heap_oop = RawAccess<>::oop_load(p);
-  assert(!CompressedOops::is_null(heap_oop), "expected non-null oop");
-  oop obj = CompressedOops::decode_not_null(heap_oop);
-  // If p points to a younger generation, mark the card.
-  if (cast_from_oop<HeapWord*>(obj) < _old_gen_start) {
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
+    add_promoted_link(p, new_obj, false);
+  }
+#endif
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
+
+    // If p points to a younger generation, mark the card.
+  if (cast_from_oop<HeapWord*>(new_obj) < _old_gen_start) {
     _rs->inline_write_ref_field_gc(p);
   }
 }
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+
+template <typename T>
+void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
+  precond(_trackable_anchor != NULL);
+  rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
+}
+
+template <typename T>
+void DefNewYoungerGenClosure::trackable_barrier(T* p, oop obj) {
+  assert(_old_gen->is_in_reserved(p), "expected ref in generation");
+  assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
+  add_promoted_link(p, obj, true);
+}
+
+#endif
 
 inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
     FastScanClosure<DefNewScanClosure>(g), _scanned_cld(NULL) {}
 
 template <class T>
-void DefNewScanClosure::barrier(T* p) {
+void DefNewScanClosure::barrier(T* p, oop new_obj) {
+#if INCLUDE_RTGC // RTGC_NO_DIRTY_CARD_MARKING
+  if (RtNoDirtyCardMarking) return;
+#endif    
   if (_scanned_cld != NULL && !_scanned_cld->has_modified_oops()) {
     _scanned_cld->record_modified_oops();
   }
@@ -126,6 +157,11 @@ template <class T> inline void ScanWeakRefClosure::do_oop_work(T* p) {
                                       : _g->copy_to_survivor_space(obj);
     RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
   }
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  else if (EnableRTGC && rtHeap::is_trackable(obj)) {
+    rtHeap::mark_survivor_reachable(obj);
+  }
+#endif  
 }
 
 inline void ScanWeakRefClosure::do_oop(oop* p)       { ScanWeakRefClosure::do_oop_work(p); }

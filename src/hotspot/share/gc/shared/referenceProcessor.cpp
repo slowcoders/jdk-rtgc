@@ -40,6 +40,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/nonJavaThread.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 ReferencePolicy* ReferenceProcessor::_always_clear_soft_ref_policy = NULL;
 ReferencePolicy* ReferenceProcessor::_default_soft_ref_policy      = NULL;
@@ -310,6 +311,14 @@ void DiscoveredListIterator::complete_enqueue() {
     // discovered to what we read from the pending list.
     oop old = Universe::swap_reference_pending_list(_refs_list.head());
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(_prev_discovered, java_lang_ref_Reference::discovered_offset(), old);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    if (EnableRTGC) {
+      if (old == NULL) {
+        old = _prev_discovered;
+      }
+      rtHeap::link_discovered_pending_reference(_refs_list.head(), old);
+    }
+#endif    
   }
 }
 
@@ -1258,6 +1267,11 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
       log_develop_trace(gc, ref)("Precleaning Reference (" INTPTR_FORMAT ": %s)",
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
       // Remove Reference object from list
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC) {
+          fatal("gotcha!");
+      }
+#endif      
       iter.remove();
       // Keep alive its cohort.
       iter.make_referent_alive();

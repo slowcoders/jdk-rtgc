@@ -35,6 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/markSweep.inline.hpp"
 #endif
@@ -167,6 +168,11 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
+#if INCLUDE_RTGC
+      if (EnableRTGC) {
+        rtHeap::mark_forwarded(cast_to_oop(cur_obj));
+      }
+#endif
       size_t size = space->scanned_block_size(cur_obj);
       compact_top = cp->space->forward(cast_to_oop(cur_obj), size, cp, compact_top);
       cur_obj += size;
@@ -174,12 +180,31 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     } else {
       // run over all the contiguous dead objects
       HeapWord* end = cur_obj;
-      do {
-        // prefetch beyond end
-        Prefetch::write(end, interval);
-        end += space->scanned_block_size(end);
-      } while (end < scan_limit && (!space->scanned_block_is_obj(end) || !cast_to_oop(end)->is_gc_marked()));
+#if INCLUDE_RTGC
+      if (EnableRTGC) {
+        if (space->scanned_block_is_obj(cur_obj)) {
+          // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
+          rtHeap::destroy_trackable(cast_to_oop(cur_obj));
+        }
 
+        while (true) {
+          Prefetch::write(end, interval);
+          end += space->scanned_block_size(end);
+          if (end >= scan_limit) break;
+          if (!space->scanned_block_is_obj(end)) continue;
+          if (cast_to_oop(end)->is_gc_marked()) break;
+          rtHeap::destroy_trackable(cast_to_oop(end));
+        }
+      }
+      else
+#endif
+      {
+        do {
+          // prefetch beyond end
+          Prefetch::write(end, interval);
+          end += space->scanned_block_size(end);
+        } while (end < scan_limit && (!space->scanned_block_is_obj(end) || !cast_to_oop(end)->is_gc_marked()));
+      }
       // see if we might want to pretend this object is alive so that
       // we don't have to compact quite as often.
       if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
@@ -219,7 +244,11 @@ template <class SpaceType>
 inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   // adjust all the interior pointers to point at the new locations of objects
   // Used by MarkSweep::mark_sweep_phase3()
-
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rtHeap::prepare_point_adjustment();
+  }
+#endif
   HeapWord* cur_obj = space->bottom();
   HeapWord* const end_of_live = space->_end_of_live;  // Established by "scan_and_forward".
   HeapWord* const first_dead = space->_first_dead;    // Established by "scan_and_forward".
@@ -234,7 +263,15 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
     if (cur_obj < first_dead || cast_to_oop(cur_obj)->is_gc_marked()) {
       // cur_obj is alive
       // point all the oops to the new location
-      size_t size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
+#if INCLUDE_RTGC
+      size_t size;
+      if (EnableRTGC) {
+        size = rtHeap::adjust_pointers(cast_to_oop(cur_obj));
+      } else
+#endif
+      {
+        size = MarkSweep::adjust_pointers(cast_to_oop(cur_obj));
+      }
       size = space->adjust_obj_size(size);
       debug_only(prev_obj = cur_obj);
       cur_obj += size;
@@ -330,13 +367,22 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       // size and destination
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
+#if INCLUDE_RTGC      
+      if (RtLateClearGcMark && compaction_top == NULL) {
+        // Debugging 을 위하여 주소가 옮겨지지 않은 객체의 marked-state 를 clear 하지 않았다.
+        // Space.cpp:388 참조.
+        compaction_top = cur_obj;
+      }
+      else 
+#endif      
+      {
+        // prefetch beyond compaction_top
+        Prefetch::write(compaction_top, copy_interval);
 
-      // prefetch beyond compaction_top
-      Prefetch::write(compaction_top, copy_interval);
-
-      // copy object and reinit its mark
-      assert(cur_obj != compaction_top, "everything in this pass should be moving");
-      Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
+        // copy object and reinit its mark
+        assert(cur_obj != compaction_top, "everything in this pass should be moving");
+        Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
+      }
       cast_to_oop(compaction_top)->init_mark();
       assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");
 
@@ -367,7 +413,17 @@ void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
       Prefetch::write(p, interval);
       debug_only(HeapWord* prev = p);
       oop m = cast_to_oop(p);
-      p += m->oop_iterate_size(blk);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC) {
+        rtgc_trace(10, "iterate new oop %p\n", p);
+        p += m->size_given_klass(m->klass());
+        blk->do_iterate(m);
+      }
+      else
+#endif
+      {
+        p += m->oop_iterate_size(blk);
+      }
     }
   } while (t < top());
 

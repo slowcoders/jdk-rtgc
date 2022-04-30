@@ -74,6 +74,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
 #include "utilities/vmError.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
@@ -122,10 +123,16 @@ jint GenCollectedHeap::initialize() {
 
   initialize_reserved_region(heap_rs);
 
+  ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
-  _rem_set->initialize();
-  CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
-  bs->initialize();
+  RTGC_ONLY(if (RtNoDirtyCardMarking)) {  
+    bs = new RtgcBarrierSet(_rem_set);
+  }
+  else {
+    _rem_set->initialize();
+    bs = new CardTableBarrierSet(_rem_set);
+    ((CardTableBarrierSet*)bs)->initialize();
+  }
   BarrierSet::set_barrier_set(bs);
 
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
@@ -481,7 +488,15 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
-    save_marks();   // save marks for all gens
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    if (EnableRTGC) {
+      _young_gen->save_marks();
+    } 
+    else
+#endif    
+    {
+      save_marks();   // save marks for all gens
+    }
     // We want to discover references, but not process them yet.
     // This mode is disabled in process_discovered_references if the
     // generation does some collection work, or in
@@ -659,6 +674,13 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
+#ifdef ASSERT
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::print_heap_after_gc(do_full_collection);
+  }
+#endif  
+#endif
 }
 
 bool GenCollectedHeap::should_do_full_collection(size_t size, bool full, bool is_tlab,
@@ -1123,6 +1145,8 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
 
   log_debug(gc, verify)("%s", _old_gen->name());
   _young_gen->verify();
+
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
 
   log_debug(gc, verify)("RemSet");
   rem_set()->verify();

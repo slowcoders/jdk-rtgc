@@ -148,6 +148,7 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // Initialization after module runtime initialization
 void universe_post_module_init();  // must happen after call_initPhase2
@@ -320,6 +321,13 @@ void Thread::initialize_tlab() {
     tlab().initialize();
   }
 }
+
+#ifdef ASSERT  
+void Thread::set_active_handles(JNIHandleBlock* block) { 
+  RTGC_ONLY(precond(block == NULL || this == block->local_thread());)
+  _active_handles = block; 
+}
+#endif
 
 void Thread::initialize_thread_current() {
 #ifndef USE_LIBRARY_BASED_TLS_ONLY
@@ -1276,7 +1284,7 @@ void JavaThread::run() {
 
   // This operation might block. We call that after all safepoint checks for a new thread has
   // been completed.
-  set_active_handles(JNIHandleBlock::allocate_block());
+  set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
 
   if (JvmtiExport::should_post_thread_life()) {
     JvmtiExport::post_thread_start(this);
@@ -1458,13 +1466,13 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, Thread::current());
   }
 
   if (free_handle_block() != NULL) {
     JNIHandleBlock* block = free_handle_block();
     set_free_handle_block(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, Thread::current());
   }
 
   // These have to be removed while this is still a valid thread.
@@ -2829,7 +2837,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // must do this before set_active_handles
   main_thread->record_stack_base_and_size();
   main_thread->register_thread_stack_with_NMT();
-  main_thread->set_active_handles(JNIHandleBlock::allocate_block());
+  main_thread->set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(main_thread)));
+
   MACOS_AARCH64_ONLY(main_thread->init_wx());
 
   if (!main_thread->set_as_starting_thread()) {

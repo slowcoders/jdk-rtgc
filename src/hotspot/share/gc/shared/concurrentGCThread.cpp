@@ -29,6 +29,7 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 ConcurrentGCThread::ConcurrentGCThread() :
     _should_terminate(false),
@@ -43,7 +44,7 @@ void ConcurrentGCThread::create_and_start(ThreadPriority prio) {
 
 void ConcurrentGCThread::run() {
   // Setup handle area
-  set_active_handles(JNIHandleBlock::allocate_block());
+  set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
 
   // Wait for initialization to complete
   wait_init_completed();

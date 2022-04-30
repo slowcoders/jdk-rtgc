@@ -37,6 +37,7 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 inline bool ClearNoncleanCardWrapper::clear_card(CardValue* entry) {
   assert(*entry == CardTableRS::dirty_card_val(), "Only look at dirty cards.");
@@ -427,6 +428,7 @@ void CardTableRS::verify_space(Space* s, HeapWord* gen_boundary) {
 }
 
 void CardTableRS::verify() {
+  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
   // At present, we only know how to verify the card table RS for
   // generational heaps.
   VerifyCTGenClosure blk(this);
@@ -435,9 +437,11 @@ void CardTableRS::verify() {
 }
 
 CardTableRS::CardTableRS(MemRegion whole_heap) :
-  CardTable(whole_heap) { }
+    CardTable(whole_heap) { 
+}
 
 void CardTableRS::initialize() {
+  RTGC_ONLY(assert(!RtNoDirtyCardMarking, "cardTable is disabled");)
   CardTable::initialize();
 }
 

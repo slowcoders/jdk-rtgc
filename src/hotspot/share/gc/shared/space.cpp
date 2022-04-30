@@ -43,6 +43,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/defNewGeneration.hpp"
 #endif
@@ -95,6 +96,10 @@ void DirtyCardToOopClosure::walk_mem_region(MemRegion mr,
     // block alignment or minimum block size restrictions. XXX
     if (_sp->block_is_obj(bottom) &&
         !_sp->obj_allocated_since_save_marks(cast_to_oop(bottom))) {
+      RTGC_ONLY(precond(!RtNoDirtyCardMarking));
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+      if (EnableRTGC && !rtHeap::is_alive(cast_to_oop(bottom))) continue;
+#endif          
       cast_to_oop(bottom)->oop_iterate(_cl, mr);
     }
   }
@@ -375,7 +380,11 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-    q->init_mark();
+#if INCLUDE_RTGC 
+    if (!RtLateClearGcMark) {
+      q->init_mark();
+    }
+#endif
     assert(q->forwardee() == NULL, "should be forwarded to NULL");
   }
 

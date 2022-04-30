@@ -40,6 +40,8 @@
 #include "utilities/debug.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "gc/shared/collectedHeap.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // Implementation of all inlined member functions defined in oop.hpp
 // We need a separate file to avoid circular references
@@ -131,7 +133,17 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
   if (UseCompressedClassPointers) {
     *(int*)(((char*)mem) + klass_gap_offset_in_bytes()) = v;
   }
+#if INCLUDE_RTGC // clear rtNode
+  clear_rt_node(mem);
+#endif
 }
+
+#if INCLUDE_RTGC // clear rtNode
+void oopDesc::clear_rt_node(HeapWord* mem) {
+  cast_to_oop(mem)->_rtNode[0] = 0;
+  cast_to_oop(mem)->_rtNode[1] = 0;
+}
+#endif
 
 void oopDesc::set_klass_gap(int v) {
   set_klass_gap((HeapWord*)this, v);

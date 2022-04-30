@@ -59,7 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
-
+#include "gc/rtgc/impl/GCNode.hpp"
 //
 // DefNewGeneration functions.
 
@@ -70,6 +70,17 @@ DefNewGeneration::IsAliveClosure::IsAliveClosure(Generation* young_gen) : _young
 }
 
 bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
+      // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
+      rtHeap::mark_survivor_reachable(p);
+    } else if (!p->is_forwarded()) {
+      return false;
+    }
+    return true;
+  }
+#endif
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
 }
 
@@ -121,8 +132,18 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
     // if oops are left pointing into the young gen.
     _scavenge_closure->set_scanned_cld(cld);
 
-    // Clean the cld since we're going to scavenge all the metadata.
-    cld->oops_do(_scavenge_closure, ClassLoaderData::_claim_none, /*clear_modified_oops*/true);
+#if INCLUDE_RTGC  // RTGC_OPT_CLD_SCAN
+    if (EnableRTGC) {
+      DefNewGeneration* yg = _scavenge_closure->young_gen();
+      int prev_threshold = yg->xchg_tenuring_threshold(0);
+      cld->incremental_oops_do(_scavenge_closure, true);
+      yg->xchg_tenuring_threshold(prev_threshold);
+    } else 
+#endif    
+    {
+      // Clean the cld since we're going to scavenge all the metadata.
+      cld->oops_do(_scavenge_closure, ClassLoaderData::_claim_none, /*clear_modified_oops*/true);
+    }
 
     _scavenge_closure->set_scanned_cld(NULL);
   }
@@ -148,7 +169,9 @@ DefNewGeneration::DefNewGeneration(ReservedSpace rs,
                 (HeapWord*)_virtual_space.high());
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
-  gch->rem_set()->resize_covered_region(cmr);
+  RTGC_ONLY(if (!RtNoDirtyCardMarking)) {
+    gch->rem_set()->resize_covered_region(cmr);
+  }
 
   _eden_space = new ContiguousSpace();
   _from_space = new ContiguousSpace();
@@ -404,7 +427,9 @@ void DefNewGeneration::compute_new_size() {
                              SpaceDecorator::DontMangle);
     MemRegion cmr((HeapWord*)_virtual_space.low(),
                   (HeapWord*)_virtual_space.high());
-    gch->rem_set()->resize_covered_region(cmr);
+    RTGC_ONLY(if (!RtNoDirtyCardMarking)) {                  
+      gch->rem_set()->resize_covered_region(cmr);
+    }
 
     log_debug(gc, ergo, heap)(
         "New generation size " SIZE_FORMAT "K->" SIZE_FORMAT "K [eden=" SIZE_FORMAT "K,survivor=" SIZE_FORMAT "K]",
@@ -557,11 +582,21 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-  assert(heap->no_allocs_since_save_marks(),
+#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-
+  } else 
+#endif
+  {
+    assert(heap->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+  }
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS  
+  YoungRootClosure        young_root_closure(this);
+#endif
 
   CLDScanClosure cld_scan_closure(&scan_closure);
 
@@ -570,14 +605,23 @@ void DefNewGeneration::collect(bool   full,
                                                   &scan_closure,
                                                   &younger_gen_closure);
 
-  assert(heap->no_allocs_since_save_marks(),
+#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
+  } else 
+#endif
+  {
+    assert(heap->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+  }
 
   {
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-                              &younger_gen_closure,
+                              RTGC_ONLY(EnableRTGC ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
+                              NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
 
@@ -600,6 +644,13 @@ void DefNewGeneration::collect(bool   full,
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::discover_java_references(false);
+    rtHeap::finish_compaction_gc(false);
+  }
+#endif
 
   if (!_promotion_failed) {
     // Swap the survivor spaces.
@@ -728,6 +779,13 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
+#ifdef INCLUDE_RTGC
+#ifdef ASSERT
+  if (EnableRTGC) {
+    RTGC::adjust_debug_pointer(old, obj);
+  }
+#endif
+#endif
   return obj;
 }
 
