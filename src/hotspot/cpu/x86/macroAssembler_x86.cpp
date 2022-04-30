@@ -53,6 +53,7 @@
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
 #include "crc32c.h"
+#include "gc/shared/gc_globals.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */

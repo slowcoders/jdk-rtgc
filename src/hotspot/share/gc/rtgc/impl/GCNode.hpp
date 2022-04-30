@@ -2,6 +2,7 @@
 #define SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 
 #include "../RTGC.hpp"
+#include "../rtgcDebug.hpp"
 
 #define ZERO_ROOT_REF 		0
 

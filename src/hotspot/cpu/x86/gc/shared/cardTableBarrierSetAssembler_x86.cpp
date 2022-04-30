@@ -29,6 +29,7 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableBarrierSetAssembler.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 #define __ masm->
 

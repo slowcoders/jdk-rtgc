@@ -59,7 +59,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 /**
  * Implementation of the jdk.internal.misc.Unsafe class

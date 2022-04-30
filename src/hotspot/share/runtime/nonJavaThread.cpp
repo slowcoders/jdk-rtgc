@@ -35,6 +35,7 @@
 #include "utilities/defaultStream.hpp"
 #include "utilities/singleWriterSynchronizer.hpp"
 #include "utilities/vmError.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"

@@ -3,6 +3,8 @@
 
 #include "utilities/macros.hpp"
 #include "memory/allStatic.hpp"
+#include "gc/shared/gc_globals.hpp"
+
 #include "rtgcDebug.hpp"
 
 #define RTGC_EXPLICT_CLEAR_HANDLE     false

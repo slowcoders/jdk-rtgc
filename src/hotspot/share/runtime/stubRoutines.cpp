@@ -35,6 +35,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif

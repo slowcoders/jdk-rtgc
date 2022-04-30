@@ -27,6 +27,7 @@
 #include "opto/node.hpp"
 #include "opto/optoreg.hpp"
 #include "runtime/vm_version.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // processor dependent initialization for i486
 

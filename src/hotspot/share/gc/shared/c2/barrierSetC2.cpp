@@ -79,7 +79,7 @@ bool C2Access::needs_cpu_membar() const {
 
 Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
   DecoratorSet decorators = access.decorators();
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   bool mismatched = (decorators & C2_MISMATCHED) != 0;
   bool unaligned = (decorators & C2_UNALIGNED) != 0;
@@ -133,7 +133,7 @@ Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) cons
 
 Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
   DecoratorSet decorators = access.decorators();
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   Node* adr = access.addr().node();
   const TypePtr* adr_type = access.addr().type();
@@ -412,7 +412,7 @@ void C2AtomicParseAccess::set_memory() {
 
 Node* BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                    Node* new_val, const Type* value_type) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   GraphKit* kit = access.kit();
   MemNode::MemOrd mo = access.mem_node_mo();
   Node* mem = access.memory();
@@ -473,7 +473,7 @@ Node* BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, 
 
 Node* BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                     Node* new_val, const Type* value_type) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   GraphKit* kit = access.kit();
   DecoratorSet decorators = access.decorators();
   MemNode::MemOrd mo = access.mem_node_mo();
@@ -550,7 +550,7 @@ Node* BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access,
 }
 
 Node* BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   GraphKit* kit = access.kit();
   Node* mem = access.memory();
   Node* adr = access.addr().node();
@@ -602,7 +602,7 @@ Node* BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* n
 }
 
 Node* BarrierSetC2::atomic_add_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   Node* load_store = NULL;
   GraphKit* kit = access.kit();
   Node* adr = access.addr().node();
@@ -637,7 +637,7 @@ Node* BarrierSetC2::atomic_add_at_resolved(C2AtomicParseAccess& access, Node* ne
 
 Node* BarrierSetC2::atomic_cmpxchg_val_at(C2AtomicParseAccess& access, Node* expected_val,
                                           Node* new_val, const Type* value_type) const {
-  fatal("rtgc c2 not impl");
+  RTGC_ONLY(precond(!EnableRTGC);)
   C2AccessFence fence(access);
   resolve_address(access);
   return atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
@@ -850,7 +850,7 @@ void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac
 
   const char* copyfunc_name = "arraycopy";
   address     copyfunc_addr = phase->basictype2arraycopy(T_LONG, NULL, NULL, true, copyfunc_name, true);
-    fatal("rtgc select_arraycopy_function");
+  RTGC_ONLY(precond(!EnableRTGC);)
 
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
   const TypeFunc* call_type = OptoRuntime::fast_arraycopy_Type();

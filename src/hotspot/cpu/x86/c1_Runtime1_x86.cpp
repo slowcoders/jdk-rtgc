@@ -46,6 +46,7 @@
 #include "runtime/vframeArray.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // Implementation of StubAssembler
 

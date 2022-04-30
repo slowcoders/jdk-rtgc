@@ -32,8 +32,6 @@
 #define __ gen->lir()->
 #endif
 
-static const bool use_rtgc_c1 = true;
-
 void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   DecoratorSet decorators = access.decorators();
   bool is_array = (decorators & IS_ARRAY) != 0;
@@ -59,8 +57,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRIte
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result;
-  result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+  LIR_Opr result = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), new_value.result());
@@ -75,8 +72,7 @@ LIR_Opr ModRefBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& 
                 LIR_OprFact::illegalOpr /* pre_val */, NULL);
   }
 
-  LIR_Opr result;
-  result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
+  LIR_Opr result = BarrierSetC1::atomic_xchg_at_resolved(access, value);
 
   if (access.is_oop()) {
     post_barrier(access, access.resolved_addr(), value.result());
@@ -94,6 +90,6 @@ LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_r
   bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool precise = is_array || on_anonymous;
-  resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;  
+  resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;
   return BarrierSetC1::resolve_address(access, resolve_in_register);
 }

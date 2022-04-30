@@ -50,7 +50,7 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-
+#include "gc/rtgc/rtgcHeap.hpp"
 
 //------------------------------------------------------------------------------------------------------------------
 // Timeout machinery

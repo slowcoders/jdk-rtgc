@@ -78,7 +78,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;

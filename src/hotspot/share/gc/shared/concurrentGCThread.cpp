@@ -29,6 +29,7 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 ConcurrentGCThread::ConcurrentGCThread() :
     _should_terminate(false),
