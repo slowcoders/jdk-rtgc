@@ -415,10 +415,13 @@ class HandleEraser : public OopClosure {
 
 void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
 #if INCLUDE_RTGC // local jni handle owner
-  RTGC_ONLY(precond(thread == block->local_thread());)
-  if (EnableRTGC && thread == NULL) {
-    block->oops_do(&_handle_eraser);
-    rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
+  if (EnableRTGC) {
+    assert(thread == block->local_thread(), 
+        "thread=%p local_thread=%p\n", thread, block->local_thread());
+    if (thread == NULL) {
+      block->oops_do(&_handle_eraser);
+      rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
+    }
   }
 #endif
   assert(thread == NULL || thread == Thread::current(), "sanity check");

@@ -184,6 +184,7 @@ void PathFinder::constructShortcut() {
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
+                rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 1\n")
                 lastShortcut = SafeShortcut::create(obj, tail, cntNode);
                 cntNode = 1;
             }
@@ -198,12 +199,15 @@ void PathFinder::constructShortcut() {
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
+                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-0\n")
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {
+                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-1\n")
                     lastShortcut->extendAnchor(obj);
                 }
                 else {
+                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-2\n")
                     SafeShortcut::create(obj, tail, cntNode);
                 }
                 cntNode = 0;
@@ -215,8 +219,10 @@ void PathFinder::constructShortcut() {
     
     if (cntNode > 1) {
         if (lastShortcut != NULL) {
+            rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 3-1\n")
             lastShortcut->extendAnchor(link);
         } else {
+            rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 3\n")
             SafeShortcut::create(link, tail, cntNode);
         }
     }

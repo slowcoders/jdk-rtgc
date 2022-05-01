@@ -132,6 +132,9 @@ bash configure --with-jvm-variants=client \
 - full test
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
+- 
+   make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
+   
 - serial gc
    make test CONF="macosx" TEST="gc/serial"
 
@@ -177,7 +180,7 @@ bash configure --with-jvm-variants=client \
 export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/jdk/jfr/event/gc/collection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar
 
 - macosx
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -Xlog:gc -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
  
    
    ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000

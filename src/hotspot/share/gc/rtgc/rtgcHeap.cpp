@@ -226,10 +226,9 @@ static oopDesc* get_valid_forwardee(oopDesc* obj) {
 }
 
 
-
 void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
   GCObject* node = to_obj(new_p);
-  precond(node->isTrackable());
+  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
     resurrect_young_root(node);
   }
