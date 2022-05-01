@@ -789,7 +789,7 @@ void RtRefProcessor::process_phantom_references() {
   }
 
   _phantom_ref_q = alive_head;
-  if (is_full_gc) _phantom_ref_q = get_valid_forwardee<true>(alive_head);
+  if (is_full_gc && alive_head != NULL) _phantom_ref_q = get_valid_forwardee<true>(alive_head);
   rtgc_log(LOG_OPT(3), "total phatom scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
         cnt_phantom, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
 

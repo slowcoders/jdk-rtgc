@@ -129,6 +129,11 @@ bash configure --with-jvm-variants=client \
 ```
 
 ## 5. Tests
+- full test
+   `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
+
+- serial gc
+   make test CONF="macosx" TEST="gc/serial"
 
 - new RTGC error
 ```

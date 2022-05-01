@@ -1536,13 +1536,13 @@ void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, this);
   }
 
   if (free_handle_block() != NULL) {
     JNIHandleBlock* block = free_handle_block();
     set_free_handle_block(NULL);
-    JNIHandleBlock::release_block(block);
+    JNIHandleBlock::release_block(block, this);
   }
 
   // These have to be removed while this is still a valid thread.

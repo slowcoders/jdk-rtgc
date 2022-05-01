@@ -1,0 +1,1 @@
+./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace $*
