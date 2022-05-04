@@ -134,7 +134,7 @@ bash configure --with-jvm-variants=client \
 
 - 
    make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
-   
+
 - serial gc
    make test CONF="macosx" TEST="gc/serial"
 
@@ -183,7 +183,7 @@ export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fas
    ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
  
    
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
 - linux
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
    

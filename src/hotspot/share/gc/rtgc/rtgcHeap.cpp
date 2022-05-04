@@ -455,13 +455,13 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 
 static bool adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
-  oopDesc* old_p = cast_to_oop((void*)p[0]);
-  if (!IS_GC_MARKED(old_p)) {
+  GCObject* old_p = p[0];
+  if (old_p->isGarbageMarked()) {
     rtgc_log(LOG_OPT(11), "garbage anchor %p in %p\n", old_p, node);
     return false;
   }
 
-  GCObject* new_obj = (GCObject*)old_p->mark().decode_pointer();
+  GCObject* new_obj = (GCObject*)cast_to_oop(old_p)->mark().decode_pointer();
   if (new_obj != NULL) {
     precond(new_obj != (void*)0xbaadbabebaadbabc);
     rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p\n", 
@@ -478,18 +478,17 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   GCObject* obj = to_obj(old_p);
   precond(!obj->isGarbageMarked());
 
-  if (!obj->hasReferrer()) {
-    return;
-  }
-
   const bool CHECK_GARBAGE = RtLateClearGcMark;
-  bool check_shortcut = false;
+  bool check_shortcut;
 
-  if (obj->hasMultiRef()) {
+  if (!obj->hasReferrer()) {
+    check_shortcut = true;
+  }
+  else if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
     ShortOOP* ppAnchor = referrers->adr_at(0);
     int cntAnchor = referrers->size();
-    check_shortcut = !cast_to_oop((void*)ppAnchor[0])->is_gc_marked();
+    check_shortcut = ppAnchor[0]->isGarbageMarked();
     for (int idx = 0; idx < cntAnchor; ) {
       if (adjust_anchor_pointer(ppAnchor, obj) || !CHECK_GARBAGE) {
         ppAnchor++; idx++;
@@ -514,8 +513,8 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
     }
   }
   else {
-    if (!adjust_anchor_pointer((ShortOOP*)&obj->_refs, obj) && CHECK_GARBAGE) {
-      check_shortcut = true;
+    check_shortcut = (!adjust_anchor_pointer((ShortOOP*)&obj->_refs, obj) && CHECK_GARBAGE);
+    if (check_shortcut) {
       obj->_refs = 0;
     }
   }

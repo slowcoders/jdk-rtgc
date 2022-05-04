@@ -207,8 +207,15 @@ void GCRuntime::adjustShortcutPoints() {
     SafeShortcut* end = p + allocSize;
     for (; p < end; p++) {
         if (p->isValid()) {
-            GCObject* anchor = RTGC::getForwardee(p->anchor());
-            GCObject* tail = RTGC::getForwardee(p->tail());
+#ifdef ASSERT
+            if (!cast_to_oop((GCObject*)p->anchor())->is_gc_marked()) {
+                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
+                    rtgc_log(true, "node %p g=%d\n", node, node->isGarbageMarked());
+                }
+            }
+#endif            
+            GCObject* anchor = RTGC::getForwardee(p->anchor(), "anchor");
+            GCObject* tail = RTGC::getForwardee(p->tail(), "tail");
             // rtgc_log(LOG_OPT(10), "adjustShortcutPoints[%d] %p->%p, %p->%p\n", 
             //     p->getIndex(p), (void*)p->anchor(), anchor, (void*)p->tail(), tail);
             p->adjustPointUnsafe(anchor, tail);

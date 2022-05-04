@@ -157,10 +157,6 @@ void PathFinder::constructShortcut() {
     }
 
     const int MAX_SHORTCUT_LEN = 256;
-    // for (int i = 0; i < _trackers.size(); i ++) {
-    //     AnchorIterator* it = _trackers.adr_at(i);
-    //     rtgc_log(LOG_OPT(0x10), "- link(%p)[%d]\n", it->peekPrev(), i);
-    // }
     AnchorIterator* ait = _trackers.adr_at(0);
     AnchorIterator* end = ait + _trackers.size();
     if (ait + 1 >= end) {

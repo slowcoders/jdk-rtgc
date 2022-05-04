@@ -172,9 +172,9 @@ bool RTGC::logEnabled(int logOption) {
   return logOptions[category] & function;
 }
 
-GCObject* RTGC::getForwardee(GCObject* obj) {
-  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee on garbage %p(%s)\n", 
-      obj, RTGC::getClassName(obj));
+GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
+  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
+      tag, obj, RTGC::getClassName(obj));
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
 }

@@ -43,7 +43,7 @@ namespace RTGC {
     publish_and_lock_heap(to_obj(obj), true);
   }
 
-  GCObject* getForwardee(GCObject* obj);
+  GCObject* getForwardee(GCObject* obj, const char* tag="");
 
   bool lock_if_published(GCObject* obj);
 
