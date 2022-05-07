@@ -129,7 +129,20 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
       break;
     case OopIterateClosure::DO_FIELDS:
       trace_reference_gc<T>("do_fields", obj);
-      oop_oop_iterate_fields<T>(obj, closure, contains);
+#if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
+      if (RtNoDiscoverPhantom && reference_type() == REF_PHANTOM) {
+        // rtHeap::discover_java_references() 에 의해 referent 주소값이 변경되었으나
+        // 아직 memory 이동이 완료되지 않은 상태. 이에 java_lang_ref_Reference::
+        // unknown_referent_no_keepalive(obj) 사용 시 oop 생성자에서 validation 오류가 발생한다.
+        T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
+        if (CompressedOops::is_null(*referent_addr)) {
+          oop_oop_iterate_fields_except_referent<T>(obj, closure, contains);
+        }
+      } else 
+#endif      
+      {  
+        oop_oop_iterate_fields<T>(obj, closure, contains);
+      }
       break;
     case OopIterateClosure::DO_FIELDS_EXCEPT_REFERENT:
       trace_reference_gc<T>("do_fields_except_referent", obj);

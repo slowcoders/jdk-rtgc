@@ -253,31 +253,7 @@ void rtHeap::mark_keep_alive(oopDesc* referent) {
   }
 }
 
-#ifdef ASSERT
-static bool check_garbage(GCObject* node, bool checkByGarbageMark) {
-  if (!node->isAnchored()) return true;
-  if (node->getRootRefCount() > 0) return false;
-  AnchorIterator ai(node);
-  while (ai.hasNext()) {
-    GCObject* anchor = ai.next();
-    if (anchor->isGarbageMarked() || is_dead_space(cast_to_oop(anchor))) continue;
-    if (checkByGarbageMark) {
-      if (!anchor->isGarbageMarked()) {
-        rtgc_log(true, "invalid anchor of garbage %p(%s), yg-r=%d, rc=%d:%d\n",
-              anchor, RTGC::getClassName(anchor), anchor->isYoungRoot(), anchor->getRootRefCount(), anchor->hasReferrer());
-        return false;
-      }
-    }
-    else if (IS_GC_MARKED(cast_to_oop(anchor)) 
-      && cast_to_oop(anchor)->klass()->id() != InstanceRefKlassID) {
-        rtgc_log(true, "invalid anchor yg-root %p(%s), yg-r=%d, rc=%d:%d\n",
-              anchor, RTGC::getClassName(anchor), anchor->isYoungRoot(), anchor->getRootRefCount(), anchor->hasReferrer());
-        return false;
-    }
-  }
-  return true;
-}
-#endif
+
 
 void rtHeap__clear_garbage_young_roots() {
   int cnt_root = g_saved_young_root_count;
@@ -286,16 +262,6 @@ void rtHeap__clear_garbage_young_roots() {
     RTGC::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
-    // for (oop* src = src_0; src < end; src++) {
-    //   GCObject* node = to_obj(*src);
-    //   if (node->isGarbageMarked()) {
-    //     assert(check_garbage(node, false), "invalid yg-root %p, yg-r=%d, rc=%x:%d\n",
-    //           node, node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
-    //   } else if (node->isUnsafe() && 
-    //     GarbageProcessor::detectGarbage(node)) {
-    //     rtgc_log(LOG_OPT(11), "garbage YG Root %p(%s)\n", (void*)node, RTGC::getClassName(node));
-    //   }  
-    // }
 
     // 1차 검사시 unsafe 상태가 아니었으나, 다른 root 객체를 scan 하는 도중 garbage 로 마킹된 root 객체가 있을 수 있다.
     // 이에 가비지 검색 종료 후, 다시 가비지 여부를 판별하여야 한다.
@@ -399,6 +365,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool young_ref_re
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(RTGC::debugOptions[0], "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
+  debug_only(precond(!to_node(p)->isUnstable()));
   if (!USE_PENDING_TRACKABLES) {
     to_obj(p)->markDirtyReferrerPoints();
   }
@@ -601,23 +568,52 @@ void GCNode::markGarbage()  {
     assert(!cast_to_oop(this)->is_gc_marked(),
         "invalid garbage marking on %p(%s)\n", this, getClassName(this));
 		_flags.isGarbage = true;
+    debug_only(unmarkUnstable();)
 }
+
+#ifdef ASSERT
+static void mark_ghost_anchors(GCObject* node) {
+  if (!node->isAnchored()) return;
+  precond(node->getRootRefCount() == 0);
+  const int discovered_off = java_lang_ref_Reference::discovered_offset();
+  AnchorIterator ai(node);
+  while (ai.hasNext()) {
+    GCObject* anchor = ai.next();
+    if (!anchor->isGarbageMarked()) {
+      if (cast_to_oop(anchor)->is_gc_marked()) {
+        cast_to_oop(anchor)->print_on(tty);
+      }
+
+      assert(!cast_to_oop(anchor)->is_gc_marked(), "wrong anchor %p(%s) of garbage (%p) dp=%p\n", 
+          anchor, RTGC::getClassName(anchor), node,
+          !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
+              (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
+      if (!anchor->isUnstable()) {
+        rtgc_log(RTGC::debugOptions[0], "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
+        anchor->markUnstable();
+        // stack-overflow
+        // mark_ghost_anchors(anchor);
+      }
+    }
+  }
+}
+#endif
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  // rtgc_log(RTGC::debugOptions[0], "destroyed %p\n", node);
+  rtgc_log(RTGC::debugOptions[0], "destroyed %p(%s)\n", node, RTGC::getClassName(node));
   
   assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
       node->getRootRefCount(), node, RTGC::getClassName(node));
-  assert(check_garbage(node, false), "invalid trackable garbage %p(%s), yg-r=%d, rc=%d:%d\n",
-      node, RTGC::getClassName(node), node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+#ifdef ASSERT
+  mark_ghost_anchors(node);
+#endif
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   node->markGarbage();
+  node->removeAnchorList();
 
-  if (node->hasMultiRef()) {
-    node->removeAnchorList();
-  }
+  rtgc_log(RTGC::debugOptions[0], "destroyed done %p(%s)\n", node, RTGC::getClassName(node));
 
   // rtgc_log(RTGC::debugOptions[0], "destroyed done %p\n", node);
   if (!node->isTrackable()) {
@@ -776,18 +772,21 @@ void RtRefProcessor::process_phantom_references() {
       rtgc_log(LOG_OPT(3), "alive reference %p(->%p) linked (%p)\n", 
             (void*)ref_op, (void*)ref_np, (void*)alive_head);
       java_lang_ref_Reference::set_discovered_raw(acc_ref, alive_head);
-      alive_head = acc_ref;
+      alive_head = ref_np;
       debug_only(cnt_alive++;)
 
       rtgc_log(LOG_OPT(3), "referent of (%p) marked %p -> %p\n", (void*)ref_op, (void*)referent_op, (void*)referent_np);
-      if (!is_full_gc && referent_op != referent_np) {
+      if (referent_op != referent_np) {
         HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
       }
     }
   }
 
-  _phantom_ref_q = alive_head;
-  if (is_full_gc && alive_head != NULL) _phantom_ref_q = get_valid_forwardee<true>(alive_head);
+  // if (is_full_gc && alive_head != NULL) {
+  //   _phantom_ref_q = get_valid_forwardee<true>(alive_head);
+  // } else {
+    _phantom_ref_q = alive_head;
+  // }
   rtgc_log(LOG_OPT(3), "total phatom scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
         cnt_phantom, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
 

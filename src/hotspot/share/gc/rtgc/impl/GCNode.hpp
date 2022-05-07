@@ -20,7 +20,7 @@ struct GCFlags {
 	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
 	uint32_t dirtyReferrerPoints: 1;
-	uint32_t unused: 1;
+	uint32_t isUnstable: 1;
 
 	uint32_t traceState: 2;
 	uint32_t isPublished: 1;
@@ -103,6 +103,18 @@ public:
 
 	void setTraceState(TraceState state) {
 		_flags.traceState = (int)state;
+	}
+
+	bool isUnstable() {
+		return _flags.isUnstable;
+	}
+
+	void markUnstable() {
+		_flags.isUnstable = true;
+	}
+
+	void unmarkUnstable() {
+		_flags.isUnstable = false;
 	}
 
 	void markGarbage();
