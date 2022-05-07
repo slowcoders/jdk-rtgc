@@ -132,6 +132,9 @@ bash configure --with-jvm-variants=client \
 - full test
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
+- oom 발생 (serial )
+   sh exec_test.sh jdk/internal/shellsupport/doc/JavadocHelperTest
+
 - module jdk.compiler does not export com.sun.tools.javac.xxx to unnamed module 오류 해결 방법
       --add-opens=jdk.compiler/com.sun.tools.javac.xxx=ALL-UNNAMED \
 

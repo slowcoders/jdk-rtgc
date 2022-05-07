@@ -324,7 +324,7 @@ void Thread::initialize_tlab() {
 
 #ifdef ASSERT  
 void Thread::set_active_handles(JNIHandleBlock* block) { 
-  RTGC_ONLY(precond(block == NULL || this == block->local_thread());)
+  RTGC_ONLY(precond(!EnableRTGC || block == NULL || this == block->local_thread());)
   _active_handles = block; 
 }
 #endif
