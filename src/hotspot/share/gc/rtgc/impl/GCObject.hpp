@@ -91,14 +91,17 @@ class SafeShortcut {
 public:
 	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
 
-	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
+	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode, bool replace_shorcut = false) {
 		int s_id = INVALID_SHORTCUT;
 		SafeShortcut* shortcut = NULL;
 		if (_EnableShortcut && cntNode > MIN_SHORTCUT_LENGTH) {
 			shortcut = new SafeShortcut(anchor, tail);
 			s_id = getIndex(shortcut);
 		}
+		int cc = 0;
 		for (GCObject* node = tail; node != anchor; node = node->getSafeAnchor()) {
+			debug_only(precond(++cc < 10000));
+			precond(replace_shorcut || node->getShortcutId() <= INVALID_SHORTCUT);
 			node->setShortcutId_unsafe(s_id);
 		}
 		if (shortcut != NULL) {
@@ -109,6 +112,8 @@ public:
 	}
 
 	bool isValid() { return *(int32_t*)&_anchor != 0; }
+
+	int getIndex() { return getIndex(this); }
 
 	static int getIndex(SafeShortcut* circuit);
 

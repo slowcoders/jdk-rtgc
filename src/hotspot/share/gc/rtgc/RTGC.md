@@ -132,6 +132,9 @@ bash configure --with-jvm-variants=client \
 - full test
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
+- module jdk.compiler does not export com.sun.tools.javac.xxx to unnamed module 오류 해결 방법
+      --add-opens=jdk.compiler/com.sun.tools.javac.xxx=ALL-UNNAMED \
+
 - 
    make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
 

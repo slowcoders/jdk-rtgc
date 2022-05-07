@@ -83,36 +83,35 @@ bool PathFinder::findSurvivalPath(ShortOOP& tail) {
     AnchorIterator* it = _trackers.push_empty();
     it->initSingleIterator(&tail);
     while (true) {
-        GCObject* R;
         while (!it->hasNext()) {
             _trackers.pop_back();
             rtgc_log(LOG_OPT(0x10), "SurvivalPath pop [%d]\n", _trackers.size());
             if (_trackers.empty()) return false;
             it = &_trackers.back();
 
-            R = it->peekPrev();
-            if (!R->isGarbageMarked()) {
-                SafeShortcut* shortcut = R->getShortcut();
+            GCObject* top = it->peekPrev();
+            if (!top->isGarbageMarked()) {
+                SafeShortcut* shortcut = top->getShortcut();
                 precond(shortcut->inTracing());
-                precond(R->hasReferrer());
+                precond(top->hasReferrer());
+                postcond(!_visitedNodes.contains(top));
+
                 shortcut->unmarkInTracing();
-                rtgc_log(LOG_OPT(0x10), "shortcut poped %p:%d\n", R, R->getShortcutId());
-                shortcut->shrinkAnchorTo(R);
+                rtgc_log(LOG_OPT(0x10), "shortcut poped %p:%d\n", top, top->getShortcutId());
+                shortcut->shrinkAnchorTo(top);
+
                 it = _trackers.push_empty();
-                R->initIterator(it);
-                postcond(!_visitedNodes.contains(R));
-                R->markGarbage();
-                _visitedNodes.push_back(R);
+                top->initIterator(it);
+                top->markGarbage();
+                _visitedNodes.push_back(top);
                 break;
             }
         }
 
-        R = it->next();
+        GCObject* R = it->next();
         SafeShortcut* shortcut = R->getShortcut();
         precond(shortcut != NULL);
-        precond(R != NULL);
 
-        /* 중복 추적 회피 단계(S341) */
         if (R->isGarbageMarked() ||
             shortcut->inTracing()) {
             rtgc_log(LOG_OPT(0x10), "pass marked %p:%d[%d](gm=%d)\n", 
@@ -125,24 +124,23 @@ bool PathFinder::findSurvivalPath(ShortOOP& tail) {
             return true;
         }
 
-        rtgc_log(LOG_OPT(0x10), "findSurvivalPath %p:%d[%d]\n", 
-            R, R->getShortcutId(), _trackers.size());
+        rtgc_log(LOG_OPT(0x10), "findSurvivalPath %p:%d[%d] vn=%d\n", 
+            R, R->getShortcutId(), _trackers.size(), _visitedNodes.size());
 
         if (R->hasReferrer()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
-                shortcut->markInTracing();
-                it->initSingleIterator(&shortcut->anchor_ref());
-                rtgc_log(LOG_OPT(0x10), "shortcut[%d] pushed %p(anchor = %p->%p)\n", 
-                    shortcut->getIndex(shortcut), R, (void*)shortcut->anchor(), (void*)shortcut->tail());
-                shortcut->vailidateShortcut();
+                debug_only(shortcut->vailidateShortcut();)
+                if (!shortcut->anchor_ref()->isGarbageMarked()) {
+                    it->initSingleIterator(&shortcut->anchor_ref());
+                    shortcut->markInTracing();
+                    rtgc_log(LOG_OPT(0x10), "shortcut[%d] pushed %p(anchor = %p->%p)\n", 
+                        shortcut->getIndex(shortcut), R, (void*)shortcut->anchor(), (void*)shortcut->tail());
+                    continue;
+                }
+                shortcut->shrinkAnchorTo(R);
             }
-            else {
-                R->initIterator(it);
-                R->markGarbage();
-                _visitedNodes.push_back(R);
-            }
-            continue;
+            R->initIterator(it);
         }
 
         R->markGarbage();
@@ -158,8 +156,8 @@ void PathFinder::constructShortcut() {
 
     const int MAX_SHORTCUT_LEN = 256;
     AnchorIterator* ait = _trackers.adr_at(0);
-    AnchorIterator* end = ait + _trackers.size();
-    if (ait + 1 >= end) {
+    AnchorIterator* end = ait + _trackers.size() - 1;
+    if (ait >= end) {
         return;
     }
     GCObject* tail = NULL;
@@ -180,8 +178,8 @@ void PathFinder::constructShortcut() {
 		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
-                rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 1\n")
                 lastShortcut = SafeShortcut::create(obj, tail, cntNode);
+                rtgc_log(LOG_OPT(0x11), "SafeShortcut::create max len [%d]\n", lastShortcut->getIndex());
                 cntNode = 1;
             }
             if (cntNode == 1) {
@@ -195,16 +193,33 @@ void PathFinder::constructShortcut() {
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
-                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-0\n")
+                    rtgc_log(LOG_OPT(0x11), "extend Shortcut tail %d\n", ss->getIndex());
+                #ifdef ASSERT
+                    for (GCObject* n = tail; n != obj; n = n->getSafeAnchor()) {
+                        precond(n != ss->anchor());
+                    }
+                #else
+                    int tail_len = 0;
+                    GCObject* next;
+                    for (GCObject* n = tail; n != obj; n = next) {
+                        tail_len ++;
+                        next = n->getSafeAnchor();
+                        if (n == ss->anchor()) {
+                            SafeShortcut::create(next, tail, cntNode);
+                            tail = next;//n->getSafeAnchor();
+                            break;
+                        }
+                    }
+                #endif
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {
-                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-1\n")
+                    rtgc_log(LOG_OPT(0x11), "extend Shortcut anchor %d\n", ss->getIndex());
                     lastShortcut->extendAnchor(obj);
                 }
                 else {
-                    rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 2-2\n")
-                    SafeShortcut::create(obj, tail, cntNode);
+                    SafeShortcut* s2 = SafeShortcut::create(obj, tail, cntNode);
+                    rtgc_log(LOG_OPT(0x11), "insert Shortcut %d\n", s2->getIndex());
                 }
                 cntNode = 0;
             }
@@ -213,13 +228,19 @@ void PathFinder::constructShortcut() {
         }
     }
     
-    if (cntNode > 1) {
+    GCObject* root = ait->peekPrev();        
+    precond(root == NULL || root->getRootRefCount() > ZERO_ROOT_REF);
+    if (link != NULL) {
+        /** root 가 속한 shortcut 은 무시된다.
+         * 해당 shortcut 이 valid 한 지는 현재 확인되지 않았다. 
+         */
+        link->setSafeAnchor(root);
         if (lastShortcut != NULL) {
-            rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 3-1\n")
-            lastShortcut->extendAnchor(link);
+            rtgc_log(LOG_OPT(0x11), "SafeShortcut::create 3-1\n")
+            lastShortcut->extendAnchor(root);
         } else {
-            rtgc_log(false && RTGC::debugOptions[0], "SafeShortcut::create 3\n")
-            SafeShortcut::create(link, tail, cntNode);
+            rtgc_log(LOG_OPT(0x11), "SafeShortcut::create 3\n")
+            SafeShortcut::create(root, tail, cntNode);
         }
     }
     // last anchor may not have safe-anchor
@@ -410,7 +431,7 @@ void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
     }
     else {
         rtgc_log(LOG_OPT(10), "spilt shortcut\n");
-        SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1);
+        SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1, true);
         this->_tail = newTail;
     }
     this->vailidateShortcut();

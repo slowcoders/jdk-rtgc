@@ -797,7 +797,7 @@ void RtRefProcessor::process_phantom_references() {
     // }
     // precond(enqueued_top_np == NULL || enqueued_top_np == Universe::reference_pending_list());
     oopDesc* enqueued_top_np = Universe::swap_reference_pending_list(_pending_head);
-    precond(enqueued_top_np == _enqueued_top);
+    // assert(enqueued_top_np == _enqueued_top, "np = %p, top=%p\n", enqueued_top_np, _enqueued_top);
 
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
     if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
