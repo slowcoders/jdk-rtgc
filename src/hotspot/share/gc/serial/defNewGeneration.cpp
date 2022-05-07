@@ -73,12 +73,10 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-      // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
-      rtHeap::mark_survivor_reachable(p);
-    } else if (!p->is_forwarded()) {
-      return false;
+      return rtHeap::is_alive(p);
+    } else {
+      return p->is_forwarded();
     }
-    return true;
   }
 #endif
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
@@ -642,15 +640,16 @@ void DefNewGeneration::collect(bool   full,
 
   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
-  // Verify that the usage of keep_alive didn't copy any objects.
-  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
-
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::discover_java_references(false);
     rtHeap::finish_compaction_gc(false);
   }
 #endif
+
+  // Verify that the usage of keep_alive didn't copy any objects.
+  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
+
 
   if (!_promotion_failed) {
     // Swap the survivor spaces.
