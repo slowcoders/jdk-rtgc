@@ -95,8 +95,8 @@ void GCRuntime::disconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-    rtgc_debug_log(assigned, "root assigned %p\n", assigned);
     assigned->incrementRootRefCount();
+    rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
 }
 
 void GCRuntime::onAssignRootVariable(GCObject* assigned) {
@@ -110,6 +110,7 @@ void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
+    rtgc_debug_log(erased, "root erased %p(%d)\n", erased, erased->getRootRefCount());
 }
 
 void GCRuntime::onEraseRootVariable(GCObject* erased) {

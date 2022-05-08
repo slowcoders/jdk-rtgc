@@ -157,8 +157,8 @@ public:
 	}
 
 	int decrementRootRefCount() {
-		assert(_flags.rootRefCount > ZERO_ROOT_REF, "wrong ref-count %p garbage=%d\n", 
-			this, isGarbageMarked());
+		assert(_flags.rootRefCount > ZERO_ROOT_REF, "wrong ref-count %p(%d) garbage=%d\n", 
+			this, _flags.rootRefCount, isGarbageMarked());
 		return --_flags.rootRefCount;
 	}
 

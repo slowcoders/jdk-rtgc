@@ -98,6 +98,8 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/impl/GCNode.hpp"
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif
@@ -633,39 +635,41 @@ JVM_END
 JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
   Klass* klass = obj->klass();
-  JvmtiVMObjectAllocEventCollector oam;
+  const int size = obj->size();
+  oop new_obj_oop;
+  {
+    JvmtiVMObjectAllocEventCollector oam;
 
 #ifdef ASSERT
-  // Just checking that the cloneable flag is set correct
-  if (obj->is_array()) {
-    guarantee(klass->is_cloneable(), "all arrays are cloneable");
-  } else {
-    guarantee(obj->is_instance(), "should be instanceOop");
-    bool cloneable = klass->is_subtype_of(vmClasses::Cloneable_klass());
-    guarantee(cloneable == klass->is_cloneable(), "incorrect cloneable flag");
-  }
+    // Just checking that the cloneable flag is set correct
+    if (obj->is_array()) {
+      guarantee(klass->is_cloneable(), "all arrays are cloneable");
+    } else {
+      guarantee(obj->is_instance(), "should be instanceOop");
+      bool cloneable = klass->is_subtype_of(vmClasses::Cloneable_klass());
+      guarantee(cloneable == klass->is_cloneable(), "incorrect cloneable flag");
+    }
 #endif
 
-  // Check if class of obj supports the Cloneable interface.
-  // All arrays are considered to be cloneable (See JLS 20.1.5).
-  // All j.l.r.Reference classes are considered non-cloneable.
-  if (!klass->is_cloneable() ||
-      (klass->is_instance_klass() &&
-       InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
-    ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
-  }
+    // Check if class of obj supports the Cloneable interface.
+    // All arrays are considered to be cloneable (See JLS 20.1.5).
+    // All j.l.r.Reference classes are considered non-cloneable.
+    if (!klass->is_cloneable() ||
+        (klass->is_instance_klass() &&
+        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
+      ResourceMark rm(THREAD);
+      THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
+    }
 
-  // Make shallow object copy
-  const int size = obj->size();
-  oop new_obj_oop = NULL;
-  if (obj->is_array()) {
-    const int length = ((arrayOop)obj())->length();
-    new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
-                                                   /* do_zero */ true, CHECK_NULL);
-  } else {
-    new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
-  }
+    // Make shallow object copy
+    if (obj->is_array()) {
+      const int length = ((arrayOop)obj())->length();
+      new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
+                                                    /* do_zero */ true, CHECK_NULL);
+    } else {
+      new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
+    }
+  } // RTGC. JvmtiVMObjectAllocEventCollector muse be destructed befor clone()
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
 
