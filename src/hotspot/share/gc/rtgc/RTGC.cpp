@@ -89,16 +89,17 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
+void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   check_valid_obj(p, base);
   precond(p != NULL);
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  if (p == base) return;
+  precond (p != base);// return;
 
-  // rtgc_log(p != NULL && p->klass() == vmClasses::Module_klass(), 
-  //     "Module anchored %p -> %p\n", (void*)base, (void*)p);
+  if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
+    rtHeap::add_young_root(base, base);
+  }
 
   if (!REF_LINK_ENABLED) return;
   rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
@@ -125,10 +126,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
-    if (!to_obj(newValue)->isTrackable() && !to_obj(base)->isYoungRoot()) {
-      rtHeap::add_young_root(base, base);
-    }
-    add_referrer_unsafe(newValue, base);
+    add_referrer_unsafe(newValue, base, true);
   }
   if (!REF_LINK_ENABLED) return;
   if (oldValue != NULL && oldValue != base) {
@@ -270,7 +268,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  //logOptions[LOG_HEAP] = 1 << 3;
+  logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 0;

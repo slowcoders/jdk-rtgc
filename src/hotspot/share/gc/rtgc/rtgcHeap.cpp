@@ -41,7 +41,6 @@ namespace RTGC {
   class RtRefProcessor {
   public:
     oopDesc* _pending_head;
-    oopDesc* _pending_tail_np;
     oopDesc* _phantom_ref_q;
     oopDesc* _enqueued_top;
 #ifdef ASSERT
@@ -180,14 +179,14 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
 /**
  * @brief YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
  */
-static int cntDD = 0;
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
+  // YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
   // 이미 객체가 복사된 상태이다.
-  // old_p 를 marking 하여, young_roots 에서 제거될 수 있도록 하고,
-  // new_p 를 marking 하여, young_roots 에 등록되지 않도록 한다.
   rtgc_log(LOG_OPT(11), "mark_promoted_trackable %p, tr=%d\n", new_p, to_obj(new_p)->isTrackable());
   if (to_obj(new_p)->isTrackable()) return;
   to_obj(new_p)->markTrackable();
+  // new_p 는 YG 에서 reachable 한 상태일 수 있다. 
+  mark_survivor_reachable(new_p);
 }
 
 static void resurrect_young_root(GCObject* node) {
@@ -349,17 +348,17 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
 }
 
 
-void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool young_ref_reahcable) {
+void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_link) {
   if (anchor == link) return;
-
+  GCObject* node = to_obj(link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
-  if (young_ref_reahcable) {
-    rtHeap::mark_survivor_reachable(link);
-  } else {
-    precond(!to_obj(link)->isGarbageMarked());
+  if (node->isGarbageMarked()) {
+    resurrect_young_root(node);
   }
+  //rtHeap::mark_survivor_reachable(link);
 
-  RTGC::add_referrer_unsafe(link, anchor);
+  precond(to_obj(anchor)->isTrackable());
+  RTGC::add_referrer_unsafe(link, anchor, false);
 }
 
 void rtHeap::mark_forwarded(oopDesc* p) {
@@ -398,7 +397,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   // rtgc_log(is_java_reference(_old_anchor_p, REF_PHANTOM), 
   //     "reference(%p)  discovered(%p) moved -> %p:%ld/%d\n", _old_anchor_p, (void*)old_p, (void*)new_p,
   //         ((address)p - (address)_old_anchor_p), java_lang_ref_Reference::discovered_offset());
-  if (old_p == NULL) return;
+  if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT
   ensure_alive_or_deadsapce(old_p);
@@ -412,11 +411,11 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
-    RTGC::add_referrer_unsafe(old_p, _old_anchor_p);
+    RTGC::add_referrer_unsafe(old_p, _old_anchor_p, false);
   }
   else {
     // old_p 에 대해 이미 adjust_pointers 가 수행됨.
-    RTGC::add_referrer_unsafe(old_p, _new_anchor_p);
+    RTGC::add_referrer_unsafe(old_p, _new_anchor_p, false);
   }
 }
 
@@ -704,7 +703,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
     if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_unsafe(discovered, obj);
+      RTGC::add_referrer_unsafe(discovered, obj, true);
     }
     // rtHeap::link_discovered_pending_reference(obj, discovered);
   }
@@ -713,7 +712,6 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
 template <bool is_full_gc>
 void RtRefProcessor::process_phantom_references() {
   _pending_head = NULL;
-  _pending_tail_np = NULL;
 #ifdef ASSERT  
   cnt_garbage = 0;
   cnt_phantom = 0;
@@ -725,7 +723,7 @@ void RtRefProcessor::process_phantom_references() {
   oop acc_ref = NULL;
   oop next_ref;
   oop alive_head = NULL;
-  oopDesc* pending_tail_acc;
+  oopDesc* pending_tail_acc = NULL;
   const int referent_off = java_lang_ref_Reference::referent_offset();
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
 
@@ -755,19 +753,17 @@ void RtRefProcessor::process_phantom_references() {
       debug_only(cnt_pending++;)
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));
       rtgc_log(LOG_OPT(3), "reference %p(->%p) with garbage referent linked after (%p)\n", 
-            (void*)ref_op, (void*)ref_np, (void*)_pending_tail_np);
+            (void*)ref_op, (void*)ref_np, (void*)pending_tail_acc);
       if (_pending_head == NULL) {
-        precond(_pending_tail_np == NULL);
+        precond(pending_tail_acc == NULL);
         _pending_head = acc_ref;
       } else {
         HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, acc_ref);
         if (to_node(pending_tail_acc)->isTrackable()) {
-          RTGC::add_referrer_unsafe(acc_ref, pending_tail_acc);
+          RTGC::add_referrer_unsafe(acc_ref, pending_tail_acc, true);
         }
       }
       pending_tail_acc = acc_ref;
-      _pending_tail_np = ref_np;
-
     } else {
       rtgc_log(LOG_OPT(3), "alive reference %p(->%p) linked (%p)\n", 
             (void*)ref_op, (void*)ref_np, (void*)alive_head);
@@ -801,7 +797,7 @@ void RtRefProcessor::process_phantom_references() {
 
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
     if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
-      RTGC::add_referrer_unsafe(enqueued_top_np, pending_tail_acc);
+      RTGC::add_referrer_unsafe(enqueued_top_np, pending_tail_acc, true);
     }
   }
   _enqueued_top = NULL;

@@ -560,7 +560,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   template <class T>
   void do_work(T* p) {
     oop obj = CompressedOops::decode(*p);
-    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie);
+    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie, true);
   }
 
 public:
@@ -620,28 +620,29 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
                     size_t length, arrayOopDesc* dst_array) {
   rtgc_log(LOG_OPT(5), "arraycopy_conjoint (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   RTGC::lock_heap();
+  bool isTrackableArray = to_obj(dst_arry)->isTrackable();
   ptrdiff_t diff = src_p - dst_p;
   if (diff > 0) {
     ITEM_T* src_end = src_p + length;
     int cp_len = MIN(diff, length);
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(*(--src_end));
-      if (item != NULL) RTGC::add_referrer_unsafe(src_item, dst_array);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_unsafe(src_item, dst_array, true);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(dst_p[i]);
-      if (erased != NULL) RTGC::remove_referrer_unsafe(erased, dst_array);
+      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array, true);
     }
   } else {
     int cp_len = MIN(-diff, length);
     ITEM_T* dst_end = dst_p + length;    
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(src_p[i]);
-      if (item != NULL) RTGC::add_referrer_unsafe(src_item, dst_array);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_unsafe(src_item, dst_array, true);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(*(--dst_end));
-      if (erased != NULL) RTGC::remove_referrer_unsafe(erased, dst_array);
+      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array);
     }
   }
   memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);

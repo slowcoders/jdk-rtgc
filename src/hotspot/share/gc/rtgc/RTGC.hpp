@@ -53,7 +53,7 @@ namespace RTGC {
 
   bool heap_locked_bySelf();
 
-  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer);
+  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, bool checkYoungRoot);
 
   void on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
