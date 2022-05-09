@@ -300,6 +300,7 @@ void rtHeap__clear_garbage_young_roots() {
     for (; src < end; src++) {
       GCObject* node = to_obj(*src);
       precond(!node->isGarbageMarked());
+      //rtgc_log(LOG_OPT(8), "YG root %p\n", node); 
     }
   }
 #endif
@@ -355,7 +356,6 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
   if (node->isGarbageMarked()) {
     resurrect_young_root(node);
   }
-  //rtHeap::mark_survivor_reachable(link);
 
   precond(to_obj(anchor)->isTrackable());
   RTGC::add_referrer_unsafe(link, anchor, false);

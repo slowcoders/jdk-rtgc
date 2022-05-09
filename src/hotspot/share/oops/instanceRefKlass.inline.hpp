@@ -82,9 +82,13 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
   // Try to discover reference and return if it succeeds.
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
   if (RtNoDiscoverPhantom && type == REF_PHANTOM) {
+    T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
+    if (CompressedOops::is_null(*referent_addr)) {
+      do_discovered<T>(obj, closure, contains);
+    }
     return;
-  }
-#endif    
+  } 
+#endif      
 
   if (try_discover<T>(obj, type, closure)) {
     return;
