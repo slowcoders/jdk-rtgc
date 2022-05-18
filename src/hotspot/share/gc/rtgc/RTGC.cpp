@@ -220,6 +220,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
   } else if (RTGC::debug_obj == new_p) {
+    // assert(!RTGC::debugOptions[0], "gotcha");
     rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
   }
 }
@@ -228,6 +229,8 @@ static void* debugKlass = NULL;
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
+
+  // return obj->klass() == vmClasses::Object_klass();
 
   return ptr == debug_obj;
 
@@ -262,13 +265,13 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)-1;
-  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  RTGC::debug_obj = (void*)0x7f04e0000;
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  logOptions[LOG_HEAP] = 1 << 3;
+  //logOptions[LOG_HEAP] = 1 << 3;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 0;

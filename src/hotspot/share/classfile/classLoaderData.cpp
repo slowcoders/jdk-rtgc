@@ -994,7 +994,6 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       ((ConstantPool*)m)->release_C_heap_structures();
     } else if (m->is_klass()) {
       InstanceKlass* ik = (InstanceKlass*)m;
-      RTGC_ONLY(fatal("Not tested in RTGC");)
       // also releases ik->constants() C heap memory
       ik->release_C_heap_structures();
       // Remove the class so unloading events aren't triggered for

@@ -60,10 +60,11 @@ public class TestAbortOnVMOperationTimeout {
 
     public static void testWith(int delay, boolean shouldPass) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+UnlockDiagnosticVMOptions",
                 "-XX:+AbortVMOnVMOperationTimeout",
                 "-XX:AbortVMOnVMOperationTimeoutDelay=" + delay,
-                "-Xmx256m",
+                "-Xmx512m",
                 "-XX:+UseSerialGC",
                 "-XX:-CreateCoredumpOnCrash",
                 "TestAbortOnVMOperationTimeout",

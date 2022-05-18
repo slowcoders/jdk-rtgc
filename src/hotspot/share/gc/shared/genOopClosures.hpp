@@ -148,7 +148,11 @@ public:
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
-    rtHeap::mark_survivor_reachable(obj);
+    if (rtHeap::is_trackable(obj)) {
+      rtHeap::mark_survivor_reachable(obj);
+    } else {
+      // it is allocated in tenured_space in just before YG-gc;
+    }
   }
 
   void do_iterate(oop obj) {

@@ -192,7 +192,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
 static void resurrect_young_root(GCObject* node) {
   precond(node->isYoungRoot());
   precond(node->isGarbageMarked());
-  rtgc_log(LOG_OPT(11), "young_root(%p) resurrected\n", node);
+  //rtgc_log(LOG_OPT(11), "young_root(%p) resurrected\n", node);
   node->unmarkGarbage();
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     node->unmarkYoungRoot();
@@ -362,7 +362,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
 }
 
 void rtHeap::mark_forwarded(oopDesc* p) {
-  // rtgc_log(RTGC::debugOptions[0], "marked %p\n", p);
+  // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
   debug_only(precond(!to_node(p)->isUnstable()));
   if (!USE_PENDING_TRACKABLES) {
@@ -588,7 +588,7 @@ static void mark_ghost_anchors(GCObject* node) {
           !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
               (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
       if (!anchor->isUnstable()) {
-        rtgc_log(RTGC::debugOptions[0], "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
+        rtgc_log(LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
         anchor->markUnstable();
         // stack-overflow
         // mark_ghost_anchors(anchor);
@@ -600,7 +600,7 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  rtgc_log(RTGC::debugOptions[0], "destroyed %p(%s)\n", node, RTGC::getClassName(node));
+  rtgc_log(LOG_OPT(4), "destroyed %p(%s)\n", node, RTGC::getClassName(node));
   
   assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
       node->getRootRefCount(), node, RTGC::getClassName(node));
@@ -612,9 +612,9 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   node->markGarbage();
   node->removeAnchorList();
 
-  rtgc_log(RTGC::debugOptions[0], "destroyed done %p(%s)\n", node, RTGC::getClassName(node));
+  rtgc_log(LOG_OPT(4), "destroyed done %p(%s)\n", node, RTGC::getClassName(node));
 
-  // rtgc_log(RTGC::debugOptions[0], "destroyed done %p\n", node);
+  // rtgc_log(LOG_OPT(4), "destroyed done %p\n", node);
   if (!node->isTrackable()) {
     precond(node->getShortcutId() == 0);
     return;
