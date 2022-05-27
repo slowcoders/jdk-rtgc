@@ -96,7 +96,7 @@ void GCRuntime::disconnectReferenceLink(
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
     assigned->incrementRootRefCount();
-    rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
+    //rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
 }
 
 void GCRuntime::onAssignRootVariable(GCObject* assigned) {

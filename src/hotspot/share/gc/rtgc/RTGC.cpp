@@ -218,10 +218,10 @@ oop rtgc_break(const char* file, int line, const char* function) {
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
   if (is_debug_pointer(old_p)) {
     RTGC::debug_obj = new_p;
-    rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
+    //rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
   } else if (RTGC::debug_obj == new_p) {
     // assert(!RTGC::debugOptions[0], "gotcha");
-    rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
+    //rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
   }
 }
 
@@ -230,14 +230,13 @@ bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
-  // return obj->klass() == vmClasses::Object_klass();
-
-  return ptr == debug_obj;
+  // return ptr == debug_obj;
 
   if (debugKlass == NULL) {
-    const char* className = "java/lang/invoke/ConstantCallSite";
-    if (strstr((char*)obj->klass()->name()->bytes(), className) && obj->is_typeArray()) {
+    const char* className = "com/sun/tools/javac/code/Symbol$MethodSymbol";
+    if (strstr((char*)obj->klass()->name()->bytes(), className)) {
       debugKlass = obj->klass();
+      debugOptions[1] = true;
       return true;
     }
     return false;
@@ -265,16 +264,17 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)0x7f04e0000;
-  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  RTGC::debug_obj = (void*)-1;
+  RTGC::debug_obj2 = NULL;
+  //if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  //logOptions[LOG_HEAP] = 1 << 3;
+  //logOptions[LOG_SCANNER] = 1 << 0x10;
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 0;
+    logOptions[LOG_HEAP] = 1 << 4;
     logOptions[LOG_REF_LINK] = 0;
     logOptions[LOG_BARRIER] = 0;
   }

@@ -122,9 +122,9 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    assert(rtHeap::is_alive(obj), "invalid ref-link %p(%s)->%p(%s)\n",
+    assert(rtHeap::is_alive(obj), "invalid ref-link %p(%s)->%p(%s) old=%d\n",
       (void*)anchor, anchor->klass()->name()->bytes(),
-      (void*)obj, obj->klass()->name()->bytes());
+      (void*)obj, obj->klass()->name()->bytes(), rtHeap::is_trackable(obj));
   }
 };
 #endif

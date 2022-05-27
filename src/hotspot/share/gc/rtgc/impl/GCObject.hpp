@@ -78,16 +78,15 @@ public:
 
 static const int MIN_SHORTCUT_LENGTH = 3;
 static const bool _EnableShortcut = true;
+#define ENABLE_REACHBLE_SHORTCUT_CACHE false
 
 class SafeShortcut {
-	uint16_t _mark;
-	uint16_t _cntNode;
-	uint32_t _next;
+	GCObject* _inTracing;
 	ShortOOP _anchor;
 	ShortOOP _tail;
 
 	SafeShortcut(GCObject* anchor, GCObject* tail) :  
-			_mark(0), _cntNode(0), _next(0), _anchor(anchor), _tail(tail) {}
+			_inTracing(NULL), _anchor(anchor), _tail(tail) {}
 public:
 	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
 
@@ -123,6 +122,7 @@ public:
 
 	void operator delete(void* ptr);
 
+#if ENABLE_REACHBLE_SHORTCUT_CACHE
 	bool isReachable() {
 		return _mark & 2;
 	}
@@ -139,16 +139,19 @@ public:
 	void unmarkReachable() {
 		_mark &= ~2;
 	}
+#endif
 
-	void markInTracing() {
-		_mark |= 1;
+	void markInTracing(GCObject* obj) {
+		assert(!inTracing(), "aleady in tracing %p", obj);
+		_inTracing = obj;
 	}
 	void unmarkInTracing() {
-		_mark &= ~1;
+		_inTracing = NULL;
 	}
 	bool inTracing() {
-		return (_mark & 1);
+		return _inTracing != NULL;
 	}
+	bool inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut);
 
 	const ShortOOP& anchor() { return _anchor; }
 
