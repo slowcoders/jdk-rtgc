@@ -35,8 +35,8 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   return true;
 }
 
-static void check_field_addr(oopDesc* base, volatile void* addr) {
-  precond(is_strong_ref(addr, base));
+static void check_field_addr(oopDesc* base, volatile void* addr, bool strong_reachable=true) {
+  precond(!strong_reachable || is_strong_ref(addr, base));
   assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
       && addr < (address)base + MAX_OBJ_SIZE
       , "invalid field addr %p of base %p\n", addr, base);
@@ -341,13 +341,14 @@ oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_value, oopDesc* new_value, 
   check_field_addr(base, addr);
   RTGC::publish_and_lock_heap(new_value, base);
   oop old = RawAccess<>::oop_load(addr);
-  if ((oopDesc*)old == cmp_value) {
+  oopDesc* old_value = old;
+  if (old_value == cmp_value && old_value != new_value) {
     raw_set_volatile_field(addr, new_value);
-    RTGC::on_field_changed(base, old, new_value, addr, "cmpx");
+    RTGC::on_field_changed(base, old_value, new_value, addr, "cmpx");
   }
   RTGC::unlock_heap(true);
   rtgc_log(LOG_OPT(11), "cmpxchg %p[%p]=%p <-> %p r=%d\n", 
-        base, addr, cmp_value, new_value, ((void*)old == cmp_value));
+        base, addr, cmp_value, new_value, (old_value == cmp_value));
   return old;
 }
 
@@ -435,7 +436,9 @@ address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
 
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
-  check_field_addr(base, addr);
+  // oopDesc->print_on() 함수에서 임의의 필드 값을 access 한다.
+  // 오류 발생 시 해당 함수를 수정할 것.
+  check_field_addr(base, addr, true);
   //rtgc_log(LOG_OPT(4), "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap();
   oop value = RawAccess<>::oop_load(addr);
