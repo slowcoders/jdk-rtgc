@@ -229,11 +229,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, JavaThread* curr
   JRT_BLOCK_END;
 
   // inform GC that we won't do card marks for initializing writes.
-#if INCLUDE_RTGC // on_slowpath_allocation_exit
-  if (!RtNoDirtyCardMarking) {
-    SharedRuntime::on_slowpath_allocation_exit(current);
-  }
-#endif
+  SharedRuntime::on_slowpath_allocation_exit(current);
 JRT_END
 
 
@@ -271,11 +267,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   JRT_BLOCK_END;
 
   // inform GC that we won't do card marks for initializing writes.
-#if INCLUDE_RTGC // on_slowpath_allocation_exit
-  if (!RtNoDirtyCardMarking) {
-    SharedRuntime::on_slowpath_allocation_exit(current);
-  }
-#endif
+  SharedRuntime::on_slowpath_allocation_exit(current);
 JRT_END
 
 // array allocation without zeroing
@@ -303,12 +295,8 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len
   JRT_BLOCK_END;
 
 
-#if INCLUDE_RTGC // on_slowpath_allocation_exit
-  if (!RtNoDirtyCardMarking) {
     // inform GC that we won't do card marks for initializing writes.
-    SharedRuntime::on_slowpath_allocation_exit(current);
-  }
-#endif
+  SharedRuntime::on_slowpath_allocation_exit(current);
 
   oop result = current->vm_result();
   if ((len > 0) && (result != NULL) &&

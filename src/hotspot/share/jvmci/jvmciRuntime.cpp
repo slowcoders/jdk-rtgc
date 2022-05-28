@@ -144,11 +144,7 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_instance_common(JavaThread* current, Kla
     current->set_vm_result(obj);
   }
   JRT_BLOCK_END;
-#if INCLUDE_RTGC // on_slowpath_allocation_exit
-  if (!RtNoDirtyCardMarking) {
-    SharedRuntime::on_slowpath_allocation_exit(current);
-  }
-#endif
+  SharedRuntime::on_slowpath_allocation_exit(current);
 JRT_END
 
 JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array_common(JavaThread* current, Klass* array_klass, jint length, bool null_on_fail))
@@ -186,11 +182,7 @@ JRT_BLOCK_ENTRY(void, JVMCIRuntime::new_array_common(JavaThread* current, Klass*
     }
   }
   JRT_BLOCK_END;
-#if INCLUDE_RTGC // on_slowpath_allocation_exit
-  if (!RtNoDirtyCardMarking) {
-    SharedRuntime::on_slowpath_allocation_exit(current);
-  }
-#endif
+  SharedRuntime::on_slowpath_allocation_exit(current);
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::new_multi_array_common(JavaThread* current, Klass* klass, int rank, jint* dims, bool null_on_fail))

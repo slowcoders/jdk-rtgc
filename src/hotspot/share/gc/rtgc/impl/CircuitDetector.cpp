@@ -73,6 +73,7 @@ void PathFinder::clearReachableShortcutMarks() {
 
 bool PathFinder::constructSurvivalPath(GCObject* node) {
     ShortOOP tail = node;
+    precond(EnableRTGC);
     bool hasSurvivalPath = findSurvivalPath(tail);
     if (hasSurvivalPath) {
         constructShortcut();
@@ -416,12 +417,12 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
 #ifdef ASSERT
     if (_inTracing) {
         cntInTracing ++;
-        if ((cntNoTracing % 100) == 0) {
-            rtgc_log(true, "inTracing %d, noTracing %d\n", cntInTracing, cntNoTracing);
-        }
     }
     else {
         cntNoTracing ++;
+        if ((cntNoTracing % 10000) == 0) {
+            // rtgc_log(true, "inTracing %d, noTracing %d\n", cntInTracing, cntNoTracing);
+        }
     }
 #endif
     if (_inTracing == NULL) return false;
