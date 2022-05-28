@@ -87,7 +87,7 @@ static bool IS_GC_MARKED(oopDesc* obj) {
 
 static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
   return obj->klass()->id() == InstanceRefKlassID && 
-        ((InstanceRefKlass*)obj->klass())->reference_type() == rt;
+        (rt == (ReferenceType)-1 || ((InstanceRefKlass*)obj->klass())->reference_type() == rt);
 }
 
 
@@ -585,7 +585,7 @@ static void mark_ghost_anchors(GCObject* node) {
   AnchorIterator ai(node);
   while (ai.hasNext()) {
     GCObject* anchor = ai.next();
-    if (!anchor->isGarbageMarked()) {
+    if (!anchor->isGarbageMarked() && !is_java_reference(cast_to_oop(anchor), (ReferenceType)-1)) {
       if (cast_to_oop(anchor)->is_gc_marked()) {
         cast_to_oop(anchor)->print_on(tty);
       }
