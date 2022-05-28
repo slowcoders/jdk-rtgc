@@ -230,11 +230,13 @@ bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
-  // return ptr == debug_obj;
+  return ptr == debug_obj;
 
   if (debugKlass == NULL) {
     const char* className = "com/sun/tools/javac/code/Symbol$MethodSymbol";
-    if (strstr((char*)obj->klass()->name()->bytes(), className)) {
+    if (strstr((char*)obj->klass()->name()->bytes(), className)
+      && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
+      rtgc_log(true, "debug class resolved %s\n", obj->klass()->name()->bytes());
       debugKlass = obj->klass();
       debugOptions[1] = true;
       return true;
@@ -271,7 +273,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  //logOptions[LOG_SCANNER] = 1 << 0x10;
+  // logOptions[LOG_SCANNER] = 1 << 7;
 
   if (UnlockExperimentalVMOptions) {
     logOptions[LOG_HEAP] = 1 << 4;
