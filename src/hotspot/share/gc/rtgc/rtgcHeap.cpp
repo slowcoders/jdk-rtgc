@@ -685,7 +685,7 @@ void rtHeap::init_java_reference(oopDesc* ref_oop, oopDesc* referent) {
     return;
   }
 
-  rtgc_log(LOG_OPT(3), "created phantom %p for %p\n", (void*)ref_oop, referent);
+  //rtgc_log(LOG_OPT(3), "created phantom %p for %p\n", (void*)ref_oop, referent);
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_oop, referent_offset, referent);
   oop next_discovered = Atomic::xchg(&g_rtRefProcessor._phantom_ref_q, ref_oop);
   java_lang_ref_Reference::set_discovered_raw(ref_oop, next_discovered);
@@ -796,6 +796,19 @@ void RtRefProcessor::process_phantom_references() {
     }
   }
   _enqueued_top = NULL;
+}
+
+bool rtHeap::is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link) {
+  assert(java_lang_ref_Reference::is_phantom(link)
+      && java_lang_ref_Reference::is_phantom(yg_root)
+      && (void*)java_lang_ref_Reference::discovered(yg_root) == link
+      && (void*)java_lang_ref_Reference::unknown_referent_no_keepalive(yg_root) == NULL
+      && to_obj(link)->isYoungRoot(),
+      "invalid ref-link %p(%s)->%p(%s) is_yg_root=%d\n",
+      (void*)yg_root, yg_root->klass()->name()->bytes(),
+      (void*)link, link->klass()->name()->bytes(), 
+      to_obj(link)->isYoungRoot());
+  return true;
 }
 
 void rtHeap::finish_compaction_gc(bool is_full_gc) {

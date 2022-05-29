@@ -144,6 +144,8 @@ oop java_lang_ref_Reference::unknown_referent_no_keepalive(oop ref) {
 void java_lang_ref_Reference::clear_referent(oop ref) {
 #if INCLUDE_RTGC
   if (EnableRTGC && is_phantom(ref)) {
+    rtgc_log(RTGC::LOG_OPTION(RTGC::LOG_HEAP, 3), 
+        "clear_phantom_referent %p\n", (void*)ref);
     ref->obj_field_put_raw(_referent_offset, nullptr);
   } else
 #endif

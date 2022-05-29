@@ -522,6 +522,7 @@ void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     oopDesc::clear_rt_node(start);
+    //rtgc_log(true, "garbage marking on dummy object %p\n", start);
     RTGC::to_node(cast_to_oop(start))->markGarbage(NULL);
   }
 #endif

@@ -25,6 +25,7 @@ public:
   static void mark_survivor_reachable(oopDesc* tenured_p, bool as_java_referent = false);
   static void mark_young_root_reachable(oopDesc* referent);
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
+  static bool is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link);
 
   // for full gc
   static void prepare_full_gc();

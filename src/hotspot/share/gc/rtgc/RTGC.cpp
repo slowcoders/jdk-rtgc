@@ -160,7 +160,7 @@ const void* RTGC::currentThreadId() {
 }
 
 void RTGC::enableLog(int category, int functions) {
-  logOptions[category] = functions;
+  logOptions[category] |= functions;
 }
 
 
@@ -273,11 +273,11 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  // logOptions[LOG_SCANNER] = 1 << 7;
+  enableLog(LOG_SCANNER, 10);
 
   if (UnlockExperimentalVMOptions) {
-    logOptions[LOG_HEAP] = 1 << 4;
-    logOptions[LOG_REF_LINK] = 0;
-    logOptions[LOG_BARRIER] = 0;
+    enableLog(LOG_HEAP, 4);
+    enableLog(LOG_REF_LINK, 0);
+    enableLog(LOG_BARRIER, 0);
   }
 }
