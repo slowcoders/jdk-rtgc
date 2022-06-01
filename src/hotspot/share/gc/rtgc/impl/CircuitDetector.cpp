@@ -1,5 +1,6 @@
 #include "GCObject.hpp" 
 #include "GCRuntime.hpp" 
+#include "classfile/javaClasses.inline.hpp"
 #include "../RTGC.hpp"
 #include "../rtgcDebug.hpp"
 #include "../rtgcHeap.hpp"
@@ -212,7 +213,7 @@ void PathFinder::constructShortcut() {
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
                 lastShortcut = SafeShortcut::create(obj, tail, cntNode);
-                rtgc_log(LOG_OPT(0x11), "SafeShortcut::create max len [%d]\n", lastShortcut->getIndex());
+                rtgc_log(LOG_OPT(10), "SafeShortcut::create max len [%d]\n", lastShortcut->getIndex());
                 cntNode = 1;
             }
             if (cntNode == 1) {
@@ -226,7 +227,7 @@ void PathFinder::constructShortcut() {
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
-                    rtgc_log(LOG_OPT(0x11), "extend Shortcut tail %d\n", ss->getIndex());
+                    rtgc_log(LOG_OPT(10), "extend Shortcut tail %d\n", ss->getIndex());
                 #ifdef ASSERT
                     for (GCObject* n = tail; n != obj; n = n->getSafeAnchor()) {
                         precond(n != ss->anchor());
@@ -247,12 +248,12 @@ void PathFinder::constructShortcut() {
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {
-                    rtgc_log(LOG_OPT(0x11), "extend Shortcut anchor %d\n", ss->getIndex());
+                    rtgc_log(LOG_OPT(10), "extend Shortcut anchor %d\n", ss->getIndex());
                     lastShortcut->extendAnchor(obj);
                 }
                 else {
                     SafeShortcut* s2 = SafeShortcut::create(obj, tail, cntNode);
-                    rtgc_log(LOG_OPT(0x11), "insert Shortcut %d\n", s2->getIndex());
+                    rtgc_log(LOG_OPT(10), "insert Shortcut %d\n", s2->getIndex());
                 }
                 cntNode = 0;
             }
@@ -269,10 +270,9 @@ void PathFinder::constructShortcut() {
          */
         link->setSafeAnchor(root);
         if (lastShortcut != NULL) {
-            rtgc_log(LOG_OPT(0x11), "SafeShortcut::create 3-1\n")
             lastShortcut->extendAnchor(root);
         } else {
-            rtgc_log(LOG_OPT(0x11), "SafeShortcut::create 3\n")
+            rtgc_log(LOG_OPT(10), "SafeShortcut::create 3\n")
             SafeShortcut::create(root, tail, cntNode);
         }
     }
@@ -454,59 +454,73 @@ void SafeShortcut::vailidateShortcut() {
     precond(_anchor->getShortcut() != this);
     precond(_anchor->isTrackable());
     GCObject* anchor = _anchor;
+    debug_only(int cnt = 0;)
+    GCObject* tail = this->_tail;
     for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
         precond(obj->isTrackable());
+        rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
         assert(obj->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
             obj, RTGC::getClassName(obj), getIndex(this));
     }
+    rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
 }
 
-void SafeShortcut::split(GCObject* newTail, GCObject* newAnchor) {
-    assert(this->isValid(), "shotcut[%d] is invalid newAnchar=%p tail=%p\n", 
-        getIndex(this), newAnchor, (void*)_tail);
-    precond(newAnchor->getShortcut() == this);
-    precond(newTail->getShortcut() == this || newTail == this->anchor());
-    newAnchor->setShortcutId_unsafe(0);
+void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
+    int s_id = getIndex(this);
+    rtgc_log(RTGC::is_debug_pointer(leftTail) && java_lang_ref_Reference::is_phantom(cast_to_oop(leftTail)), 
+        "REF_PHANTOM[%d] shotcut split=%p(%s) rightAnchor=%p(%s)\n", 
+        getIndex(this), leftTail, RTGC::getClassName(leftTail), 
+                        rightAnchor, RTGC::getClassName(rightAnchor));
 
-    if (newTail == this->_anchor) {
-        if (clearTooShort(newAnchor, _tail)) {
+    assert(this->isValid(), "shotcut[%d] is invalid leftTail=%p(%s) rightAnchor=%p(%s)\n", 
+        getIndex(this), leftTail, RTGC::getClassName(leftTail), 
+                        rightAnchor, RTGC::getClassName(rightAnchor));
+    precond(rightAnchor->getShortcut() == this);
+    precond(leftTail->getShortcut() == this || leftTail == this->anchor());
+    rightAnchor->setShortcutId_unsafe(0);
+
+    if (leftTail == this->_anchor) {
+        if (clearTooShort(rightAnchor, _tail)) {
+            rtgc_log(LOG_OPT(10), "split shortcut[%d]: deleted 0\n", s_id);
             delete this;
         } else {
-            this->_anchor = newAnchor;
-            rtgc_log(LOG_OPT(10), "cut anchor\n");
+            this->_anchor = rightAnchor;
+            rtgc_log(LOG_OPT(10), "split shortcut[%d]: cut anchor\n", s_id);
             this->vailidateShortcut();
         }
         return;
     }
-    if (newAnchor == this->_tail) {
-        if (clearTooShort(_anchor, newTail)) {
+    if (rightAnchor == this->_tail) {
+        if (clearTooShort(_anchor, leftTail)) {
+            rtgc_log(LOG_OPT(10), "split shortcut[%d]: deleted 1\n", s_id);
             delete this;
         } else {
-            rtgc_log(LOG_OPT(10), "cut tail\n");
-            this->_tail = newTail;
+            rtgc_log(LOG_OPT(10), "split shortcut[%d]: cut tail\n", s_id);
+            this->_tail = leftTail;
             this->vailidateShortcut();
         }
         return;
     }
 
-    bool cut_tail = clearTooShort(newAnchor, _tail);
-    bool cut_head = clearTooShort(_anchor, newTail);
+    bool cut_tail = clearTooShort(rightAnchor, _tail);
+    bool cut_head = clearTooShort(_anchor, leftTail);
     if (cut_head) {
         if (cut_tail) {
+            rtgc_log(LOG_OPT(10), "split shortcut[%d]: deleted 2\n", s_id);
             delete this;
             return;
         }
-        rtgc_log(LOG_OPT(10), "cut heads\n");
-        this->_anchor = newAnchor;
+        rtgc_log(LOG_OPT(10), "split shortcut[%d]: cut heads\n", s_id);
+        this->_anchor = rightAnchor;
     }
     else if (cut_tail) {
-        rtgc_log(LOG_OPT(10), "cut tails\n");
-        this->_tail = newTail;
+        rtgc_log(LOG_OPT(10), "split shortcut[%d]: cut tails\n", s_id);
+        this->_tail = leftTail;
     }
     else {
-        rtgc_log(LOG_OPT(10), "spilt shortcut\n");
-        SafeShortcut::create(newAnchor, _tail, MIN_SHORTCUT_LENGTH+1, true);
-        this->_tail = newTail;
+        rtgc_log(LOG_OPT(10), "split shortcut[%d]: divide\n", s_id);
+        SafeShortcut::create(rightAnchor, _tail, MIN_SHORTCUT_LENGTH+1, true);
+        this->_tail = leftTail;
     }
     this->vailidateShortcut();
 }
@@ -526,7 +540,6 @@ bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
 void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     assert(newAnchor->getShortcut() == this, "invalid anchor %p[%d]\n", newAnchor, this->getIndex(this));
     precond(!this->inTracing());
-    //rtgc_log(LOG_OPT(10), "shrink anchor to %p [%d]", newAnchor, this->getIndex(this));
     GCObject* old_anchor = _anchor;
     for (GCObject* obj = newAnchor; obj != old_anchor; obj = obj->getSafeAnchor()) {
         obj->setShortcutId_unsafe(INVALID_SHORTCUT);
@@ -537,5 +550,31 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     } else {
         this->_anchor = newAnchor;
         rtgc_log(LOG_OPT(10), "shortcut shrinked[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
+        this->vailidateShortcut();
     }
+}
+
+void SafeShortcut::extendTail(GCObject* tail) {
+    precond(tail != NULL); 
+    precond(tail != _tail); 
+    int s_id = getIndex(this);
+    rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
+    GCObject* old_tail = _tail;
+    for (GCObject* node = tail; node != old_tail; node = node->getSafeAnchor()) {
+        node->setShortcutId_unsafe(s_id);
+    }
+    this->_tail = tail;
+    vailidateShortcut();
+}
+
+void SafeShortcut::extendAnchor(GCObject* anchor) { 
+    precond(anchor != NULL); 
+    precond(anchor != _anchor); 
+    int s_id = getIndex(this);
+    rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
+    for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
+        node->setShortcutId_unsafe(s_id);
+    }
+    this->_anchor = anchor;
+    vailidateShortcut();
 }

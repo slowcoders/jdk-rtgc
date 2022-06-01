@@ -104,7 +104,8 @@ public:
 			node->setShortcutId_unsafe(s_id);
 		}
 		if (shortcut != NULL) {
-	        // rtgc_log(true, "shotcut[%d:%d] assigned %p->%p\n", s_id, cntNode, anchor, tail);
+	        rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 
+				s_id, cntNode, anchor, tail);
 			shortcut->vailidateShortcut();
 		}
 		return shortcut;
@@ -169,30 +170,9 @@ public:
 
 	void vailidateShortcut();
 
-	void extendTail(GCObject* tail) {
-		precond(tail != NULL); 
-		precond(tail != _tail); 
-		int s_id = getIndex(this);
-	    // rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
-		GCObject* old_tail = _tail;
-		for (GCObject* node = tail; node != old_tail; node = node->getSafeAnchor()) {
-			node->setShortcutId_unsafe(s_id);
-		}
-		this->_tail = tail;
-		vailidateShortcut();
-	}
+	void extendTail(GCObject* tail);
 
-	void extendAnchor(GCObject* anchor) { 
-		precond(anchor != NULL); 
-		precond(anchor != _anchor); 
-		int s_id = getIndex(this);
-	    // rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
-		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
-			node->setShortcutId_unsafe(s_id);
-		}
-		this->_anchor = anchor;
-		vailidateShortcut();
-	}
+	void extendAnchor(GCObject* anchor);
 
 	void shrinkAnchorTo(GCObject* newAnchor);
 

@@ -438,7 +438,7 @@ template<class T, bool inHeap, int shift>
 oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
   // oopDesc->print_on() 함수에서 임의의 필드 값을 access 한다.
   // 오류 발생 시 해당 함수를 수정할 것.
-  check_field_addr(base, addr, true);
+  // check_field_addr(base, addr, true);
   //rtgc_log(LOG_OPT(4), "load %p(%p)\n", base, addr);
   // bool locked = RTGC::lock_heap();
   oop value = RawAccess<>::oop_load(addr);

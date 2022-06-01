@@ -159,8 +159,8 @@ const void* RTGC::currentThreadId() {
   return Thread::current();
 }
 
-void RTGC::enableLog(int category, int functions) {
-  logOptions[category] |= functions;
+void RTGC::enableLog(int category, int function) {
+  logOptions[category] |= (1 << function);
 }
 
 
@@ -225,27 +225,36 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
   }
 }
 
-static void* debugKlass = NULL;
+
+const char* debugClassNames[] = {
+    "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    "jdk/nio/zipfs/ZipFileSystem",
+    "java/lang/ref/Finalizer"
+};
+const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
+void* debugKlass[CNT_DEBUG_CLASS];
+
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
-  return ptr == debug_obj;
+  // return ptr == debug_obj;
 
-  if (debugKlass == NULL) {
-    const char* className = "com/sun/tools/javac/code/Symbol$MethodSymbol";
-    if (strstr((char*)obj->klass()->name()->bytes(), className)
-      && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
-      rtgc_log(true, "debug class resolved %s\n", obj->klass()->name()->bytes());
-      debugKlass = obj->klass();
-      debugOptions[1] = true;
+  for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    if (debugKlass[i] == NULL) {
+      const char* className = debugClassNames[i];
+      if (strstr((char*)obj->klass()->name()->bytes(), className)
+        && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
+        rtgc_log(true, "debug class resolved %s\n", obj->klass()->name()->bytes());
+        debugKlass[i] = obj->klass();
+        return true;
+      }
+    } else if (obj->klass() == debugKlass[i]) {
       return true;
     }
-    return false;
-  } else {
-    return obj->klass() == debugKlass;
   }
-
+  return false;
+  
   if (debugOptions[0]) return obj->klass() == Universe::byteArrayKlassObj();
 
   return obj->klass()->id() == InstanceRefKlassID && 
@@ -268,15 +277,16 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
-  //if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
   enableLog(LOG_SCANNER, 10);
+  enableLog(LOG_HEAP, 3);
 
   if (UnlockExperimentalVMOptions) {
-    enableLog(LOG_HEAP, 4);
+    enableLog(LOG_HEAP, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

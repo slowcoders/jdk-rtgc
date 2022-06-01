@@ -765,10 +765,10 @@ UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, j
       int32_t flag = (int32_t)x;
       if (flag == 0) {
         RTGC::debugOptions[0] = true;
-        RTGC::enableLog(RTGC::LOG_HEAP, 1 << 3);
+        RTGC::enableLog(RTGC::LOG_HEAP, 3);
       }
       else {
-        RTGC::enableLog(flag / RTGC::LOG_CATEGORY_BASE, flag & RTGC::LOG_FUNCTION_MASK);
+        RTGC::enableLog(flag / 100, flag % 100);
       }
     }
   }
