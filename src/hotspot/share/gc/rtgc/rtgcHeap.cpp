@@ -735,9 +735,15 @@ void RtRefProcessor::process_phantom_references() {
 
     rtgc_log(LOG_OPT(3), "phantom ref %p moved %p\n", (void*)ref_op, (void*)ref_np);
     oop referent_op = RawAccess<>::oop_load_at(ref_op, referent_off);
+    precond(referent_op != NULL);
     acc_ref = is_full_gc ? ref_op : ref_np;
-    if (referent_op == NULL) {
+    if (referent_op == ref_op) {
       debug_only(cnt_cleared++;)
+      /**
+       * Two step referent clear (to hide discoverd-link)
+       * See java_lang_ref_Reference::clear_referent().
+       */
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, discovered_off, oop(NULL));
       rtgc_log(LOG_OPT(3), "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref_op);
       continue;

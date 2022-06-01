@@ -227,9 +227,9 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
 
 
 const char* debugClassNames[] = {
-    "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    "jdk/nio/zipfs/ZipFileSystem",
-    "java/lang/ref/Finalizer"
+    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "jdk/nio/zipfs/ZipFileSystem",
+    // "java/lang/ref/Finalizer"
 };
 const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
 void* debugKlass[CNT_DEBUG_CLASS];
@@ -237,8 +237,6 @@ void* debugKlass[CNT_DEBUG_CLASS];
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
-
-  // return ptr == debug_obj;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     if (debugKlass[i] == NULL) {
@@ -253,16 +251,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
       return true;
     }
   }
-  return false;
-  
-  if (debugOptions[0]) return obj->klass() == Universe::byteArrayKlassObj();
-
-  return obj->klass()->id() == InstanceRefKlassID && 
-        ((InstanceKlass*)obj->klass())->reference_type() == REF_PHANTOM;
-
-
-  // return cast_to_oop(obj)->klass() == vmClasses::String_klass() 
-  //     && to_obj(obj)->getRootRefCount() == 1;
+  return ptr == debug_obj;
 
 }
 
@@ -277,13 +266,13 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
-  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  // if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  enableLog(LOG_SCANNER, 10);
-  enableLog(LOG_HEAP, 3);
+  // enableLog(LOG_SCANNER, 10);
+  // enableLog(LOG_HEAP, 3);
 
   if (UnlockExperimentalVMOptions) {
     enableLog(LOG_HEAP, 0);
