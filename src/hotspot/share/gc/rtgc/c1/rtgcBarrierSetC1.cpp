@@ -180,8 +180,18 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   rtgc_log(LOG_OPT(11), "store_at_resolved\n");
-  address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
+  DecoratorSet decorators = access.decorators();
+  // bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+  // LIRGenerator* gen = access.gen();
+
+  address fn = RtgcBarrier::getStoreFunction(decorators | AS_RAW);
+  // if (is_volatile) {
+  //   gen->lir()->membar_release();
+  // }
   call_barrier(fn, access, value, voidType);
+  // if (is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
+  //   gen->lir()->membar();
+  // }
 }
 
 

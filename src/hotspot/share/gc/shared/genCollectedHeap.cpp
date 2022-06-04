@@ -75,6 +75,7 @@
 #include "utilities/stack.inline.hpp"
 #include "utilities/vmError.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcBarrier.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
@@ -125,10 +126,15 @@ jint GenCollectedHeap::initialize() {
 
   ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
-  RTGC_ONLY(if (RtNoDirtyCardMarking)) {  
+  
+#if INCLUDE_RTGC  
+  if (EnableRTGC) RtgcBarrier::init_barrier_runtime();
+  if (RtNoDirtyCardMarking) {  
     bs = new RtgcBarrierSet(_rem_set);
   }
-  else {
+  else 
+#endif  
+  {
     _rem_set->initialize();
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();

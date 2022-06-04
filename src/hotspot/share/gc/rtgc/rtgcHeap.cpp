@@ -18,6 +18,8 @@
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
 namespace RTGC {
+  extern bool REF_LINK_ENABLED;
+  bool ENABLE_GC = false && REF_LINK_ENABLED;
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
     template <typename T> void do_oop_work(T* p);
@@ -143,17 +145,6 @@ static void ensure_alive_or_deadsapce(oopDesc* old_p) {
 
 
 
-
-#ifdef ASSERT
-void RTGC::mark_dead_space(void* p) {
-  ((GCNode*)p)->markGarbage("mark_dead_space");
-}
-bool RTGC::is_young_root(void* p) {
-  return ((GCNode*)p)->isYoungRoot();
-}
-
-#endif
-
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
   precond(to_obj(old_p)->isTrackable());
   precond(!to_obj(old_p)->isGarbageMarked());
@@ -260,11 +251,10 @@ void rtHeap__clear_garbage_young_roots() {
   if (cnt_root > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
     //rtgc_log(true, "collectGarbage yg-root started\n")
-    RTGC::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
+    if (ENABLE_GC) {
+      RTGC::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
+    }
     //rtgc_log(true, "collectGarbage yg-root finished\n")
-    assert(RTGC::debug_obj2 == NULL || to_obj((void*)RTGC::debug_obj2)->isGarbageMarked(),
-        "invalid yg root %p has garbage\n", RTGC::debug_obj2);
-    precond(RTGC::debug_obj2 == NULL || !to_obj((void*)RTGC::debug_obj2)->isGarbageMarked());
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
 
@@ -305,7 +295,7 @@ void rtHeap__clear_garbage_young_roots() {
     oop* end = src + cnt_root;
     for (; src < end; src++) {
       GCObject* node = to_obj(*src);
-      precond(!node->isGarbageMarked());
+      precond(!ENABLE_GC || !node->isGarbageMarked());
       //rtgc_log(LOG_OPT(8), "YG root %p\n", node); 
     }
   }
@@ -336,7 +326,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
-    if (!node->isAnchored()) {
+    if (ENABLE_GC && !node->isAnchored()) {
       node->markGarbage("not anchoed young root");
       rtgc_log(LOG_OPT(8), "skip garbage node %p\n", (void*)node);
       continue;
@@ -610,11 +600,13 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   rtgc_log(LOG_OPT(4), "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   
-  assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
-      node->getRootRefCount(), node, RTGC::getClassName(node));
-#ifdef ASSERT
-  mark_ghost_anchors(node);
-#endif
+  if (ENABLE_GC) {  
+    assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
+        node->getRootRefCount(), node, RTGC::getClassName(node));
+  #ifdef ASSERT
+    mark_ghost_anchors(node);
+  #endif
+  }
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   node->markGarbage("destroy_trackable");
@@ -669,12 +661,14 @@ void rtHeap::discover_java_references(bool is_tenure_gc) {
 }
 
 void rtHeap::release_jni_handle(oopDesc* p) {
+  if (!REF_LINK_ENABLED) return;
   assert(to_obj(p)->getRootRefCount() > 0, "wrong handle %p\n", p);
   rtgc_log(p == RTGC::debug_obj, "release_handle %p\n", p);
   GCRuntime::onEraseRootVariable_internal(to_obj(p));
 }
 
 void rtHeap::init_java_reference(oopDesc* ref_oop, oopDesc* referent) {
+  precond(RtNoDiscoverPhantom);
   precond(referent != NULL);
 
   ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  

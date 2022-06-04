@@ -367,8 +367,8 @@ oop MemAllocator::allocate() const {
 #if INCLUDE_RTGC // clear rtNode
       if (EnableRTGC) {
         oopDesc::clear_rt_node(mem);
-        BarrierSet *bs = BarrierSet::barrier_set();
-        bs->on_slowpath_allocation_exit(NULL, obj);
+        // BarrierSet *bs = BarrierSet::barrier_set();
+        // bs->on_slowpath_allocation_exit(NULL, obj);
       }      
 #endif  
     } else {

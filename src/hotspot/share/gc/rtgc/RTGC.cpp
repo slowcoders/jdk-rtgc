@@ -24,7 +24,7 @@ namespace RTGC {
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
   volatile void* debug_obj2 = (void*)-1;
-  bool REF_LINK_ENABLED = true;
+  bool REF_LINK_ENABLED = false;
   bool is_narrow_oop_mode;
 
 }
@@ -186,7 +186,9 @@ void RTGC::print_anchor_list(void* obj) {
 }
 
 void RTGC::collectGarbage(GCObject** nodes, int count) {
-  GarbageProcessor::collectGarbage(nodes, count);
+  if (REF_LINK_ENABLED) {
+    GarbageProcessor::collectGarbage(nodes, count);
+  }
 }
 
 const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {
@@ -266,7 +268,7 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
-  // if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;

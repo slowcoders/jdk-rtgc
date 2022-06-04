@@ -33,7 +33,13 @@
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
+
+class ModRefBarrierSetAssembler: public RtgcBarrierSetAssembler {
+#else
 class ModRefBarrierSetAssembler: public BarrierSetAssembler {
+#endif
 protected:
   virtual void gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                Register addr, Register count) {}
@@ -42,8 +48,13 @@ protected:
   virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 public:
-#if INCLUDE_RTGC // check !EnableRTGC
-  ModRefBarrierSetAssembler() { precond(!RtNoDirtyCardMarking); }
+
+#if INCLUDE_RTGC
+  virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                                  Register src, Register dst, Register count, 
+                                  Register dst_array, Label& copy_done, Register saved_count = noreg) {
+    arraycopy_prologue(masm, decorators, type, src, dst, count); 
+  }
 #endif
 
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

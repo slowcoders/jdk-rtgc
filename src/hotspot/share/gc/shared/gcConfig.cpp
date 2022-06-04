@@ -164,8 +164,8 @@ GCArguments* GCConfig::select_gc() {
 
 #if INCLUDE_RTGC
   EnableRTGC = UseSerialGC;
-  RtNoDirtyCardMarking = EnableRTGC & UseSerialGC;
-  RtNoDiscoverPhantom  = EnableRTGC & UseSerialGC;
+  RtNoDirtyCardMarking = false; // EnableRTGC;
+  RtNoDiscoverPhantom  = false; // EnableRTGC;
 #endif  
 
   // Exactly one GC selected

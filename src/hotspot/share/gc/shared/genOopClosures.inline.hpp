@@ -103,6 +103,11 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 template <typename T>
 void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
+#ifdef ASSERT
+  if (_trackable_anchor == NULL && !RtNoDirtyCardMarking) {
+    return;
+  }
+#endif
   precond(_trackable_anchor != NULL);
   rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
 }
