@@ -43,7 +43,7 @@ protected:
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 public:
 #if INCLUDE_RTGC // check !EnableRTGC
-  ModRefBarrierSetAssembler() { precond(!EnableRTGC); }
+  ModRefBarrierSetAssembler() { precond(!RtNoDirtyCardMarking); }
 #endif
 
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

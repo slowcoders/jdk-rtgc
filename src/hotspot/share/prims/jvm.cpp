@@ -3211,7 +3211,7 @@ JVM_ENTRY(void, JVM_SetReferent0(JNIEnv *env, jobject ref, jobject referent))
   if (referent == NULL) return;
   
   oop referent_oop = JNIHandles::resolve_non_null(referent);
-  if (EnableRTGC) {
+  if (RtNoDiscoverPhantom) {
     rtHeap::init_java_reference(ref_oop, referent_oop);
   } else {
     ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  

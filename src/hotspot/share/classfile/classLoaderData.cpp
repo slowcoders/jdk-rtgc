@@ -216,7 +216,7 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
-  RTGC_ONLY(postcond(!EnableRTGC || RTGC::to_node(o)->getRootRefCount() > 0);)
+  // RTGC_ONLY(postcond(!EnableRTGC || RTGC::to_node(o)->getRootRefCount() > 0);)
 
   return OopHandle(handle);
 }
