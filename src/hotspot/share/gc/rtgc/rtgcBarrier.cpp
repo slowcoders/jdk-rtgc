@@ -456,15 +456,15 @@ address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
   precond(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
-    return reinterpret_cast<address>(rt_cmpset_not_in_heap);
+    return reinterpret_cast<address>(rt_cmpxchg_not_in_heap);
   }
 
   bool is_trackable = (decorators & AS_RAW) == 0;
   bool is_unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
 
   if (is_trackable) {
-    return !is_unknown ? reinterpret_cast<address>(rt_cmpset)
-        : reinterpret_cast<address>(rt_cmpset_unknown);
+    return !is_unknown ? reinterpret_cast<address>(rt_cmpxchg)
+        : reinterpret_cast<address>(oop_cmpxchg_unknown);
   }
 
   if (RTGC::is_narrow_oop_mode) {
