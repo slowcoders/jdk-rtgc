@@ -36,7 +36,7 @@ class RtgcBarrier : public AllStatic {
   static oopDesc* rt_xchg_c1(T* addr, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
-  static bool rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
+  static oopDesc* rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 
 public:
   static void init_barrier_runtime();

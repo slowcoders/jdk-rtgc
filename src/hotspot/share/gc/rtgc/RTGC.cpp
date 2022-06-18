@@ -24,9 +24,8 @@ namespace RTGC {
   volatile int* debugOptions = _debugOptions;
   volatile void* debug_obj = (void*)-1;
   volatile void* debug_obj2 = (void*)-1;
-  bool REF_LINK_ENABLED = false;
+  bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
-
 }
 
 static void check_valid_obj(void* p, void* base) {
@@ -218,6 +217,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 } 
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
+  if (!REF_LINK_ENABLED) return;
+  
   if (is_debug_pointer(old_p)) {
     RTGC::debug_obj = new_p;
     //rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);

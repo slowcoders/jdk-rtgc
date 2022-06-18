@@ -91,6 +91,40 @@ int GCObject::removeReferrer(GCObject* referrer) {
     return 0;
 }
 
+int GCObject::tryRemoveReferrer(GCObject* referrer) {
+    precond(referrer != this);
+    if (!hasReferrer()) return -1;
+
+    if (!hasMultiRef()) {
+        if (_refs != _pointer2offset(referrer)) return -1;
+        this->_refs = 0;
+    }
+    else {
+        ReferrerList* referrers = getReferrerList();
+        int idx = referrers->indexOf(referrer);
+        if (idx < 0) return idx;
+
+        precond(idx >= 0);
+        if (referrers->size() == 2) {
+            GCObject* remained = referrers->at(1 - idx);
+            _rtgc.gRefListPool.delete_(referrers);
+            this->_refs = _pointer2offset(remained);
+            setHasMultiRef(false);
+        }
+        else {
+            referrers->removeFast(idx);
+        }
+        if (idx != 0) {
+            return idx;
+        }
+    }
+    if (this->getShortcutId() > INVALID_SHORTCUT) {
+		SafeShortcut* shortcut = this->getShortcut();
+        shortcut->split(referrer, this);
+    }
+    return 0;
+}
+
 void GCObject::removeAnchorList() {
     rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
     if (hasMultiRef()) {

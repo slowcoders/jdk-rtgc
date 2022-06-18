@@ -19,7 +19,7 @@
 
 namespace RTGC {
   extern bool REF_LINK_ENABLED;
-  bool ENABLE_GC = false && REF_LINK_ENABLED;
+  bool ENABLE_GC = true && REF_LINK_ENABLED;
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
     template <typename T> void do_oop_work(T* p);

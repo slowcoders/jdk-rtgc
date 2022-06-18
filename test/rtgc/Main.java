@@ -42,7 +42,7 @@ public class Main {
     Main(int sno) {
         cnt ++;
         if (cnt > 99_0000) {
-            atomicLong.compareAndExchange(0x876543DB876543DBL, 0x123456DB123456DBL);
+            atomicLong.compareAndExchange(0x876543DB876543DBL, 0L);
             Instant instant = Instant.ofEpochMilli(System.currentTimeMillis());
             LocalDateTime ldt = LocalDateTime.ofInstant(
                     instant, ZoneId.systemDefault());
