@@ -184,12 +184,6 @@ void RTGC::print_anchor_list(void* obj) {
   }
 }
 
-void RTGC::collectGarbage(GCObject** nodes, int count) {
-  if (REF_LINK_ENABLED) {
-    GarbageProcessor::collectGarbage(nodes, count);
-  }
-}
-
 const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {

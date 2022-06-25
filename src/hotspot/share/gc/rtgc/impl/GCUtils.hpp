@@ -61,6 +61,7 @@ struct FixedAllocator {
 
     static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
         capacity = (MEM_BUCKET_SIZE - offset) / item_size;
+        rtgc_log(true, "fixed_alloc cap=%d, off=%d\n", capacity, offset);
         void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_SIZE);
         VirtualMemory::commit_memory(mem, 0, MEM_BUCKET_SIZE);
     }
@@ -71,6 +72,7 @@ struct FixedAllocator {
         int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
         VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
         capacity = (mem_offset + MEM_BUCKET_SIZE - offset) / item_size;
+        rtgc_log(true, "fixed_realloc cap=%d, off=%d\n", capacity, offset);
         return mem; 
     }
 
@@ -191,7 +193,7 @@ public:
     }
 
     void resize(size_t __n) {
-        precond(__n >= 0 && __n < _data->_capacity);
+        precond(__n >= 0 && __n <= _data->_capacity);
         _data->_size = (int)__n;
     }
 
@@ -434,7 +436,12 @@ public:
     // }
 };
 
-
+template <class T>
+class HugeArray : public SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> {
+    typedef SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> _SUPER;
+public:    
+    HugeArray() : _SUPER(1024) {}
+};
 
 template <class T, size_t MAX_BUCKET, int indexOffset, int clearOffset>
 class MemoryPool {

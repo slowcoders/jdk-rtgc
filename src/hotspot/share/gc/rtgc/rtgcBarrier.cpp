@@ -22,6 +22,9 @@ static int _shift = 0;
 static const int MAX_OBJ_SIZE = 256*1024*1024;
 static const bool SKIP_UNTRACKABLE = false;
 static const bool SEQ_LOCK = true;
+namespace RTGC {
+  extern bool REF_LINK_ENABLED;
+}
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER, function);
 }
@@ -117,9 +120,10 @@ static oopDesc* raw_atomic_cmpxchg(volatile oop* addr, oopDesc* compare, oopDesc
 }
 
 void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v, bool do_lock = !SEQ_LOCK) {
-  if (old_v == new_v) {
-    return;
-  }
+#ifdef ASSERT  
+  if (!RTGC::REF_LINK_ENABLED) return;
+#endif
+  if (old_v == new_v) return;
 
   if (do_lock) RTGC::publish_and_lock_heap(new_v, base);
   if (new_v != NULL && new_v != base) {
@@ -160,6 +164,7 @@ void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
     rtgc_log(LOG_OPT(11), "skip rtgc_store %p[] <= %p\n", base, new_v);
     return;
   }
+  precond(rtHeap::is_trackable(base));
   check_field_addr(base, addr);
   if (SEQ_LOCK) RTGC::lock_heap();
   oopDesc* old = raw_atomic_xchg(addr, new_v);
@@ -216,10 +221,10 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
 
 template<DecoratorSet decorators, typename T> 
 void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_v, oopDesc* base) {
-  // rtgc_trace(10, "rt_store_c1 base: %p(%s) tr=%d yg_root=%d new_v: %p(%s)\n", 
-  //     base, base->klass()->name()->bytes(), RTGC::to_node(base)->isTrackable(), RTGC::to_node(base)->isYoungRoot(), new_v, 
-  //       new_v ? new_v->klass()->name()->bytes() : (const u1*)""); 
+  rtgc_trace(true, "rt_store_c1 base: %p new_v: %p\n", base, new_v); 
 
+  // precond(rtHeap::is_trackable(base));
+  // fatal("gotcha!!");
   if (rtHeap::is_trackable(base)) {
     if (decorators & ON_UNKNOWN_OOP_REF) {
       oop_store_unknown(addr, new_v, base);

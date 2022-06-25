@@ -39,6 +39,9 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_RTGC // RT_HEAP_MANAGER
+#include "gc/rtgc/rtSpace.hpp"
+#endif
 
 TenuredGeneration::TenuredGeneration(ReservedSpace rs,
                                      size_t initial_byte_size,
@@ -49,7 +52,15 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
 {
   HeapWord* bottom = (HeapWord*) _virtual_space.low();
   HeapWord* end    = (HeapWord*) _virtual_space.high();
-  _the_space  = new TenuredSpace(_bts, MemRegion(bottom, end));
+#if INCLUDE_RTGC // RT_HEAP_MANAGER
+  if (EnableRTGC) {
+    _the_space  = new RtSpace(_bts, MemRegion(bottom, end));
+  } else 
+#endif
+  {
+    _the_space  = new TenuredSpace(_bts, MemRegion(bottom, end));
+  }
+
   _the_space->reset_saved_mark();
   _shrink_factor = 0;
   _capacity_at_prologue = 0;

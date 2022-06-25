@@ -32,7 +32,7 @@ public:
 	void destroyObject(GCObject* garbage);
 	void reclaimObjects();
 	static bool detectGarbage(GCObject* unsafeObj);
-	static void collectGarbage(GCObject** ppNode, int cntNode);
+	static void collectGarbage(GCObject** ppNode, int cntNode, HugeArray<GCObject*>& garbages);
 
 private:
 	void addGarbage(GCObject* garbage);

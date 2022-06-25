@@ -64,7 +64,7 @@ namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
   GrowableArrayCHeap<GCNode*, mtGC> g_stack_roots;
-  SimpleVector<GCObject*> g_garbage_list;
+  HugeArray<GCObject*> g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
@@ -252,9 +252,9 @@ void rtHeap__clear_garbage_young_roots() {
     oop* src_0 = g_young_roots.adr_at(0);
     //rtgc_log(true, "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
-      RTGC::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
+      GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list);
     }
-    //rtgc_log(true, "collectGarbage yg-root finished\n")
+    //rtgc_log(true, "collectGarbage yg-root fin  ished\n")
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
 
@@ -283,7 +283,7 @@ void rtHeap__clear_garbage_young_roots() {
       remain_roots += new_roots;
     }
 
-    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
+    rtgc_log(true || LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
         g_young_roots.length(), remain_roots, g_garbage_list.size());
     g_young_roots.trunc_to(remain_roots);
     g_saved_young_root_count = 0;
@@ -638,6 +638,7 @@ void rtHeap::prepare_full_gc() {
 void rtHeap::discover_java_references(bool is_tenure_gc) {
   if (is_tenure_gc) {
     g_rtRefProcessor.process_phantom_references<true>();
+    g_garbage_list.resize(0);
   } else {
     g_rtRefProcessor.process_phantom_references<false>();
     rtHeap__clear_garbage_young_roots();
@@ -645,7 +646,6 @@ void rtHeap::discover_java_references(bool is_tenure_gc) {
 
   g_adjust_pointer_closure._old_gen_start = NULL;
 
-  g_garbage_list.resize(0);
   if (!USE_PENDING_TRACKABLES) return;
   const int count = g_pending_trackables.length();
   rtgc_log(LOG_OPT(11), "finish_collection %d\n", count);
