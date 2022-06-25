@@ -1,13 +1,18 @@
 #ifndef SHARE_GC_RTGC_SPACE_HPP
 #define SHARE_GC_RTGC_SPACE_HPP
 
-#include "gc/shared/space.hpp"
+#include "gc/shared/space.inline.hpp"
 
 class RtSpace: public TenuredSpace {
- public:
+public:
+  typedef TenuredSpace _SUPER;
   RtSpace(BlockOffsetSharedArray* sharedOffsetArray,
                MemRegion mr) :
     TenuredSpace(sharedOffsetArray, mr) {}
+
+  virtual HeapWord* allocate(size_t word_size);
+  virtual HeapWord* par_allocate(size_t word_size);
+
 };
 
 

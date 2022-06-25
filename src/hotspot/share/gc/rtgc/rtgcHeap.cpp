@@ -14,6 +14,7 @@
 #include "gc/shared/genCollectedHeap.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtSpace.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
@@ -40,6 +41,71 @@ namespace RTGC {
     oopDesc* _new_anchor_p;
   };
 
+  class RecyclableGarbageArray : public HugeArray<GCObject*> {
+    bool isSorted;
+    int recycled_count;
+  public:
+    RecyclableGarbageArray() : recycled_count(0) {}
+
+    void sort() {
+        if (!isSorted) {
+          qsort(this->adr_at(0), this->size(), sizeof(GCObject*), compare_obj_size);
+          isSorted = true;
+        }
+    }
+
+    oopDesc* recycle(size_t word_size) {
+      sort();
+      int low = 0;
+      int high = this->size() - 1 - recycled_count;
+      int mid;
+      GCObject** arr = this->adr_at(0);
+
+      while(low <= high) {
+        mid = (low + high) / 2;
+        oopDesc* obj = cast_to_oop(arr[mid]);
+        size_t size = obj_size(obj);
+        if (size == word_size) {
+          recycled_count ++;
+          this->removeAndShift(mid);
+          this->push_back(to_obj(obj));
+          return obj;
+        } else if (size > word_size) {
+          high = mid - 1;
+        } else {
+          low = mid + 1;
+        }
+      }
+      return NULL;
+    }
+
+    void markDirtySort() { isSorted = false; }
+
+    void reset_recycled_count() { 
+      this->resize(this->size() - recycled_count); 
+      recycled_count = 0; 
+    }
+
+    void iterate_recycled_oop(DefNewYoungerGenClosure* closure) {
+      if (recycled_count > 0) {
+        GCObject** p = this->adr_at(this->size() - recycled_count);
+        GCObject** end = p + recycled_count;
+        for (;p < end; p++) {
+          closure->do_iterate(cast_to_oop(*p));
+        }
+        this->resize(this->size() - recycled_count); 
+        recycled_count = 0; 
+      }
+    }
+
+    static size_t obj_size(oopDesc* obj) { 
+      size_t size = obj->size_given_klass(obj->klass()); 
+      return size;
+    }
+
+    static int compare_obj_size(const void* left, const void* right);
+  };
+
   class RtRefProcessor {
   public:
     oopDesc* _pending_head;
@@ -64,7 +130,7 @@ namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
   GrowableArrayCHeap<GCNode*, mtGC> g_stack_roots;
-  HugeArray<GCObject*> g_garbage_list;
+  RecyclableGarbageArray g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
@@ -253,6 +319,7 @@ void rtHeap__clear_garbage_young_roots() {
     //rtgc_log(true, "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
       GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list);
+      g_garbage_list.markDirtySort();
     }
     //rtgc_log(true, "collectGarbage yg-root fin  ished\n")
     oop* dst = src_0;
@@ -283,7 +350,7 @@ void rtHeap__clear_garbage_young_roots() {
       remain_roots += new_roots;
     }
 
-    rtgc_log(true || LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
+    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
         g_young_roots.length(), remain_roots, g_garbage_list.size());
     g_young_roots.trunc_to(remain_roots);
     g_saved_young_root_count = 0;
@@ -637,9 +704,10 @@ void rtHeap::prepare_full_gc() {
 
 void rtHeap::discover_java_references(bool is_tenure_gc) {
   if (is_tenure_gc) {
-    g_rtRefProcessor.process_phantom_references<true>();
     g_garbage_list.resize(0);
+    g_rtRefProcessor.process_phantom_references<true>();
   } else {
+    g_garbage_list.reset_recycled_count();
     g_rtRefProcessor.process_phantom_references<false>();
     rtHeap__clear_garbage_young_roots();
   }
@@ -820,4 +888,34 @@ void rtHeap::finish_compaction_gc(bool is_full_gc) {
 void rtHeap::print_heap_after_gc(bool full_gc) {  
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
       g_cntTrackable, g_young_roots.length(), full_gc); 
+}
+
+int RecyclableGarbageArray::compare_obj_size(const void* left, const void* right) {
+  int left_size = obj_size(cast_to_oop(*(void**)left));
+  int right_size = obj_size(cast_to_oop(*(void**)right));
+  return left_size - right_size;
+}
+
+void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
+  g_garbage_list.iterate_recycled_oop(closure);
+}
+
+HeapWord* RtSpace::allocate(size_t word_size) {
+  HeapWord* heap = _SUPER::allocate(word_size);
+  if (heap == NULL) {
+    int cntGarbage = g_garbage_list.size();
+    if (cntGarbage > 0) {
+      heap = (HeapWord*)g_garbage_list.recycle(word_size);
+      RTGC::debug_obj2 = heap;
+      rtgc_log(true, "RtSpace::allocate %ld %p\n", word_size, heap);
+    }
+  }
+  else {
+    RTGC::debug_obj2 = NULL;
+  }
+  return heap;
+}
+HeapWord* RtSpace::par_allocate(size_t word_size) {
+  HeapWord* heap = _SUPER::par_allocate(word_size);
+  return heap;
 }

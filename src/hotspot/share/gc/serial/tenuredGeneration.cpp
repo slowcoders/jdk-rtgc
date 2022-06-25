@@ -52,6 +52,7 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
 {
   HeapWord* bottom = (HeapWord*) _virtual_space.low();
   HeapWord* end    = (HeapWord*) _virtual_space.high();
+
 #if INCLUDE_RTGC // RT_HEAP_MANAGER
   if (EnableRTGC) {
     _the_space  = new RtSpace(_bts, MemRegion(bottom, end));
@@ -60,7 +61,6 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
   {
     _the_space  = new TenuredSpace(_bts, MemRegion(bottom, end));
   }
-
   _the_space->reset_saved_mark();
   _shrink_factor = 0;
   _capacity_at_prologue = 0;

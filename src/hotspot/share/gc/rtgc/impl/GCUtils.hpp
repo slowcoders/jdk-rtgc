@@ -216,7 +216,18 @@ public:
         return this;
     }
 
-    bool remove(T v) {
+    void removeAndShift(int idx) {
+        T* mem = adr_at(idx);
+        int newSize = this->size() - 1;
+        this->resize(newSize);
+        int remain = newSize - idx;
+        if (remain > 0) {
+            memcpy(mem, mem + 1, sizeof(T) * remain);
+        }
+    }
+
+
+    bool removeFast(T v) {
         int idx = indexOf(v);
         if (idx < 0) {
             return false;

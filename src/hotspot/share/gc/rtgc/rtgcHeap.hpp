@@ -12,6 +12,7 @@ class oopDesc;
 class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
+class DefNewYoungerGenClosure;
 
 class rtHeap : AllStatic {
 public:
@@ -26,6 +27,7 @@ public:
   static void mark_young_root_reachable(oopDesc* referent);
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
   static bool is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link);
+  static void oop_recycled_iterate(DefNewYoungerGenClosure* closure);
 
   // for full gc
   static void prepare_full_gc();

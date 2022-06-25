@@ -60,7 +60,7 @@ public:
 
     ~PathFinder() { clearReachableShortcutMarks(); }
 
-    bool constructSurvivalPath(GCObject* tail);
+    bool scanSurvivalPath(GCObject* tail);
     void constructShortcut();
     void clearReachableShortcutMarks();
 };
@@ -73,7 +73,7 @@ void PathFinder::clearReachableShortcutMarks() {
 #endif
 }
 
-bool PathFinder::constructSurvivalPath(GCObject* node) {
+bool PathFinder::scanSurvivalPath(GCObject* node) {
     ShortOOP tail = node;
     precond(EnableRTGC);
     int trace_top = _visitedNodes.size();
@@ -91,8 +91,9 @@ bool PathFinder::constructSurvivalPath(GCObject* node) {
     }
 #ifdef ASSERT        
     else {
-        for (int i = _visitedNodes.size(); --i >= trace_top; ) {
+        for (int i = _visitedNodes.size(); --i >= 0; ) {
             GCObject* obj = (GCObject*)_visitedNodes.at(i);
+            precond(obj->isTrackable());
             if (is_debug_pointer(obj)) {
                 //rtgc_log(true, "garbage marked %p\n", obj);
                 AnchorIterator it(obj);
@@ -284,19 +285,19 @@ void PathFinder::constructShortcut() {
 }
 
 static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleVector<GCObject*>* unsafeObjects) {
-    // if (link->isGarbageMarked() || !link->isTrackable()) return false;
+    if (link->isGarbageMarked() || !link->isTrackable()) return false;
 
-    // if (link->removeReferrer(garbageAnchor) == 0
-    // &&  link->isUnsafe()) {
-    //     if (!link->isAnchored()) {
-    //         link->markGarbage();
-    //         link->removeAnchorList();
-    //         rtgc_log(LOG_OPT(7), "Mark new garbage.\n");
-    //         return true;
-    //     }
-    //     rtgc_log(LOG_OPT(7), "Add unsafe objects.\n");
-    //     unsafeObjects->push_back(link);
-    // }
+    if (link->removeMatchedReferrers(garbageAnchor)
+    &&  link->isUnsafe()) {
+        unsafeObjects->push_back(link);
+        if (!link->isAnchored()) {
+            link->markGarbage();
+            link->removeAnchorList();
+            rtgc_log(true || LOG_OPT(7), "Mark new garbage %p\n", link);
+            return true;
+        }
+        rtgc_log(true || LOG_OPT(7), "Add unsafe objects %p\n", link);
+    }
     return false;
 }
 
@@ -305,60 +306,40 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<GCObject*>& garbages) {
     GCObject** end = ppNode + cntNode;
     PathFinder pf(garbages);
-    for (; ppNode < end; ppNode ++) {
-        GCObject* node = *ppNode;
-        if (node->isGarbageMarked()) continue;
-        pf.constructSurvivalPath(node);
+	SimpleVector<GCObject*> _unsafeObjects;
+
+    while (true) {
+        int cntGarbage = garbages.size();
+        for (; ppNode < end; ppNode ++) {
+            GCObject* node = *ppNode;
+            rtgc_log(true, "tr node %p\n", node);
+            if (node->isGarbageMarked()) {
+                garbages.push_back(node);
+            } else {
+                pf.scanSurvivalPath(node);
+            }
+        }
+
+        _unsafeObjects.resize(0);
+        for (int i = garbages.size(); --i >= cntGarbage; ) {
+            GCObject* obj = (GCObject*)garbages.at(i);
+            RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &_unsafeObjects);
+        }
+
+        if (_unsafeObjects.empty()) {
+            return;
+        }
+
+        rtgc_log(true, "unsafe %d\n", _unsafeObjects.size());
+        cntGarbage = garbages.size();
+        ppNode = _unsafeObjects.adr_at(0);
+        end = ppNode + _unsafeObjects.size();
     }
 }
-
-// bool GarbageProcessor::detectUnreachable(GCObject* unsafeObj, SimpleVector<GCObject*>& unreachableNodes) {
-//     precond(!unsafeObj->isGarbageMarked());
-//     int cntUnreachable = unreachableNodes.size();
-
-//     rtgc_log(LOG_OPT(7), "detectUnreachable %p\n", unsafeObj);
-//     PathFinder pf(unreachableNodes);
-//     bool hasSurvivalPath = pf.constructSurvivalPath(unsafeObj);
-
-//     if (hasSurvivalPath) {
-//         pf.constructShortcut();
-//         unreachableNodes.resize(cntUnreachable);
-//         return false;
-//     }
-//     return true;
-// }
 
 bool GarbageProcessor::detectGarbage(GCObject* unsafeObj) {
     fatal("not impl");
     return false;
-//     PathFinder pf;
-//     while (true) {
-//         rtgc_log(LOG_OPT(1), "scan Garbage %p\n", unsafeObj);
-//         bool hasSurvivalPath = pf.constructSurvivalPath(unsafeObj);
-
-//         return hasSurvivalPath;
-// #if 0        
-//         else {
-//             for (int i = _visitedNodes.size(); --i >= 0; ) {
-//                 GCObject* obj = (GCObject*)_visitedNodes.at(i);
-//                 //rtgc_log(LOG_OPT(7), "garbage deteted %p(%s)\n", obj, RTGC::getClassName(obj));
-//                 //obj->removeAnchorList();
-//                 //RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &_unsafeObjects);
-//                 //destroyObject(obj);
-//             }
-//         }
-//         _visitedNodes.resize(0);
-//         while (true) {
-//             if (_unsafeObjects.empty()) {
-//                 reclaimObjects();
-//                 return;
-//             }
-//             unsafeObj = _unsafeObjects.back();
-//             _unsafeObjects.pop_back();
-//             if (!unsafeObj->isGarbageMarked()) break;
-//         }
-// #endif         
-//     }
 }
 
 #if RECLAIM_GARBAGE_IMMEDIATELY

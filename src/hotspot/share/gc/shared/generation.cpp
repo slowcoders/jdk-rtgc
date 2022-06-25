@@ -167,8 +167,25 @@ oop Generation::promote(oop obj, size_t obj_size) {
   HeapWord* result = allocate(obj_size, false);
   if (result != NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), result, obj_size);
+#if 0 // def INCLUDE_RTGC    
+    if (result < space_containing(result)->saved_mark_word()) {
+      precond(result == RTGC::debug_obj2);
+      rtgc_log(true, "mark_promoted_trackable %p\n", result);
+      rtHeap::mark_promoted_trackable(cast_to_oop(result));
+    } else {
+      postcond(result != RTGC::debug_obj2);
+    }
+#endif    
     return cast_to_oop(result);
   } else {
+#if 0 // def INCLUDE_RTGC
+    result = rtHeap::recycle_garbage(obj_size);
+    if (result != NULL) {
+      Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), result, obj_size);
+      rtHeap::mark_promoted_trackable(cast_to_oop(result));
+      return cast_to_oop(result);
+    }
+#endif
     GenCollectedHeap* gch = GenCollectedHeap::heap();
     return gch->handle_failed_promotion(this, obj, obj_size);
   }
