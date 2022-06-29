@@ -188,6 +188,7 @@ bool PathFinder::findSurvivalPath(ShortOOP& tail) {
         }
 
         R->markGarbage("path-finder");
+        postcond(!_visitedNodes.contains(R));
         _visitedNodes.push_back(R);
     }
 }
@@ -293,10 +294,10 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
         if (!link->isAnchored()) {
             link->markGarbage();
             link->removeAnchorList();
-            rtgc_log(true || LOG_OPT(7), "Mark new garbage %p\n", link);
+            rtgc_log(LOG_OPT(4), "Mark new garbage %p\n", link);
             return true;
         }
-        rtgc_log(true || LOG_OPT(7), "Add unsafe objects %p\n", link);
+        rtgc_log(LOG_OPT(4), "Add unsafe objects %p\n", link);
     }
     return false;
 }
@@ -312,9 +313,9 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
         int cntGarbage = garbages.size();
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
-            rtgc_log(true, "tr node %p\n", node);
+            rtgc_log(LOG_OPT(4), "tr node %p\n", node);
             if (node->isGarbageMarked()) {
-                garbages.push_back(node);
+                postcond(garbages.contains(node));
             } else {
                 pf.scanSurvivalPath(node);
             }
@@ -323,6 +324,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
         _unsafeObjects.resize(0);
         for (int i = garbages.size(); --i >= cntGarbage; ) {
             GCObject* obj = (GCObject*)garbages.at(i);
+            obj->removeAnchorList();
             RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &_unsafeObjects);
         }
 
@@ -330,7 +332,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
             return;
         }
 
-        rtgc_log(true, "unsafe %d\n", _unsafeObjects.size());
+        rtgc_log(LOG_OPT(4), "unsafe %d\n", _unsafeObjects.size());
         cntGarbage = garbages.size();
         ppNode = _unsafeObjects.adr_at(0);
         end = ppNode + _unsafeObjects.size();
@@ -380,7 +382,6 @@ void GarbageProcessor::destroyObject(GCObject* garbage) {
         }
     }    
 }
-
 
 static int cntDelete = 0;
 void GarbageProcessor::reclaimObjects() {
