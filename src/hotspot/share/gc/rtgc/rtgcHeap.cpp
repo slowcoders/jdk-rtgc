@@ -104,6 +104,7 @@ namespace RTGC {
   
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
+  int g_cntGarbageYGRoot = 0;
   GrowableArrayCHeap<GCNode*, mtGC> g_stack_roots;
   int g_resurrected_top = INT_MAX;
   RecyclableGarbageArray g_garbage_list;
@@ -295,6 +296,16 @@ void rtHeap__clear_garbage_young_roots() {
     oop* src_0 = g_young_roots.adr_at(0);
     //rtgc_log(true, "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
+      oop* end = src_0 + cnt_root;
+      for (; --g_cntGarbageYGRoot >= 0; ) {
+        end --;
+        GCObject* node = to_obj(*end);
+        if (node->isGarbageMarked()) {
+          precond(!g_garbage_list.contains(node));
+          g_garbage_list.push_back(node);
+        }
+      }
+
       GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list);
       g_garbage_list.markDirtySort();
     }
@@ -367,11 +378,17 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
 
   oop* src = g_young_roots.adr_at(0);
   oop* end = src + g_young_roots.length();
-  for (;src < end; src++) {
+  g_cntGarbageYGRoot = 0;
+  for (;src < end;) {
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
     if (ENABLE_GC && !node->isAnchored()) {
       node->markGarbage("not anchoed young root");
+      end --;
+      oop tmp = end[0];
+      end[0] = cast_to_oop(node);
+      src[0] = tmp;
+      g_cntGarbageYGRoot ++;
       rtgc_log(LOG_OPT(8), "skip garbage node %p\n", (void*)node);
       continue;
     }
@@ -385,6 +402,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
       // postcond(!is_java_reference_with_young_referent(cast_to_oop(node))
       //   || !GenCollectedHeap::is_in_young(cast_to_oop(node)));
     }
+    src ++;
   }
 }
 

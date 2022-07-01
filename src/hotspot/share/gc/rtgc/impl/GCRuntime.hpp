@@ -24,7 +24,6 @@ class GarbageProcessor {
 	GCObject* delete_q;
 
 public:
-	SimpleVector<GCObject*> _unsafeObjects;
 	GarbageProcessor() : _traceStack(255) {
 		delete_q = nullptr;
 	}

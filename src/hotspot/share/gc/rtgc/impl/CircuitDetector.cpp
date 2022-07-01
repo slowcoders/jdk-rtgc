@@ -48,6 +48,7 @@ void* SafeShortcut::operator new (std::size_t size) {
 
 class PathFinder {
 public:    
+	SimpleVector<GCObject*> _unsafeObjects;
     HugeArray<GCObject*>& _visitedNodes;
     SimpleVector<AnchorIterator> _trackers;
     SafeShortcut* reachableShortcurQ;
@@ -285,18 +286,19 @@ void PathFinder::constructShortcut() {
     // last anchor may not have safe-anchor
 }
 
-static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleVector<GCObject*>* unsafeObjects) {
+static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFinder* pf) {
     if (link->isGarbageMarked() || !link->isTrackable()) return false;
 
     if (link->removeMatchedReferrers(garbageAnchor)
     &&  link->isUnsafe()) {
-        unsafeObjects->push_back(link);
         if (!link->isAnchored()) {
             link->markGarbage();
             link->removeAnchorList();
+            pf->_visitedNodes.push_back(link);
             rtgc_log(LOG_OPT(4), "Mark new garbage %p\n", link);
             return true;
         }
+        pf->_unsafeObjects->push_back(link);
         rtgc_log(LOG_OPT(4), "Add unsafe objects %p\n", link);
     }
     return false;
@@ -307,7 +309,6 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, SimpleV
 void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<GCObject*>& garbages) {
     GCObject** end = ppNode + cntNode;
     PathFinder pf(garbages);
-	SimpleVector<GCObject*> _unsafeObjects;
 
     while (true) {
         int cntGarbage = garbages.size();
@@ -321,21 +322,21 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
             }
         }
 
-        _unsafeObjects.resize(0);
+        pf._unsafeObjects.resize(0);
         for (int i = garbages.size(); --i >= cntGarbage; ) {
             GCObject* obj = (GCObject*)garbages.at(i);
             obj->removeAnchorList();
-            RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &_unsafeObjects);
+            RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &pf);
         }
 
-        if (_unsafeObjects.empty()) {
+        if (pf._unsafeObjects.empty()) {
             return;
         }
 
-        rtgc_log(LOG_OPT(4), "unsafe %d\n", _unsafeObjects.size());
+        rtgc_log(LOG_OPT(4), "unsafe %d\n", pf._unsafeObjects.size());
         cntGarbage = garbages.size();
-        ppNode = _unsafeObjects.adr_at(0);
-        end = ppNode + _unsafeObjects.size();
+        ppNode = pf._unsafeObjects.adr_at(0);
+        end = ppNode + pf._unsafeObjects.size();
     }
 }
 
@@ -371,7 +372,8 @@ void GarbageProcessor::destroyObject(GCObject* garbage) {
                 if (link->removeReferrer(it->getContainerObject()) > 0
                 ||  link->isAnchored()) {
                     if (link->isUnsafe()) {
-                        _unsafeObjects.push_back(link);
+                        fatal("not impl!");
+                        // _unsafeObjects.push_back(link);
                     }
                     continue;
                 }
