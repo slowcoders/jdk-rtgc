@@ -105,7 +105,7 @@ namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
   int g_cntGarbageYGRoot = 0;
-  GrowableArrayCHeap<GCNode*, mtGC> g_stack_roots;
+  GrowableArrayCHeap<GCObject*, mtGC> g_stack_roots;
   int g_resurrected_top = INT_MAX;
   RecyclableGarbageArray g_garbage_list;
   Thread* gcThread = NULL;
@@ -357,8 +357,8 @@ void rtHeap__clear_garbage_young_roots() {
 #endif
 
   if ((cnt_root = g_stack_roots.length()) > 0) {
-    GCNode** src = &g_stack_roots.at(0);
-    GCNode** end = src + cnt_root;
+    GCObject** src = &g_stack_roots.at(0);
+    GCObject** end = src + cnt_root;
     for (; src < end; src++) {
       src[0]->decrementRootRefCount();
     }
@@ -644,8 +644,8 @@ static void mark_ghost_anchors(GCObject* node) {
         cast_to_oop(anchor)->print_on(tty);
       }
 
-      assert(!cast_to_oop(anchor)->is_gc_marked(), "wrong anchor %p(%s) of garbage (%p) dp=%p\n", 
-          anchor, RTGC::getClassName(anchor), node,
+      assert(!cast_to_oop(anchor)->is_gc_marked(), "wrong anchor %p(%s) of garbage %p(%s) dp=%p\n", 
+          anchor, RTGC::getClassName(anchor), node, RTGC::getClassName(node), 
           !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
               (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
       if (!anchor->isUnstable()) {
@@ -661,6 +661,7 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
+  if (node->isGarbageMarked()) return;
   rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   rtgc_log(LOG_OPT(4), "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   
@@ -936,7 +937,6 @@ oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
       this->removeAndShift(mid);
       assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
       rtgc_log(true || LOG_OPT(9), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
-      GCRuntime::onAssignRootVariable_internal(node);
       g_stack_roots.append(node);
       return cast_to_oop(node);
     } else if (size > word_size) {
@@ -950,8 +950,9 @@ oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
 
 void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closure) {
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
-    GCNode* node = g_stack_roots.at(idx);
+    GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {
+      GCRuntime::onAssignRootVariable_internal(node);
       closure->do_iterate(cast_to_oop(node));
     }
     g_resurrected_top = INT_MAX; 

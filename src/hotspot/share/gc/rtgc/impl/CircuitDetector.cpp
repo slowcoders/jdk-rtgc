@@ -287,10 +287,10 @@ void PathFinder::constructShortcut() {
 }
 
 static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFinder* pf) {
-    if (link->isGarbageMarked() || !link->isTrackable()) return false;
+    if (link->isGarbageMarked()) return false;
 
     if (link->removeMatchedReferrers(garbageAnchor)
-    &&  link->isUnsafe()) {
+    &&  link->isTrackable() && link->isUnsafe()) {
         if (!link->isAnchored()) {
             link->markGarbage();
             link->removeAnchorList();
