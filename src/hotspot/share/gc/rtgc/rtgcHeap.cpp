@@ -938,7 +938,7 @@ oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
       }
       this->removeAndShift(mid);
       assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
-      rtgc_log(true || LOG_OPT(9), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
+      rtgc_log(LOG_OPT(9), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
       g_stack_roots.append(node);
       return cast_to_oop(node);
     } else if (size > word_size) {

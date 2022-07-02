@@ -338,7 +338,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
             return;
         }
 
-        rtgc_log(true || LOG_OPT(4), "unsafe %d\n", cntUnsafe);
+        rtgc_log(LOG_OPT(4), "unsafe %d\n", cntUnsafe);
         cntGarbage = garbages.size();
         
         ppNode = pf._unsafeObjects.adr_at(0);

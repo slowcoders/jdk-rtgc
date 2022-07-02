@@ -263,7 +263,7 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
-  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
