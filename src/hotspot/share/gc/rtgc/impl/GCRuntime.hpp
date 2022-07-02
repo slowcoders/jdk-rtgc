@@ -31,7 +31,7 @@ public:
 	void destroyObject(GCObject* garbage);
 	void reclaimObjects();
 	static bool detectGarbage(GCObject* unsafeObj);
-	static void collectGarbage(GCObject** ppNode, int cntNode, HugeArray<GCObject*>& garbages);
+	static void collectGarbage(GCObject** ppNode, int cntNode, HugeArray<GCObject*>& garbages, int cntGarbage);
 
 private:
 	void addGarbage(GCObject* garbage);

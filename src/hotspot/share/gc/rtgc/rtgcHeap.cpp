@@ -297,16 +297,18 @@ void rtHeap__clear_garbage_young_roots() {
     //rtgc_log(true, "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
       oop* end = src_0 + cnt_root;
+      int cntGarbage = g_garbage_list.size();
       for (; --g_cntGarbageYGRoot >= 0; ) {
         end --;
         GCObject* node = to_obj(*end);
         if (node->isGarbageMarked()) {
+          precond(!node->isAnchored());
           precond(!g_garbage_list.contains(node));
           g_garbage_list.push_back(node);
         }
       }
 
-      GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list);
+      GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list, cntGarbage);
       g_garbage_list.markDirtySort();
     }
     //rtgc_log(true, "collectGarbage yg-root fin  ished\n")
