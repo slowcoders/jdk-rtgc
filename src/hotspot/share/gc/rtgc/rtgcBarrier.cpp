@@ -127,7 +127,7 @@ void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v, bo
 
   if (do_lock) RTGC::publish_and_lock_heap(new_v, base);
   if (new_v != NULL && new_v != base) {
-    RTGC::add_referrer_unsafe(new_v, base, true);
+    RTGC::add_referrer_ex(new_v, base, true);
   }
   if (old_v != NULL && old_v != base) {
     RTGC::GCObject* oldValue = RTGC::to_obj(old_v);
@@ -610,7 +610,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   template <class T>
   void do_work(T* p) {
     oop obj = CompressedOops::decode(*p);
-    if (obj != NULL) RTGC::add_referrer_unsafe(obj, _rookie, true);
+    if (obj != NULL) RTGC::add_referrer_ex(obj, _rookie, true);
   }
 
 public:
@@ -677,7 +677,7 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
     int cp_len = MIN(diff, length);
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(*(--src_end));
-      if (item != NULL && isTrackableArray) RTGC::add_referrer_unsafe(src_item, dst_array, true);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array, true);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(dst_p[i]);
@@ -688,7 +688,7 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
     ITEM_T* dst_end = dst_p + length;    
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(src_p[i]);
-      if (item != NULL && isTrackableArray) RTGC::add_referrer_unsafe(src_item, dst_array, true);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array, true);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(*(--dst_end));

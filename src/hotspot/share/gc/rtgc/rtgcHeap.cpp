@@ -303,13 +303,25 @@ void rtHeap__clear_garbage_young_roots() {
         GCObject* node = to_obj(*end);
         if (node->isGarbageMarked()) {
           precond(!node->isAnchored());
-          precond(!g_garbage_list.contains(node));
+          // precond(!g_garbage_list.contains(node));
           g_garbage_list.push_back(node);
         }
       }
+      end = src_0 + cnt_root;
+      oop* end_of_new_root = src_0 + g_young_roots.length();
+      for (; end < end_of_new_root; end++) {
+        to_obj(*end)->incrementRootRefCount();
+      }
+
 
       GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list, cntGarbage);
       g_garbage_list.markDirtySort();
+
+      end = src_0 + cnt_root;
+      for (; end < end_of_new_root; end++) {
+        to_obj(*end)->decrementRootRefCount();
+      }
+
     }
     //rtgc_log(true, "collectGarbage yg-root fin  ished\n")
     oop* dst = src_0;
@@ -417,8 +429,8 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
     resurrect_young_root(node);
   }
 
-  precond(to_obj(anchor)->isTrackable());
-  RTGC::add_referrer_unsafe(link, anchor, false);
+  precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
+  RTGC::add_referrer_ex(link, anchor, false);
 }
 
 void rtHeap::mark_forwarded(oopDesc* p) {
@@ -470,12 +482,12 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
-    // old_p 에 대해 이미 adjust_pointers 를 수행하기 전.
-    RTGC::add_referrer_unsafe(old_p, _old_anchor_p, false);
+    // old_p 에 대해 adjust_pointers 를 수행하기 전.
+    RTGC::add_referrer_ex(old_p, _old_anchor_p, false);
   }
   else {
     // old_p 에 대해 이미 adjust_pointers 가 수행됨.
-    RTGC::add_referrer_unsafe(old_p, _new_anchor_p, false);
+    RTGC::add_referrer_unsafe(old_p, _new_anchor_p);
   }
 }
 
@@ -661,6 +673,7 @@ static void mark_ghost_anchors(GCObject* node) {
 }
 #endif
 
+
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   if (node->isGarbageMarked()) return;
@@ -714,17 +727,18 @@ void rtHeap::discover_java_references(bool is_tenure_gc) {
 
   g_adjust_pointer_closure._old_gen_start = NULL;
 
-  if (!USE_PENDING_TRACKABLES) return;
-  const int count = g_pending_trackables.length();
-  rtgc_log(LOG_OPT(11), "finish_collection %d\n", count);
-  if (count == 0) return;
+  if (USE_PENDING_TRACKABLES) {
+    const int count = g_pending_trackables.length();
+    rtgc_log(LOG_OPT(11), "finish_collection %d\n", count);
+    if (count == 0) return;
 
-  oop* pOop = &g_pending_trackables.at(0);
-  for (int i = count; --i >= 0; ) {
-    oopDesc* p = *pOop++;
-    RTGC::iterateReferents(to_obj(p), (RefTracer2)RTGC::add_referrer_unsafe, p);
+    oop* pOop = &g_pending_trackables.at(0);
+    for (int i = count; --i >= 0; ) {
+      oopDesc* p = *pOop++;
+      RTGC::iterateReferents(to_obj(p), (RefTracer2)RTGC::add_referrer_ex, p);
+    }
+    g_pending_trackables.trunc_to(0);
   }
-  g_pending_trackables.trunc_to(0);
   return;
 }
 
@@ -760,7 +774,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
     if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_unsafe(discovered, obj, true);
+      RTGC::add_referrer_ex(discovered, obj, true);
     }
     // rtHeap::link_discovered_pending_reference(obj, discovered);
   }
@@ -823,7 +837,7 @@ void RtRefProcessor::process_phantom_references() {
       } else {
         HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, acc_ref);
         if (to_node(pending_tail_acc)->isTrackable()) {
-          RTGC::add_referrer_unsafe(acc_ref, pending_tail_acc, true);
+          RTGC::add_referrer_ex(acc_ref, pending_tail_acc, true);
         }
       }
       pending_tail_acc = acc_ref;
@@ -860,7 +874,7 @@ void RtRefProcessor::process_phantom_references() {
 
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
     if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
-      RTGC::add_referrer_unsafe(enqueued_top_np, pending_tail_acc, true);
+      RTGC::add_referrer_ex(enqueued_top_np, pending_tail_acc, true);
     }
   }
   _enqueued_top = NULL;
@@ -937,8 +951,8 @@ oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
         g_resurrected_top = g_stack_roots.length();
       }
       this->removeAndShift(mid);
-      assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
-      rtgc_log(LOG_OPT(9), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
+      // assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
+      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
       g_stack_roots.append(node);
       return cast_to_oop(node);
     } else if (size > word_size) {

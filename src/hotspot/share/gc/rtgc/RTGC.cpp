@@ -28,11 +28,13 @@ namespace RTGC {
   bool is_narrow_oop_mode;
 }
 
-static void check_valid_obj(void* p, void* base) {
-  GCObject* obj = (GCObject*)p;
-  assert(obj == NULL || !obj->isGarbageMarked(), 
-      "incorrect garbage mark %p(%s) anchor=%p(%s)\n", 
-      obj, RTGC::getClassName(obj), base, RTGC::getClassName((GCObject*)base));
+static void check_valid_obj(void* p1, void* p2) {
+  GCObject* obj1 = (GCObject*)p1;
+  GCObject* obj2 = (GCObject*)p2;
+  assert((obj2 == NULL || !obj2->isGarbageMarked()) && (obj1 == NULL || !obj1->isGarbageMarked()), 
+      "incorrect garbage mark %p(_s) anchor=%p(_s)\n", 
+      obj1/*, RTGC::getClassName(obj1)*/,  
+      obj2/*, RTGC::getClassName(obj2)*/);
 }
 
 int GCNode::_cntTrackable = 0;
@@ -88,7 +90,14 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
+void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
+  check_valid_obj(p, NULL);
+  if (!REF_LINK_ENABLED) return;
+  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
+  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
+}
+
+void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   check_valid_obj(p, base);
   precond(p != NULL);
   assert(RTGC::heap_locked_bySelf() ||
@@ -100,9 +109,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
     rtHeap::add_young_root(base, base);
   }
 
-  if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
-  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
+  add_referrer_unsafe(p, base);
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -125,7 +132,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
     fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
-    add_referrer_unsafe(newValue, base, true);
+    add_referrer_ex(newValue, base, true);
   }
   if (!REF_LINK_ENABLED) return;
   if (oldValue != NULL && oldValue != base) {
@@ -269,7 +276,7 @@ void RTGC::initialize() {
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
   // enableLog(LOG_SCANNER, 10);
-  // enableLog(LOG_HEAP, 3);
+  // enableLog(LOG_HEAP, 6);
 
   if (UnlockExperimentalVMOptions) {
     enableLog(LOG_HEAP, 0);
