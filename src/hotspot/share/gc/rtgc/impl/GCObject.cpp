@@ -15,7 +15,7 @@ void GCObject::addReferrer(GCObject* referrer) {
     /**
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
-    rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
+    // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
     precond(referrer != this);
     if (!hasReferrer()) {
         precond(!hasMultiRef());
@@ -44,6 +44,11 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 int GCObject::removeReferrer(GCObject* referrer) {
     precond(referrer != this);
+#ifdef ASSERT    
+    if (RTGC::is_debug_pointer((void*)this) || RTGC::is_debug_pointer((void*)referrer)) {
+        rtgc_log(true, "anchor %p removed from %p\n", referrer, this);
+    }
+#endif
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));

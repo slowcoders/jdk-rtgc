@@ -104,7 +104,11 @@ void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   precond (p != base);// return;
-
+#ifdef ASSERT    
+  if (RTGC::is_debug_pointer((void*)p) || RTGC::is_debug_pointer((void*)base)) {
+    rtgc_log(true, "referrer %p added to %p\n", base, p);
+  }
+#endif
   if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
     rtHeap::add_young_root(base, base);
   }
@@ -217,27 +221,17 @@ oop rtgc_break(const char* file, int line, const char* function) {
   return NULL;
 } 
 
-void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
-  if (!REF_LINK_ENABLED) return;
-  
-  if (is_debug_pointer(old_p)) {
-    RTGC::debug_obj = new_p;
-    //rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
-  } else if (RTGC::debug_obj == new_p) {
-    // assert(!RTGC::debugOptions[0], "gotcha");
-    //rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
-  }
-}
-
 
 const char* debugClassNames[] = {
-    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "[Ljava/lang/Object;",
     // "jdk/nio/zipfs/ZipFileSystem",
     // "java/lang/ref/Finalizer"
 };
+
 const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
 void* debugKlass[CNT_DEBUG_CLASS];
-
+void* dbgObjs[16];
+int cntDbgObj = 0;
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
@@ -259,6 +253,19 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
 }
 
+void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
+  if (!REF_LINK_ENABLED) return;
+  
+  if (is_debug_pointer(old_p)) {
+    RTGC::debug_obj = new_p;
+    rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
+  } else if (RTGC::debug_obj == new_p) {
+    // assert(!RTGC::debugOptions[0], "gotcha");
+    rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
+  }
+}
+
+
 
 void RTGC::initialize() {
 #ifdef _LP64
@@ -270,16 +277,15 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
-  if (false) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (true) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  // enableLog(LOG_SCANNER, 10);
-  // enableLog(LOG_HEAP, 6);
+    // enableLog(LOG_SCANNER, 4);
+    // enableLog(LOG_HEAP, 2);
 
   if (UnlockExperimentalVMOptions) {
-    enableLog(LOG_HEAP, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

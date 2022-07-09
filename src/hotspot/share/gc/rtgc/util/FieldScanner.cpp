@@ -38,7 +38,7 @@ public:
   void work_oop(oop obj) {
     // fatal("ooo");
     if (obj == NULL) return;
-    if (to_obj(obj)->isGarbageMarked()) return;
+    // if (to_obj(obj)->isGarbageMarked()) return;
     if (!to_obj(obj)->isTrackable()) {
       if (!obj->is_gc_marked()) return;
       oop p = obj->forwardee();

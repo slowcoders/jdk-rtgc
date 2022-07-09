@@ -123,7 +123,9 @@ static LIR_Opr call_barrier(address fn, LIRAccess& access, LIR_Opr new_value, Va
     signature.append(T_ADDRESS); // addr
   }
   if (compare) signature.append(T_OBJECT); // cmp_value
-  signature.append(T_OBJECT); // new_value
+  if (new_value != LIR_OprFact::illegalOpr) {
+    signature.append(T_OBJECT); // new_value
+  }
   if (in_heap) {
     signature.append(T_OBJECT); // object
     base.load_item();
@@ -132,7 +134,9 @@ static LIR_Opr call_barrier(address fn, LIRAccess& access, LIR_Opr new_value, Va
   LIR_OprList* args = new LIR_OprList();
   args->append(addr); 
   if (compare) args->append(cmp_value); // cmp_value
-  args->append(new_value);
+  if (new_value != LIR_OprFact::illegalOpr) {
+    args->append(new_value);
+  }
   if (in_heap) {
     args->append(base.result());
   }
@@ -415,14 +419,18 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
     return;
   }
 
-  fatal("not_implemented");
-  BasicTypeList signature;
-  signature.append(T_ADDRESS); // addr
+  // BasicTypeList signature;
+  // signature.append(T_ADDRESS); // addr
+  // signature.append(T_OBJECT); // base
   
-  LIR_OprList* args = new LIR_OprList();
-  args->append(result);
+  // LIR_OprList* args = new LIR_OprList();
+  // args->append(result);
 
-  // address fn = RtgcBarrier::getPostLoadFunction(docorators);
+  address fn = RtgcBarrier::getLoadFunction(decorators | AS_RAW);
+  if (true) {
+    LIR_Opr v = call_barrier(fn, access, ill, objectType);
+    access.gen()->lir()->move(v, result);
+  }
 
   // LIR_Opr res = gen->call_runtime(&signature, args,
   //             fn,

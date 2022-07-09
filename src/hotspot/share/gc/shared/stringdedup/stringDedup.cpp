@@ -121,6 +121,7 @@ void StringDedup::forbid_deduplication(oop java_string) {
   }
 }
 
+void rtHeap_checkWeakReachable(oopDesc* p);
 void StringDedup::notify_intern(oop java_string) {
   assert(is_enabled(), "precondition");
   // A String that is interned in the StringTable must not later have its
@@ -132,7 +133,15 @@ void StringDedup::notify_intern(oop java_string) {
   StorageUse* requests = Processor::storage_for_requests();
   oop* ref = requests->storage()->allocate();
   if (ref != nullptr) {
-    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, java_string);
+#if INCLUDE_RTGC
+    if (EnableRTGC) {
+      NativeAccess<>::oop_store(ref, java_string);
+      rtHeap_checkWeakReachable(java_string);
+    } else 
+#endif    
+    {
+      NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, java_string);
+    }
     log_trace(stringdedup)("StringDedup::deduplicate");
   }
   requests->relinquish();
@@ -184,7 +193,16 @@ void StringDedup::Requests::add(oop java_string) {
   if ((_index == 0) && !refill_buffer()) return;
   // Store the string in the next pre-allocated storage entry.
   oop* ref = _buffer[--_index];
-  NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, java_string);
+
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    NativeAccess<>::oop_store(ref, java_string);
+    rtHeap_checkWeakReachable(java_string);
+  } else 
+#endif    
+  {
+    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, java_string);
+  }
   log_trace(stringdedup)("request");
 }
 

@@ -30,6 +30,9 @@ class RtgcBarrier : public AllStatic {
   static bool rt_cmpset_unknown(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
+  static oopDesc* rt_load_c1(T* addr, oopDesc* base);
+
+  template<DecoratorSet decorators, typename T> 
   static void rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
@@ -107,6 +110,8 @@ public:
   static oopDesc* oop_load(volatile narrowOop* p, oopDesc* base) {
     return rt_load(p, base);
   }
+
+  static oopDesc* oop_load_unknown(volatile void* p, oopDesc* base);
 
   static oopDesc* oop_load_not_in_heap(volatile oop* p);
   static oopDesc* oop_load_not_in_heap(volatile narrowOop* p) {

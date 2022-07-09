@@ -643,10 +643,14 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
+    // ClearAliveBitClosure clear_alive_bit;
+    // WeakProcessor::oops_do(&clear_alive_bit);
     rtHeap::discover_java_references(false);
     rtHeap::finish_compaction_gc(false);
   }
 #endif
+
+  // WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");

@@ -134,7 +134,14 @@ class StringDedup::Processor::ProcessRequest final : public OopClosure {
 
   void release_ref(oop* ref) {
     assert(_release_index < ARRAY_SIZE(_bulk_release), "invariant");
-    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, nullptr);
+#if INCLUDE_RTGC
+    if (EnableRTGC) {
+      NativeAccess<>::oop_store(ref, nullptr);
+    } else 
+#endif    
+    {
+      NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ref, nullptr);
+    }
     _bulk_release[_release_index++] = ref;
     if (_release_index == ARRAY_SIZE(_bulk_release)) {
       _storage->release(_bulk_release, _release_index);

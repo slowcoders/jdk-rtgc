@@ -73,6 +73,7 @@ void WeakProcessor::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* keep_a
   }
 }
 
+
 void WeakProcessor::oops_do(OopClosure* closure) {
   for (OopStorage* storage : OopStorageSet::Range<OopStorageSet::WeakId>()) {
     storage->weak_oops_do(closure);

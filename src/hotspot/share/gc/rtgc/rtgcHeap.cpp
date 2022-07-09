@@ -12,6 +12,7 @@
 #include "gc/shared/referenceDiscoverer.hpp"
 #include "oops/instanceRefKlass.inline.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
+#include "gc/shared/weakProcessor.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtSpace.hpp"
@@ -201,6 +202,17 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return obj->isTrackable();
 }
 
+void rtHeap::mark_weak_reachable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  obj->incrementRootRefCount();
+}
+
+void rtHeap::clear_weak_reachable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  // rtgc_log(true, "clear_weak_reachable %p\n", p);
+  GCRuntime::onEraseRootVariable_internal(obj);
+}
+
 void rtHeap::mark_empty_trackable(oopDesc* p) {
   rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
   GCObject* obj = to_obj(p);
@@ -215,8 +227,10 @@ void rtHeap::mark_empty_trackable(oopDesc* p) {
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
   // 이미 객체가 복사된 상태이다.
-  rtgc_log(LOG_OPT(11), "mark_promoted_trackable %p, tr=%d\n", new_p, to_obj(new_p)->isTrackable());
-  if (to_obj(new_p)->isTrackable()) return;
+  if (to_obj(new_p)->isTrackable()) {
+    rtgc_log(true || LOG_OPT(11), "skip mark_promoted_trackable %p, tr=%d\n", new_p, to_obj(new_p)->isTrackable());
+    return;
+  }
   to_obj(new_p)->markTrackable();
   // new_p 는 YG 에서 reachable 한 상태일 수 있다. 
   mark_survivor_reachable(new_p);
@@ -259,9 +273,15 @@ static oopDesc* get_valid_forwardee(oopDesc* obj) {
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
   GCObject* node = to_obj(new_p);
-  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
+  // assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
-    precond(node->isYoungRoot());
+    if (!node->isYoungRoot() && new_p->klass() == vmClasses::String_klass()) {
+      ResourceMark rm;
+      char* ex_msg = java_lang_String::as_utf8_string(new_p);
+      rtgc_log(true, "invalid y-root str %p(%s) %d\n", node, ex_msg, java_lang_String::length(new_p));
+    }
+    assert(node->isYoungRoot(), "no y-root %p(%s)\n",
+        node, RTGC::getClassName(node));
     resurrect_young_root(node);
   }
 
@@ -319,7 +339,7 @@ void rtHeap__clear_garbage_young_roots() {
 
       end = src_0 + cnt_root;
       for (; end < end_of_new_root; end++) {
-        to_obj(*end)->decrementRootRefCount();
+        GCRuntime::onEraseRootVariable_internal(to_obj(*end));
       }
 
     }
@@ -374,7 +394,7 @@ void rtHeap__clear_garbage_young_roots() {
     GCObject** src = &g_stack_roots.at(0);
     GCObject** end = src + cnt_root;
     for (; src < end; src++) {
-      src[0]->decrementRootRefCount();
+      GCRuntime::onEraseRootVariable_internal(src[0]);
     }
     rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", 
         g_stack_roots.length());
@@ -397,13 +417,13 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
     if (ENABLE_GC && !node->isAnchored()) {
-      node->markGarbage("not anchoed young root");
+      node->markGarbage("not anchored young root");
       end --;
       oop tmp = end[0];
       end[0] = cast_to_oop(node);
       src[0] = tmp;
       g_cntGarbageYGRoot ++;
-      rtgc_log(LOG_OPT(8), "skip garbage node %p\n", (void*)node);
+      rtgc_log(LOG_OPT(2), "skip garbage node %p\n", (void*)node);
       continue;
     }
 
@@ -483,7 +503,8 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
-    RTGC::add_referrer_ex(old_p, _old_anchor_p, false);
+    //RTGC::add_referrer_ex(old_p, _old_anchor_p, false);
+    RTGC::add_referrer_unsafe(old_p, _old_anchor_p);
   }
   else {
     // old_p 에 대해 이미 adjust_pointers 가 수행됨.
@@ -539,6 +560,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
       obj->setHasMultiRef(false);
       if (cntAnchor == 0) {
         obj->_refs = 0;
+        rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
       }
       else {
         GCObject* remained = referrers->at(0);
@@ -574,6 +596,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   }
 }
 
+
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   if (!is_alive(old_p)) {
     precond(!old_p->is_gc_marked() || is_dead_space(old_p));
@@ -595,8 +618,15 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       new_anchor_p = p;
     }
   }
-  rtgc_debug_log(old_p, 
-      "adjust_pointers %p->%p\n", (void*)old_p, get_valid_forwardee<true>(old_p));
+
+#ifdef ASSERT    
+  if (RTGC::is_debug_pointer(old_p) && !to_obj(old_p)->hasReferrer()) {
+  // rtgc_debug_log(old_p, 
+  //     "adjust_pointers %p->%p(%d)\n", (void*)old_p, get_valid_forwardee<true>(old_p), to_obj(old_p)->isAnchored());
+    rtgc_log(true, "adjust_pointers %p->%p(%d)\n", (void*)old_p, get_valid_forwardee<true>(old_p), to_obj(old_p)->isAnchored());
+  }
+#endif
+
 
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_ref);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
@@ -615,6 +645,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
   return size; 
 }
+
 
 void rtHeap::prepare_point_adjustment() {
   if (g_adjust_pointer_closure._old_gen_start != NULL) return;
@@ -712,7 +743,23 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
 }
 
+template <bool mark>
+class WeakReachableScanClosure: public BasicOopIterateClosure {
+ public:
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+  template <typename T> void do_oop_work(T* p) {
+    T heap_oop = RawAccess<>::oop_load(p);
+    oop obj = CompressedOops::decode_not_null(heap_oop);
+    rtHeap::clear_weak_reachable(obj);
+  }
+};
+
 void rtHeap::prepare_full_gc() {
+  // GenMarkSweep::mark_sweep_phase1() 에서 clear_not_alive 를 통해 처리
+  // WeakReachableScanClosure<false> scan_closure;
+  // WeakProcessor::oops_do(&scan_closure);
 }
 
 void rtHeap::discover_java_references(bool is_tenure_gc) {
@@ -972,5 +1019,23 @@ void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closu
       closure->do_iterate(cast_to_oop(node));
     }
     g_resurrected_top = INT_MAX; 
+  }
+}
+
+void rtHeap_checkWeakReachable(oopDesc* p) {
+  precond(to_obj(p)->getRootRefCount() > 0);
+}
+
+static int cc = 0;
+void check_no_ref(oopDesc* p) {
+  cc ++;
+  if (to_obj(p)->getRootRefCount() > 0) {
+    rtgc_log(true, "clear-ref %p[%d]\n", p, cc);//to_obj(p)->getRootRefCount());
+    // to_obj(p)->decrementRootRefCount();
+  } else {
+    // rtgc_log(true, "no-ref %p[%s]\n", p, RTGC::getClassName(to_obj(p)));
+  }
+  if ((cc % 500) == 0) {
+    rtgc_log(true, "cc-ref %p[%d]\n", p, cc);//to_obj(p)->getRootRefCount());
   }
 }

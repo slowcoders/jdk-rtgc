@@ -848,8 +848,27 @@ void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
 }
 
+#if INCLUDE_RTGC
+class ReMarkWeakReachableClosure: public BoolObjectClosure {
+  public:
+  virtual bool do_object_b(oop p) {
+    precond(p != NULL);
+    rtHeap::mark_weak_reachable(p);
+    return true;
+  }
+};
+#endif
+
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
-  WeakProcessor::oops_do(root_closure);
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    ReMarkWeakReachableClosure remark_closure;
+    WeakProcessor::weak_oops_do(&remark_closure, root_closure);
+  } else 
+#endif
+  {
+    WeakProcessor::oops_do(root_closure);
+  }
   _young_gen->ref_processor()->weak_oops_do(root_closure);
   _old_gen->ref_processor()->weak_oops_do(root_closure);
 }

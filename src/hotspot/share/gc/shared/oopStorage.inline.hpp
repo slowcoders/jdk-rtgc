@@ -36,6 +36,7 @@
 #include "utilities/count_trailing_zeros.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // Array of all active blocks.  Refcounted for lock-free reclaim of
 // old array when a new array is allocated for expansion.
@@ -262,6 +263,11 @@ public:
       if (_is_alive->do_object_b(v)) {
         result = _f(ptr);
       } else {
+#if INCLUDE_RTGC
+        if (EnableRTGC) {
+          rtHeap::clear_weak_reachable(v);
+        }
+#endif        
         *ptr = NULL;            // Clear dead value.
       }
     }

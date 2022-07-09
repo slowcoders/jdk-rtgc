@@ -195,6 +195,25 @@ void GenMarkSweep::deallocate_stacks() {
   _objarray_stack.clear(true);
 }
 
+#if INCLUDE_RTGC
+class ClearNotAliveClosure: public OopClosure {
+  public:
+  void do_object(oop* ptr) {
+    bool result = true;
+    oop v = *ptr;
+    if (v != NULL) {
+      rtHeap::clear_weak_reachable(v);
+      if (!MarkSweep::is_alive.do_object_b(v)) {
+        *ptr = NULL;            // Clear dead value.
+      }
+    }
+  }
+  virtual void do_oop(oop* o) { do_object(o); };
+  virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
+
+} clear_not_alive;
+#endif
+
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   // Recursively traverse all live objects and mark them
   GCTraceTime(Info, gc, phases) tm("Phase 1: Mark live objects", _gc_timer);
@@ -232,6 +251,11 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
   {
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
+#if INCLUDE_RTGC
+    if (EnableRTGC) {
+      WeakProcessor::oops_do(&clear_not_alive);
+    }
+#endif    
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
   }
 

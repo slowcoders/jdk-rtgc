@@ -286,9 +286,10 @@ void PathFinder::constructShortcut() {
     // last anchor may not have safe-anchor
 }
 
+
 static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFinder* pf) {
-    rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p\n", 
-        garbageAnchor, link);    
+    rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p (g=%d)\n", 
+        garbageAnchor, link, link->isGarbageMarked());    
     if (link->isGarbageMarked()) {
         // precond(pf->_visitedNodes.contains(link));
         return false;
@@ -302,7 +303,7 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFin
         } else {
             pf->_unsafeObjects->push_back(link);
         }
-        rtgc_log(LOG_OPT(4), "Add unsafe objects %p\n", link);
+        rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
     } else {
         rtgc_log(LOG_OPT(4), "unkown link %p->%p\n", garbageAnchor, link);
     }
@@ -319,7 +320,6 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
     while (true) {
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
-            rtgc_log(LOG_OPT(4), "tr node %p\n", node);
             if (node->isGarbageMarked()) {
                 // precond(garbages.contains(node));
             } else if (!node->isAnchored()) {
@@ -334,8 +334,8 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
         for (;cntGarbage < garbages.size(); cntGarbage++) {
             GCObject* obj = garbages.at(cntGarbage);
             obj->removeAnchorList();
-            rtgc_log(LOG_OPT(4), "clear_garbage_links %p(%s)\n", 
-                obj, RTGC::getClassName(obj));    
+            rtgc_log(LOG_OPT(4), "clear_garbage_links %p(%s) YR=%d\n", 
+                obj, RTGC::getClassName(obj), obj->isYoungRoot());    
             RTGC::scanInstanceGraph(obj, (RTGC::RefTracer3)clear_garbage_links, &pf);
 
         }
@@ -345,7 +345,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
             return;
         }
 
-        rtgc_log(LOG_OPT(4), "unsafe %d\n", cntUnsafe);
+        rtgc_log(LOG_OPT(14), "unsafe %d\n", cntUnsafe);
         cntGarbage = garbages.size();
         
         ppNode = pf._unsafeObjects.adr_at(0);
@@ -476,10 +476,10 @@ void SafeShortcut::vailidateShortcut() {
 
 void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
     int s_id = getIndex(this);
-    rtgc_log(RTGC::is_debug_pointer(leftTail) && java_lang_ref_Reference::is_phantom(cast_to_oop(leftTail)), 
-        "REF_PHANTOM[%d] shotcut split=%p(%s) rightAnchor=%p(%s)\n", 
-        getIndex(this), leftTail, RTGC::getClassName(leftTail), 
-                        rightAnchor, RTGC::getClassName(rightAnchor));
+    // rtgc_log(RTGC::is_debug_pointer(leftTail) && java_lang_ref_Reference::is_phantom(cast_to_oop(leftTail)), 
+    //     "REF_PHANTOM[%d] shotcut split=%p(%s) rightAnchor=%p(%s)\n", 
+    //     getIndex(this), leftTail, RTGC::getClassName(leftTail), 
+    //                     rightAnchor, RTGC::getClassName(rightAnchor));
 
     assert(this->isValid(), "shotcut[%d] is invalid leftTail=%p(%s) rightAnchor=%p(%s)\n", 
         getIndex(this), leftTail, RTGC::getClassName(leftTail), 

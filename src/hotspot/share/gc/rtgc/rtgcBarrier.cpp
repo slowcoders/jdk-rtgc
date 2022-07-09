@@ -513,10 +513,56 @@ oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
   return rtgc_load_not_in_heap<oop, false, 0>(addr);
 }
 
+oopDesc* RtgcBarrier::oop_load_unknown(volatile void* addr, oopDesc* base) {
+  precond(rtHeap::is_trackable(base));
+
+  if (is_strong_ref(addr, base)) {
+    return rt_load(addr, base);
+  }
+  oop v;
+  if (UseCompressedOops) {
+    v = RawAccess<>::oop_load((narrowOop*)addr);
+  } else {
+    v = RawAccess<>::oop_load((oop*)addr);
+  }
+  return v;
+}
+
+template<DecoratorSet decorators, typename T> 
+oopDesc* RtgcBarrier::rt_load_c1(T* addr, oopDesc* base) {
+  if (!rtHeap::is_trackable(base)) {
+    oop obj = RawAccess<>::oop_load(addr);
+    return obj;
+  }
+  if (decorators & ON_UNKNOWN_OOP_REF) {
+    return oop_load_unknown(addr, base);
+  } else {
+    return rt_load(addr, base);
+  }
+}
+
 address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
-  return in_heap ? reinterpret_cast<address>(rt_load)
-                 : reinterpret_cast<address>(rt_load_not_in_heap);
+  if (!in_heap) {
+    return reinterpret_cast<address>(rt_load_not_in_heap);
+  }
+
+  bool is_trackable = (decorators & AS_RAW) == 0;
+  bool is_unknown = in_heap && (decorators & ON_UNKNOWN_OOP_REF) != 0;
+
+  if (is_trackable) {
+    return !is_unknown ? reinterpret_cast<address>(rt_load)
+        : reinterpret_cast<address>(oop_load_unknown);
+  }
+
+  if (RTGC::is_narrow_oop_mode) {
+    return !is_unknown ? reinterpret_cast<address>(rt_load_c1<0, narrowOop>)
+        : reinterpret_cast<address>(rt_load_c1<ON_UNKNOWN_OOP_REF, narrowOop>);
+  } else {
+    return !is_unknown ? reinterpret_cast<address>(rt_load_c1<0, oop>)
+        : reinterpret_cast<address>(rt_load_c1<ON_UNKNOWN_OOP_REF, oop>);
+  }
+
 }
 
 //ObjArrayKlass::do_copy -> AccessBarrier::arraycopy_in_heap -> rtgc_arraycopy
