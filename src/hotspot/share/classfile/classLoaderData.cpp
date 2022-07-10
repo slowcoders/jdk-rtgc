@@ -241,8 +241,12 @@ inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chu
   // rtgc_log(true, "oops_do_chunk %d\n", size);
   for (juint i = 0; i < size; i++) {
     if (c->_data[i] != NULL) {
-      assert(RTGC::to_node(c->_data[i])->getRootRefCount() > 0,
-        "**** %p(%s)\n", (void*)c->_data[i], c->_data[i]->klass()->name()->bytes());
+#if INCLUDE_RTGC      
+      if (EnableRTGC) {
+        assert(RTGC::to_node(c->_data[i])->getRootRefCount() > 0,
+          "**** %p(%s)\n", (void*)c->_data[i], c->_data[i]->klass()->name()->bytes());
+      }
+#endif
       f->do_oop(&c->_data[i]);
     }
   }
