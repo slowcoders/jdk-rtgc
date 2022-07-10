@@ -323,6 +323,7 @@ void rtHeap__clear_garbage_young_roots() {
         GCObject* node = to_obj(*end);
         if (node->isGarbageMarked()) {
           precond(!node->isAnchored());
+          node->unmarkYoungRoot();
           // precond(!g_garbage_list.contains(node));
           g_garbage_list.push_back(node);
         }
@@ -756,7 +757,8 @@ class WeakReachableScanClosure: public BasicOopIterateClosure {
   }
 };
 
-void rtHeap::prepare_full_gc() {
+void rtHeap::prepare_rtgc(bool isTenured) {
+  precond(g_stack_roots.length() == 0);
   // GenMarkSweep::mark_sweep_phase1() 에서 clear_not_alive 를 통해 처리
   // WeakReachableScanClosure<false> scan_closure;
   // WeakProcessor::oops_do(&scan_closure);
@@ -999,7 +1001,8 @@ oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
       }
       this->removeAndShift(mid);
       // assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
-      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p %d/%d\n", word_size, node, mid, this->size());
+      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p(%s) %d/%d\n", 
+          word_size, node, RTGC::getClassName(node), mid, this->size());
       g_stack_roots.append(node);
       return cast_to_oop(node);
     } else if (size > word_size) {

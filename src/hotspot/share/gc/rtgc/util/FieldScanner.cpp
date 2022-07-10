@@ -40,10 +40,15 @@ public:
     if (obj == NULL) return;
     // if (to_obj(obj)->isGarbageMarked()) return;
     if (!to_obj(obj)->isTrackable()) {
-      if (!obj->is_gc_marked()) return;
-      oop p = obj->forwardee();
-      if (p != NULL) {
-        obj = p;
+      if (!to_obj(_base)->isYoungRoot()) {
+        if (!obj->is_gc_marked()) {
+          rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
+          return;
+        }
+        oop p = obj->forwardee();
+        if (p != NULL) {
+          obj = p;
+        }
       }
     }
     // precond(p != NULL);

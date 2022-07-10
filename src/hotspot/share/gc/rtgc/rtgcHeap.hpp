@@ -18,6 +18,7 @@ class rtHeap : AllStatic {
 public:
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool assert_alive = false);
+  static void prepare_rtgc(bool isTenured);
 
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
@@ -32,7 +33,6 @@ public:
   static void clear_weak_reachable(oopDesc* new_p);
 
   // for full gc
-  static void prepare_full_gc();
   static void prepare_point_adjustment();
   static size_t adjust_pointers(oopDesc* old_p);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);

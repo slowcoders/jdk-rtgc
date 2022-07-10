@@ -288,6 +288,7 @@ void PathFinder::constructShortcut() {
 
 
 static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFinder* pf) {
+    rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p (g=%d)\n", 
         garbageAnchor, link, link->isGarbageMarked());    
     if (link->isGarbageMarked()) {
@@ -295,7 +296,9 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFin
         return false;
     }
 
-    link->removeMatchedReferrers(garbageAnchor);
+    if (!link->removeMatchedReferrers(garbageAnchor)) {
+        rtgc_debug_log(garbageAnchor, "unkown link %p->%p\n", garbageAnchor, link);
+    }
     if (link->isTrackable() && link->isUnsafe()) {
         if (!link->isAnchored()) {
             link->markGarbage();
@@ -304,9 +307,7 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFin
             pf->_unsafeObjects->push_back(link);
         }
         rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
-    } else {
-        rtgc_log(LOG_OPT(4), "unkown link %p->%p\n", garbageAnchor, link);
-    }
+    } 
 
     return false;
 }

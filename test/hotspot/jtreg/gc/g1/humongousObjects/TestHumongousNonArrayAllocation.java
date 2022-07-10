@@ -60,7 +60,7 @@ import java.nio.file.Paths;
  *                   -XX:G1HeapRegionSize=1M
  *                   gc.g1.humongousObjects.TestHumongousNonArrayAllocation TWO_REGION_HUMONGOUS
  *
- * @run main/othervm -Xms128M -Xmx128M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ * @run_no_rtgc main/othervm -Xms128M -Xmx128M -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:.
  *                   -XX:G1HeapRegionSize=1M
  *                   gc.g1.humongousObjects.TestHumongousNonArrayAllocation MORE_THAN_TWO_REGION_HUMONGOUS
  *
