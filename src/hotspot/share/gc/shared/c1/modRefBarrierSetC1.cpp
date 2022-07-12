@@ -44,7 +44,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
                 LIR_OprFact::illegalOpr /* pre_val */, access.patch_emit_info());
   }
 
-  if (true || USE_RTGC_C1) {
+  if (USE_RTGC_C1) {
     RtgcBarrierSetC1::store_at_resolved(access, value);
   } else {
     BarrierSetC1::store_at_resolved(access, value);
@@ -52,7 +52,7 @@ void ModRefBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
 
   if (access.is_oop()) {
     bool precise;
-    if (true || USE_RTGC_C1) {
+    if (USE_RTGC_C1) {
       precise = RtgcBarrierSetC1::needBarrier_onResolvedAddress(access, true);
     } else {   
       precise = is_array || on_anonymous;
@@ -112,7 +112,7 @@ LIR_Opr ModRefBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_r
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool precise = is_array || on_anonymous;
   resolve_in_register |= !needs_patching && is_write && access.is_oop() && precise;  
-  if (true || USE_RTGC_C1) {
+  if (USE_RTGC_C1) {
     return RtgcBarrierSetC1::resolve_address(access, resolve_in_register);
   }
   else {
