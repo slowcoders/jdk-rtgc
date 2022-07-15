@@ -667,7 +667,10 @@ public:
 };
 
 void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
-  ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clear();
+  rtgc_log(RTGC::is_debug_pointer(new_obj), "clone_post_barrier %p\n", new_obj); 
+  // assert(!RTGC::is_debug_pointer(new_obj) || RTGC::to_obj(new_obj)->getRootRefCount() == 0,
+  //     " clone %p\n", new_obj);
+  ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clearFlags();
   if (RTGC::to_node(new_obj)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC::lock_heap();

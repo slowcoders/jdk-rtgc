@@ -42,14 +42,7 @@ WeakHandle::WeakHandle(OopStorage* storage, oop obj) :
                           "Unable to create new weak oop handle in OopStorage %s",
                           storage->name());
   }
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    NativeAccess<>::oop_store(_obj, obj);
-  } else
-#endif
-  {
-    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, obj);
-  }
+  NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, obj);
 }
 
 void WeakHandle::release(OopStorage* storage) const {
@@ -57,14 +50,7 @@ void WeakHandle::release(OopStorage* storage) const {
   if (_obj != NULL) {
     // Clear the WeakHandle.  For race in creating ClassLoaderData, we can release this
     // WeakHandle before it is cleared by GC.
-#if INCLUDE_RTGC
-    if (EnableRTGC) {
-      NativeAccess<>::oop_store(_obj, (oop)nullptr);
-    } else 
-#endif    
-    {
-      NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, (oop)NULL);
-    }
+    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, (oop)NULL);
     storage->release(_obj);
   }
 }

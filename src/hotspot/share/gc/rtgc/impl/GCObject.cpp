@@ -46,7 +46,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
     precond(referrer != this);
 #ifdef ASSERT    
     if (RTGC::is_debug_pointer((void*)this) || RTGC::is_debug_pointer((void*)referrer)) {
-        rtgc_log(true, "anchor %p removed from %p\n", referrer, this);
+        rtgc_log(1, "anchor %p removed from %p\n", referrer, this);
     }
 #endif
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
@@ -71,7 +71,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
         if (idx < 0) {
             for (int i = 0; i < referrers->size(); i ++) {
                 GCObject* anchor = referrers->at(i);
-                rtgc_log(true, "at[%d] %p(%s)\n", i, anchor, RTGC::getClassName(anchor));
+                rtgc_log(1, "at[%d] %p(%s)\n", i, anchor, RTGC::getClassName(anchor));
             }
         }
 #endif        

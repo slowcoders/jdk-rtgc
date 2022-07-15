@@ -117,15 +117,7 @@ jobject JNIHandles::make_weak_global(Handle obj, AllocFailType alloc_failmode) {
     // Return NULL on allocation failure.
     if (ptr != NULL) {
       assert(*ptr == NULL, "invariant");
-#if INCLUDE_RTGC
-      if (EnableRTGC) {
-        NativeAccess<>::oop_store(ptr, obj());
-        rtHeap_checkWeakReachable(obj());
-      } else 
-#endif
-      {
-        NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ptr, obj());
-      }
+      NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ptr, obj());
       char* tptr = reinterpret_cast<char*>(ptr) + weak_tag_value;
       res = reinterpret_cast<jobject>(tptr);
     } else {
@@ -169,11 +161,6 @@ void JNIHandles::destroy_weak_global(jobject handle) {
   if (handle != NULL) {
     assert(is_jweak(handle), "JNI handle not jweak");
     oop* oop_ptr = jweak_ptr(handle);
-#if INCLUDE_RTGC
-    if (EnableRTGC) {
-      NativeAccess<>::oop_store(oop_ptr, (oop)NULL);
-    } else
-#endif
     NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_ptr, (oop)NULL);
     weak_global_handles()->release(oop_ptr);
   }

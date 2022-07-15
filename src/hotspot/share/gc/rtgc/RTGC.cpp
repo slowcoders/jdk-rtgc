@@ -106,7 +106,7 @@ void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   precond (p != base);// return;
 #ifdef ASSERT    
   if (RTGC::is_debug_pointer((void*)p) || RTGC::is_debug_pointer((void*)base)) {
-    rtgc_log(true, "referrer %p added to %p\n", base, p);
+    rtgc_log(1, "referrer %p added to %p\n", base, p);
   }
 #endif
   if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
@@ -191,7 +191,7 @@ void RTGC::print_anchor_list(void* obj) {
   AnchorIterator it((GCObject*)obj);
   while (it.hasNext()) {
     GCObject* R = it.next();
-    rtgc_log(true, "anchor obj(%p) -> %p(%s)\n", obj, R, RTGC::getClassName(R));
+    rtgc_log(1, "anchor obj(%p) -> %p(%s)\n", obj, R, RTGC::getClassName(R));
   }
 }
 
@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-    // "java/nio/channels/Channels$1",
+    0,
     // "jdk/nio/zipfs/ZipFileSystem",
     // "java/lang/ref/Finalizer"
 };
@@ -239,9 +239,9 @@ bool RTGC::is_debug_pointer(void* ptr) {
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
-      if (strstr((char*)obj->klass()->name()->bytes(), className)
+      if (className != NULL && strstr((char*)obj->klass()->name()->bytes(), className)
         && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
-        rtgc_log(true, "debug class resolved %s\n", obj->klass()->name()->bytes());
+        rtgc_log(1, "debug class resolved %s\n", obj->klass()->name()->bytes());
         debugKlass[i] = obj->klass();
         return true;
       }
@@ -258,10 +258,10 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
   
   if (is_debug_pointer(old_p)) {
     RTGC::debug_obj = new_p;
-    rtgc_log(true, "debug_obj moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
   } else if (RTGC::debug_obj == new_p) {
     // assert(!RTGC::debugOptions[0], "gotcha");
-    rtgc_log(true, "object %p moved into debug_obj %p\n", old_p, new_p);
+    rtgc_log(1, "object %p moved into debug_obj %p\n", old_p, new_p);
   }
 }
 
@@ -286,6 +286,7 @@ void RTGC::initialize() {
   // enableLog(LOG_HEAP, 6);
 
   if (UnlockExperimentalVMOptions) {
+    // debugClassNames[0] = "[Lsun/invoke/util/Wrapper;";
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

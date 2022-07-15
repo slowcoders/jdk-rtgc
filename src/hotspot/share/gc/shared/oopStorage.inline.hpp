@@ -264,7 +264,7 @@ public:
         result = _f(ptr);
       } else {
 #if INCLUDE_RTGC
-        if (EnableRTGC) {
+        if (RtLazyClearWeakHandle) {
           rtHeap::clear_weak_reachable(v);
         }
 #endif        

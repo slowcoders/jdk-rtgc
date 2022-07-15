@@ -44,7 +44,7 @@ public:
 	static int _cntTrackable;
 
 public:
-	void clear() { 
+	void clearFlags() { 
 		_refs = 0; 
 		*(int*)&_flags = 0;
 		_nextUntrackable = NULL; 

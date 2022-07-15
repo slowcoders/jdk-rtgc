@@ -95,6 +95,7 @@ void GCRuntime::disconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
+    // precond(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
     assigned->incrementRootRefCount();
     rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
 }
@@ -107,6 +108,9 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
+    // precond(!RTGC::is_debug_pointer(erased) || erased->getRootRefCount() != ZERO_ROOT_REF + 1);
+    assert(erased->getRootRefCount() > ZERO_ROOT_REF, "wrong ref-count %p(%s) garbage=%d\n", 
+        erased, RTGC::getClassName(erased), erased->isGarbageMarked());
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
@@ -213,7 +217,7 @@ void GCRuntime::adjustShortcutPoints() {
 #ifdef ASSERT
             if (!cast_to_oop((GCObject*)p->anchor())->is_gc_marked()) {
                 for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
-                    rtgc_log(true, "node %p g=%d\n", node, node->isGarbageMarked());
+                    rtgc_log(1, "node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }
 #endif            

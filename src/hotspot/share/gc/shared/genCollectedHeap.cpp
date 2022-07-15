@@ -861,7 +861,7 @@ class ReMarkWeakReachableClosure: public BoolObjectClosure {
 
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
 #if INCLUDE_RTGC
-  if (EnableRTGC) {
+  if (RtLazyClearWeakHandle) {
     ReMarkWeakReachableClosure remark_closure;
     WeakProcessor::weak_oops_do(&remark_closure, root_closure);
   } else 

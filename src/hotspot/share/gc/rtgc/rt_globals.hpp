@@ -9,13 +9,16 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  product(bool, EnableRTGC, false,                                          \
+  develop(bool, EnableRTGC, true,                                          \
           "Enable Reverse Tracking garbage collection(RTGC) method")        \
                                                                             \
-  product(bool, RtNoDiscoverPhantom, false,                                 \
+  develop(bool, RtLazyClearWeakHandle, false,                              \
           "Disable discovering of phantom reference")                       \
                                                                             \
-  product(bool, RtNoDirtyCardMarking, false,                                \
+  develop(bool, RtNoDiscoverPhantom, true,                                 \
+          "Disable discovering of phantom reference")                       \
+                                                                            \
+  develop(bool, RtNoDirtyCardMarking, true,                                \
           "Disable dirty card marking")
 
 

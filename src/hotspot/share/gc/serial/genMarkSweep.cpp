@@ -252,9 +252,9 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   {
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
 #if INCLUDE_RTGC
-    if (EnableRTGC) {
+    if (RtLazyClearWeakHandle) {
       WeakProcessor::oops_do(&clear_not_alive);
-    }
+    } else
 #endif    
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
   }

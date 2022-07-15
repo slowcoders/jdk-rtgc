@@ -40,11 +40,6 @@ inline oop WeakHandle::peek() const {
 }
 
 inline void WeakHandle::replace(oop with_obj) {
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    NativeAccess<>::oop_store(_obj, with_obj);
-  } else
-#endif
   NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, with_obj);
 }
 

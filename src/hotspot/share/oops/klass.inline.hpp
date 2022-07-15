@@ -79,7 +79,7 @@ inline ByteSize Klass::vtable_start_offset() {
 #if INCLUDE_RTGC // clear_java_mirror_handle
 inline void Klass::clear_java_mirror_handle() { 
   if (_java_mirror.peek() != NULL) {
-    // _java_mirror.replace(NULL);
+    _java_mirror.replace(NULL);
     _java_mirror = OopHandle(); 
   }
 }

@@ -46,7 +46,7 @@ public:
 
   static inline bool is_raw_access(DecoratorSet decorators, bool op_store = true) {
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
-    if (op_store) {
+    if (op_store && !RtLazyClearWeakHandle) {
       no_barrier |= ON_PHANTOM_OOP_REF;
     }
     return (no_barrier & decorators) != 0;

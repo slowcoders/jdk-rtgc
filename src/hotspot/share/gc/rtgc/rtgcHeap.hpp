@@ -40,6 +40,7 @@ public:
   static void destroy_trackable(oopDesc* p);
 
   // for jni
+  static void lock_jni_handle(oopDesc* p);
   static void release_jni_handle(oopDesc* p);
 
   // for reference management
