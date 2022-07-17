@@ -666,12 +666,24 @@ public:
   virtual void do_oop(oop*       p) { do_work(p); }
 };
 
-void RtgcBarrier::clone_post_barrier(oopDesc* new_obj) {
+void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
+  precond(sizeof(oopDesc) == align_object_size(sizeof(oopDesc)));
+  precond(dst->klass() == src->klass());
+  dst->init_mark();
+  int copy_offset = oopDesc::has_klass_gap() ? oopDesc::klass_offset_in_bytes() : sizeof(oopDesc);
+  int copy_size = size - (copy_offset / HeapWordSize);
+  AccessInternal::arraycopy_disjoint_words_atomic(
+      (address)(oopDesc*)src + copy_offset,
+      (address)(oopDesc*)dst + copy_offset,
+      copy_size);
+
+  oopDesc* new_obj = dst;
+  assert(!RTGC::to_node(new_obj)->isTrackable(), " wrong obj %p\n", new_obj);
   rtgc_log(RTGC::is_debug_pointer(new_obj), "clone_post_barrier %p\n", new_obj); 
-  // assert(!RTGC::is_debug_pointer(new_obj) || RTGC::to_obj(new_obj)->getRootRefCount() == 0,
-  //     " clone %p\n", new_obj);
-  ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clearFlags();
-  if (RTGC::to_node(new_obj)->isTrackable()) {
+  // ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clearFlags();
+  rtgc_log(RTGC::to_obj(new_obj)->getRootRefCount() != 0,
+    " clone in jvmti %p(rc=%d)\n", new_obj, RTGC::to_obj(new_obj)->getRootRefCount());
+  if (false && RTGC::to_node(new_obj)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);

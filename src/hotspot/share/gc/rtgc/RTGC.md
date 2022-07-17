@@ -1,10 +1,18 @@
 ## TODO
-- Old-G 에 객체 A를 allocate 하고, 바로 full-GC 수행 시, A 의 trackable-marking 여부 확인!!
-  -> rtHeap::adjust_points 을 통해 처리.
-- FinalReference 의 referent 는 rootRefCount 만 증가시킨다. 
-  즉, rootRefCount 가 1인 final-referent 는 garbage.
-- YoungRoot resurrection.
+- Reference
+   * FinalReference 의 referent 는 rootRefCount 만 증가시킨다. 
+     rootRefCount 가 1인 final-referent 는 garbage.
+   * SoftReference (메모리 부족 시)
+     referent 의 anchor 가 모두 Reference 인 경우, 가비지 처리
+     (FinalReference 에 의한 refCount 예외 처리 필요)
+   * WeakReference 
+     referent 의 anchor 가 모두 WeakReference 인 경우, 가비지 처리
+     (FinalReference 에 의한 refCount 예외 처리 필요)
+
 - lock temporary WeakHandles. (YG GC 시에는 GC 되지 않음).
+   -> RtLazyClearWeakHandle + ON_PHANTOM_OOP_REF 조합으로 처리
+
+# 기타.
 - SafepointSynchronize::begin()/end()확인.
 - SafepointSynchronize::arm_safepoint() 분석
 - YG 객체에 의한 Old 객체 참조 문제.
@@ -21,8 +29,8 @@
       - PhantomReference 는 존속기간을 늘리는 문제가 발생.
    2) Reference 를 referent 의 anchor 로 등록하지 않으면,
       referent 값을 지우지 않은 채 referent 가 삭제될 수 있다.
-      이를 방지하려면, stringRefCount 와 별도로 weakRefCount 가 관리되어야 한다.
-      (stringRefCount 하나로 관리하면, 순환 가비지 처리 불가)
+      이를 방지하려면, rootRefCount 와 별도로 weakRefCount 가 관리되어야 한다.
+      (rootRefCount 하나로 관리하면, 순환 가비지 처리 불가)
       softRefCount 도 별도 관리 필요??? ㅡ,.ㅡ
    3) GC Root marking 시에, 가비지 처리 대상이 아닌 referent 를 stack-root-marking 한다.
       YG-GC 시에는 reference 를 일반 객체와 동일하게 처리하므로, referent 가 별도 GC 되지 않는다.
@@ -435,15 +443,20 @@ DefNewGeneration::collect() ...
 
 
 ==============================
-Test summary 2022 07/11
+Test summary 2022 07/17
 ==============================
-   TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/hotspot/jtreg:tier1                     1610  1578    29     3 <<
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1584    21     5 <<
 >> jtreg:test/jdk:tier1                               2062  2055     3     4 <<
->> jtreg:test/langtools:tier1                         4215  4203     0    12 <<
+>> jtreg:test/langtools:tier1                         4215  4201     0    14 <<
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
-==============================
+
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1582    24     4 <<
+>> jtreg:test/jdk:tier1                               2062  2054     3     5 <<
+>> jtreg:test/langtools:tier1                         4215  4205     0    10 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0 
 
 ==============================
 Test summary Orignal version

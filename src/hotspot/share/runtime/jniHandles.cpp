@@ -105,7 +105,6 @@ jobject JNIHandles::make_global(Handle obj, AllocFailType alloc_failmode) {
   return res;
 }
 
-void rtHeap_checkWeakReachable(oopDesc* p);
 jobject JNIHandles::make_weak_global(Handle obj, AllocFailType alloc_failmode) {
   assert(!Universe::heap()->is_gc_active(), "can't extend the root set during GC");
   assert(!current_thread_in_native(), "must not be in native");

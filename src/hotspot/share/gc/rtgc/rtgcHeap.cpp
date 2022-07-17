@@ -915,6 +915,11 @@ void RtRefProcessor::process_phantom_references() {
 }
 
 bool rtHeap::is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link) {
+  rtgc_log(true, "is_valid_link_of_yg_root %p(%s)->%p(%s) is_yg_root=%d\n",
+      (void*)yg_root, yg_root->klass()->name()->bytes(),
+      (void*)link, link->klass()->name()->bytes(), 
+      to_obj(link)->isYoungRoot());
+
   assert(java_lang_ref_Reference::is_phantom(link)
       && java_lang_ref_Reference::is_phantom(yg_root)
       && (void*)java_lang_ref_Reference::discovered(yg_root) == link
@@ -1010,7 +1015,4 @@ void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closu
   }
 }
 
-void rtHeap_checkWeakReachable(oopDesc* p) {
-  precond(to_obj(p)->getRootRefCount() > 0);
-}
 

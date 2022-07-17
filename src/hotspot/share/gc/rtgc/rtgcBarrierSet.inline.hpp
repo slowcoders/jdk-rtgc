@@ -174,8 +174,7 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw, 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 clone_in_heap(oop src, oop dst, size_t size) {
-  ModRef::clone_in_heap(src, dst, size);
-  RtgcBarrier::clone_post_barrier(dst);
+  RtgcBarrier::oop_clone_in_heap(src, dst, size);
 }
 
 //

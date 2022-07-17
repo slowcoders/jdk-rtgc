@@ -164,6 +164,7 @@ GCArguments* GCConfig::select_gc() {
 
 #if INCLUDE_RTGC
   EnableRTGC = UseSerialGC;
+  RtLazyClearWeakHandle = EnableRTGC;
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
 #endif  
