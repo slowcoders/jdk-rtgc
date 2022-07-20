@@ -47,10 +47,10 @@ static const int LOG_OPT(int function) {
 }
 
 void __trace(narrowOop* addr) {
-  // rtgc_log(true, "__TRCAE\n");
+  rtgc_log(true, "__TRCAE %p\n", addr);
 }
 void __break(narrowOop* addr) {
-  assert(false, "__BREAK\n");
+  assert(false, "__BREAK %p\n", addr);
 }
 
 
@@ -112,16 +112,10 @@ static LIR_Opr call_barrier(address fn, LIRAccess& access, LIR_Opr new_value, Va
   LIRItem& base = access.base().item();
   bool in_heap = decorators & IN_HEAP;
   bool compare = cmp_value->is_valid();
-  LIR_Opr addr;;
+  LIR_Opr addr = get_resolved_addr(access);
 
   BasicTypeList signature;
-  if (false && in_heap && compare) {
-    signature.append(T_INT); // addr
-    addr = access.offset().item().result();
-  } else {
-    addr = get_resolved_addr(access);
-    signature.append(T_ADDRESS); // addr
-  }
+  signature.append(T_ADDRESS); // addr
   if (compare) signature.append(T_OBJECT); // cmp_value
   if (new_value != LIR_OprFact::illegalOpr) {
     signature.append(T_OBJECT); // new_value
@@ -419,22 +413,11 @@ void RtgcBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
     return;
   }
 
-  // BasicTypeList signature;
-  // signature.append(T_ADDRESS); // addr
-  // signature.append(T_OBJECT); // base
-  
-  // LIR_OprList* args = new LIR_OprList();
-  // args->append(result);
-
   address fn = RtgcBarrier::getLoadFunction(decorators | AS_RAW);
   if (true) {
     LIR_Opr v = call_barrier(fn, access, ill, objectType);
     access.gen()->lir()->move(v, result);
   }
-
-  // LIR_Opr res = gen->call_runtime(&signature, args,
-  //             fn,
-  //             objectType, NULL);
 }
 
 
@@ -469,13 +452,13 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   rtgc_log(LOG_OPT(11), "store_at_resolved\n");
-  LIRGenerator* gen = access.gen();
   address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
   if (true) {
     call_barrier(fn, access, value, voidType);
     return;
   }
 
+  LIRGenerator* gen = access.gen();
   if (true) {
     fn = (address)__break;
     OopStoreStub* stub = new OopStoreStub(fn, access, value, voidType);
@@ -564,14 +547,13 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
     return BarrierSetC1::atomic_xchg_at_resolved(access, value);
   }
 
-  LIRGenerator* gen = access.gen();
-  value.load_item();
-
   if (true) {
+    value.load_item();
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   }
 
+  LIRGenerator* gen = access.gen();
   address fn = RtgcBarrier::getXchgFunction(access.decorators());
   OopStoreStub* stub = new OopStoreStub(fn, access, value.result(), objectType);
   if (stub->genConditionalAccessBranch(gen, this)) {
@@ -605,7 +587,6 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   }
 
   LIRGenerator* gen = access.gen();
-
   if (true) {
     new_value.load_item();
     cmp_value.load_item();
@@ -616,7 +597,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
             result, T_INT);
     return result;
   }
-  // access.base().item().load_item();
+  
   new_value.load_item();
   address fn = RtgcBarrier::getCmpSetFunction(access.decorators());
   OopStoreStub* stub = new OopStoreStub(fn, access, new_value.result(), objectType, &cmp_value);
@@ -656,6 +637,8 @@ const char* RtgcBarrierSetC1::rtcall_name_for_address(address entry) {
   return "RtgcRuntime::method";
 }
 
+/* for skip load_address ??
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   return BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
 }
+*/

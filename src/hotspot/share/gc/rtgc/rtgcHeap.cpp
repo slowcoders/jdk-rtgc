@@ -851,6 +851,8 @@ void RtRefProcessor::process_phantom_references() {
       debug_only(cnt_cleared++;)
       /**
        * Two step referent clear (to hide discoverd-link)
+       * 참고) referent 값이 null 이 되면, discovered 가 normal-ref 참조로 처리된다.
+       *      이에, reference-queue 에 제거한 후, referent 값을 null 로 변경한다.
        * See java_lang_ref_Reference::clear_referent().
        */
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));

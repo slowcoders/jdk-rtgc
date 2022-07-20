@@ -48,7 +48,7 @@ void* SafeShortcut::operator new (std::size_t size) {
 
 class PathFinder {
 public:    
-	SimpleVector<GCObject*> _unsafeObjects;
+    SimpleVector<GCObject*> _unsafeObjects;
     HugeArray<GCObject*>& _visitedNodes;
     SimpleVector<AnchorIterator> _trackers;
     SafeShortcut* reachableShortcurQ;
@@ -234,12 +234,11 @@ void PathFinder::constructShortcut() {
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
-                    rtgc_log(LOG_OPT(10), "extend Shortcut tail %d\n", ss->getIndex());
                 #ifdef ASSERT
                     for (GCObject* n = tail; n != obj; n = n->getSafeAnchor()) {
                         precond(n != ss->anchor());
                     }
-                #else
+                #elif 0
                     int tail_len = 0;
                     GCObject* next;
                     for (GCObject* n = tail; n != obj; n = next) {
@@ -252,6 +251,7 @@ void PathFinder::constructShortcut() {
                         }
                     }
                 #endif
+                    rtgc_log(LOG_OPT(10), "extend Shortcut tail %d\n", ss->getIndex());
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {

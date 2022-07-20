@@ -192,7 +192,7 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   Chunk* c;
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  if (EnableRTGC) {
+  if (EnableRTGC) { // RTGC_OPT_CLD_SCAN
     c = Atomic::load_acquire(&_tail);
     if (c == NULL || c->_size == Chunk::CAPACITY) {
       Chunk* next = new Chunk(NULL);
@@ -204,12 +204,6 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
       Atomic::release_store(&_tail, next);
       c = next;
     }
-    // if (_head == _tail) {
-    //   if (c->_size > 1 && c->_size < 10) {
-    //     rtgc_log(true, "add handle %p[%d]\n", (void*)o, c->_size);
-    //   }      
-    // }
-
   } else
 #endif
   {
@@ -238,7 +232,6 @@ int ClassLoaderData::ChunkedHandleList::count() const {
 }
 
 inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chunk* c, const juint size) {
-  // rtgc_log(true, "oops_do_chunk %d\n", size);
   for (juint i = 0; i < size; i++) {
     if (c->_data[i] != NULL) {
 #if INCLUDE_RTGC      
@@ -634,14 +627,10 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
 }
 
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-void check_no_ref(oopDesc* p);
 class HandleReleaseClosure : public OopClosure {
   void do_oop(oop* p) {
     oop obj = *p;
-    if (obj != NULL) {
-      //check_no_ref(obj);
-      rtHeap::release_jni_handle(obj);
-    }
+    if (obj != NULL) rtHeap::release_jni_handle(obj);
   }
 
   void do_oop(narrowOop* p) {

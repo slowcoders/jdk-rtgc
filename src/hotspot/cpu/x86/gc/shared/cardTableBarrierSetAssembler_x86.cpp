@@ -142,7 +142,7 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
 
   bool needs_post_barrier = val != noreg && in_heap;
 
-  if (EnableRTGC && !RtNoDirtyCardMarking) {
+  if (EnableRTGC && RtNoDirtyCardMarking) {
     RtgcBarrierSetAssembler::oop_store_at(masm, decorators, type, dst, val, noreg, noreg);
   } else {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);

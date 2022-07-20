@@ -2846,15 +2846,7 @@ void JvmtiObjectAllocEventCollector::generate_call_for_allocated() {
       rtgc_debug_log(obj, "generate_call_for_allocated %p\n", (void*)obj);
       _post_callback(JavaThread::current(), obj);
       // Release OopHandle
-#if INCLUDE_RTGC // no use jvmti_oop_storage
-      if (EnableRTGC || RtLazyClearWeakHandle) {
-        jobject* pHandle = (jobject*)_allocated->adr_at(i);
-        JNIHandles::destroy_local(*pHandle);
-      } else 
-#endif
-      {
-        _allocated->at(i).release(JvmtiExport::jvmti_oop_storage());
-      }
+      _allocated->at(i).release(JvmtiExport::jvmti_oop_storage());
     }
     delete _allocated, _allocated = NULL;
   }
@@ -2865,15 +2857,7 @@ void JvmtiObjectAllocEventCollector::record_allocation(oop obj) {
   if (_allocated == NULL) {
     _allocated = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<OopHandle>(1, mtServiceability);
   }
-#if INCLUDE_RTGC // no use jvmti_oop_storage
-  if (EnableRTGC || RtLazyClearWeakHandle) {
-    jobject handle = JNIHandles::make_local(obj);
-    _allocated->push(*(OopHandle*)&handle);
-  }
-  else {
-    _allocated->push(OopHandle(JvmtiExport::jvmti_oop_storage(), obj));
-  }
-#endif  
+  _allocated->push(OopHandle(JvmtiExport::jvmti_oop_storage(), obj));
 }
 
 // Disable collection of VMObjectAlloc events

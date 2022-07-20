@@ -670,13 +670,6 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
-#if 0 // INCLUDE_RTGC
-  if (RtLazyClearWeakHandle) {
-    if (JvmtiExport::should_post_sampled_object_alloc()) {
-      rtHeap::lock_jni_handle(new_obj_oop);
-    }
-  }
-#endif
 
   Handle new_obj(THREAD, new_obj_oop);
   // Caution: this involves a java upcall, so the clone should be

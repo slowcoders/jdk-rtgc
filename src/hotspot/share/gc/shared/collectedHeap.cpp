@@ -473,7 +473,6 @@ void
 CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 {
   assert(words <= filler_array_max_size(), "too big for a single object");
-
   if (words >= filler_array_min_size()) {
     fill_with_array(start, words, zap);
   } else if (words > 0) {
