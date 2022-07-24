@@ -638,14 +638,13 @@ void DefNewGeneration::collect(bool   full,
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
   pt.print_all_references();
 
-  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
-
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     if (RtLazyClearWeakHandle) {
       WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
     }
-    rtHeap::discover_java_references(false);
+    rtHeap::process_java_references(&scan_weak_ref, false);
+    evacuate_followers.do_void();
     rtHeap::finish_compaction_gc(false);
     if (!RtLazyClearWeakHandle) {
       WeakProcessor::weak_oops_do(&is_alive, &keep_alive);

@@ -3,6 +3,13 @@
 
 #include "gc/shared/space.inline.hpp"
 
+namespace rtHeapUtil {
+
+  bool is_dead_space(oopDesc* obj);
+
+  void ensure_alive_or_deadsapce(oopDesc* old_p);
+}
+
 class RtSpace: public TenuredSpace {
 public:
   typedef TenuredSpace _SUPER;

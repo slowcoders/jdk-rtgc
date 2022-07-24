@@ -19,6 +19,10 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
+#include "rtRefProcessor.hpp"
+
+using namespace rtHeapUtil;
+
 namespace RTGC {
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
@@ -82,25 +86,6 @@ namespace RTGC {
     static int compare_obj_size(const void* left, const void* right);
   };
 
-  class RtRefProcessor {
-  public:
-    oopDesc* _pending_head;
-    oopDesc* _phantom_ref_q;
-    oopDesc* _enqueued_top;
-#ifdef ASSERT
-    int cnt_garbage;
-    int cnt_phantom;
-    int cnt_pending;
-    int cnt_cleared;
-    int cnt_alive;
-#endif
-  
-    RtRefProcessor() { _phantom_ref_q = NULL; }
-
-    template <bool is_full_gc>
-    void process_phantom_references();
-    void register_pending_refereneces();
-  };
 
   
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
@@ -113,7 +98,6 @@ namespace RTGC {
   int g_cntTrackable = 0;
   int g_cntScan = 0;
   int g_saved_young_root_count = 0;
-  RtRefProcessor g_rtRefProcessor;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   BoolObjectClosure* g_young_root_closure;
   const bool USE_PENDING_TRACKABLES = false;
@@ -176,17 +160,6 @@ bool rtHeap::is_alive(oopDesc* p, bool assert_alive) {
 
 
 
-static bool is_dead_space(oopDesc* obj) {
-  Klass* klass = obj->klass();
-  return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
-}
-
-static void ensure_alive_or_deadsapce(oopDesc* old_p) {
-  assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "invalid pointer %p(%s) isClass=%d\n", 
-        old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass());
-}
-
 
 
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
@@ -242,31 +215,6 @@ static void resurrect_young_root(GCObject* node) {
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     node->unmarkYoungRoot();
   }
-}
-
-template <bool is_full_gc>
-static oopDesc* get_valid_forwardee(oopDesc* obj) {
-  if (is_full_gc) {
-    if (to_obj(obj)->isGarbageMarked()) {
-      assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
-          obj);//, RTGC::getClassName(to_obj(obj)));
-      return NULL;
-    } else {
-      assert(obj->is_gc_marked(), "must be gc_marked %p()\n", 
-          obj);//, RTGC::getClassName(to_obj(obj)));
-      oopDesc* p = obj->forwardee();
-      return (p == NULL) ? obj : p;
-    }
-  } 
-
-  if (to_obj(obj)->isTrackable()) {
-    if (to_obj(obj)->isGarbageMarked()) return NULL;
-    return obj;
-  }
-
-  if (!obj->is_gc_marked()) return NULL;
-  postcond(!to_obj(obj)->isGarbageMarked());
-  return obj->forwardee();
 }
 
 
@@ -452,9 +400,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
   debug_only(precond(!to_node(p)->isUnstable()));
-  if (!USE_PENDING_TRACKABLES) {
-    to_obj(p)->markDirtyReferrerPoints();
-  }
+  to_obj(p)->markDirtyReferrerPoints();
 }
 
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
@@ -466,15 +412,6 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
   debug_only(g_cntTrackable++);
-  if (USE_PENDING_TRACKABLES) {
-    g_pending_trackables.append((oopDesc*)new_p);
-  }
-  // if (is_java_reference_with_young_referent(old_p)) {
-  //   /* adjust_pointers 수행 전에 referent 검사하여야 한다.
-  //      또는 객체 복사가 모두 종료된 시점에 referent를 검사할 수 있다.
-  //   */
-  //   add_young_root(old_p, (oopDesc*)new_p);
-  // }
 }
 
 template <typename T>
@@ -493,7 +430,6 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   _has_young_ref |= is_in_young(new_p);
   if (_new_anchor_p == NULL) return;
-  if (USE_PENDING_TRACKABLES) return;
 
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
@@ -614,15 +550,6 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     }
   }
 
-#ifdef ASSERT    
-  if (RTGC::is_debug_pointer(old_p) && !to_obj(old_p)->hasReferrer()) {
-  // rtgc_debug_log(old_p, 
-  //     "adjust_pointers %p->%p(%d)\n", (void*)old_p, get_valid_forwardee<true>(old_p), to_obj(old_p)->isAnchored());
-    rtgc_log(1, "adjust_pointers %p->%p(%d)\n", (void*)old_p, get_valid_forwardee<true>(old_p), to_obj(old_p)->isAnchored());
-  }
-#endif
-
-
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_ref);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
@@ -635,9 +562,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 
   __adjust_anchor_pointers(old_p); 
 
-  if (!USE_PENDING_TRACKABLES) {
-    to_obj(old_p)->unmarkDirtyReferrerPoints();
-  }
+  to_obj(old_p)->unmarkDirtyReferrerPoints();
   return size; 
 }
 
@@ -739,36 +664,26 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 }
 
 
-void rtHeap::prepare_rtgc(bool isTenured) {
+void rtHeap::prepare_rtgc(bool is_full_gc) {
+  if (is_full_gc) {
+    g_garbage_list.resize(0);
+  } else {
+    g_garbage_list.reset_recycled_count();
+  }
   precond(g_stack_roots.length() == 0);
 }
 
-void rtHeap::discover_java_references(bool is_tenure_gc) {
-  if (is_tenure_gc) {
-    g_garbage_list.resize(0);
-    g_rtRefProcessor.process_phantom_references<true>();
+void rtHeap::finish_compaction_gc(bool is_full_gc) {
+  if (is_full_gc) {
+    g_adjust_pointer_closure._old_gen_start = NULL;
+    rtHeapEx::clear_phantom_references(is_full_gc);
+    GCRuntime::adjustShortcutPoints();
   } else {
-    g_rtRefProcessor.process_phantom_references<false>();
+    rtHeapEx::clear_phantom_references(is_full_gc);
     rtHeap__clear_garbage_young_roots();
-    g_garbage_list.reset_recycled_count();
   }
-
-  g_adjust_pointer_closure._old_gen_start = NULL;
-
-  if (USE_PENDING_TRACKABLES) {
-    const int count = g_pending_trackables.length();
-    rtgc_log(LOG_OPT(11), "finish_collection %d\n", count);
-    if (count == 0) return;
-
-    oop* pOop = &g_pending_trackables.at(0);
-    for (int i = count; --i >= 0; ) {
-      oopDesc* p = *pOop++;
-      RTGC::iterateReferents(to_obj(p), (RefTracer2)RTGC::add_referrer_ex, p);
-    }
-    g_pending_trackables.trunc_to(0);
-  }
-  return;
 }
+
 
 void rtHeap::lock_jni_handle(oopDesc* p) {
   if (!REF_LINK_ENABLED) return;
@@ -781,139 +696,6 @@ void rtHeap::release_jni_handle(oopDesc* p) {
   assert(to_obj(p)->getRootRefCount() > 0, "wrong handle %p\n", p);
   rtgc_debug_log(p, "release_handle %p\n", p);
   GCRuntime::onEraseRootVariable_internal(to_obj(p));
-}
-
-void rtHeap::init_java_reference(oopDesc* ref_oop, oopDesc* referent) {
-  precond(RtNoDiscoverPhantom);
-  precond(referent != NULL);
-
-  ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  
-  if (!java_lang_ref_Reference::is_phantom(ref_oop)) {
-    HeapAccess<>::oop_store_at(ref_oop, referent_offset, referent);
-    rtgc_log(false && ((InstanceRefKlass*)ref_oop->klass())->reference_type() == REF_WEAK, 
-          "weak ref %p for %p\n", (void*)ref_oop, referent);
-    return;
-  }
-
-  //rtgc_log(LOG_OPT(3), "created phantom %p for %p\n", (void*)ref_oop, referent);
-  HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_oop, referent_offset, referent);
-  oop next_discovered = Atomic::xchg(&g_rtRefProcessor._phantom_ref_q, ref_oop);
-  java_lang_ref_Reference::set_discovered_raw(ref_oop, next_discovered);
-  return;
-}
-
-void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
-  g_rtRefProcessor._enqueued_top = ref_q;
-  oopDesc* discovered;
-  for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
-    discovered = java_lang_ref_Reference::discovered(obj);
-    if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_ex(discovered, obj, true);
-    }
-    // rtHeap::link_discovered_pending_reference(obj, discovered);
-  }
-}
-
-template <bool is_full_gc>
-void RtRefProcessor::process_phantom_references() {
-  _pending_head = NULL;
-#ifdef ASSERT  
-  cnt_garbage = 0;
-  cnt_phantom = 0;
-  cnt_pending = 0;
-  cnt_cleared = 0;
-  cnt_alive = 0;
-#endif
-
-  oop acc_ref = NULL;
-  oop next_ref;
-  oop alive_head = NULL;
-  oopDesc* pending_tail_acc = NULL;
-  const int referent_off = java_lang_ref_Reference::referent_offset();
-  const int discovered_off = java_lang_ref_Reference::discovered_offset();
-
-  for (oop ref_op = _phantom_ref_q; ref_op != NULL; ref_op = next_ref) {
-    rtgc_log(LOG_OPT(3), "check phantom ref %p\n", (void*)ref_op);
-    next_ref = RawAccess<>::oop_load_at(ref_op, discovered_off);
-    precond(ref_op != next_ref);
-    oop ref_np = get_valid_forwardee<is_full_gc>(ref_op);
-    if (ref_np == NULL) {
-      rtgc_log(LOG_OPT(3), "garbage phantom ref %p removed\n", (void*)ref_op);
-      debug_only(cnt_garbage++;)
-      continue;
-    }
-
-    rtgc_log(LOG_OPT(3), "phantom ref %p moved %p\n", (void*)ref_op, (void*)ref_np);
-    oop referent_op = RawAccess<>::oop_load_at(ref_op, referent_off);
-    precond(referent_op != NULL);
-    acc_ref = is_full_gc ? ref_op : ref_np;
-    if (referent_op == ref_op) {
-      debug_only(cnt_cleared++;)
-      /**
-       * Two step referent clear (to hide discoverd-link)
-       * 참고) referent 값이 null 이 되면, discovered 가 normal-ref 참조로 처리된다.
-       *      이에, reference-queue 에 제거한 후, referent 값을 null 로 변경한다.
-       * See java_lang_ref_Reference::clear_referent().
-       */
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, discovered_off, oop(NULL));
-      rtgc_log(LOG_OPT(3), "referent cleaned %p (maybe by PhantomCleanable)\n", (void*)ref_op);
-      continue;
-    }
-
-    oop referent_np = get_valid_forwardee<is_full_gc>(referent_op);
-    if (referent_np == NULL) {
-      debug_only(cnt_pending++;)
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, oop(NULL));
-      rtgc_log(LOG_OPT(3), "reference %p(->%p) with garbage referent linked after (%p)\n", 
-            (void*)ref_op, (void*)ref_np, (void*)pending_tail_acc);
-      if (_pending_head == NULL) {
-        precond(pending_tail_acc == NULL);
-        _pending_head = acc_ref;
-      } else {
-        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, acc_ref);
-        if (to_node(pending_tail_acc)->isTrackable()) {
-          RTGC::add_referrer_ex(acc_ref, pending_tail_acc, true);
-        }
-      }
-      pending_tail_acc = acc_ref;
-    } else {
-      rtgc_log(LOG_OPT(3), "alive reference %p(->%p) linked (%p)\n", 
-            (void*)ref_op, (void*)ref_np, (void*)alive_head);
-      java_lang_ref_Reference::set_discovered_raw(acc_ref, alive_head);
-      alive_head = ref_np;
-      debug_only(cnt_alive++;)
-
-      rtgc_log(LOG_OPT(3), "referent of (%p) marked %p -> %p\n", (void*)ref_op, (void*)referent_op, (void*)referent_np);
-      if (referent_op != referent_np) {
-        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
-      }
-    }
-  }
-
-  // if (is_full_gc && alive_head != NULL) {
-  //   _phantom_ref_q = get_valid_forwardee<true>(alive_head);
-  // } else {
-    _phantom_ref_q = alive_head;
-  // }
-  rtgc_log(LOG_OPT(3), "total phatom scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
-        cnt_phantom, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
-
-  if (_pending_head != NULL) {
-    // oopDesc* enqueued_top_np = _enqueued_top;
-    // if (is_full_gc && enqueued_top_np != NULL) {
-    //   enqueued_top_np = get_valid_forwardee<true>(enqueued_top_np);
-    // }
-    // precond(enqueued_top_np == NULL || enqueued_top_np == Universe::reference_pending_list());
-    oopDesc* enqueued_top_np = Universe::swap_reference_pending_list(_pending_head);
-    // assert(enqueued_top_np == _enqueued_top, "np = %p, top=%p\n", enqueued_top_np, _enqueued_top);
-
-    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
-    if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
-      RTGC::add_referrer_ex(enqueued_top_np, pending_tail_acc, true);
-    }
-  }
-  _enqueued_top = NULL;
 }
 
 bool rtHeap::is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link) {
@@ -932,12 +714,6 @@ bool rtHeap::is_valid_link_of_yg_root(oopDesc* yg_root, oopDesc* link) {
       (void*)link, link->klass()->name()->bytes(), 
       to_obj(link)->isYoungRoot());
   return true;
-}
-
-void rtHeap::finish_compaction_gc(bool is_full_gc) {
-  if (is_full_gc) {
-    GCRuntime::adjustShortcutPoints();
-  }
 }
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
