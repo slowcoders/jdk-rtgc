@@ -9,11 +9,6 @@
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
-enum class TraceState : int {
-	NOT_TRACED,
-	IN_TRACING,
-	TRACE_FINISHED,
-};
 
 struct GCFlags {
 	uint32_t isTrackable: 1;
@@ -22,13 +17,13 @@ struct GCFlags {
 	uint32_t dirtyReferrerPoints: 1;
 	uint32_t isUnstable: 1;
 
-	uint32_t traceState: 2;
+	uint32_t contextFlag: 1;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
 #if ZERO_ROOT_REF < 0	
-	int32_t rootRefCount: 23;
+	int32_t rootRefCount: 24;
 #else
-	uint32_t rootRefCount: 23;
+	uint32_t rootRefCount: 24;
 #endif
 };
 
@@ -97,12 +92,16 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
-	TraceState getTraceState() {
-		return (TraceState)_flags.traceState;
+	bool isActiveRef() {
+		return _flags.contextFlag;
 	}
 
-	void setTraceState(TraceState state) {
-		_flags.traceState = (int)state;
+	void unmarkActiveRef() {
+		_flags.contextFlag = 0;
+	}
+
+	void markActiveRef() {
+		_flags.contextFlag = 1;
 	}
 
 	bool isUnstable() {

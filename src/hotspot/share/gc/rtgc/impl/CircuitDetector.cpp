@@ -301,7 +301,7 @@ static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor, PathFin
     }
     if (link->isTrackable() && link->isUnsafe()) {
         if (!link->isAnchored()) {
-            link->markGarbage();
+            link->markGarbage("clear_garbage_links");
             pf->_visitedNodes.push_back(link);
         } else {
             pf->_unsafeObjects->push_back(link);
@@ -324,7 +324,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntNode, HugeArray<
             if (node->isGarbageMarked()) {
                 // precond(garbages.contains(node));
             } else if (!node->isAnchored()) {
-                node->markGarbage();
+                node->markGarbage("collectGarbage");
                 garbages.push_back(node);
             } else {
                 pf.scanSurvivalPath(node);

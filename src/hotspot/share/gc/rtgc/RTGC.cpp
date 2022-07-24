@@ -32,9 +32,9 @@ static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
   assert((obj2 == NULL || !obj2->isGarbageMarked()) && (obj1 == NULL || !obj1->isGarbageMarked()), 
-      "incorrect garbage mark %p(_s) anchor=%p(_s)\n", 
-      obj1/*, RTGC::getClassName(obj1)*/,  
-      obj2/*, RTGC::getClassName(obj2)*/);
+      "incorrect garbage mark %p(g=%d:%d) anchor=%p(g=%d:%d)\n", 
+      obj1, obj1 == NULL ? 0 : obj1->isGarbageMarked(), obj1 == NULL ? 0 : obj1->getRootRefCount(),   
+      obj2, obj2 == NULL ? 0 : obj2->isGarbageMarked(), obj2 == NULL ? 0 : obj2->getRootRefCount());
 }
 
 int GCNode::_cntTrackable = 0;
@@ -282,11 +282,11 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-    // enableLog(LOG_SCANNER, 4);
-  // enableLog(LOG_HEAP, 6);
 
   if (UnlockExperimentalVMOptions) {
-    // debugClassNames[0] = "[Lsun/invoke/util/Wrapper;";
+    debugClassNames[0] = "java/lang/ref/Finalizer";
+    enableLog(LOG_HEAP, 3);
+    enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

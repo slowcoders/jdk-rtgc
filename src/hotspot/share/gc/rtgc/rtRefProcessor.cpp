@@ -16,16 +16,20 @@ template <ReferenceType refType>
 class RtRefProcessor {
 public:
   oopDesc* _ref_q;
+  oopDesc* _pending_q;
 
-  RtRefProcessor() { _ref_q = NULL; }
+  RtRefProcessor() { _ref_q = NULL; _pending_q = NULL; }
 
   template <bool is_full_gc>
   void process_references(OopClosure* keep_alive);
 
-  void register_pending_refereneces();
+  template <bool is_full_gc>
+  void add_pending_references(oopDesc* pending_head, oopDesc* pending_tail_acc);
 
   template <bool is_full_gc>
   oopDesc* get_valid_forwardee(oopDesc* obj);
+
+  void adjust_ref_q_pointers();
 
   static const char* reference_type_to_string(ReferenceType rt) {
     switch (rt) {
@@ -49,7 +53,9 @@ template <ReferenceType refType>
 template <bool is_full_gc>
 oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
   if (is_full_gc) {
-    if (refType != REF_PHANTOM) return obj;
+    //if (refType != REF_PHANTOM) {
+      return obj->is_gc_marked() ? obj : NULL;
+    //}
 
     if (to_obj(obj)->isGarbageMarked()) {
       assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
@@ -102,6 +108,8 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
 
     oop ref_np = get_valid_forwardee<is_full_gc>(ref_op);
     if (ref_np == NULL) {
+      // final reference 는 referent 보다 먼저 삭제될 수 없다.
+      precond(refType != REF_FINAL);
       rtgc_log(LOG_OPT(3), "garbage %s %p removed\n", ref_type, (void*)ref_op);
       debug_only(cnt_garbage++;)
       continue;
@@ -128,15 +136,19 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
     oop referent_np = get_valid_forwardee<is_full_gc>(referent_op);
     if (referent_np == NULL) {
       debug_only(cnt_pending++;)
+      precond(to_obj(acc_ref)->isActiveRef());
       if (refType == REF_FINAL) {
         GCObject* node = to_obj(referent_op);
-        precond(node->getRootRefCount() == 1);
-        GCRuntime::onEraseRootVariable_internal(node);
+        precond(!to_obj(ref_op)->isTrackable() || node->getSingleAnchor() == (void*)ref_op);
         referent_np = referent_op;
         keep_alive->do_oop((oop*)&referent_np);
       }
+      to_obj(acc_ref)->unmarkActiveRef();
 
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
+      if (!is_full_gc || refType != REF_FINAL) {
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
+      }
+
       rtgc_log(LOG_OPT(3), "reference %p(->%p) with garbage referent linked after (%p)\n", 
             (void*)ref_op, (void*)ref_np, (void*)pending_tail_acc);
 
@@ -158,25 +170,62 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
       debug_only(cnt_alive++;)
 
       rtgc_log(LOG_OPT(3), "referent of (%p) marked %p -> %p\n", (void*)ref_op, (void*)referent_op, (void*)referent_np);
-      if (referent_op != referent_np) {
+      if (!is_full_gc || referent_op != referent_np) {
         HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(acc_ref, referent_off, referent_np);
       }
     }   
   } 
 
-  _ref_q = alive_head;
-  rtgc_log(true || LOG_OPT(3), "total %s scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
+  rtgc_log(LOG_OPT(3), "total %s scanned %d, garbage %d, cleared %d, pending %d, alive %d q=%p\n",
         ref_type, cnt_ref, cnt_garbage, cnt_cleared, cnt_pending, cnt_alive, (void*)alive_head);
 
+  _ref_q = alive_head;
   if (pending_head != NULL) {
-    oopDesc* enqueued_top_np = Universe::swap_reference_pending_list(pending_head);
-    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
-    if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
-      RTGC::add_referrer_ex(enqueued_top_np, pending_tail_acc, true);
-    }
+    add_pending_references<is_full_gc>(pending_head, pending_tail_acc);
   }
 }
 
+template <ReferenceType refType>
+template <bool is_full_gc>
+void RtRefProcessor<refType>::add_pending_references(oopDesc* pending_head, oopDesc* pending_tail_acc) {
+  const int discovered_off = java_lang_ref_Reference::discovered_offset();
+  oopDesc* enqueued_top_np = Universe::swap_reference_pending_list(pending_head);
+  HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(pending_tail_acc, discovered_off, enqueued_top_np);
+  if (enqueued_top_np != NULL && to_node(pending_tail_acc)->isTrackable()) {
+    precond(!to_obj(enqueued_top_np)->isGarbageMarked());
+    RTGC::add_referrer_ex(enqueued_top_np, pending_tail_acc, true);
+  }
+}
+
+template <ReferenceType refType>
+void RtRefProcessor<refType>::adjust_ref_q_pointers() {
+  const char* ref_type = reference_type_to_string(refType);
+  oopDesc* prev_ref_op = NULL;
+  oop next_ref_op;
+  const int referent_off = java_lang_ref_Reference::referent_offset();
+  const int discovered_off = java_lang_ref_Reference::discovered_offset();
+  for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
+    next_ref_op = RawAccess<>::oop_load_at(ref_op, discovered_off);
+
+    oop ref_np = ref_op->forwardee();
+    if (ref_np == NULL) ref_np = ref_op;
+    precond(ref_op != next_ref_op);
+
+    oop referent_op = RawAccess<>::oop_load_at(ref_op, referent_off);
+    oop referent_np = referent_op->forwardee();
+    if (referent_np == NULL) referent_np = referent_op;
+    if (referent_op != referent_np) {
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_op, referent_off, referent_np);
+    }
+
+    if (prev_ref_op != NULL) {
+      java_lang_ref_Reference::set_discovered_raw(prev_ref_op, ref_np);
+    } else {
+      _ref_q = ref_np;
+    }
+    prev_ref_op = ref_op;
+  } 
+}
 
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
   precond(RtNoDiscoverPhantom);
@@ -185,12 +234,16 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
   ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();
   oopDesc** ref_q;
   switch (InstanceKlass::cast(ref->klass())->reference_type()) {
-    // case REF_FINAL:
-    //   ref_q = &g_finalRefProcessor._ref_q;
-    //   GCRuntime::onAssignRootVariable_internal(to_obj(referent));
-    //   break;
     case REF_PHANTOM:
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
       ref_q = &g_phantomRefProcessor._ref_q;
+      rtgc_log(LOG_OPT(3), "created Phantom ref %p for %p\n", (void*)ref, referent);
+      break;
+
+    case REF_FINAL:
+      HeapAccess<>::oop_store_at(ref, referent_offset, referent);
+      ref_q = &g_finalRefProcessor._ref_q;
+      rtgc_log(LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent);
       break;
 
     default:
@@ -200,8 +253,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
       return;
   }
 
-  rtgc_log(LOG_OPT(3), "created ref %p for %p\n", (void*)ref, referent);
-  HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
+  to_obj(ref)->markActiveRef();
   oop next_discovered = Atomic::xchg(ref_q, ref);
   java_lang_ref_Reference::set_discovered_raw(ref, next_discovered);
   return;
@@ -211,6 +263,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
 void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   precond(!java_lang_ref_Reference::is_final(ref_q));
   precond(!java_lang_ref_Reference::is_phantom(ref_q));
+  rtgc_log(LOG_OPT(3), "link_discovered_pending_reference from %p to %p\n", (void*)ref_q, end);
   oopDesc* discovered;
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
@@ -223,14 +276,21 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
 void rtHeap::process_java_references(OopClosure* keep_alive, bool is_full_gc) {
   if (is_full_gc) {
     g_finalRefProcessor.process_references<true>(keep_alive);
+    g_phantomRefProcessor.process_references<true>(NULL);
   } else {
     g_finalRefProcessor.process_references<false>(keep_alive);
+    // g_phantomRefProcessor.process_references<false>(NULL);
   }
+}
+
+bool rtHeap::can_discover(oopDesc* javaReference) {
+  return !to_obj(javaReference)->isActiveRef();
 }
 
 void rtHeapEx::clear_phantom_references(bool is_full_gc) {
   if (is_full_gc) {
-    g_phantomRefProcessor.process_references<true>(NULL);
+    g_finalRefProcessor.adjust_ref_q_pointers();
+    g_phantomRefProcessor.adjust_ref_q_pointers();
   } else {
     g_phantomRefProcessor.process_references<false>(NULL);
   }
