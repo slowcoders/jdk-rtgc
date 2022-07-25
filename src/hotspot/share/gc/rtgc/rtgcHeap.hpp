@@ -47,7 +47,7 @@ public:
   static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered);
   static bool can_discover(oopDesc* javaReference);
-  static void process_java_references(OopClosure* keep_alive, bool is_tenure_gc);
+  static void process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc);
   static void finish_compaction_gc(bool is_tenure_gc);
 
   // just for debugging

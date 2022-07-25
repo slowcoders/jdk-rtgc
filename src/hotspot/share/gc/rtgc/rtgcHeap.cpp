@@ -676,10 +676,10 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
 void rtHeap::finish_compaction_gc(bool is_full_gc) {
   if (is_full_gc) {
     g_adjust_pointer_closure._old_gen_start = NULL;
-    rtHeapEx::clear_phantom_references(is_full_gc);
+    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     GCRuntime::adjustShortcutPoints();
   } else {
-    rtHeapEx::clear_phantom_references(is_full_gc);
+    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     rtHeap__clear_garbage_young_roots();
   }
 }

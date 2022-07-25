@@ -273,13 +273,15 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   }
 }
 
-void rtHeap::process_java_references(OopClosure* keep_alive, bool is_full_gc) {
+void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc) {
   if (is_full_gc) {
     g_finalRefProcessor.process_references<true>(keep_alive);
+    complete_gc->do_void();
     g_phantomRefProcessor.process_references<true>(NULL);
   } else {
     g_finalRefProcessor.process_references<false>(keep_alive);
-    // g_phantomRefProcessor.process_references<false>(NULL);
+    complete_gc->do_void();
+    g_phantomRefProcessor.process_references<false>(NULL);
   }
 }
 
@@ -287,12 +289,11 @@ bool rtHeap::can_discover(oopDesc* javaReference) {
   return !to_obj(javaReference)->isActiveRef();
 }
 
-void rtHeapEx::clear_phantom_references(bool is_full_gc) {
+void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
   if (is_full_gc) {
     g_finalRefProcessor.adjust_ref_q_pointers();
     g_phantomRefProcessor.adjust_ref_q_pointers();
   } else {
-    g_phantomRefProcessor.process_references<false>(NULL);
   }
 }
 

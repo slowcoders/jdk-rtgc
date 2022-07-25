@@ -5,7 +5,7 @@
 
 class rtHeapEx : rtHeap {
 public:  
-  static void clear_phantom_references(bool is_full_gc);
+  static void adjust_ref_q_pointers(bool is_full_gc);
 };
 
 #endif // SHARE_GC_RTGC_RTREFPROCESSOR_HPP
