@@ -139,7 +139,7 @@ static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
 //   printf("[%d] %p(%s:%d ygR:%d):%d anchors:%d\n", 
 //     depth, node, RTGC::getClassName(node), node->isGarbageMarked(), 
 //     node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
-//   if (node->getRootRefCount() > 0) return;
+//   if (node->isStrongRootReachable()) return;
 //   node->incrementRootRefCount();
 
 //   AnchorIterator it(node);
@@ -227,7 +227,7 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
     resurrect_young_root(node);
   }
 
-  if (node->getRootRefCount() > 0) return;
+  if (node->isStrongRootReachable()) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
   GCRuntime::onAssignRootVariable_internal(node);
   g_stack_roots.append(node);
@@ -418,9 +418,6 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  // rtgc_log(is_java_reference(_old_anchor_p, REF_PHANTOM), 
-  //     "reference(%p)  discovered(%p) moved -> %p:%ld/%d\n", _old_anchor_p, (void*)old_p, (void*)new_p,
-  //         ((address)p - (address)_old_anchor_p), java_lang_ref_Reference::discovered_offset());
   if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT
@@ -545,6 +542,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(p)) {
+      rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, p);
       mark_pending_trackable(old_p, p);
       new_anchor_p = p;
     }
@@ -572,6 +570,7 @@ void rtHeap::prepare_point_adjustment() {
 
   void* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
   g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
+  rtgc_log(true, "old_gen_heap_start %p\n", old_gen_heap_start);
   if (g_young_roots.length() > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
     oop* dst = src_0;
@@ -631,13 +630,14 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   rtgc_log(LOG_OPT(4), "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   
+#ifdef ASSERT
   if (ENABLE_GC) {  
     assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
         node->getRootRefCount(), node, RTGC::getClassName(node));
-  #ifdef ASSERT
     mark_ghost_anchors(node);
-  #endif
   }
+#endif
+
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   node->markGarbage("destroy_trackable");
@@ -693,7 +693,7 @@ void rtHeap::lock_jni_handle(oopDesc* p) {
 
 void rtHeap::release_jni_handle(oopDesc* p) {
   if (!REF_LINK_ENABLED) return;
-  assert(to_obj(p)->getRootRefCount() > 0, "wrong handle %p\n", p);
+  assert(to_obj(p)->isStrongRootReachable(), "wrong handle %p\n", p);
   rtgc_debug_log(p, "release_handle %p\n", p);
   GCRuntime::onEraseRootVariable_internal(to_obj(p));
 }

@@ -109,12 +109,12 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
     // precond(!RTGC::is_debug_pointer(erased) || erased->getRootRefCount() != ZERO_ROOT_REF + 1);
-    assert(erased->getRootRefCount() > ZERO_ROOT_REF, "wrong ref-count %p(%s) garbage=%d\n", 
+    assert(erased->isStrongRootReachable(), "wrong ref-count %p(%s) garbage=%d\n", 
         erased, RTGC::getClassName(erased), erased->isGarbageMarked());
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
-    // precond(erased->getRootRefCount() > 0 || 
+    // precond(erased->isStrongRootReachable() || 
     //     cast_to_oop(erased)->klass() != vmClasses::Class_klass());
     rtgc_debug_log(erased, "root erased %p(%d)\n", erased, erased->getRootRefCount());
 }

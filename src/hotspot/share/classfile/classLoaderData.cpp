@@ -216,7 +216,7 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
-  //RTGC_ONLY(postcond(!EnableRTGC || RTGC::to_node(o)->getRootRefCount() > 0);)
+  //RTGC_ONLY(postcond(!EnableRTGC || RTGC::to_node(o)->isStrongRootReachable());)
 
   return OopHandle(handle);
 }
@@ -236,7 +236,7 @@ inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chu
     if (c->_data[i] != NULL) {
 #if INCLUDE_RTGC      
       if (EnableRTGC) {
-        assert(RTGC::to_node(c->_data[i])->getRootRefCount() > 0,
+        assert(RTGC::to_node(c->_data[i])->isStrongRootReachable(),
           "**** %p(%s)\n", (void*)c->_data[i], c->_data[i]->klass()->name()->bytes());
       }
 #endif
@@ -913,7 +913,7 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
-    RTGC_ONLY(assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
+    RTGC_ONLY(assert(*ptr == NULL || RTGC::to_node(*ptr)->isStrongRootReachable(), 
         "Illegal Object%p\n", (void*)*ptr);)
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }

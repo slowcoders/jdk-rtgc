@@ -93,15 +93,15 @@ public:
 	}
 
 	bool isActiveRef() {
-		return _flags.contextFlag;
+		return _flags.rootRefCount & 0x01;
 	}
 
 	void unmarkActiveRef() {
-		_flags.contextFlag = 0;
+		_flags.rootRefCount &= ~0x01;
 	}
 
 	void markActiveRef() {
-		_flags.contextFlag = 1;
+		_flags.rootRefCount |= 0x01;
 	}
 
 	bool isUnstable() {
@@ -135,18 +135,22 @@ public:
 		_flags.hasMultiRef = multiRef;
 	}
 
+	bool isStrongRootReachable() {
+		return _flags.rootRefCount > 1;
+	}
+
 	int getRootRefCount() {
 		return _flags.rootRefCount;
 	}
 
 	int incrementRootRefCount() {
-		return ++_flags.rootRefCount;
+		return (_flags.rootRefCount += 2);
 	}
 
 	int decrementRootRefCount() {
-		assert(_flags.rootRefCount > ZERO_ROOT_REF, "wrong ref-count %p(%d) garbage=%d\n", 
+		assert(_flags.rootRefCount > ZERO_ROOT_REF + 1, "wrong ref-count %p(%d) garbage=%d\n", 
 			this, _flags.rootRefCount, isGarbageMarked());
-		return --_flags.rootRefCount;
+		return (_flags.rootRefCount -= 2);
 	}
 
 	bool isGarbageMarked() {

@@ -106,7 +106,7 @@ void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   precond (p != base);// return;
 #ifdef ASSERT    
   if (RTGC::is_debug_pointer((void*)p) || RTGC::is_debug_pointer((void*)base)) {
-    rtgc_log(1, "referrer %p added to %p\n", base, p);
+     rtgc_log(1, "referrer %p added to %p\n", base, p);
   }
 #endif
   if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-    0,
+    0, // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "jdk/nio/zipfs/ZipFileSystem",
     // "java/lang/ref/Finalizer"
 };

@@ -230,7 +230,7 @@ void PathFinder::constructShortcut() {
         } else {
             assert(ait+1 == end || ait[+1].peekPrev() == ss->anchor(), 
                 "invalid shortcut %p:%d\n", obj, obj->getShortcutId());
-            precond(ss->inTracing() || (ait+1 == end && obj->getRootRefCount() > 0));
+            precond(ss->inTracing() || (ait+1 == end && obj->getRootRefCount() > ZERO_ROOT_REF));
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
