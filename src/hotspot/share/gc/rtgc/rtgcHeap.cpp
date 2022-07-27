@@ -408,7 +408,7 @@ void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
    * @brief Full-GC 과정에서 adjust_pointers 를 수행하기 직전에 호출된다.
    * 즉, old_p 객체의 field는 유효한 old 객체를 가리키고 있다.
    */
-  rtgc_log(LOG_OPT(9), "mark_pending_trackable %p (move to -> %p)\n", old_p, new_p);
+  rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, new_p);
   precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
   to_obj(old_p)->markTrackable();
   debug_only(g_cntTrackable++);
@@ -432,11 +432,11 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
     //RTGC::add_referrer_ex(old_p, _old_anchor_p, false);
-    RTGC::add_referrer_unsafe(old_p, _old_anchor_p);
+    RTGC::add_referrer_unsafe(old_p, _old_anchor_p, _old_anchor_p);
   }
   else {
     // old_p 에 대해 이미 adjust_pointers 가 수행됨.
-    RTGC::add_referrer_unsafe(old_p, _new_anchor_p);
+    RTGC::add_referrer_unsafe(old_p, _new_anchor_p, _old_anchor_p);
   }
 }
 
@@ -542,7 +542,6 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(p)) {
-      rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, p);
       mark_pending_trackable(old_p, p);
       new_anchor_p = p;
     }
@@ -585,7 +584,7 @@ void rtHeap::prepare_point_adjustment() {
 
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
-    //rtgc_debug_log(this, "garbage marking on %p(%s) %s\n", this, getClassName(this), reason);
+    rtgc_debug_log(this, "garbage marking on %p(%s) %s\n", this, getClassName(this), reason);
   }
   assert(!this->isGarbageMarked(),
       "already marked garbage %p(%s)\n", this, getClassName(this));

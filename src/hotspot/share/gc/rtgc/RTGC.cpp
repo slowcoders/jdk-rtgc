@@ -90,30 +90,28 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
-void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base) {
-  check_valid_obj(p, NULL);
+void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
+  precond(p != NULL);
+  check_valid_obj(p, debug_base);
+  assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
+  precond (p != base && p != debug_base);// return;
+
   if (!REF_LINK_ENABLED) return;
-  rtgc_log(LOG_OPT(1), "add_referrer %p -> %p\n", base, p);
+#ifdef ASSERT    
+  if (RTGC::is_debug_pointer(p) || RTGC::is_debug_pointer(debug_base)) {
+     rtgc_log(1, "referrer %p added to %p\n", base, p);
+  }
+#endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
 
 void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
-  check_valid_obj(p, base);
-  precond(p != NULL);
-  assert(RTGC::heap_locked_bySelf() ||
-         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
-         "not locked");
-  precond (p != base);// return;
-#ifdef ASSERT    
-  if (RTGC::is_debug_pointer((void*)p) || RTGC::is_debug_pointer((void*)base)) {
-     rtgc_log(1, "referrer %p added to %p\n", base, p);
-  }
-#endif
+  add_referrer_unsafe(p, base, base);
   if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
     rtHeap::add_young_root(base, base);
   }
-
-  add_referrer_unsafe(p, base);
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {
@@ -236,6 +234,8 @@ bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
 
+  if (ptr == debug_obj) return true;
+
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
@@ -249,23 +249,21 @@ bool RTGC::is_debug_pointer(void* ptr) {
       return true;
     }
   }
-  return ptr == debug_obj;
-
+  return false;
 }
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
   if (!REF_LINK_ENABLED) return;
+  if (old_p == new_p) return;
   
-  if (is_debug_pointer(old_p)) {
+  if (RTGC::debug_obj == old_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
-  } else if (RTGC::debug_obj == new_p) {
-    // assert(!RTGC::debugOptions[0], "gotcha");
-    rtgc_log(1, "object %p moved into debug_obj %p\n", old_p, new_p);
   }
+  else if (is_debug_pointer(old_p)) {
+    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
+  } 
 }
-
-
 
 void RTGC::initialize() {
 #ifdef _LP64

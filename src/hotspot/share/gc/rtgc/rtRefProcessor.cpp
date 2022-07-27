@@ -141,6 +141,7 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
       if (refType == REF_FINAL) {
         acc_referent = referent_op;
         keep_alive->do_oop((oop*)&acc_referent);
+        postcond(referent_op->is_gc_marked());
         precond(!is_full_gc || acc_referent == referent_op);
 
         GCObject* node = to_obj(acc_referent);
@@ -300,8 +301,8 @@ void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* comple
   }
 }
 
-bool rtHeap::can_discover(oopDesc* javaReference) {
-  return !to_obj(javaReference)->isActiveRef();
+bool rtHeap::can_discover(oopDesc* final_referent) {
+  return !to_obj(final_referent)->isActiveRef();
 }
 
 void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {

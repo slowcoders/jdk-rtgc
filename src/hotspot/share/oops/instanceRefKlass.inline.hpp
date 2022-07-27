@@ -77,13 +77,24 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
   return false;
 }
 
+#if INCLUDE_RTGC
+
+#endif
+
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
   if (RtNoDiscoverPhantom && type >= REF_FINAL) {
-    return;
-  } 
+    T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
+    T heap_oop = RawAccess<>::oop_load(referent_addr);
+    if (!CompressedOops::is_null(heap_oop)) {
+      if (type != REF_FINAL || 
+          !rtHeap::can_discover(CompressedOops::decode_not_null(heap_oop))) {
+        return;
+      }
+    }
+  } else
 #endif      
   if (try_discover<T>(obj, type, closure)) {
     return;
@@ -133,17 +144,11 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
         if (type >= REF_FINAL) {
           T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
           T heap_oop = RawAccess<>::oop_load(referent_addr);
-          if (CompressedOops::is_null(heap_oop)) {
-            trace_reference_gc<T>("do_fields", obj);
-            oop_oop_iterate_fields_except_referent<T>(obj, closure, contains);
-            break;
-          }
-          if (type == REF_PHANTOM || 
-              !rtHeap::can_discover(CompressedOops::decode_not_null(heap_oop))) {
-            // rtHeap::process_java_references() 에 의해 referent 주소값이 변경되었으나
-            // 아직 memory 이동이 완료되지 않은 상태. 이에 trace_reference_gc()를 호출하면
-            // oop 생성자에서 validation 오류가 발생한다.
-            break;
+          if (!CompressedOops::is_null(heap_oop)) {
+            if (type != REF_FINAL || 
+                !rtHeap::can_discover(CompressedOops::decode_not_null(heap_oop))) {
+              break;
+            }
           }
         }
       }

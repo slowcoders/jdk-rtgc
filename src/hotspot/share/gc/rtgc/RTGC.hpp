@@ -55,7 +55,7 @@ namespace RTGC {
 
   void add_referrer_ex(oopDesc* obj, oopDesc* referrer, bool checkYoungRoot);
 
-  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer);
+  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, oopDesc* debug_base);
 
   void on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
