@@ -162,6 +162,14 @@ public:
         return _data->_items + _data->_size++;
     }
 
+    T* push_empty_at(int idx) {
+        push_empty();
+        int copy_size = (size() - idx) * sizeof(T);
+        T* src = adr_at(idx);
+        memmove(src + 1, src, copy_size);
+        return src;
+    }
+
     void push_back(T item) {
         T* back = push_empty();
         back[0] = item;

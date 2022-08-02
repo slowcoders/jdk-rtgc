@@ -102,7 +102,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_java_references(&keep_alive, &follow_stack_closure, true);
+    rtHeap::process_java_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
   }
 #endif
 

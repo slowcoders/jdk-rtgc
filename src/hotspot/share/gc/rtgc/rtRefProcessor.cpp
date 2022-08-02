@@ -20,14 +20,17 @@ public:
 
   RtRefProcessor() { _ref_q = NULL; _pending_q = NULL; }
 
-  template <bool is_full_gc>
+  template <ReferenceType scanType>
   void process_references(OopClosure* keep_alive);
 
   template <bool is_full_gc>
   void add_pending_references(oopDesc* pending_head, oopDesc* pending_tail_acc);
 
-  template <bool is_full_gc>
+  template <ReferenceType scanType>
   oopDesc* get_valid_forwardee(oopDesc* obj);
+
+  template <ReferenceType scanType>
+  oopDesc* get_valid_referent(oopDesc* ref);
 
   void adjust_ref_q_pointers();
 
@@ -48,16 +51,16 @@ public:
   }
 };
 
+static RtRefProcessor<REF_SOFT>   g_softRefProcessor;
+static RtRefProcessor<REF_WEAK>   g_weakRefProcessor;
 static RtRefProcessor<REF_FINAL>   g_finalRefProcessor;
 static RtRefProcessor<REF_PHANTOM> g_phantomRefProcessor;
 
 template <ReferenceType refType>
-template <bool is_full_gc>
+template <ReferenceType scanType>
 oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
-  if (is_full_gc) {
-    //if (refType != REF_PHANTOM) {
-      return obj->is_gc_marked() ? obj : NULL;
-    //}
+  if (scanType != REF_NONE) {
+    return obj->is_gc_marked() ? obj : NULL;
 
     if (to_obj(obj)->isGarbageMarked()) {
       assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
@@ -82,7 +85,44 @@ oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
 }
 
 template <ReferenceType refType>
-template <bool is_full_gc>
+template <ReferenceType scanType>
+oopDesc* RtRefProcessor<refType>::get_valid_referent(oopDesc* obj) {
+  if (true || scanType < REF_OTHER) {
+    return get_valid_forwardee<scanType>(obj);
+  }
+/*
+  if (to_obj(obj)->isGarbageMarked()) {
+    assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
+        obj);//, RTGC::getClassName(to_obj(obj)));
+    return NULL;
+  } else {
+    check_
+    assert(obj->is_gc_marked(), "must be gc_marked %p()\n", 
+        obj);//, RTGC::getClassName(to_obj(obj)));
+    oopDesc* p = obj->forwardee();
+    return (p == NULL) ? obj : p;
+  }
+  switch (scanType) {
+  case REF_WEAK:
+    break;
+  
+  case REF_SOFT:
+    break;
+
+  default:
+    fatal("invalid scan type: %d\n", scanType);
+  }
+  if (is_full_gc) {
+    //if (refType != REF_PHANTOM) {
+      return obj->is_gc_marked() ? obj : NULL;
+    //}
+
+  } 
+  */
+}
+
+template <ReferenceType refType>
+template <ReferenceType scanType>
 void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
 #ifdef ASSERT  
   int cnt_garbage = 0;
@@ -92,7 +132,7 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
   int cnt_alive = 0;
   const char* ref_type = reference_type_to_string(refType);
 #endif
-
+  const bool is_full_gc = scanType != REF_NONE;
 
   oop acc_ref = NULL;
   oop next_ref_op;
@@ -108,7 +148,7 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
     precond(ref_op != next_ref_op);
     debug_only(cnt_ref++;)
 
-    oop acc_ref = get_valid_forwardee<is_full_gc>(ref_op);
+    oop acc_ref = get_valid_forwardee<scanType>(ref_op);
     if (acc_ref == NULL) {
       // final reference 는 referent 보다 먼저 삭제될 수 없다.
       precond(refType != REF_FINAL);
@@ -135,7 +175,7 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
       continue;
     }
 
-    oop acc_referent = get_valid_forwardee<is_full_gc>(referent_op);
+    oop acc_referent = get_valid_referent<scanType>(referent_op);
     if (acc_referent == NULL) {
       debug_only(cnt_pending++;)
       if (refType == REF_FINAL) {
@@ -202,6 +242,7 @@ void RtRefProcessor<refType>::link_pending_reference(oopDesc* anchor, int discov
   }
 }
 
+
 template <ReferenceType refType>
 template <bool is_full_gc>
 void RtRefProcessor<refType>::add_pending_references(oopDesc* pending_head, oopDesc* pending_tail_acc) {
@@ -244,13 +285,29 @@ void RtRefProcessor<refType>::adjust_ref_q_pointers() {
   } 
 }
 
+template <ReferenceType clear_ref>
+void __process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc) {
+  bool is_full_gc = clear_ref != REF_NONE;
+  g_weakRefProcessor.process_references<clear_ref>(NULL);
+  g_softRefProcessor.process_references<clear_ref>(NULL);
+  if (clear_ref >= REF_SOFT) {
+    // g_weakRefProcessor.process_references<REF_OTHER>(NULL);
+    // g_softRefProcessor.process_references<REF_OTHER>(NULL);
+  }
+  g_finalRefProcessor.process_references<clear_ref>(keep_alive);
+  complete_gc->do_void();
+  g_phantomRefProcessor.process_references<clear_ref>(NULL);
+}
+
+
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
   precond(RtNoDiscoverPhantom);
   precond(referent != NULL);
 
   ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();
+  ReferenceType ref_type = InstanceKlass::cast(ref->klass())->reference_type();
   oopDesc** ref_q;
-  switch (InstanceKlass::cast(ref->klass())->reference_type()) {
+  switch (ref_type) {
     case REF_PHANTOM:
       ref_q = &g_phantomRefProcessor._ref_q;
       rtgc_log(LOG_OPT(3), "created Phantom ref %p for %p\n", (void*)ref, referent);
@@ -264,6 +321,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
 
     default:
       HeapAccess<>::oop_store_at(ref, referent_offset, referent);
+      ref_q = ref_type == REF_WEAK ? &g_weakRefProcessor._ref_q : &g_softRefProcessor._ref_q;
       rtgc_log(false && ((InstanceRefKlass*)ref->klass())->reference_type() == REF_WEAK, 
             "weak ref %p for %p\n", (void*)ref, referent);
       return;
@@ -289,15 +347,19 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   }
 }
 
-void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc) {
-  if (is_full_gc) {
-    g_finalRefProcessor.process_references<true>(keep_alive);
-    complete_gc->do_void();
-    g_phantomRefProcessor.process_references<true>(NULL);
-  } else {
-    g_finalRefProcessor.process_references<false>(keep_alive);
-    complete_gc->do_void();
-    g_phantomRefProcessor.process_references<false>(NULL);
+void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref) {
+  switch (clear_ref) {
+    case REF_NONE:
+      __process_java_references<REF_NONE>(keep_alive, complete_gc);
+      break;
+    case REF_SOFT:
+      __process_java_references<REF_SOFT>(keep_alive, complete_gc);
+      break;
+    case REF_WEAK:
+      __process_java_references<REF_WEAK>(keep_alive, complete_gc);
+      break;
+    default:
+      fatal("invalid clear_ref type: %d\n", clear_ref);
   }
 }
 
@@ -307,6 +369,8 @@ bool rtHeap::can_discover(oopDesc* final_referent) {
 
 void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
   if (is_full_gc) {
+    g_softRefProcessor.adjust_ref_q_pointers();
+    g_weakRefProcessor.adjust_ref_q_pointers();
     g_finalRefProcessor.adjust_ref_q_pointers();
     g_phantomRefProcessor.adjust_ref_q_pointers();
   } else {

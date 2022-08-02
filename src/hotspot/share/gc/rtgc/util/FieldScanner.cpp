@@ -52,7 +52,7 @@ public:
       }
     }
     // precond(p != NULL);
-    ((RefTracer3)_fn)(to_obj(obj), to_obj(_base), _param);
+    ((RefTracer2)_fn)(to_obj(obj), to_obj(_base));
   }
 
 
@@ -122,27 +122,27 @@ public:
 public:
   FieldIterator() {}
 
-  template <int args>
-  static void scanInstanceGraph2(oopDesc* p, void* trace_fn, void* param) {
-    GrowableArrayCHeap<FieldIterator, mtGC> stack;
-    stack.append(FieldIterator(p));
-    FieldIterator* it = &stack.at(0);
-    while (true) {
-      oopDesc* link = it->next();
-      if (link == nullptr) {
-        stack.pop();
-        int len = stack.length();
-        if (--len < 0) break;
-        it = &stack.at(len);
-      }
-      else if ((args == 1 && ((RefTracer1)trace_fn)(to_obj(link))) ||
-               (args == 2 && ((RefTracer2)trace_fn)(to_obj(link), param)) ||
-               (args == 3 && ((RefTracer3)trace_fn)(to_obj(link), to_obj(it->_base), param))) {
-          stack.append(FieldIterator(link));
-          it = &stack.at(stack.length() - 1);
-      }
-    }    
-  }  
+  // template <int args>
+  // static void scanInstanceGraph2(oopDesc* p, void* trace_fn, void* param) {
+  //   GrowableArrayCHeap<FieldIterator, mtGC> stack;
+  //   stack.append(FieldIterator(p));
+  //   FieldIterator* it = &stack.at(0);
+  //   while (true) {
+  //     oopDesc* link = it->next();
+  //     if (link == nullptr) {
+  //       stack.pop();
+  //       int len = stack.length();
+  //       if (--len < 0) break;
+  //       it = &stack.at(len);
+  //     }
+  //     else if ((args == 1 && ((RefTracer1)trace_fn)(to_obj(link))) ||
+  //              (args == 2 && ((RefTracer2)trace_fn)(to_obj(link), param)) ||
+  //              (args == 3 && ((RefTracer3)trace_fn)(to_obj(link), to_obj(it->_base), param))) {
+  //         stack.append(FieldIterator(link));
+  //         it = &stack.at(stack.length() - 1);
+  //     }
+  //   }    
+  // }  
 
   template <int args>
   static void scanInstanceGraph(oopDesc* p, void* trace_fn, void* param) {
@@ -179,17 +179,17 @@ void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer1 trace) {
   }
 }
 
-void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer2 trace, void* param) {
-  fatal("deprecated");
+void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer2 trace) {
   oopDesc* p = cast_to_oop(root);
   if (RTGC::is_narrow_oop_mode) {
-    FieldIterator<narrowOop>::scanInstanceGraph<2>(p, (void*)trace, param);
+    FieldIterator<narrowOop>::scanInstanceGraph<2>(p, (void*)trace, NULL);
   } else {
-    FieldIterator<oop>::scanInstanceGraph<2>(p, (void*)trace, param);
+    FieldIterator<oop>::scanInstanceGraph<2>(p, (void*)trace, NULL);
   }
 }
 
 void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer3 trace, void* param) {
+  fatal("deprecated");
   oopDesc* p = cast_to_oop(root);
   if (RTGC::is_narrow_oop_mode) {
     FieldIterator<narrowOop>::scanInstanceGraph<3>(p, (void*)trace, param);
@@ -200,32 +200,32 @@ void RTGC::scanInstanceGraph(GCObject* root, RTGC::RefTracer3 trace, void* param
 
 
 
-class Ref2Tracer : public BasicOopIterateClosure {
-  RTGC::RefTracer2 _trace;
-  void* _param;
-public:  
-  Ref2Tracer(RTGC::RefTracer2 trace, void* param) {
-    _trace = trace;
-    _param = param;
-  }
+// class Ref2Tracer : public BasicOopIterateClosure {
+//   RTGC::RefTracer2 _trace;
+//   void* _param;
+// public:  
+//   Ref2Tracer(RTGC::RefTracer2 trace, void* param) {
+//     _trace = trace;
+//     _param = param;
+//   }
 
-  template <class T>
-  void do_oop_work(T* p) {
-    T heap_oop = RawAccess<>::oop_load(p);
-    if (!CompressedOops::is_null(heap_oop)) {
-      oop obj = CompressedOops::decode_not_null(heap_oop);
-      _trace(to_obj(obj), _param);
-    }    
-  }
+//   template <class T>
+//   void do_oop_work(T* p) {
+//     T heap_oop = RawAccess<>::oop_load(p);
+//     if (!CompressedOops::is_null(heap_oop)) {
+//       oop obj = CompressedOops::decode_not_null(heap_oop);
+//       _trace(to_obj(obj), _param);
+//     }    
+//   }
 
-  virtual void do_oop(oop* p) { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+//   virtual void do_oop(oop* p) { do_oop_work(p); }
+//   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
-};
+// };
 
-void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
-  fatal("deprecated");
-  oopDesc* p = cast_to_oop(root);
-  Ref2Tracer tracer(trace, param);
-  p->oop_iterate(&tracer);
-}
+// void RTGC::iterateReferents(GCObject* root, RTGC::RefTracer2 trace, void* param) {
+//   fatal("deprecated");
+//   oopDesc* p = cast_to_oop(root);
+//   Ref2Tracer tracer(trace, param);
+//   p->oop_iterate(&tracer);
+// }

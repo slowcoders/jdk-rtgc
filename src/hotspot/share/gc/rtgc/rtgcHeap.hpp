@@ -3,6 +3,7 @@
 
 #include "utilities/macros.hpp"
 #include "memory/allStatic.hpp"
+#include "memory/referenceType.hpp"
 #include "gc/shared/gc_globals.hpp"
 
 #include "rtgcDebug.hpp"
@@ -17,6 +18,7 @@ class DefNewYoungerGenClosure;
 class rtHeap : AllStatic {
 public:
   static bool is_trackable(oopDesc* p);
+  static bool is_destroyed(oopDesc* p);
   static bool is_alive(oopDesc* p, bool assert_alive = false);
   static void prepare_rtgc(bool isTenured);
 
@@ -47,7 +49,7 @@ public:
   static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered);
   static bool can_discover(oopDesc* javaReference);
-  static void process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc);
+  static void process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref);
   static void finish_compaction_gc(bool is_tenure_gc);
 
   // just for debugging

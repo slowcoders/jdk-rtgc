@@ -643,7 +643,7 @@ void DefNewGeneration::collect(bool   full,
     if (RtLazyClearWeakHandle) {
       WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
     }
-    rtHeap::process_java_references(&scan_weak_ref, &evacuate_followers, false);
+    rtHeap::process_java_references(&scan_weak_ref, &evacuate_followers, REF_NONE);
     rtHeap::finish_compaction_gc(false);
     if (!RtLazyClearWeakHandle) {
       WeakProcessor::weak_oops_do(&is_alive, &keep_alive);

@@ -55,7 +55,7 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
 
 #if INCLUDE_RTGC // RT_HEAP_MANAGER
   if (EnableRTGC) {
-    _the_space  = new RtSpace(_bts, MemRegion(bottom, end));
+    _the_space  = new RTGC::RtSpace(_bts, MemRegion(bottom, end));
   } else 
 #endif
   {

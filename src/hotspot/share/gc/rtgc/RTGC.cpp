@@ -280,10 +280,10 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
+    enableLog(LOG_HEAP, 6);
 
   if (UnlockExperimentalVMOptions) {
-    debugClassNames[0] = "java/lang/ref/Finalizer";
-    enableLog(LOG_HEAP, 3);
+    // debugClassNames[0] = "java/lang/ref/Finalizer";
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

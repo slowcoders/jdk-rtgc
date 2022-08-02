@@ -5,6 +5,8 @@
 #include "../rtgcDebug.hpp"
 
 #define ZERO_ROOT_REF 		0
+static const int NO_SAFE_ANCHOR = 0;
+static const int INVALID_SHORTCUT = 1;
 
 namespace RTGC {
 
@@ -30,12 +32,12 @@ struct GCFlags {
 class GCNode {
 	int64_t _klass[1];
 public:
-	GCFlags _flags;
-	uint32_t _refs;
 	union {
 		int32_t _shortcutId;
 		GCNode* _nextUntrackable;
 	};
+	uint32_t _refs;
+	GCFlags _flags;
 	static int _cntTrackable;
 
 public:
@@ -104,7 +106,7 @@ public:
 		_flags.rootRefCount |= 0x01;
 	}
 
-	bool isUnstable() {
+	bool isUnstableMarked() {
 		return _flags.isUnstable;
 	}
 
@@ -120,6 +122,7 @@ public:
 
 	void unmarkGarbage() {
 		_flags.isGarbage = false;
+		_flags.isUnstable = false;
 	}
 
 
@@ -162,7 +165,7 @@ public:
 	}
 
 	bool isUnsafe() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == 0;
+		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {

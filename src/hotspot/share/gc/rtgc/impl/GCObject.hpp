@@ -26,8 +26,6 @@ public:
 	void init(int initialSize);
 };
 
-static const int INVALID_SHORTCUT = 1;
-
 class GCObject : public GCNode {
 	friend class GCRuntime;
 	friend class GarbageProcessor;
@@ -51,12 +49,30 @@ public:
 
 	void setSafeAnchor(GCObject* anchor);
 
+	int getShortcutId() {
+		return this->_shortcutId;
+	}
+
 	void setShortcutId_unsafe(int shortcutId) {
 		this->_shortcutId = shortcutId;
 	}
 
-	int getShortcutId() {
-		return this->_shortcutId;
+	void invalidateSafeAnchor() {
+		// no-shortcut. no safe-anchor.
+		setShortcutId_unsafe(NO_SAFE_ANCHOR);
+	}
+
+	bool hasSafeAnchor() {
+		return getShortcutId() > NO_SAFE_ANCHOR;
+	}
+
+	void invalidateShortcutId() {
+		// no-shortcut. but this has valid safe-anchor.
+		setShortcutId_unsafe(INVALID_SHORTCUT);
+	}
+
+	bool hasShortcut() {
+		return getShortcutId() > INVALID_SHORTCUT;
 	}
 
 	GCObject* getSingleAnchor();
@@ -91,6 +107,8 @@ class SafeShortcut {
 			_inTracing(NULL), _anchor(anchor), _tail(tail) {}
 public:
 	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
+
+	static void initialize();
 
 	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode, bool replace_shorcut = false) {
 		int s_id = INVALID_SHORTCUT;

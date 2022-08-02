@@ -46,11 +46,11 @@ namespace RTGC {
     oopDesc* _new_anchor_p;
   };
 
+/*  
   class RecyclableGarbageArray : public HugeArray<GCObject*> {
     bool isSorted;
-    int recycled_count;
   public:
-    RecyclableGarbageArray() : recycled_count(0) {}
+    RecyclableGarbageArray() {}
 
     void sort() {
         if (!isSorted) {
@@ -63,19 +63,6 @@ namespace RTGC {
 
     void markDirtySort() { isSorted = false; }
 
-    void reset_recycled_count() { 
-      if (false && recycled_count > 0) {
-        GCObject** p = this->adr_at(this->size() - recycled_count);
-        GCObject** end = p + recycled_count;
-        for (;p < end; p++) {
-          GCObject* node = *p;
-          GCRuntime::onEraseRootVariable_internal(node);
-        }
-        this->resize(this->size() - recycled_count); 
-        recycled_count = 0; 
-      }
-    }
-
     void iterate_recycled_oop(DefNewYoungerGenClosure* closure);
 
     static size_t obj_size(oopDesc* obj) { 
@@ -85,15 +72,14 @@ namespace RTGC {
 
     static int compare_obj_size(const void* left, const void* right);
   };
-
+*/
 
   
   GrowableArrayCHeap<oop, mtGC> g_pending_trackables;
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
-  int g_cntGarbageYGRoot = 0;
   GrowableArrayCHeap<GCObject*, mtGC> g_stack_roots;
   int g_resurrected_top = INT_MAX;
-  RecyclableGarbageArray g_garbage_list;
+  HugeArray<GCObject*> g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
@@ -148,7 +134,6 @@ static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
 //     dump_anchor_tree(depth + 1, anchor);
 //   }
 // }
-
 
 bool rtHeap::is_alive(oopDesc* p, bool assert_alive) {
   if (assert_alive) {
@@ -209,19 +194,23 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
 }
 
 static void resurrect_young_root(GCObject* node) {
-  precond(node->isGarbageMarked());
+  precond(node->isUnstableMarked());
   //rtgc_log(LOG_OPT(11), "young_root(%p) resurrected\n", node);
-  node->unmarkGarbage();
+  node->unmarkUnstable();
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     node->unmarkYoungRoot();
   }
+}
+
+void rtHeap__addStackRoot(GCObject* node) {
+  g_stack_roots.append(node);
 }
 
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
   GCObject* node = to_obj(new_p);
   // assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
-  if (node->isGarbageMarked()) {
+  if (node->isUnstableMarked()) {
     assert(node->isYoungRoot(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
@@ -230,8 +219,9 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
   if (node->isStrongRootReachable()) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
   GCRuntime::onAssignRootVariable_internal(node);
-  g_stack_roots.append(node);
+  rtHeap__addStackRoot(node);
 }
+
 
 /** Reference 가 old-G로 이동한 경우, full-GC 전까지 해당 referent를 reachable 상태로 유지한다. */
 void rtHeap::mark_young_root_reachable(oopDesc* p) {
@@ -256,37 +246,24 @@ void rtHeap__clear_garbage_young_roots() {
   int cnt_root = g_saved_young_root_count;
   if (cnt_root > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
-    //rtgc_log(true, "collectGarbage yg-root started\n")
+    rtgc_log(true, "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
       oop* end = src_0 + cnt_root;
-      int cntGarbage = g_garbage_list.size();
-      for (; --g_cntGarbageYGRoot >= 0; ) {
-        end --;
-        GCObject* node = to_obj(*end);
-        if (node->isGarbageMarked()) {
-          precond(!node->isAnchored());
-          node->unmarkYoungRoot();
-          // precond(!g_garbage_list.contains(node));
-          g_garbage_list.push_back(node);
-        }
-      }
-      end = src_0 + cnt_root;
       oop* end_of_new_root = src_0 + g_young_roots.length();
       for (; end < end_of_new_root; end++) {
         to_obj(*end)->incrementRootRefCount();
       }
 
-
-      GarbageProcessor::collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root, g_garbage_list, cntGarbage);
-      g_garbage_list.markDirtySort();
+      _rtgc.g_pGarbageProcessor->collectGarbage();
 
       end = src_0 + cnt_root;
       for (; end < end_of_new_root; end++) {
         GCRuntime::onEraseRootVariable_internal(to_obj(*end));
       }
+      g_garbage_list.resize(0);
 
     }
-    //rtgc_log(true, "collectGarbage yg-root fin  ished\n")
+    rtgc_log(true, "collectGarbage yg-root finished\n")
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
 
@@ -354,18 +331,13 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
   if (g_saved_young_root_count == 0) return;
 
   oop* src = g_young_roots.adr_at(0);
-  oop* end = src + g_young_roots.length();
-  g_cntGarbageYGRoot = 0;
-  for (;src < end;) {
+  oop* end = src + g_saved_young_root_count;
+
+  for (;src < end; src++) {
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
     if (ENABLE_GC && !node->isAnchored()) {
-      node->markGarbage("not anchored young root");
-      end --;
-      oop tmp = end[0];
-      end[0] = cast_to_oop(node);
-      src[0] = tmp;
-      g_cntGarbageYGRoot ++;
+      _rtgc.g_pGarbageProcessor->addUnstable(node);
       rtgc_log(LOG_OPT(2), "skip garbage node %p\n", (void*)node);
       continue;
     }
@@ -379,7 +351,6 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
       // postcond(!is_java_reference_with_young_referent(cast_to_oop(node))
       //   || !GenCollectedHeap::is_in_young(cast_to_oop(node)));
     }
-    src ++;
   }
 }
 
@@ -399,7 +370,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
-  debug_only(precond(!to_node(p)->isUnstable()));
+  debug_only(precond(!to_node(p)->isUnstableMarked()));
   to_obj(p)->markDirtyReferrerPoints();
 }
 
@@ -508,9 +479,8 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   }
 
   if (check_shortcut) {
-    int s_id = obj->getShortcutId();
-    if (s_id > INVALID_SHORTCUT) {
-      rtgc_log(LOG_OPT(9), "broken shortcut found [%d] %p\n", s_id, obj);
+    if (obj->hasShortcut()) {
+      rtgc_log(LOG_OPT(9), "broken shortcut found [%d] %p\n", obj->getShortcutId(), obj);
       // node 가 가비지면 생존경로가 존재하지 않는다.
       SafeShortcut* ss = obj->getShortcut();
       if (ss->tail() != obj) {
@@ -519,7 +489,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
       } else {
         delete ss;
       }
-      obj->setShortcutId_unsafe(obj->hasReferrer() ? INVALID_SHORTCUT : 0);
+      obj->invalidateSafeAnchor();
     }
   }
 }
@@ -611,7 +581,7 @@ static void mark_ghost_anchors(GCObject* node) {
           anchor, RTGC::getClassName(anchor), node, RTGC::getClassName(node), 
           !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
               (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
-      if (!anchor->isUnstable()) {
+      if (!anchor->isUnstableMarked()) {
         rtgc_log(LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
         anchor->markUnstable();
         // stack-overflow
@@ -646,12 +616,11 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
   // rtgc_log(LOG_OPT(4), "destroyed done %p\n", node);
   if (!node->isTrackable()) {
-    precond(node->getShortcutId() == 0);
+    precond(!node->hasShortcut());
     return;
   }
 
-  int s_id = node->getShortcutId();
-  if (s_id > INVALID_SHORTCUT) {
+  if (node->hasShortcut()) {
     SafeShortcut* ss = node->getShortcut();
     if (ss->tail() == node) {
       // rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
@@ -665,9 +634,8 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
 void rtHeap::prepare_rtgc(bool is_full_gc) {
   if (is_full_gc) {
-    g_garbage_list.resize(0);
-  } else {
-    g_garbage_list.reset_recycled_count();
+    FreeMemStore::clearStore();
+    //g_garbage_list.resize(0);
   }
   precond(g_stack_roots.length() == 0);
 }
@@ -720,68 +688,14 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
       g_cntTrackable, g_young_roots.length(), full_gc); 
 }
 
-int RecyclableGarbageArray::compare_obj_size(const void* left, const void* right) {
-  int left_size = obj_size(cast_to_oop(*(void**)left));
-  int right_size = obj_size(cast_to_oop(*(void**)right));
-  return left_size - right_size;
-}
+// int RecyclableGarbageArray::compare_obj_size(const void* left, const void* right) {
+//   int left_size = obj_size(cast_to_oop(*(void**)left));
+//   int right_size = obj_size(cast_to_oop(*(void**)right));
+//   return left_size - right_size;
+// }
 
 void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
-  g_garbage_list.iterate_recycled_oop(closure);
-}
-
-HeapWord* RtSpace::allocate(size_t word_size) {
-  HeapWord* heap = _SUPER::allocate(word_size);
-  if (heap == NULL) {
-    int cntGarbage = g_garbage_list.size();
-    if (cntGarbage > 0) {
-      heap = (HeapWord*)g_garbage_list.recycle(word_size);
-      RTGC::debug_obj2 = heap;
-    }
-  }
-  else {
-    RTGC::debug_obj2 = NULL;
-  }
-  return heap;
-}
-HeapWord* RtSpace::par_allocate(size_t word_size) {
-  HeapWord* heap = _SUPER::par_allocate(word_size);
-  return heap;
-}
-
-oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
-  sort();
-  int low = 0;
-  int high = this->size() - 1;
-  int mid;
-  GCObject** arr = this->adr_at(0);
-
-  while(low <= high) {
-    mid = (low + high) / 2;
-    GCObject* node = arr[mid];
-    assert(node->isGarbageMarked(), "not a garbage %p\n", node);
-    assert(!node->isAnchored(), "garbage must not acnhored %p\n", node);
-    size_t size = obj_size(cast_to_oop(node));
-    if (size == word_size) {
-      if (g_resurrected_top == INT_MAX) {
-        g_resurrected_top = g_stack_roots.length();
-      }
-      this->removeAndShift(mid);
-      // assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
-      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p %d/%d\n", 
-          word_size, node, /*RTGC::getClassName(node),*/ mid, this->size());
-      g_stack_roots.append(node);
-      return cast_to_oop(node);
-    } else if (size > word_size) {
-      high = mid - 1;
-    } else {
-      low = mid + 1;
-    }
-  }
-  return NULL;
-}
-
-void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closure) {
+  //g_garbage_list.iterate_recycled_oop(closure);
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
     GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {
@@ -791,5 +705,67 @@ void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closu
     g_resurrected_top = INT_MAX; 
   }
 }
+
+// HeapWord* RtSpace::allocate(size_t word_size) {
+//   HeapWord* heap = _SUPER::allocate(word_size);
+//   if (heap == NULL) {
+//     int cntGarbage = g_garbage_list.size();
+//     if (cntGarbage > 0) {
+//       heap = (HeapWord*)g_garbage_list.recycle(word_size);
+//       RTGC::debug_obj2 = heap;
+//     }
+//   }
+//   else {
+//     RTGC::debug_obj2 = NULL;
+//   }
+//   return heap;
+// }
+// HeapWord* RtSpace::par_allocate(size_t word_size) {
+//   HeapWord* heap = _SUPER::par_allocate(word_size);
+//   return heap;
+// }
+
+// oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
+//   sort();
+//   int low = 0;
+//   int high = this->size() - 1;
+//   int mid;
+//   GCObject** arr = this->adr_at(0);
+
+//   while(low <= high) {
+//     mid = (low + high) / 2;
+//     GCObject* node = arr[mid];
+//     assert(node->isGarbageMarked(), "not a garbage %p\n", node);
+//     assert(!node->isAnchored(), "garbage must not acnhored %p\n", node);
+//     size_t size = obj_size(cast_to_oop(node));
+//     if (size == word_size) {
+//       if (g_resurrected_top == INT_MAX) {
+//         g_resurrected_top = g_stack_roots.length();
+//       }
+//       this->removeAndShift(mid);
+//       // assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
+//       rtgc_log(LOG_OPT(6), "recycle garbage %ld %p %d/%d\n", 
+//           word_size, node, /*RTGC::getClassName(node),*/ mid, this->size());
+//       g_stack_roots.append(node);
+//       return cast_to_oop(node);
+//     } else if (size > word_size) {
+//       high = mid - 1;
+//     } else {
+//       low = mid + 1;
+//     }
+//   }
+//   return NULL;
+// }
+
+// void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closure) {
+//   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
+//     GCObject* node = g_stack_roots.at(idx);
+//     if (!node->isTrackable()) {
+//       GCRuntime::onAssignRootVariable_internal(node);
+//       closure->do_iterate(cast_to_oop(node));
+//     }
+//     g_resurrected_top = INT_MAX; 
+//   }
+// }
 
 
