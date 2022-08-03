@@ -276,12 +276,12 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
         rtgc_debug_log(garbageAnchor, "unkown link %p->%p\n", garbageAnchor, link);
     }
     if (link->isTrackable() && link->isUnsafe()) {
-        if (!link->isAnchored()) {
-            link->markGarbage("clear_garbage_links");
-            _rtgc.g_pGarbageProcessor->_visitedNodes.push_back(link);
-        } else {
-            _rtgc.g_pGarbageProcessor->_unsafeObjects->push_back(link);
-        }
+        _rtgc.g_pGarbageProcessor->_unsafeObjects.push_back(link);
+        // if (!link->isAnchored()) {
+        //     link->markGarbage("clear_garbage_links");
+        //     _rtgc.g_pGarbageProcessor->_visitedNodes.push_back(link);
+        // } else {
+        // }
         rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
     } 
     return false;
@@ -301,8 +301,8 @@ void GarbageProcessor::collectGarbage() {
 }
 
 void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
-        rtgc_log(true, "collectGarbage\n"); 
     while (cntUnsafe > 0) {
+        rtgc_log(LOG_OPT(14), "collectGarbage cntUnsafe %d\n", cntUnsafe); 
         GCObject** end = ppNode + cntUnsafe;
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
@@ -328,13 +328,12 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
 
         cntUnsafe = _unsafeObjects.size();
         ppNode = _unsafeObjects.adr_at(0);
-        rtgc_log(true, "cntUnsafe %d\n", cntUnsafe); 
     }
 }
 
 void GarbageProcessor::destroyObject(GCObject* obj) {
     obj->removeAnchorList();
-    rtgc_log(LOG_OPT(4), "destroyObject %p(%s) YR=%d\n", 
+    rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
     RTGC::scanInstanceGraph(obj, (RTGC::RefTracer2)clear_garbage_links);
     RuntimeHeap::reclaimObject(obj);

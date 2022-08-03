@@ -221,7 +221,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-    0, // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    0,// "java/util/HashMap$Node", 
+    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "jdk/nio/zipfs/ZipFileSystem",
     // "java/lang/ref/Finalizer"
 };
@@ -280,10 +281,10 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-    enableLog(LOG_HEAP, 6);
+    // enableLog(LOG_HEAP, 6);
 
   if (UnlockExperimentalVMOptions) {
-    // debugClassNames[0] = "java/lang/ref/Finalizer";
+    // debugClassNames[0] = "java/util/HashMap$Node";
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

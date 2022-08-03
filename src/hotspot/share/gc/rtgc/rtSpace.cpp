@@ -119,7 +119,7 @@ bool rtHeap::is_destroyed(oopDesc* p) {
   return to_obj(p)->isDestroyed();
 }
 
-void rtHeap__addStackRoot(GCObject* node);
+void rtHeap__addResurrectedObject(GCObject* node);
 
 HeapWord* RtSpace::allocate(size_t word_size) {
   HeapWord* heap = _SUPER::allocate(word_size);
@@ -130,7 +130,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
       if (heap != NULL) {
       rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
           word_size, heap);
-        rtHeap__addStackRoot(reinterpret_cast<GCObject*>(heap));
+        rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }
       // RTGC::debug_obj2 = heap;
     // }
