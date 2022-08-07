@@ -59,19 +59,9 @@ static RtRefProcessor<REF_PHANTOM> g_phantomRefProcessor;
 template <ReferenceType refType>
 template <ReferenceType scanType>
 oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
-  if (scanType != REF_NONE) {
+  bool is_full_gc = scanType >= REF_OTHER;
+  if (is_full_gc) {
     return obj->is_gc_marked() ? obj : NULL;
-
-    if (to_obj(obj)->isGarbageMarked()) {
-      assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
-          obj);//, RTGC::getClassName(to_obj(obj)));
-      return NULL;
-    } else {
-      assert(obj->is_gc_marked(), "must be gc_marked %p()\n", 
-          obj);//, RTGC::getClassName(to_obj(obj)));
-      oopDesc* p = obj->forwardee();
-      return (p == NULL) ? obj : p;
-    }
   } 
 
   if (to_obj(obj)->isTrackable()) {
@@ -84,41 +74,58 @@ oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
   return obj->forwardee();
 }
 
+template <ReferenceType scanType>
+bool is_weak_reachable(GCObject* obj) {
+  Klass* klass = cast_to_oop(obj)->klass();
+  if (klass->id() != InstanceRefKlassID) return false;
+  return scanType != REF_WEAK 
+      || ((InstanceRefKlass*)klass)->reference_type() == scanType;
+}
+
 template <ReferenceType refType>
 template <ReferenceType scanType>
 oopDesc* RtRefProcessor<refType>::get_valid_referent(oopDesc* obj) {
-  if (true || scanType < REF_OTHER) {
+  if (refType >= REF_FINAL || scanType <= REF_OTHER) {
     return get_valid_forwardee<scanType>(obj);
   }
-/*
-  if (to_obj(obj)->isGarbageMarked()) {
-    assert(!obj->is_gc_marked() || is_dead_space(obj), "wrong garbage mark on %p()\n", 
-        obj);//, RTGC::getClassName(to_obj(obj)));
+
+  GCObject* node = to_obj(obj);
+  if (node->isGarbageMarked()) {
+    // A refrent may referenced by mutil references.
+    precond(!obj->is_gc_marked());
     return NULL;
-  } else {
-    check_
-    assert(obj->is_gc_marked(), "must be gc_marked %p()\n", 
-        obj);//, RTGC::getClassName(to_obj(obj)));
-    oopDesc* p = obj->forwardee();
-    return (p == NULL) ? obj : p;
   }
-  switch (scanType) {
-  case REF_WEAK:
-    break;
   
-  case REF_SOFT:
-    break;
-
-  default:
-    fatal("invalid scan type: %d\n", scanType);
+  assert(node->hasReferrer(), "wrong referent on %p()\n", node);//, RTGC::getClassName(to_obj(obj)));
+  if (node->isStrongRootReachable()) {
+    return obj;
   }
-  if (is_full_gc) {
-    //if (refType != REF_PHANTOM) {
-      return obj->is_gc_marked() ? obj : NULL;
-    //}
 
-  } 
-  */
+  if (node->hasMultiRef()) {
+    ReferrerList* referrers = node->getReferrerList();
+    ShortOOP* ppAnchor = referrers->adr_at(0);
+    ShortOOP* ppEnd = ppAnchor + referrers->size();
+    for (; ppAnchor < ppEnd; ppAnchor++) {
+      if (!is_weak_reachable<scanType>(*ppAnchor)) {
+        return obj;
+      }
+    }
+  }
+  else {
+    if (!is_weak_reachable<scanType>(*(ShortOOP*)&node->_refs)) return obj;
+  }
+
+  if (node->hasShortcut()) {
+    precond(node->isTrackable());
+    SafeShortcut* shortcut = node->getShortcut();
+    shortcut->split(node->getSafeAnchor(), node);
+  }
+
+  if (!node->isActiveFinalizereReachable()) {
+    node->markGarbage();
+    _rtgc.g_pGarbageProcessor->destroyObject(node);
+  }
+  return NULL;
 }
 
 template <ReferenceType refType>
@@ -185,8 +192,8 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
         precond(!is_full_gc || acc_referent == referent_op);
 
         GCObject* node = to_obj(acc_referent);
-        precond(node->isActiveRef());
-        node->unmarkActiveRef();
+        precond(node->isActiveFinalizereReachable());
+        node->unmarkActiveFinalizereReachable();
         postcond(node->getRootRefCount() == 0);
         if (to_obj(acc_ref)->isTrackable()) {
           RTGC::add_referrer_ex(acc_referent, acc_ref, true);
@@ -314,7 +321,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
       break;
 
     case REF_FINAL:
-      to_obj(referent)->markActiveRef();
+      to_obj(referent)->markActiveFinalizereReachable();
       ref_q = &g_finalRefProcessor._ref_q;
       rtgc_log(LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent);
       break;
@@ -363,8 +370,8 @@ void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* comple
   }
 }
 
-bool rtHeap::can_discover(oopDesc* final_referent) {
-  return !to_obj(final_referent)->isActiveRef();
+bool rtHeap::is_active_finalizere_reachable(oopDesc* final_referent) {
+  return to_obj(final_referent)->isActiveFinalizereReachable();
 }
 
 void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {

@@ -94,15 +94,15 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
-	bool isActiveRef() {
+	bool isActiveFinalizereReachable() {
 		return _flags.rootRefCount & 0x01;
 	}
 
-	void unmarkActiveRef() {
+	void unmarkActiveFinalizereReachable() {
 		_flags.rootRefCount &= ~0x01;
 	}
 
-	void markActiveRef() {
+	void markActiveFinalizereReachable() {
 		_flags.rootRefCount |= 0x01;
 	}
 
@@ -160,8 +160,8 @@ public:
 		return _flags.isGarbage;
 	}
 
-	bool isAnchored() {
-		return _flags.rootRefCount > ZERO_ROOT_REF || this->hasReferrer();
+	bool isUnreachable() {
+		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
 	}
 
 	bool isUnsafe() {

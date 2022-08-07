@@ -48,7 +48,7 @@ public:
   // for reference management
   static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered);
-  static bool can_discover(oopDesc* javaReference);
+  static bool is_active_finalizere_reachable(oopDesc* javaReference);
   static void process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref);
   static void finish_compaction_gc(bool is_tenure_gc);
 

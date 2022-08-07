@@ -340,9 +340,9 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
-    if (ENABLE_GC && !node->isAnchored()) {
+    if (ENABLE_GC && node->isUnreachable()) {
       node->markUnstable();
-      postcond(!node->isAnchored());
+      postcond(node->isUnreachable());
       // _rtgc.g_pGarbageProcessor->addUnstable(node);
       rtgc_log(LOG_OPT(2), "skip garbage node %p\n", (void*)node);
       continue;
@@ -572,7 +572,7 @@ void GCNode::markGarbage(const char* reason)  {
 
 #ifdef ASSERT
 static void mark_ghost_anchors(GCObject* node) {
-  if (!node->isAnchored()) return;
+  if (node->isUnreachable()) return;
   precond(node->getRootRefCount() == 0);
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
@@ -742,7 +742,7 @@ void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
 //     mid = (low + high) / 2;
 //     GCObject* node = arr[mid];
 //     assert(node->isGarbageMarked(), "not a garbage %p\n", node);
-//     assert(!node->isAnchored(), "garbage must not acnhored %p\n", node);
+//     assert(node->isUnreachable(), "garbage must not acnhored %p\n", node);
 //     size_t size = obj_size(cast_to_oop(node));
 //     if (size == word_size) {
 //       if (g_resurrected_top == INT_MAX) {

@@ -308,7 +308,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
             GCObject* node = *ppNode;
             if (node->isGarbageMarked()) {
                 precond(node->isDestroyed() || _visitedNodes.contains(node));
-            } else if (!node->isAnchored()) {
+            } else if (node->isUnreachable()) {
                 node->markGarbage("collectGarbage");
                 _visitedNodes.push_back(node);
             } else {

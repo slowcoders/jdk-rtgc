@@ -90,7 +90,7 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
     T heap_oop = RawAccess<>::oop_load(referent_addr);
     if (!CompressedOops::is_null(heap_oop)) {
       if (type != REF_FINAL || 
-          !rtHeap::can_discover(CompressedOops::decode_not_null(heap_oop))) {
+          rtHeap::is_active_finalizere_reachable(CompressedOops::decode_not_null(heap_oop))) {
         return;
       }
     }
@@ -146,7 +146,7 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
           T heap_oop = RawAccess<>::oop_load(referent_addr);
           if (!CompressedOops::is_null(heap_oop)) {
             if (type != REF_FINAL || 
-                !rtHeap::can_discover(CompressedOops::decode_not_null(heap_oop))) {
+                rtHeap::is_active_finalizere_reachable(CompressedOops::decode_not_null(heap_oop))) {
               break;
             }
           }

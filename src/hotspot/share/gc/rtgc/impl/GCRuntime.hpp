@@ -36,7 +36,6 @@ private:
     SafeShortcut* reachableShortcurQ;
 
     bool findSurvivalPath(ShortOOP& tail);
-	void addGarbage(GCObject* garbage);
     bool scanSurvivalPath(GCObject* tail);
     void constructShortcut();
     void clearReachableShortcutMarks();
