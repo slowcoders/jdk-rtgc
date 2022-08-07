@@ -198,6 +198,22 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     }
 }
 
+void SafeShortcut::shrinkTailTo(GCObject* newTail) {
+    assert(newTail->getShortcut() == this, "invalid tail %p[%d]\n", newTail, this->getIndex(this));
+    precond(!this->inTracing());
+    for (GCObject* obj = _tail; obj != newTail; obj = obj->getSafeAnchor()) {
+        obj->invalidateShortcutId();
+    }
+    if (clearTooShort(_anchor, newTail)) {
+        rtgc_log(LOG_OPT(10), "shortcut deleted[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
+        delete this;
+    } else {
+        this->_tail = newTail;
+        rtgc_log(LOG_OPT(10), "shortcut shrinked[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
+        this->vailidateShortcut();
+    }
+}
+
 void SafeShortcut::extendTail(GCObject* tail) {
     precond(tail != NULL); 
     precond(tail != _tail); 

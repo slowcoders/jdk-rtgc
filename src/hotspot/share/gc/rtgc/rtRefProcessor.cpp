@@ -82,48 +82,106 @@ bool is_weak_reachable(GCObject* obj) {
       || ((InstanceRefKlass*)klass)->reference_type() == scanType;
 }
 
-template <ReferenceType refType>
 template <ReferenceType scanType>
-oopDesc* RtRefProcessor<refType>::get_valid_referent(oopDesc* obj) {
-  if (refType >= REF_FINAL || scanType <= REF_OTHER) {
-    return get_valid_forwardee<scanType>(obj);
-  }
-
-  GCObject* node = to_obj(obj);
-  if (node->isGarbageMarked()) {
-    // A refrent may referenced by mutil references.
-    precond(!obj->is_gc_marked());
-    return NULL;
-  }
-  
-  assert(node->hasReferrer(), "wrong referent on %p()\n", node);//, RTGC::getClassName(to_obj(obj)));
-  if (node->isStrongRootReachable()) {
-    return obj;
-  }
-
+bool rtHeapEx::removeWeakAnchors(GCObject* node) {
   if (node->hasMultiRef()) {
     ReferrerList* referrers = node->getReferrerList();
     ShortOOP* ppAnchor = referrers->adr_at(0);
     ShortOOP* ppEnd = ppAnchor + referrers->size();
     for (; ppAnchor < ppEnd; ppAnchor++) {
       if (!is_weak_reachable<scanType>(*ppAnchor)) {
-        return obj;
+        return false;
       }
     }
-  }
-  else {
-    if (!is_weak_reachable<scanType>(*(ShortOOP*)&node->_refs)) return obj;
+  } else {
+    assert(is_weak_reachable<scanType>(*(ShortOOP*)&node->_refs),
+        "invalid soft/weak referet %p\n", node);
   }
 
-  if (node->hasShortcut()) {
-    precond(node->isTrackable());
+  if (!node->isTrackable()) {
+    precond(!node->hasShortcut());
+    rtgc_log(true, "untrackable garbge referent found: %p\n", node);
+  } else if (node->hasShortcut()) {
     SafeShortcut* shortcut = node->getShortcut();
-    shortcut->split(node->getSafeAnchor(), node);
+    shortcut->shrinkTailTo(node->getSafeAnchor());
+  }  
+  node->removeAnchorList();
+
+  return true;
+}
+
+template <ReferenceType scanType>
+bool rtHeapEx::clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* garbageAnchor) {
+    rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p (g=%d)\n", 
+        garbageAnchor, link, link->isGarbageMarked());    
+    if (link->isGarbageMarked()) {
+        return false;
+    }
+
+    if (!link->removeMatchedReferrers(garbageAnchor)) {
+        return false;
+    }
+    if (link->isDirtyReferrerPoints()) {
+      precond(!link->isStrongRootReachable());
+      precond(link->hasReferrer());
+      rtHeapEx::removeWeakAnchors<scanType>(link);
+    }
+    if (link->isTrackable() && link->isUnsafe()) {
+        _rtgc.g_pGarbageProcessor->_unsafeObjects.push_back(link);
+        rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
+    } 
+    return false;
+}
+
+
+
+template <ReferenceType refType>
+template <ReferenceType scanType>
+oopDesc* RtRefProcessor<refType>::get_valid_referent(oopDesc* obj) {
+  GCObject* node = to_obj(obj);
+
+  bool clear_weak_anchors;
+  switch (scanType) {
+  case REF_SOFT:
+    clear_weak_anchors = (refType == REF_WEAK || refType == REF_SOFT);
+    break;
+  case REF_WEAK:
+    clear_weak_anchors = (refType == REF_WEAK);
+    break;
+  case REF_OTHER:
+    precond(refType == REF_WEAK || refType == REF_SOFT);
+    if (node->isStrongRootReachable()) return obj;
+    node->unmarkDirtyReferrerPoints();
+    return node->hasReferrer() ? obj : NULL;
+  default:
+    clear_weak_anchors = false;
+  }
+
+  if (!clear_weak_anchors) {
+    return get_valid_forwardee<scanType>(obj);
+  }
+
+  if (node->isGarbageMarked()) {
+    // A refrent may referenced by mutil references.
+    precond(node->isTrackable() && !obj->is_gc_marked());
+    return NULL;
+  }
+  
+  assert(node->hasReferrer(), "wrong referent on %p()\n", node);//, RTGC::getClassName(to_obj(obj)));
+  if (node->isStrongRootReachable() || node->isDirtyReferrerPoints()) {
+    return obj;
+  }
+
+  if (!rtHeapEx::removeWeakAnchors<scanType>(node)) {
+    node->markDirtyReferrerPoints();
+    return obj;
   }
 
   if (!node->isActiveFinalizereReachable()) {
     node->markGarbage();
-    _rtgc.g_pGarbageProcessor->destroyObject(node);
+    _rtgc.g_pGarbageProcessor->destroyObject(node, rtHeapEx::clear_garbage_links_and_weak_anchors<scanType>);
+    _rtgc.g_pGarbageProcessor->collectGarbage();
   }
   return NULL;
 }

@@ -625,7 +625,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     precond(!node->hasShortcut());
     return;
   }
-
+  
   if (node->hasShortcut()) {
     SafeShortcut* ss = node->getShortcut();
     if (ss->tail() == node) {

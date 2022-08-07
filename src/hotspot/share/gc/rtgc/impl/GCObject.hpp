@@ -196,6 +196,8 @@ public:
 
 	void shrinkAnchorTo(GCObject* newAnchor);
 
+	void shrinkTailTo(GCObject* newTail);
+
 	static bool isValidIndex(int idx);
 };
 

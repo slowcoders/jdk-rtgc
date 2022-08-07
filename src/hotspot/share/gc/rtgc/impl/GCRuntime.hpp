@@ -14,6 +14,7 @@ public:
 };
 
 class GarbageProcessor {
+friend class rtHeapEx;
 	SimpleVector<LinkIterator> _traceStack;
 	GCObject* delete_q;
 
@@ -23,7 +24,7 @@ public:
 	}
 
 	void addUnstable(GCObject* obj);
-	void destroyObject(GCObject* garbage);
+	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner);
 	void collectGarbage();
 	void collectGarbage(GCObject** ppNode, int cntNode);
 
