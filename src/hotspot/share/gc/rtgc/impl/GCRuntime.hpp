@@ -11,6 +11,7 @@ typedef SimpleVector<GCObject*> NodeList;
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
+	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack);
 };
 
 class GarbageProcessor {

@@ -115,10 +115,6 @@ bool rtHeapEx::clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* ga
     rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p (g=%d)\n", 
         garbageAnchor, link, link->isGarbageMarked());    
-    if (link->isGarbageMarked()) {
-        return false;
-    }
-
     if (!link->removeMatchedReferrers(garbageAnchor)) {
         return false;
     }
@@ -128,8 +124,8 @@ bool rtHeapEx::clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* ga
       rtHeapEx::removeWeakAnchors<scanType>(link);
     }
     if (link->isTrackable() && link->isUnsafe()) {
-        _rtgc.g_pGarbageProcessor->_unsafeObjects.push_back(link);
         rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
+        return true;
     } 
     return false;
 }

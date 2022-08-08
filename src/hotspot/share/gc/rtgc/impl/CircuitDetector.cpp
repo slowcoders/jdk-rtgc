@@ -266,23 +266,13 @@ void GarbageProcessor::constructShortcut() {
 
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
-    rtgc_log(LOG_OPT(4), "clear_garbage_links %p->%p (g=%d)\n", 
-        garbageAnchor, link, link->isGarbageMarked());    
-    if (link->isGarbageMarked()) {
-        return false;
-    }
-
     if (!link->removeMatchedReferrers(garbageAnchor)) {
         rtgc_debug_log(garbageAnchor, "unknown link %p->%p\n", garbageAnchor, link);
+        return false;
     }
     if (link->isTrackable() && link->isUnsafe()) {
-        _rtgc.g_pGarbageProcessor->_unsafeObjects.push_back(link);
-        // if (!link->isAnchored()) {
-        //     link->markGarbage("clear_garbage_links");
-        //     _rtgc.g_pGarbageProcessor->_visitedNodes.push_back(link);
-        // } else {
-        // }
         rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
+        return true;
     } 
     return false;
 }
@@ -335,7 +325,7 @@ void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner) 
     obj->removeAnchorList();
     rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
-    RTGC::scanInstanceGraph(obj, instanceScanner);
+    RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects);
     RuntimeHeap::reclaimObject(obj);
 }
 
