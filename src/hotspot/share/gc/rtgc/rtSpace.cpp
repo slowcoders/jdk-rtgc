@@ -18,8 +18,9 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
 
 void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p) {
   assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "invalid pointer %p(%s) isClass=%d\n", 
-        old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass());
+        "invalid pointer %p(%s) isClass=%d isTr=%d\n", 
+        old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass(),
+        to_obj(old_p)->isTrackable());
 }
 
 static size_t obj_size_in_word(oopDesc* obj) { 
@@ -128,7 +129,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     // if (cntGarbage > 0) {
       heap = (HeapWord*)g_freeMemStore.recycle(word_size);
       if (heap != NULL) {
-      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
+      rtgc_log(true || LOG_OPT(6), "recycle garbage %ld %p\n", 
           word_size, heap);
         rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }

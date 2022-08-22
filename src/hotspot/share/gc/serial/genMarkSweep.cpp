@@ -100,12 +100,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase1(clear_all_softrefs);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::process_java_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
-  }
-#endif
-
   mark_sweep_phase2();
 
   // Don't add any more derived pointers during phase3
@@ -245,6 +239,12 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     pt.print_all_references();
     gc_tracer()->report_gc_reference_stats(stats);
   }
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_java_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
+  }
+#endif
 
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");

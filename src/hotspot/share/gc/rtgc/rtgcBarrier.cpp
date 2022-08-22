@@ -137,7 +137,7 @@ void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v, bo
     } else {
       int cntSpin = 0;
       while (true) {
-        if (oldValue->tryRemoveReferrer(referrer) >= 0) {
+        if (RTGC::GCRuntime::tryDisconnectReferenceLink(oldValue, referrer)) {
           break;
         }
         RTGC::unlock_heap(true);

@@ -79,7 +79,6 @@ namespace RTGC {
   GrowableArrayCHeap<oop, mtGC> g_young_roots;
   GrowableArrayCHeap<GCObject*, mtGC> g_stack_roots;
   int g_resurrected_top = INT_MAX;
-  HugeArray<GCObject*> g_garbage_list;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
@@ -194,9 +193,9 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
 }
 
 static void resurrect_young_root(GCObject* node) {
-  precond(node->isUnstableMarked());
+  precond(node->isGarbageMarked());
   rtgc_log(LOG_OPT(11), "young_root(%p) resurrected\n", node);
-  node->unmarkUnstable();
+  node->unmarkGarbage();
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     node->unmarkYoungRoot();
   }
@@ -213,7 +212,7 @@ void rtHeap__addResurrectedObject(GCObject* node) {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p, bool unused) {
   GCObject* node = to_obj(new_p);
   // assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
-  if (node->isUnstableMarked()) {
+  if (node->isGarbageMarked()) {
     assert(node->isYoungRoot(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
@@ -248,21 +247,30 @@ void rtHeap__clear_garbage_young_roots() {
   int cnt_root = g_saved_young_root_count;
   if (cnt_root > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
-    rtgc_log(LOG_OPT(8), "collectGarbage yg-root started\n")
     if (ENABLE_GC) {
+      auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
+      for (int i = garbage_list->size(); --i >= 0; ) {
+        GCObject* yg_root = garbage_list->at(i);
+        if (!yg_root->isGarbageMarked()) {
+          garbage_list->removeFast(i);
+          rtgc_log(LOG_OPT(8), "resurrected yg-root %p\n", yg_root);
+        } else {
+          rtgc_log(LOG_OPT(8), "collectGarbage yg-root %p\n", yg_root);
+        }
+      }
+
       oop* end = src_0 + cnt_root;
       oop* end_of_new_root = src_0 + g_young_roots.length();
       for (; end < end_of_new_root; end++) {
         to_obj(*end)->incrementRootRefCount();
       }
 
-      _rtgc.g_pGarbageProcessor->collectGarbage(reinterpret_cast<GCObject**>(src_0), cnt_root);
+      _rtgc.g_pGarbageProcessor->collectGarbage();//reinterpret_cast<GCObject**>(src_0), cnt_root);
 
       end = src_0 + cnt_root;
       for (; end < end_of_new_root; end++) {
         GCRuntime::onEraseRootVariable_internal(to_obj(*end));
       }
-      g_garbage_list.resize(0);
 
     }
     rtgc_log(LOG_OPT(8), "collectGarbage yg-root finished\n")
@@ -294,8 +302,8 @@ void rtHeap__clear_garbage_young_roots() {
       remain_roots += new_roots;
     }
 
-    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbage=%d\n", 
-        g_young_roots.length(), remain_roots, g_garbage_list.size());
+    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d\n", 
+        g_young_roots.length(), remain_roots);
     g_young_roots.trunc_to(remain_roots);
     g_saved_young_root_count = 0;
   }
@@ -340,11 +348,13 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, OopClosure* unused)
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
+    auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
+
     if (ENABLE_GC && node->isUnreachable()) {
-      node->markUnstable();
-      postcond(node->isUnreachable());
-      // _rtgc.g_pGarbageProcessor->addUnstable(node);
+      assert(node->isUnstableMarked(), "should be marked unstable %p(%s)\n", node, getClassName(node));
+      node->markGarbage();
       rtgc_log(LOG_OPT(2), "skip garbage node %p\n", (void*)node);
+      garbage_list->push_back(node);
       continue;
     }
 
@@ -365,7 +375,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
   if (anchor == link) return;
   GCObject* node = to_obj(link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
-  if (node->isUnstableMarked()) {
+  if (node->isGarbageMarked()) {
     resurrect_young_root(node);
   }
 
@@ -481,6 +491,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
     check_shortcut = (!adjust_anchor_pointer((ShortOOP*)&obj->_refs, obj) && CHECK_GARBAGE);
     if (check_shortcut) {
       obj->_refs = 0;
+      rtgc_debug_log(obj, "single anchor cleared %p\n", obj);
     }
   }
 
@@ -523,6 +534,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     }
   }
 
+  rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_ref);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
@@ -564,7 +576,7 @@ void GCNode::markGarbage(const char* reason)  {
   }
   assert(!this->isGarbageMarked(),
       "already marked garbage %p(%s)\n", this, getClassName(this));
-  assert(!cast_to_oop(this)->is_gc_marked(),
+  rtgc_log(cast_to_oop(this)->is_gc_marked(),
       "invalid garbage marking on %p(%s)\n", this, getClassName(this));
   _flags.isGarbage = true;
   debug_only(unmarkUnstable();)
@@ -625,7 +637,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
     precond(!node->hasShortcut());
     return;
   }
-  
+
   if (node->hasShortcut()) {
     SafeShortcut* ss = node->getShortcut();
     if (ss->tail() == node) {
@@ -641,7 +653,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 void rtHeap::prepare_rtgc(bool is_full_gc) {
   if (is_full_gc) {
     FreeMemStore::clearStore();
-    //g_garbage_list.resize(0);
   }
   precond(g_stack_roots.length() == 0);
 }
@@ -701,7 +712,6 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
 // }
 
 void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
-  //g_garbage_list.iterate_recycled_oop(closure);
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
     GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {
@@ -711,67 +721,5 @@ void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
     g_resurrected_top = INT_MAX; 
   }
 }
-
-// HeapWord* RtSpace::allocate(size_t word_size) {
-//   HeapWord* heap = _SUPER::allocate(word_size);
-//   if (heap == NULL) {
-//     int cntGarbage = g_garbage_list.size();
-//     if (cntGarbage > 0) {
-//       heap = (HeapWord*)g_garbage_list.recycle(word_size);
-//       RTGC::debug_obj2 = heap;
-//     }
-//   }
-//   else {
-//     RTGC::debug_obj2 = NULL;
-//   }
-//   return heap;
-// }
-// HeapWord* RtSpace::par_allocate(size_t word_size) {
-//   HeapWord* heap = _SUPER::par_allocate(word_size);
-//   return heap;
-// }
-
-// oopDesc* RecyclableGarbageArray::recycle(size_t word_size) {
-//   sort();
-//   int low = 0;
-//   int high = this->size() - 1;
-//   int mid;
-//   GCObject** arr = this->adr_at(0);
-
-//   while(low <= high) {
-//     mid = (low + high) / 2;
-//     GCObject* node = arr[mid];
-//     assert(node->isGarbageMarked(), "not a garbage %p\n", node);
-//     assert(node->isUnreachable(), "garbage must not acnhored %p\n", node);
-//     size_t size = obj_size(cast_to_oop(node));
-//     if (size == word_size) {
-//       if (g_resurrected_top == INT_MAX) {
-//         g_resurrected_top = g_stack_roots.length();
-//       }
-//       this->removeAndShift(mid);
-//       // assert(!this->contains(node), "item remove fail %ld %p %d(%d)/%d\n", word_size, node, mid, this->indexOf(node), this->size());
-//       rtgc_log(LOG_OPT(6), "recycle garbage %ld %p %d/%d\n", 
-//           word_size, node, /*RTGC::getClassName(node),*/ mid, this->size());
-//       g_stack_roots.append(node);
-//       return cast_to_oop(node);
-//     } else if (size > word_size) {
-//       high = mid - 1;
-//     } else {
-//       low = mid + 1;
-//     }
-//   }
-//   return NULL;
-// }
-
-// void RecyclableGarbageArray::iterate_recycled_oop(DefNewYoungerGenClosure* closure) {
-//   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
-//     GCObject* node = g_stack_roots.at(idx);
-//     if (!node->isTrackable()) {
-//       GCRuntime::onAssignRootVariable_internal(node);
-//       closure->do_iterate(cast_to_oop(node));
-//     }
-//     g_resurrected_top = INT_MAX; 
-//   }
-// }
 
 

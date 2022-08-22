@@ -237,7 +237,7 @@ inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chu
 #if INCLUDE_RTGC      
       if (EnableRTGC) {
         assert(RTGC::to_node(c->_data[i])->isStrongRootReachable(),
-          "**** %p(%s)\n", (void*)c->_data[i], c->_data[i]->klass()->name()->bytes());
+          "**** %p(%s)\n", (void*)c->_data[i], RTGC::getClassName(RTGC::to_node(c->_data[i])));
       }
 #endif
       f->do_oop(&c->_data[i]);

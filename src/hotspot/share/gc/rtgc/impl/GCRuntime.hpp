@@ -15,7 +15,6 @@ public:
 };
 
 class GarbageProcessor {
-friend class rtHeapEx;
 	SimpleVector<LinkIterator> _traceStack;
 	GCObject* delete_q;
 
@@ -30,6 +29,7 @@ public:
 	void collectGarbage(GCObject** ppNode, int cntNode);
 
 	static bool detectGarbage(GCObject* unsafeObj);
+	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 
 private:
     HugeArray<GCObject*> _unsafeObjects;
@@ -90,6 +90,8 @@ public:
 	static void connectReferenceLink(GCObject* assigned, GCObject* owner);
 
 	static void disconnectReferenceLink(GCObject* erased, GCObject* owner);
+
+	static bool tryDisconnectReferenceLink(GCObject* erased, GCObject* owner);
 
 	static void onAssignRootVariable_internal(GCObject* assigned);
 

@@ -94,7 +94,7 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
-	bool isActiveFinalizereReachable() {
+	bool isActiveFinalizerReachable() {
 		return _flags.rootRefCount & 0x01;
 	}
 
@@ -164,8 +164,8 @@ public:
 		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
 	}
 
-	bool isUnsafe() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
+	bool isUnsafeTrackable() {
+		return isTrackable() &&  _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {

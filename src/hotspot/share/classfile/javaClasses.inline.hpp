@@ -143,9 +143,13 @@ oop java_lang_ref_Reference::unknown_referent_no_keepalive(oop ref) {
 
 void java_lang_ref_Reference::clear_referent(oop ref) {
 #if INCLUDE_RTGC
-  if (RtNoDiscoverPhantom && is_phantom(ref)) {
-    // 2 step reference clear.
-    ref->obj_field_put_raw(_referent_offset, ref);
+  ReferenceType refType = InstanceKlass::cast(ref->klass())->reference_type();
+  if (RtNoDiscoverPhantom && refType != REF_FINAL) {
+    if (refType == REF_PHANTOM) {
+      ref->obj_field_put_raw(_referent_offset, ref);
+    } else {
+      ref->obj_field_put(_referent_offset, ref);
+    }
   } else
 #endif
   {

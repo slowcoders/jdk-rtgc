@@ -265,13 +265,14 @@ void GarbageProcessor::constructShortcut() {
 
 
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
-    rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    precond(garbageAnchor->isTrackable());
+    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (!link->removeMatchedReferrers(garbageAnchor)) {
-        rtgc_debug_log(garbageAnchor, "unknown link %p->%p\n", garbageAnchor, link);
+        rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
     }
-    if (link->isTrackable() && link->isUnsafe()) {
-        rtgc_log(LOG_OPT(14), "Add unsafe objects %p\n", link);
+    if (link->isUnsafeTrackable()) {
+        rtgc_log(LOG_OPT(14), "Add unsafe object by clear_garbage_links %p\n", link);
         return true;
     } 
     return false;
@@ -279,11 +280,10 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
-    precond(obj->isUnsafe());
-    if (!obj->isUnstableMarked()) {
-        obj->markUnstable();
-        _unsafeObjects.push_back(obj);
-    }
+    precond(obj->isUnsafeTrackable());
+    precond(!obj->isUnstableMarked());
+    obj->markUnstable();
+    _unsafeObjects.push_back(obj);
 }
 
 void GarbageProcessor::collectGarbage() {
@@ -297,10 +297,12 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
             if (node->isGarbageMarked()) {
-                precond(node->isDestroyed() || _visitedNodes.contains(node));
+                assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
             } else if (node->isUnreachable()) {
                 node->markGarbage("collectGarbage");
                 _visitedNodes.push_back(node);
+            } else if (node->getRootRefCount() > 0) {
+                node->unmarkUnstable();
             } else {
                 scanSurvivalPath(node);
             }
