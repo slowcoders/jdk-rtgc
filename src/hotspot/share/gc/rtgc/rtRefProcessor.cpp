@@ -400,20 +400,6 @@ void RtRefProcessor<refType>::adjust_ref_q_pointers() {
   } 
 }
 
-template <ReferenceType clear_ref>
-void __process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc) {
-  bool is_full_gc = clear_ref != REF_NONE;
-  g_weakRefProcessor.process_references<clear_ref>(keep_alive);
-  g_softRefProcessor.process_references<clear_ref>(keep_alive);
-  if (clear_ref >= REF_SOFT) {
-    _rtgc.g_pGarbageProcessor->collectGarbage();
-    g_weakRefProcessor.process_references<REF_OTHER>(keep_alive);
-    g_softRefProcessor.process_references<REF_OTHER>(keep_alive);
-  }
-  g_finalRefProcessor.process_references<clear_ref>(keep_alive);
-  complete_gc->do_void();
-  g_phantomRefProcessor.process_references<clear_ref>(NULL);
-}
 
 
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
@@ -470,19 +456,46 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   }
 }
 
-void rtHeap::process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref) {
+template <ReferenceType clear_ref, bool clear_weak_soft>
+void __process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc) {
+  bool is_full_gc = clear_ref != REF_NONE;
+  if (clear_weak_soft) {
+    g_weakRefProcessor.process_references<clear_ref>(keep_alive);
+    g_softRefProcessor.process_references<clear_ref>(keep_alive);
+    if (clear_ref >= REF_SOFT) {
+      _rtgc.g_pGarbageProcessor->collectGarbage();
+      g_weakRefProcessor.process_references<REF_OTHER>(keep_alive);
+      g_softRefProcessor.process_references<REF_OTHER>(keep_alive);
+    }
+    complete_gc->do_void();
+  } else {
+    g_finalRefProcessor.process_references<clear_ref>(keep_alive);
+    complete_gc->do_void();
+    g_phantomRefProcessor.process_references<clear_ref>(NULL);
+  }
+}
+
+void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref) {
   switch (clear_ref) {
     case REF_NONE:
-      __process_java_references<REF_NONE>(keep_alive, complete_gc);
+      __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
       break;
     case REF_SOFT:
-      __process_java_references<REF_SOFT>(keep_alive, complete_gc);
+      __process_java_references<REF_SOFT, true>(keep_alive, complete_gc);
       break;
     case REF_WEAK:
-      __process_java_references<REF_WEAK>(keep_alive, complete_gc);
+      __process_java_references<REF_WEAK, true>(keep_alive, complete_gc);
       break;
     default:
       fatal("invalid clear_ref type: %d\n", clear_ref);
+  }
+}
+
+void rtHeap::process_final_phantom_references(VoidClosure* complete_gc, bool is_tenure_gc) {
+  if (is_tenure_gc) {
+    __process_java_references<REF_OTHER, false>(NULL, complete_gc);
+  } else {
+    __process_java_references<REF_NONE, false>(NULL, complete_gc);
   }
 }
 

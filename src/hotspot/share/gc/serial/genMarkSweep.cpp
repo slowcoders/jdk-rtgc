@@ -242,7 +242,8 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_java_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
+    rtHeap::process_final_phantom_references(&follow_stack_closure, true);
   }
 #endif
 

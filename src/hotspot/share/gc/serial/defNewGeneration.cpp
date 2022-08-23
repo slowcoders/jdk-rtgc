@@ -640,12 +640,13 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    // if (RtLazyClearWeakHandle) {
-    //   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
-    // }
-    rtHeap::process_java_references(&scan_closure, &evacuate_followers, REF_NONE);
+    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, REF_NONE);
+    if (RtLazyClearWeakHandle) {
+      WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
+    }
+    rtHeap::process_final_phantom_references(&evacuate_followers, false);
     rtHeap::finish_compaction_gc(false);
-    if (true || !RtLazyClearWeakHandle) {
+    if (!RtLazyClearWeakHandle) {
       WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
     }
   }
