@@ -445,11 +445,12 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
       break;
   }
 
-  if (ref_type > REF_FINAL) {
+  precond(!to_obj(ref)->isTrackable());
+  //if (ref_type > REF_FINAL) {
     HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
-  } else {
-    HeapAccess<>::oop_store_at(ref, referent_offset, referent);
-  }
+  //} else {
+  //  HeapAccess<>::oop_store_at(ref, referent_offset, referent);
+  //}
   oop next_discovered = Atomic::xchg(ref_q, ref);
   java_lang_ref_Reference::set_discovered_raw(ref, next_discovered);
   return;

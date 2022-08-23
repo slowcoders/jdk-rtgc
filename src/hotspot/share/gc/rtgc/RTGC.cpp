@@ -221,7 +221,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-    "java/lang/invoke/MethodTypeForm",
+    // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
     // "java/lang/ref/WeakReference",
     // "java/lang/ref/SoftReference",
@@ -286,7 +286,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  enableLog(LOG_REF, 3);
+  // enableLog(LOG_REF, 3);
 
   if (UnlockExperimentalVMOptions) {
     // debugClassNames[0] = "java/util/HashMap$Node";

@@ -90,7 +90,7 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
     T heap_oop = RawAccess<>::oop_load(referent_addr);
     if (!CompressedOops::is_null(heap_oop)) {
       if (type < REF_FINAL) {
-        if (true || !rtHeap::is_trackable(obj)) {
+        if (false && !rtHeap::is_trackable(obj)) {
           // mark always the referents of young references.
           do_referent<T>(obj, closure, contains);
         }
