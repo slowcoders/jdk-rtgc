@@ -242,6 +242,7 @@ void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_v, oopDesc* base) {
   }
 }
 
+
 address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool initialized = (decorators & IS_DEST_UNINITIALIZED) == 0;

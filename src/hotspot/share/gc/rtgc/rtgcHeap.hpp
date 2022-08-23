@@ -33,6 +33,7 @@ public:
   static void oop_recycled_iterate(DefNewYoungerGenClosure* closure);
   static void mark_weak_reachable(oopDesc* new_p);
   static void clear_weak_reachable(oopDesc* new_p);
+  static bool ensure_weak_reachable(oopDesc* new_p);
 
   // for full gc
   static void prepare_point_adjustment();

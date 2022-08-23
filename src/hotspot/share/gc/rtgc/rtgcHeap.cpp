@@ -161,12 +161,17 @@ bool rtHeap::is_trackable(oopDesc* p) {
 
 void rtHeap::mark_weak_reachable(oopDesc* p) {
   GCObject* obj = to_obj(p);
-  obj->incrementRootRefCount();
+  GCRuntime::onAssignRootVariable_internal(obj);
 }
 
 void rtHeap::clear_weak_reachable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   GCRuntime::onEraseRootVariable_internal(obj);
+}
+
+bool rtHeap::ensure_weak_reachable(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  return obj->isStrongRootReachable();
 }
 
 void rtHeap::mark_empty_trackable(oopDesc* p) {

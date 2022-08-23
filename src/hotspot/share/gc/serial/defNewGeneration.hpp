@@ -154,6 +154,9 @@ protected:
 
  public:  // was "protected" but caused compile error on win32
   class IsAliveClosure: public BoolObjectClosure {
+#if INCLUDE_RTGC
+  protected:
+#endif    
     Generation* _young_gen;
   public:
     IsAliveClosure(Generation* young_gen);

@@ -158,6 +158,7 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   //rtgc_debug_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
 }
 
+
 const char* RTGC::baseFileName(const char* filePath) {
   const char* name = strrchr(filePath, '/');
   return name ? name + 1: filePath;

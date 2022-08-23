@@ -132,7 +132,7 @@ class JNIHandles : AllStatic {
 };
 
 
-
+#define DISABLE_LOCAL_JNI_REF false
 // JNI handle blocks holding local/global JNI handles
 
 class JNIHandleBlock : public CHeapObj<mtInternal> {
@@ -154,7 +154,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   JNIHandleBlock* _pop_frame_link;              // Block to restore on PopLocalFrame call
   uintptr_t*      _free_list;                   // Handle free list
   int             _allocate_before_rebuild;     // Number of blocks to allocate before rebuilding free list
-#if INCLUDE_RTGC // local jin handle owner
+#if DISABLE_LOCAL_JNI_REF // local jin handle owner
   Thread*         _local_thread;
 #endif
   // Check JNI, "planned capacity" for current frame (or push/ensure)
@@ -182,7 +182,11 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   jobject allocate_handle(oop obj, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
 
   // Block allocation and block free list management
-  static JNIHandleBlock* allocate_block(Thread* thread NOT_RTGC(= NULL), AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+#if DISABLE_LOCAL_JNI_REF // local jin handle owner
+  static JNIHandleBlock* allocate_block(Thread* thread, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+#else
+  static JNIHandleBlock* allocate_block(Thread* thread = NULL, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
+#endif  
   static void release_block(JNIHandleBlock* block, Thread* thread = NULL);
 
   // JNI PushLocalFrame/PopLocalFrame support
@@ -206,7 +210,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   bool contains(jobject handle) const;          // Does this block contain handle
   size_t length() const;                        // Length of chain starting with this block
   size_t memory_usage() const;
-#if INCLUDE_RTGC // local jin handle owner
+#if DISABLE_LOCAL_JNI_REF // local jin handle owner
   Thread* local_thread() const { return _local_thread; }
 #endif
 
