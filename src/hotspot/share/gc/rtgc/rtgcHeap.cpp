@@ -728,3 +728,17 @@ void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
 }
 
 
+void __check_old_p(oopDesc* old, oopDesc* new_p) {
+  GCObject* node = to_obj(old);
+  node->clear_copyed_old_obj();
+  // GCObject* obj = to_obj(new_p);
+
+  // if (node->getRootRefCount() > 0
+  // ||  node->hasReferrer()
+  // ||  node->getShortcutId() != NO_SAFE_ANCHOR) {
+  //   precond(node->getRootRefCount() == obj->getRootRefCount());
+  //   int anchors = node->hasMultiRef() ? 2 : node->hasReferrer() ? 1 : 0;
+  //   rtgc_log(true, "%p rc=%d, anchor=%d shorcut=%d\n",
+  //     node, node->getRootRefCount(), anchors, node->getShortcutId());
+  // }
+}

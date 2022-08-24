@@ -808,7 +808,11 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
 #ifdef INCLUDE_RTGC
 #ifdef ASSERT
+  void __check_old_p(oopDesc* ptr, oopDesc* new_p);
+  
   if (EnableRTGC) {
+    //__check_old_p(old, obj);
+    // oopDesc::clear_rt_node(cast_from_oop<HeapWord*>(old));
     RTGC::adjust_debug_pointer(old, obj);
   }
 #endif

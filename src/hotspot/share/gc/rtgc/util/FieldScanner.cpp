@@ -34,30 +34,35 @@ public:
   void work_oop(oop obj) {
     if (obj == NULL) return;
     // if (to_obj(obj)->isGarbageMarked()) return;
+    GCObject* link;;
     if (!to_obj(obj)->isTrackable()) {
-      if (!_base->isYoungRoot()) {
-        if (!obj->is_gc_marked()) {
-          rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
-          return;
-        }
-        oop p = obj->forwardee();
-        if (p != NULL) {
-          obj = p;
-        }
+      //precond(!_base->isYoungRoot());
+      if (!obj->is_gc_marked()) {
+        rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
+        return;
       }
+      oop p = obj->forwardee();
+      precond(p != NULL);
+      if (p != NULL) {
+        obj = p;
+      }
+      link = to_obj(obj);
+      precond(!link->is_corrupted());
+    } else if ((link = to_obj(obj))->isGarbageMarked()) {
+      return;
     }
     // precond(p != NULL);
-    GCObject* link = to_obj(obj);
-    if (!link->isGarbageMarked()) {
-      if (_fn(link, _base)) {
-        _stack->push_back(link);
-      }
+    if (_fn(link, _base)) {
+      _stack->push_back(link);
     }
   }
 };
 
 
 void RuntimeHeap::scanInstanceGraph(GCObject* root, RefTracer2 trace, HugeArray<GCObject*>* stack) {
+  precond(root->isTrackable());
+  precond(!root->is_corrupted());
+
   oopDesc* p = cast_to_oop(root);
   if (RTGC::is_narrow_oop_mode) {
     FieldIterator<narrowOop> fi(p, trace, stack);
