@@ -183,7 +183,38 @@ void GenMarkSweep::deallocate_stacks() {
   _objarray_stack.clear(true);
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+class YoungRootClosure2 : public MarkAndPushClosure, public BoolObjectClosure {
+  int _cnt_young_ref;
+  debug_only(oop _anchor;)
+public:
+  
+  bool do_object_b(oop obj) {
+    _cnt_young_ref = 0;
+    debug_only(_anchor = obj;)
+    obj->oop_iterate(this);
+    MarkSweep::follow_stack();
+    return _cnt_young_ref > 0;
+  }
+
+  template <typename T>
+  void do_oop_work(T* p) {
+    MarkSweep::_is_rt_anchor_trackable = true;
+    MarkSweep::mark_and_push(p);
+    // T heap_oop = RawAccess<>::oop_load(p);
+    // if (!CompressedOops::is_null(heap_oop)) {
+    //   oop obj = CompressedOops::decode_not_null(heap_oop);
+    //   if (!(rtHeap::full_RTGC && rtHeap::is_trackable(obj))) {
+    //     if (!obj->mark().is_marked()) {
+    //       MarkSweep::mark_object(obj);
+    //       MarkSweep::_marking_stack.push(obj);
+    //     }
+    //     _cnt_young_ref ++;
+    //   }
+    // }
+  }
+};
+
 class ClearNotAliveClosure: public OopClosure {
   public:
   void do_object(oop* ptr) {
@@ -222,8 +253,14 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
                             &follow_cld_closure);
   }
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (false && rtHeap::full_RTGC) {
+    YoungRootClosure2 closure;
+    rtHeap::iterate_young_roots(&closure, true);
+  }
+#endif
   // Process reference objects found during marking
-  {
+  if (true || rtHeap::full_RTGC) {
     GCTraceTime(Debug, gc, phases) tm_m("Reference Processing", gc_timer());
 
     ref_processor()->setup_policy(clear_all_softrefs);

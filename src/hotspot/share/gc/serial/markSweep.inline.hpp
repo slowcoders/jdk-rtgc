@@ -53,6 +53,12 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
+#if INCLUDE_RTGC
+    if (rtHeap::full_RTGC && !_is_rt_anchor_trackable &&
+        rtHeap::is_trackable(obj)) {
+      rtHeap::mark_survivor_reachable(obj);
+    } 
+#endif
     if (!obj->mark().is_marked()) {
       mark_object(obj);
       _marking_stack.push(obj);
@@ -62,6 +68,7 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
 
 inline void MarkSweep::follow_klass(Klass* klass) {
   oop op = klass->class_loader_data()->holder_no_keepalive();
+  _is_rt_anchor_trackable = false;
   MarkSweep::mark_and_push(&op);
 }
 

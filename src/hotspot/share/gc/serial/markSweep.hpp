@@ -118,6 +118,8 @@ class MarkSweep : AllStatic {
  public:
   static void initialize();
 
+  static bool _is_rt_anchor_trackable;
+
   // Public closures
   static IsAliveClosure       is_alive;
   static FollowRootClosure    follow_root_closure;

@@ -401,3 +401,17 @@ Test summary Orignal version
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
 ==============================
+
+
+  yg->process_roots(ScanningOption SO_ScavengeCodeCache, 
+                OopClosure* strong_roots = DefNewScanClosure,
+                CLDClosure* strong_cld_closure = cld_closure, 
+                CLDClosure* weak_cld_closure = cld_closure, 
+                CodeBlobToOopClosure* code_roots = &MarkingCodeBlobClosure(root_closure,
+                                                   CodeBlobToOopClosure::FixRelocations);
+                
+  old_g->process_roots(ScanningOption GenCollectedHeap::SO_None,
+               OopClosure* strong_roots = MarkSweep::FollowRootClosure(root_closure),
+               CLDClosure* strong_cld_closure = CLDToOopClosure
+               CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure,
+               CodeBlobToOopClosure* code_roots = &MarkingCodeBlobClosure(root_closure, is_adjust_phase)

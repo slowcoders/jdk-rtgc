@@ -30,8 +30,8 @@ public:
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
   static void add_promoted_link(oopDesc* promoted_anchor, oopDesc* linked, bool link_is_tenured);
-  static void iterate_young_roots(BoolObjectClosure* young_root_closure, OopClosure* survivor_closure);
-  static void mark_survivor_reachable(oopDesc* tenured_p, bool as_java_referent = false);
+  static void iterate_young_roots(BoolObjectClosure* young_root_closure, bool is_full_gc);
+  static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_young_root_reachable(oopDesc* referent);
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
   static void keep_alive_trackable(oopDesc* obj);
