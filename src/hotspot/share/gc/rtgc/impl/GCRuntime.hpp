@@ -23,12 +23,14 @@ public:
 		delete_q = nullptr;
 	}
 
-	void addUnstable(GCObject* obj);
+	void addUnstable(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner);
 	void collectGarbage();
 	void collectGarbage(GCObject** ppNode, int cntNode);
 
-	static bool detectGarbage(GCObject* unsafeObj);
+	bool detectGarbage(GCObject* node);
+	void validateGarbageList();
+	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 
 private:

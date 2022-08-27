@@ -224,7 +224,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
-    // "java/lang/ref/WeakReference",
+    "java/lang/invoke/MethodType",
+    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
     // "java/lang/ref/SoftReference",
     // "java/util/HashMap$Node", 
     // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",

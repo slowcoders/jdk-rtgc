@@ -142,6 +142,12 @@ int GCObject::tryRemoveReferrer(GCObject* referrer) {
 void GCObject::removeAnchorList() {
     rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
 
+    if (this->hasShortcut()) {
+        precond(this->isTrackable());
+        SafeShortcut* shortcut = this->getShortcut();
+        shortcut->shrinkTailTo(this->getSafeAnchor());
+    }  
+
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         _rtgc.gRefListPool.delete_(referrers);

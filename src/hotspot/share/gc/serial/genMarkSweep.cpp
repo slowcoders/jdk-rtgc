@@ -74,12 +74,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   }
 #endif
 
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    rtHeap::prepare_rtgc(true);
-  }
-#endif
-
   // hook up weak ref data so it can be used during Mark-Sweep
   assert(ref_processor() == NULL, "no stomping");
   assert(rp != NULL, "should be non-NULL");
@@ -112,7 +106,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::finish_compaction_gc(true);
+    rtHeap::finish_adjust_pointers(true);
   }
 #endif
 

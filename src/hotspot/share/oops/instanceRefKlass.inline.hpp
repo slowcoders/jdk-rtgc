@@ -90,13 +90,16 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
     T heap_oop = RawAccess<>::oop_load(referent_addr);
     if (!CompressedOops::is_null(heap_oop)) {
       if (type < REF_FINAL) {
-        if (true || !rtHeap::is_trackable(obj)) {
+        if (!rtHeap::in_full_gc) {
           // mark always the referents of young references.
           do_referent<T>(obj, closure, contains);
+          return;
         }
-        return;
+        if (try_discover<T>(obj, type, closure)) {
+          return;
+        }
       } 
-      if (type != REF_FINAL || 
+      else if (type != REF_FINAL || 
           rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
         return;
       }
@@ -152,10 +155,10 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
         T heap_oop = RawAccess<>::oop_load(referent_addr);
         if (!CompressedOops::is_null(heap_oop)) {
           if (type < REF_FINAL) {
-            do_referent<T>(obj, closure, contains);
-            break;
+            // do_referent<T>(obj, closure, contains);
+            // break;
           } 
-          if (type != REF_FINAL || 
+          else if (type != REF_FINAL || 
               rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
             break;
           }

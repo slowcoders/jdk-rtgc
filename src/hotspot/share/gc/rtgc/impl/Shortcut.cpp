@@ -120,7 +120,9 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
         getIndex(this), leftTail, RTGC::getClassName(leftTail), 
                         rightAnchor, RTGC::getClassName(rightAnchor));
     precond(rightAnchor->getShortcut() == this);
-    precond(leftTail->getShortcut() == this || leftTail == this->anchor());
+    assert(leftTail->getShortcut() == this || leftTail == this->anchor(), 
+        "wrong tail [%d] -> %p(%s) [%d] gm = %d\n", 
+        this->getIndex(), leftTail, getClassName(leftTail), leftTail->getShortcutId(), leftTail->isGarbageMarked());
     rightAnchor->invalidateSafeAnchor();
 
     if (leftTail == this->_anchor) {
@@ -199,7 +201,7 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
 }
 
 void SafeShortcut::shrinkTailTo(GCObject* newTail) {
-    assert(newTail->getShortcut() == this, "invalid tail %p[%d]\n", newTail, this->getIndex(this));
+    assert(newTail->getShortcut() == this || newTail == this->anchor(), "invalid tail %p[%d]\n", newTail, this->getIndex(this));
     precond(!this->inTracing());
     for (GCObject* obj = _tail; obj != newTail; obj = obj->getSafeAnchor()) {
         obj->invalidateShortcutId();

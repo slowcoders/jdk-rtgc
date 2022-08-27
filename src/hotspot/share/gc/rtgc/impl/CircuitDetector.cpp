@@ -165,7 +165,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             R->initIterator(it);
         }
 
-        R->markGarbage("path-finder");
+        R->markGarbage();
         // postcond(!_visitedNodes.contains(R));
         _visitedNodes.push_back(R);
     }
@@ -296,16 +296,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
         GCObject** end = ppNode + cntUnsafe;
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
-            if (node->isGarbageMarked()) {
-                assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
-            } else if (node->isUnreachable()) {
-                node->markGarbage("collectGarbage");
-                _visitedNodes.push_back(node);
-            } else if (node->getRootRefCount() > 0) {
-                node->unmarkUnstable();
-            } else {
-                scanSurvivalPath(node);
-            }
+            detectGarbage(node);
         }
 
         _unsafeObjects.resize(0);
@@ -331,8 +322,59 @@ void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner) 
     RuntimeHeap::reclaimObject(obj);
 }
 
-bool GarbageProcessor::detectGarbage(GCObject* unsafeObj) {
-    fatal("not impl");
-    return false;
+void GarbageProcessor::validateGarbageList() {
+    GCObject** ppNode = _visitedNodes.adr_at(0);
+    int cntNode = _visitedNodes.size();
+    for (int i = 0; i < cntNode;) {
+        GCObject* obj = *ppNode;
+        if (!obj->isGarbageMarked()) {
+            _visitedNodes->removeFast(i);
+            cntNode --;
+        } else {
+            i++;
+            ppNode ++;
+        }
+    }
 }
 
+bool GarbageProcessor::detectGarbage(GCObject* node) {
+    if (node->isGarbageMarked()) {
+        assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
+        return true;
+    }
+    if (node->isUnreachable()) {
+        node->markGarbage("collectGarbage");
+        _visitedNodes.push_back(node);
+        return true;
+    }
+    if (node->getRootRefCount() > 0) {
+        node->unmarkUnstable();
+        return false;
+    } 
+    scanSurvivalPath(node);
+    return node->isGarbageMarked();
+}
+
+bool GarbageProcessor::hasStableSurvivalPath(GCObject* node0) {
+    GCObject* node = node0;
+    if (node->isGarbageMarked()) {
+        assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
+        return false;
+    }
+    if (node->isUnstableMarked()) {
+        return false;
+    }
+    while (node->getRootRefCount() == 0) {
+        if (!node->hasSafeAnchor()) {
+            node0->markUnstable();
+            return false;
+        }
+
+        if (node->hasShortcut()) {
+            node = node->getShortcut()->anchor();
+        } else {
+            node = node->getSafeAnchor();
+        }
+    } 
+    return true;
+}

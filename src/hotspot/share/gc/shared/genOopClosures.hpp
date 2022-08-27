@@ -122,7 +122,7 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    precond(rtHeap::is_alive(obj) || rtHeap::is_valid_link_of_yg_root(_anchor, obj));
+    rtHeap::keep_alive_trackable(obj);
   }
 };
 #endif

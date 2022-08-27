@@ -566,6 +566,12 @@ void GenCollectedHeap::do_collection(bool           full,
   bool complete = full && (max_generation == OldGen);
   bool old_collects_young = complete && !ScavengeBeforeFullGC;
   bool do_young_collection = !old_collects_young && _young_gen->should_collect(full, size, is_tlab);
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::full_RTGC) {
+    rtHeap::prepare_rtgc(false);
+    do_young_collection = true;
+  }
+#endif
 
   const PreGenGCValues pre_gc_values = get_pre_gc_values();
 
@@ -648,6 +654,11 @@ void GenCollectedHeap::do_collection(bool           full,
       increment_total_full_collections();
     }
 
+#if INCLUDE_RTGC
+    if (EnableRTGC) { // }::full_RTGC) {
+      rtHeap::prepare_rtgc(true);
+    }
+#endif    
     collect_generation(_old_gen,
                        full,
                        size,
@@ -680,6 +691,12 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::full_RTGC) {
+    rtHeap::finish_rtgc();
+  }
+#endif
+
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {

@@ -30,6 +30,7 @@ public:
 
   virtual void do_oop(oop* o) { work_oop(RawAccess<>::oop_load(o)); }
   virtual void do_oop(narrowOop* o) { work_oop(RawAccess<>::oop_load(o)); }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   void work_oop(oop obj) {
     if (obj == NULL) return;
@@ -42,7 +43,7 @@ public:
         return;
       }
       oop p = obj->forwardee();
-      precond(p != NULL);
+      // precond(p != NULL);
       if (p != NULL) {
         obj = p;
       }
