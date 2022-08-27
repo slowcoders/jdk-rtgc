@@ -17,7 +17,7 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
 }
 
-template <class T>
+template <class T, bool isTenured>
 class FieldIterator : public BasicOopIterateClosure {
   GCObject* _base;
   RefTracer2 _fn;
@@ -36,7 +36,7 @@ public:
     if (obj == NULL) return;
     // if (to_obj(obj)->isGarbageMarked()) return;
     GCObject* link;;
-    if (!to_obj(obj)->isTrackable()) {
+    if (!isTenured && !to_obj(obj)->isTrackable()) {
       //precond(!_base->isYoungRoot());
       if (!obj->is_gc_marked()) {
         rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
@@ -60,19 +60,28 @@ public:
 };
 
 
-void RuntimeHeap::scanInstanceGraph(GCObject* root, RefTracer2 trace, HugeArray<GCObject*>* stack) {
+void RuntimeHeap::scanInstanceGraph(GCObject* root, RefTracer2 trace, HugeArray<GCObject*>* stack, bool isTenured) {
   precond(root->isTrackable());
   precond(!root->is_corrupted());
 
   oopDesc* p = cast_to_oop(root);
-  if (RTGC::is_narrow_oop_mode) {
-    FieldIterator<narrowOop> fi(p, trace, stack);
-    p->oop_iterate(&fi);
+  if (!isTenured) {
+    if (RTGC::is_narrow_oop_mode) {
+      FieldIterator<narrowOop, false> fi(p, trace, stack);
+      p->oop_iterate(&fi);
+    } else {
+      FieldIterator<oop, false> fi(p, trace, stack);
+      p->oop_iterate(&fi);
+    }
   } else {
-    FieldIterator<oop> fi(p, trace, stack);
-    p->oop_iterate(&fi);
+    if (RTGC::is_narrow_oop_mode) {
+      FieldIterator<narrowOop, true> fi(p, trace, stack);
+      p->oop_iterate(&fi);
+    } else {
+      FieldIterator<oop, true> fi(p, trace, stack);
+      p->oop_iterate(&fi);
+    }
   }
 }
-
 
 

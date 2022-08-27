@@ -15,6 +15,8 @@ public:
 
   template <ReferenceType scanType>
   static bool clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* garbageAnchor);
+
+  static void validate_trackable_refs();
 };
 
 };

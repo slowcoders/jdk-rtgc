@@ -280,17 +280,18 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
-    precond(obj->isUnsafeTrackable());
+    precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());
     obj->markUnstable();
     _unsafeObjects.push_back(obj);
 }
 
-void GarbageProcessor::collectGarbage() {
-    collectGarbage(_unsafeObjects.adr_at(0), _unsafeObjects.size());
+void GarbageProcessor::collectGarbage(bool isTenured) {
+    rtgc_log(true, "collectGarbage cntUnsafe %d\n", _unsafeObjects.size()); 
+    collectGarbage(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
 }
 
-void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
+void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isTenured) {
     while (cntUnsafe > 0) {
         rtgc_log(LOG_OPT(14), "collectGarbage cntUnsafe %d\n", cntUnsafe); 
         GCObject** end = ppNode + cntUnsafe;
@@ -305,7 +306,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
         end = ppNode + _visitedNodes.size();
         for (; ppNode < end; ppNode++) {
             GCObject* obj = *ppNode;
-            destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links);
+            destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
         }
         _visitedNodes.resize(0);
 
@@ -314,11 +315,11 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe) {
     }
 }
 
-void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner) {
+void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, bool isTenured) {
     obj->removeAnchorList();
     rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
-    RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects);
+    RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects, isTenured);
     RuntimeHeap::reclaimObject(obj);
 }
 
@@ -355,8 +356,8 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
     return node->isGarbageMarked();
 }
 
-bool GarbageProcessor::hasStableSurvivalPath(GCObject* node0) {
-    GCObject* node = node0;
+bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
+    GCObject* node = tail;
     if (node->isGarbageMarked()) {
         assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
         return false;
@@ -366,7 +367,7 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* node0) {
     }
     while (node->getRootRefCount() == 0) {
         if (!node->hasSafeAnchor()) {
-            node0->markUnstable();
+            addUnstable(tail);
             return false;
         }
 

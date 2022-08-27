@@ -158,43 +158,74 @@ void GCObject::removeAnchorList() {
     rtgc_debug_log(this, "anchor-list cleared by removeAnchorList %p\n", this);
 }
 
-bool GCObject::removeMatchedReferrers(GCObject* referrer) {
-    if (!hasMultiRef()) {
-        if (_refs != 0 && _refs == _pointer2offset(referrer)) {
-            this->_refs = 0;
-            rtgc_debug_log(this, "anchor-list cleared by removeMatchedReferrers %p rc=%d tr=%d\n", 
-                this, this->getRootRefCount(), this->isTrackable());
-            if (this->hasShortcut()) {
-                this->getShortcut()->split(referrer, this);
-            }
-            this->invalidateSafeAnchor();
-            return true;
+template<bool isGarbage>
+static bool is_match(GCObject* node, GCObject* referrer) {
+    if (isGarbage) {
+        return node->isGarbageMarked();
+    } else {
+        return node == referrer;
+    }
+}
+
+template<bool isGarbage>
+static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
+    if (!node->hasMultiRef()) {
+        if (node->_refs == 0) return false;
+        if (isGarbage) {
+            if (!node->getSingleAnchor()->isGarbageMarked()) return false;
         }
+        else {
+            if (node->_refs != _pointer2offset(referrer)) return false;
+        }
+        node->_refs = 0;
+        rtgc_debug_log(node, "anchor-list cleared by removeMatchedReferrers %p rc=%d tr=%d\n", 
+            node, node->getRootRefCount(), node->isTrackable());
+        if (node->hasShortcut()) {
+            node->getShortcut()->split(referrer, node);
+        }
+        node->invalidateSafeAnchor();
+        return true;
     }
     else {
-        ReferrerList* referrers = _rtgc.gRefListPool.getPointer(_refs);
-        if (this->hasShortcut() && referrers->at(0) == referrer) {
-            this->getShortcut()->split(referrer, this);
+        ReferrerList* referrers = _rtgc.gRefListPool.getPointer(node->_refs);
+        if (node->hasShortcut() && is_match<isGarbage>(referrers->at(0), referrer)) {
+            node->getShortcut()->split(referrer, node);
         }
-        if (referrers->removeMatchedItems(referrer)) {
-            if (referrers->size() <= 1) {
-                if (referrers->size() == 0) {
-                    _rtgc.gRefListPool.delete_(referrers);
-                    this->_refs = 0;
-                    this->invalidateSafeAnchor();
-                    rtgc_debug_log(this, "anchor-list cleared by removeMatchedReferrers %p\n", this);
+        if (isGarbage) {
+            ReferrerList* referrers = node->getReferrerList();
+            for (int i = referrers->size(); --i >= 0; ) {
+                if (referrers->at(i)->isGarbageMarked()) {
+                    referrers->removeFast(i);
                 }
-                else {
-                    GCObject* remained = referrers->at(0);
-                    _rtgc.gRefListPool.delete_(referrers);
-                    this->_refs = _pointer2offset(remained);
-                }
-                setHasMultiRef(false);
             }
-            return true;
         }
+        else if (!referrers->removeMatchedItems(referrer)) return false;
+
+        if (referrers->size() <= 1) {
+            if (referrers->size() == 0) {
+                _rtgc.gRefListPool.delete_(referrers);
+                node->_refs = 0;
+                node->invalidateSafeAnchor();
+                rtgc_debug_log(node, "anchor-list cleared by removeMatchedReferrers %p\n", node);
+            }
+            else {
+                GCObject* remained = referrers->at(0);
+                _rtgc.gRefListPool.delete_(referrers);
+                node->_refs = _pointer2offset(remained);
+            }
+            node->setHasMultiRef(false);
+        }
+        return true;
     }
     return false;
+}
+
+bool GCObject::removeMatchedReferrers(GCObject* referrer) {
+    return remove_matched_referrers<false>(this, referrer);
+}
+
+void GCObject::clearGarbageAnchors() {
+    remove_matched_referrers<true>(this, NULL);
 }
 
 GCObject* GCObject::getSingleAnchor() {

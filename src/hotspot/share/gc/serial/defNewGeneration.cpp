@@ -549,6 +549,7 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   size_t const desired_survivor_size = (size_t)((((double)survivor_capacity) * TargetSurvivorRatio) / 100);
 
   _tenuring_threshold = age_table()->compute_tenuring_threshold(desired_survivor_size);
+  postcond(_tenuring_threshold <= markWord::max_age);
 
   if (UsePerfData) {
     GCPolicyCounters* gc_counters = GenCollectedHeap::heap()->counters();
@@ -779,6 +780,14 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Try allocating obj in to-space (unless too old)
   if (old->age() < tenuring_threshold()) {
+    precond(tenuring_threshold() <= markWord::max_age);
+    Klass* klass = cast_to_oop(old)->klass();
+    if (klass->id() == InstanceRefKlassID) {
+      ReferenceType scanType = ((InstanceRefKlass*)klass)->reference_type();
+      assert(REF_WEAK != scanType && REF_SOFT != scanType, "%p age =%d\n", (void*)old, old->age());
+    }
+
+
     obj = cast_to_oop(to()->allocate(s));
   }
 

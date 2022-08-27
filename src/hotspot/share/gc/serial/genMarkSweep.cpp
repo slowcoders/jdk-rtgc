@@ -215,22 +215,19 @@ public:
   }
 };
 
-class ClearNotAliveClosure: public OopClosure {
+class ClearWeakHandleRef: public OopClosure {
   public:
   void do_object(oop* ptr) {
     bool result = true;
     oop v = *ptr;
     if (v != NULL) {
       rtHeap::clear_weak_reachable(v);
-      if (!MarkSweep::is_alive.do_object_b(v)) {
-        *ptr = NULL;            // Clear dead value.
-      }
     }
   }
   virtual void do_oop(oop* o) { do_object(o); };
   virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
 
-} clear_not_alive;
+} clear_weak_handle_ref;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
@@ -241,6 +238,12 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
   // Need new claim bits before marking starts.
   ClassLoaderDataGraph::clear_claimed_marks();
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (rtHeap::full_RTGC) {
+    WeakProcessor::oops_do(&clear_weak_handle_ref);
+  }
+#endif
 
   {
     StrongRootsScope srs(0);
@@ -254,9 +257,10 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   }
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (false && rtHeap::full_RTGC) {
-    YoungRootClosure2 closure;
-    rtHeap::iterate_young_roots(&closure, true);
+  if (rtHeap::full_RTGC) {
+    //YoungRootClosure2 closure;
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
+    rtHeap::iterate_young_roots(NULL/*&closure*/, true);
   }
 #endif
   // Process reference objects found during marking
@@ -273,7 +277,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
+    //rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_all_softrefs ? REF_SOFT : REF_WEAK);
     rtHeap::process_final_phantom_references(&follow_stack_closure, true);
   }
 #endif
@@ -284,9 +288,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   {
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
 #if INCLUDE_RTGC
-    if (RtLazyClearWeakHandle) {
-      WeakProcessor::oops_do(&clear_not_alive);
-    } else
+    if (!rtHeap::full_RTGC)
 #endif    
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
   }

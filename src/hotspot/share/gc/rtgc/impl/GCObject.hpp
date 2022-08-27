@@ -93,6 +93,8 @@ public:
 
 	bool removeMatchedReferrers(GCObject* referrer);
 
+	void clearGarbageAnchors();
+
 	void clear_copyed_old_obj();
 
 	bool is_corrupted();

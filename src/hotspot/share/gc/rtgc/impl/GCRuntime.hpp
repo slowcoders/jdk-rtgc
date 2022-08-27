@@ -11,7 +11,7 @@ typedef SimpleVector<GCObject*> NodeList;
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
-	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack);
+	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
 class GarbageProcessor {
@@ -24,9 +24,9 @@ public:
 	}
 
 	void addUnstable(GCObject* node);
-	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner);
-	void collectGarbage();
-	void collectGarbage(GCObject** ppNode, int cntNode);
+	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
+	void collectGarbage(bool isTenured);
+	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
 	bool detectGarbage(GCObject* node);
 	void validateGarbageList();
