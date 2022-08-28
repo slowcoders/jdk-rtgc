@@ -39,6 +39,7 @@ public:
     if (!isTenured && !to_obj(obj)->isTrackable()) {
       //precond(!_base->isYoungRoot());
       if (!obj->is_gc_marked()) {
+        to_obj(obj)->removeAnchorList();
         rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
         return;
       }

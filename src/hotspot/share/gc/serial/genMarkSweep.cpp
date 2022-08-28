@@ -92,6 +92,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::prepare_rtgc(true);
+  }
+#endif
+
   mark_sweep_phase1(clear_all_softrefs);
 
   mark_sweep_phase2();
@@ -225,12 +231,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
   // Need new claim bits before marking starts.
   ClassLoaderDataGraph::clear_claimed_marks();
-
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::prepare_rtgc(true);
-  }
-#endif
 
   {
     StrongRootsScope srs(0);
