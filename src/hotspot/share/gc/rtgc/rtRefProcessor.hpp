@@ -17,6 +17,9 @@ public:
   static bool clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* garbageAnchor);
 
   static void validate_trackable_refs();
+
+  static void invalidate_soft_weak_references(ReferenceType clear_type);
+
 };
 
 };

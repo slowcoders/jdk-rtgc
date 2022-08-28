@@ -10,8 +10,12 @@ using namespace RTGC;
 
 int       g_cntMisRef = 0;
 int       g_cntGarbageRef = 0;
-HugeArray<oop> g_soft_refs;
-HugeArray<oop> g_weak_refs;
+#define DO_CROSS_CHECK_REF true
+bool rtHeap::DoCrossCheck = DO_CROSS_CHECK_REF;
+#if DO_CROSS_CHECK_REF
+  HugeArray<oop> g_soft_refs;
+  HugeArray<oop> g_weak_refs;
+#endif
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_REF, function);
@@ -36,6 +40,8 @@ public:
 
   template <ReferenceType scanType>
   oopDesc* get_valid_referent(oopDesc* ref);
+
+  void invalidateReferents();
 
   void adjust_ref_q_pointers();
 
@@ -387,6 +393,46 @@ void RtRefProcessor<refType>::add_pending_references(oopDesc* pending_head, oopD
   }
 }
 
+#if 0
+template <ReferenceType refType>
+void RtRefProcessor<refType>::invalidateReferents() {
+#if DO_CROSS_CHECK_REF
+  int cntRef = refs.size();
+  for (int i = cntRef; --i >= 0; ) {
+    oopDesc* ref_p = refs.at(i);
+#else
+
+#endif    
+    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_p);
+    if (referent == NULL) {
+#if DO_CROSS_CHECK_REF
+      refs.removeFast(i);
+#else
+#endif
+      continue;
+    } 
+    GCObject* ref_node = to_obj(ref_p);
+    GCObject* referent_node = to_obj(referent);
+    if (referent_node->getRootRefCount() > 0) continue;
+
+    if (referent_node->isTrackable()) {
+      if (!referent_node->isUnstableMarked()) {
+        if (referent_node->hasShortcut() && referent_node->getSafeAnchor() == ref_node) {
+          referent_node->getShortcut()->split(ref_node, referent_node);
+        }
+        _rtgc.g_pGarbageProcessor->addUnstable(referent_node);
+        rtgc_log(false, "add unstable referent %p %d\n", referent, referent_node->getRootRefCount());
+      }
+    } else {
+      rtgc_log(true, "yg referent %p\n", referent);
+      // postcond(!cast_to_oop(node)->is_gc_marked())
+    }
+    ref_node->markGarbage();
+  }
+  rtgc_log(true, "invalidate_referent %d/%d\n", refs.size(), cntRef);  
+}
+#endif
+
 template <ReferenceType refType>
 void RtRefProcessor<refType>::adjust_ref_q_pointers() {
   const char* ref_type = reference_type_to_string(refType);
@@ -425,53 +471,6 @@ void RtRefProcessor<refType>::adjust_ref_q_pointers() {
 
 
 
-void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
-  precond(RtNoDiscoverPhantom);
-  precond(referent != NULL);
-
-  ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();
-  ReferenceType ref_type = InstanceKlass::cast(ref->klass())->reference_type();
-  oopDesc** ref_q;
-  switch (ref_type) {
-    case REF_PHANTOM:
-      ref_q = &g_phantomRefProcessor._ref_q;
-      rtgc_log(LOG_OPT(3), "created Phantom ref %p for %p\n", (void*)ref, referent);
-      break;
-
-    case REF_FINAL:
-      to_obj(referent)->markActiveFinalizereReachable();
-      ref_q = &g_finalRefProcessor._ref_q;
-      rtgc_log(LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent);
-      break;
-
-    default:
-      HeapAccess<>::oop_store_at(ref, referent_offset, referent);
-      // TODO -> full-gc 가 필요한 경우, young-gc 수행 직전에 age 를 변경한다.
-      ref->set_mark(ref->mark().set_age(markWord::max_age));
-      postcond(ref->age() == markWord::max_age);
-      //to_obj(ref)->markTrackable();
-      ref_q = ref_type == REF_WEAK ? &g_weakRefProcessor._ref_q : &g_softRefProcessor._ref_q;
-      rtgc_log(false, "weak/soft ref %p -> %p age = %d\n", (void*)ref, referent, ref->age());
-
-      if (ref_type == REF_WEAK) {
-        g_weak_refs.push_back(ref);
-      } else {
-        g_soft_refs.push_back(ref);
-      }
-      return;
-  }
-
-  precond(!to_obj(ref)->isTrackable());
-  //if (ref_type > REF_FINAL) {
-    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
-  //} else {
-  //  HeapAccess<>::oop_store_at(ref, referent_offset, referent);
-  //}
-  oop next_discovered = Atomic::xchg(ref_q, ref);
-  java_lang_ref_Reference::set_discovered_raw(ref, next_discovered);
-  return;
-}
-
 
 void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   rtgc_log(LOG_OPT(3), "link_discovered_pending_reference from %p to %p\n", (void*)ref_q, end);
@@ -505,29 +504,62 @@ void __process_java_references(OopClosure* keep_alive, VoidClosure* complete_gc)
 }
 
 static void invalidate_referent(HugeArray<oop>& refs) {
-  for (int i = refs.size(); --i >= 0; ) {
-    GCObject* node = to_obj(refs.at(i));
-    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(cast_to_oop(node));
+  int cntRef = refs.size();
+  for (int i = cntRef; --i >= 0; ) {
+    oopDesc* ref_p = refs.at(i);
+    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_p);
     if (referent == NULL) {
       refs.removeFast(i);
       continue;
     } 
-    if (to_obj(referent)->isTrackable()) {
-      _rtgc.g_pGarbageProcessor->addUnstable(to_obj(referent));
+    GCObject* ref_node = to_obj(ref_p);
+    GCObject* referent_node = to_obj(referent);
+    if (referent_node->getRootRefCount() > 0) continue;
+
+    if (referent_node->isTrackable()) {
+      if (!referent_node->isUnstableMarked()) {
+        if (referent_node->hasShortcut() && referent_node->getSafeAnchor() == ref_node) {
+          referent_node->getShortcut()->split(ref_node, referent_node);
+        }
+        _rtgc.g_pGarbageProcessor->addUnstable(referent_node);
+        rtgc_log(false, "add unstable referent %p %d\n", referent, referent_node->getRootRefCount());
+      }
     } else {
-      rtgc_log(true, "yg referent %p\n", referent);
+      rtgc_log(false, "yg referent %p\n", referent);
       // postcond(!cast_to_oop(node)->is_gc_marked())
     }
-    node->markGarbage();
+    ref_node->markGarbage();
   }
+  rtgc_log(false, "invalidate_referent %d/%d\n", refs.size(), cntRef);
 }
 
-static void adjust_points(HugeArray<oop>& refs, bool is_full_gc) {
+// void rtHeapEx::invalidate_soft_weak_references(ReferenceType clear_type) {
+//   switch (clear_type) {
+//     case REF_NONE:
+//     case REF_SOFT:
+//       #if DO_CROSS_CHECK_REF
+//         invalidate_referent(g_soft_refs);
+//         invalidate_referent(g_weak_refs);
+//       #endif
+//       break;
+//     case REF_WEAK:
+//       #if DO_CROSS_CHECK_REF
+//         invalidate_referent(g_weak_refs);
+//       #endif
+//       break;
+//     default:
+//       fatal("invalid clear_ref type: %d\n", clear_type);
+//   }
+// }
+
+static void adjust_points(HugeArray<oop>& refs, bool is_full_gc, bool resurrect_ref) {
   auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
-  for (int i = refs.size(); --i >= 0; ) {
+  int cntRef = refs.size();
+  for (int i = cntRef; --i >= 0; ) {
     oop ref_p = refs.at(i);
     GCObject* node = to_obj(ref_p);
-    if (is_full_gc) {
+    if (resurrect_ref) {
+      precond(node->isTrackable());
       node->clearGarbageAnchors();
       if (!node->isUnreachable()) {
         precond(ref_p->is_gc_marked());
@@ -539,36 +571,55 @@ static void adjust_points(HugeArray<oop>& refs, bool is_full_gc) {
         continue;
       }
     }
-    else if (!node->isGarbageMarked()) {
+    else if (!rtHeap::is_alive(ref_p)) {
       refs.removeFast(i);
       continue;
     }
-    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(cast_to_oop(node));
+    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_p);
     if (referent == NULL) {
       refs.removeFast(i);
-    } else {
+    } else if (is_full_gc || !node->isTrackable()) {
+      /* 첫 등록된 reference 는 copy_to_survival_space() 실행 전에는 trackable이 아니다.*/
       oop forwardee = ref_p->forwardee();
-      refs.at(i) = forwardee == NULL ? ref_p : forwardee;
+      refs.at(i) = (is_full_gc && forwardee == NULL) ? ref_p : forwardee;
     }
   }
+  if (resurrect_ref) {
+    _rtgc.g_pGarbageProcessor->collectGarbage(true);    
+
+  }
+  rtgc_log(true, "adjust_points %d/%d\n", refs.size(), cntRef);
 }
 
 
+void rtHeap__clear_garbage_young_roots(bool is_full_gc);
+
 void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferenceType clear_ref) {
   // const char* ref_type = reference_type_to_string(clear_ref);
-  rtgc_log(true, "process_weak_soft_references %d\n", clear_ref);
+  rtgc_log(false, "process_weak_soft_references %d\n", clear_ref);
   switch (clear_ref) {
     case REF_NONE:
       __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
       break;
     case REF_SOFT:
       __process_java_references<REF_SOFT, true>(keep_alive, complete_gc);
-      invalidate_referent(g_soft_refs);
-      invalidate_referent(g_weak_refs);
+      #if DO_CROSS_CHECK_REF
+        invalidate_referent(g_soft_refs);
+        invalidate_referent(g_weak_refs);
+        rtHeap__clear_garbage_young_roots(true);
+        adjust_points(g_soft_refs, true, true);
+        adjust_points(g_weak_refs, true, true);
+      #else
+        g_softRefProcessor.invalidateReferents();
+      #endif
       break;
     case REF_WEAK:
       __process_java_references<REF_WEAK, true>(keep_alive, complete_gc);
-      invalidate_referent(g_weak_refs);
+      #if DO_CROSS_CHECK_REF
+        invalidate_referent(g_weak_refs);
+        rtHeap__clear_garbage_young_roots(true);
+        adjust_points(g_weak_refs, true, true);
+      #endif
       break;
     default:
       fatal("invalid clear_ref type: %d\n", clear_ref);
@@ -588,8 +639,10 @@ bool rtHeap::is_active_finalizer_reachable(oopDesc* final_referent) {
 }
 
 void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
-    adjust_points(g_soft_refs, is_full_gc);
-    adjust_points(g_weak_refs, is_full_gc);
+  #if DO_CROSS_CHECK_REF
+    adjust_points(g_soft_refs, is_full_gc, false);
+    adjust_points(g_weak_refs, is_full_gc, false);
+  #endif
   if (is_full_gc) {
     g_softRefProcessor.adjust_ref_q_pointers();
     g_weakRefProcessor.adjust_ref_q_pointers();
@@ -600,12 +653,22 @@ void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
 }
 
 void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft) {
-  precond(!java_lang_ref_Reference::is_final(ref));
   precond(!java_lang_ref_Reference::is_phantom(ref));
-  if (rtHeap::is_alive(referent)) return;
-
   GCObject* node = to_obj(referent);
   g_cntGarbageRef ++;
+  if (java_lang_ref_Reference::is_final(ref)) {
+    precond(referent->is_gc_marked());
+    precond(!node->isGarbageMarked());
+    precond(!node->hasReferrer());
+    precond(!node->isStrongRootReachable());
+    precond(node->getRootRefCount() > ZERO_ROOT_REF);
+    node->unmarkActiveFinalizereReachable();
+    precond(node->isUnreachable());
+    return;
+  }
+  if (!rtHeap::is_alive(referent)) return;
+
+  g_cntMisRef ++;
   rtgc_log(true, "++g_cntMisRef %p tr=%d, %d/%d\n", node, node->isTrackable(), g_cntMisRef, g_cntGarbageRef);
   // if (!rtHeapEx::removeWeakAnchors<REF_SOFT>(node)) {
   //   if (!node->isDirtyReferrerPoints()) {
@@ -633,3 +696,53 @@ void rtHeapEx::validate_trackable_refs() {
   __validate_trackable_refs(g_soft_refs);
   __validate_trackable_refs(g_weak_refs);
 }
+
+void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
+  precond(RtNoDiscoverPhantom);
+  precond(referent != NULL);
+
+  ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();
+  ReferenceType ref_type = InstanceKlass::cast(ref->klass())->reference_type();
+  oopDesc** ref_q;
+  switch (ref_type) {
+    case REF_PHANTOM:
+      ref_q = &g_phantomRefProcessor._ref_q;
+      rtgc_log(LOG_OPT(3), "created Phantom ref %p for %p\n", (void*)ref, referent);
+      break;
+
+    case REF_FINAL:
+      to_obj(referent)->markActiveFinalizereReachable();
+      ref_q = &g_finalRefProcessor._ref_q;
+      rtgc_log(LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent);
+      #if DO_CROSS_CHECK_REF
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
+        return;
+      #endif
+      break;
+
+    default:
+      // TODO -> age 변경 시점을 늦춘다(?).
+      ref->set_mark(ref->mark().set_age(markWord::max_age));
+      ref_q = ref_type == REF_WEAK ? &g_weakRefProcessor._ref_q : &g_softRefProcessor._ref_q;
+      rtgc_log(false, "weak=%d/soft ref %p -> %p age = %d\n", 
+          ref_type == REF_WEAK, (void*)ref, referent, ref->age());
+      #if DO_CROSS_CHECK_REF
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
+        if (ref_type == REF_WEAK) {
+          g_weak_refs.push_back(ref);
+        } else {
+          g_soft_refs.push_back(ref);
+        }
+        return;
+      #endif
+      break;
+  }
+
+  precond(!to_obj(ref)->isTrackable());
+  HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
+
+  oop next_discovered = Atomic::xchg(ref_q, ref);
+  java_lang_ref_Reference::set_discovered_raw(ref, next_discovered);
+  return;
+}
+

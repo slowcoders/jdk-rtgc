@@ -54,9 +54,11 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 #if INCLUDE_RTGC
-    if (rtHeap::full_RTGC && !_is_rt_anchor_trackable &&
-        rtHeap::is_trackable(obj)) {
-      rtHeap::mark_survivor_reachable(obj);
+    if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
+      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
+        rtHeap::mark_survivor_reachable(obj);
+      }
+      if (!rtHeap::DoCrossCheck) return;
     } 
 #endif
     if (!obj->mark().is_marked()) {

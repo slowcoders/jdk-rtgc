@@ -17,7 +17,7 @@ class DefNewYoungerGenClosure;
 
 class rtHeap : AllStatic {
 public:
-  static bool full_RTGC;
+  static bool DoCrossCheck;
   static bool in_full_gc;
   static bool is_trackable(oopDesc* p);
   static bool is_destroyed(oopDesc* p);

@@ -287,7 +287,7 @@ void GarbageProcessor::addUnstable(GCObject* obj) {
 }
 
 void GarbageProcessor::collectGarbage(bool isTenured) {
-    rtgc_log(true, "collectGarbage cntUnsafe %d\n", _unsafeObjects.size()); 
+    rtgc_log(false, "collectGarbage cntUnsafe %d\n", _unsafeObjects.size()); 
     collectGarbage(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
 }
 
@@ -324,16 +324,13 @@ void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, 
 }
 
 void GarbageProcessor::validateGarbageList() {
-    GCObject** ppNode = _visitedNodes.adr_at(0);
+    GCObject** ppStart = _visitedNodes.adr_at(0);
     int cntNode = _visitedNodes.size();
-    for (int i = 0; i < cntNode;) {
-        GCObject* obj = *ppNode;
+    GCObject** ppNode = ppStart + cntNode;
+    for (int i = cntNode; --i >= 0; ) {
+        GCObject* obj = *(--ppNode);
         if (!obj->isGarbageMarked()) {
             _visitedNodes->removeFast(i);
-            cntNode --;
-        } else {
-            i++;
-            ppNode ++;
         }
     }
 }

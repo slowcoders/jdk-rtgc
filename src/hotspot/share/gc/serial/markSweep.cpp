@@ -90,7 +90,7 @@ inline void MarkSweep::follow_object(oop obj) {
     // be split into chunks if needed.
     MarkSweep::follow_array((objArrayOop)obj);
   } else {
-    if (rtHeap::full_RTGC) {
+    if (rtHeap::DoCrossCheck) {
       _is_rt_anchor_trackable = rtHeap::is_trackable(obj);
     }
     obj->oop_iterate(&mark_and_push_closure);
@@ -105,7 +105,7 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int stride = MIN2(len - beg_index, (int) ObjArrayMarkingStride);
   const int end_index = beg_index + stride;
 
-  if (rtHeap::full_RTGC) {
+  if (rtHeap::DoCrossCheck) {
     _is_rt_anchor_trackable = rtHeap::is_trackable(array);
   }
   array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
@@ -141,7 +141,7 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 #if INCLUDE_RTGC
-    if (rtHeap::full_RTGC && rtHeap::is_trackable(obj)) {
+    if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
     } 
 #endif

@@ -222,6 +222,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
+  // "java/lang/Module",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
     // "java/lang/invoke/MethodType",

@@ -82,22 +82,6 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
 }
 
-#if INCLUDE_RTGC   
-class IsWeakAliveClosure : public DefNewGeneration::IsAliveClosure {
-public:
-  IsWeakAliveClosure(Generation* young_gen) : DefNewGeneration::IsAliveClosure(young_gen) {}
-
-  bool do_object_b(oop p) {
-    if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-      assert(rtHeap::ensure_weak_reachable(p), "must be weak reachable %p\n", (void*)p);
-      return true;
-    } else {
-      return p->is_forwarded();
-    }
-  }
-};
-#endif
-
 
 DefNewGeneration::KeepAliveClosure::
 KeepAliveClosure(ScanWeakRefClosure* cl) : _cl(cl) {
@@ -600,7 +584,8 @@ void DefNewGeneration::collect(bool   full,
   _preserved_marks_set.init(1);
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::prepare_rtgc(false);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
   } else 
@@ -657,22 +642,12 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    IsWeakAliveClosure is_weak_alive(this);
     rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, REF_NONE);
-    if (RtLazyClearWeakHandle) {
-      // trackable weak handle 이 너무 빨리 clear 되지 않도록 한다.
-      // finish_rtgc 내부 rtHeap__clear_garbage_young_roots 수행 전에 marking 한다.
-      WeakProcessor::weak_oops_do(&is_weak_alive, &keep_alive);
-    }
     rtHeap::process_final_phantom_references(&evacuate_followers, false);
     rtHeap::finish_adjust_pointers(false);
-    if (!RtLazyClearWeakHandle) {
-      WeakProcessor::weak_oops_do(&is_weak_alive, &keep_alive);
-    }
   }
-#else
-    WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 #endif
+  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
 
   // Verify that the usage of keep_alive didn't copy any objects.

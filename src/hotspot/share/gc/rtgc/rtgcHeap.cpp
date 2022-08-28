@@ -21,7 +21,6 @@
 
 #include "rtRefProcessor.hpp"
 
-bool rtHeap::full_RTGC = true;
 bool rtHeap::in_full_gc = false;
 
 using namespace rtHeapUtil;
@@ -234,13 +233,14 @@ void rtHeap::keep_alive_trackable(oopDesc* obj) {
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
-  // assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
   }
 
+  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
+  precond (!node->isGarbageMarked());
   if (node->isStrongRootReachable()) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
   GCRuntime::onAssignRootVariable_internal(node);
@@ -266,20 +266,13 @@ void rtHeap::mark_young_root_reachable(oopDesc* p) {
 }
 
 
-void rtHeap__clear_garbage_young_roots(bool isTenured) {
-  int cnt_root = g_saved_young_root_count;
+void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
+  int cnt_root = is_full_gc ? g_young_roots.length() : g_saved_young_root_count;
   if (cnt_root > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
     if (ENABLE_GC) {
-      auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
-      for (int i = garbage_list->size(); --i >= 0; ) {
-        GCObject* yg_root = garbage_list->at(i);
-        if (!yg_root->isGarbageMarked()) {
-          garbage_list->removeFast(i);
-          rtgc_log(LOG_OPT(8), "resurrected yg-root %p\n", yg_root);
-        } else {
-          rtgc_log(LOG_OPT(8), "collectGarbage yg-root %p\n", yg_root);
-        }
+      if (!is_full_gc) {
+        _rtgc.g_pGarbageProcessor->validateGarbageList();
       }
 
       oop* end = src_0 + cnt_root;
@@ -288,7 +281,7 @@ void rtHeap__clear_garbage_young_roots(bool isTenured) {
         GCRuntime::onAssignRootVariable_internal(to_obj(*end));
       }
 
-      _rtgc.g_pGarbageProcessor->collectGarbage(isTenured);//reinterpret_cast<GCObject**>(src_0), cnt_root);
+      _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);//reinterpret_cast<GCObject**>(src_0), cnt_root);
 
       end = src_0 + cnt_root;
       for (; end < end_of_new_root; end++) {
@@ -368,11 +361,6 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
 
   if (g_saved_young_root_count == 0) return;
 
-  if (is_full_gc) {
-    rtHeap__clear_garbage_young_roots(is_full_gc);
-    return;
-  }
-
   oop* src = g_young_roots.adr_at(0);
   oop* end = src + g_saved_young_root_count;
 
@@ -383,15 +371,8 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
 
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
-    // if (is_full_gc) {
-      if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
-    // } else if (node->isUn)
-  if (is_full_gc) {
-    continue;
-  }
+    if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
 
-
-    // referent 자동 검사됨.
     rtgc_log(LOG_OPT(8), "iterate yg root %p\n", (void*)node);
     bool is_root = closure->do_object_b(cast_to_oop(node));
     if (!is_root) {
@@ -632,7 +613,7 @@ static void mark_ghost_anchors(GCObject* node) {
           !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
               (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
       if (!anchor->isUnstableMarked()) {
-        rtgc_log(LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
+        rtgc_log(true || LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
         anchor->markUnstable();
       }
     }
@@ -643,6 +624,7 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
+  precond(node->isTrackable());
   precond(node->isGarbageMarked());
   if (node->isGarbageMarked()) return;
   rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
@@ -682,18 +664,33 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 void rtHeap::finish_adjust_pointers(bool is_full_gc) {
   if (is_full_gc) {
     g_adjust_pointer_closure._old_gen_start = NULL;
+    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     GCRuntime::adjustShortcutPoints();
   } else {
     rtHeap__clear_garbage_young_roots(is_full_gc);
+    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
+    _rtgc.g_pGarbageProcessor->collectGarbage(false);
     rtHeap__clearStack();
   }
-  rtHeapEx::adjust_ref_q_pointers(is_full_gc);
 }
+
+class ClearWeakHandleRef: public OopClosure {
+  public:
+  void do_object(oop* ptr) {
+    oop v = *ptr;
+    if (v != NULL) {
+      rtHeap::clear_weak_reachable(v);
+    }
+  }
+  virtual void do_oop(oop* o) { do_object(o); };
+  virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
+} clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc(bool is_full_gc) {
   if (is_full_gc) {
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
+    WeakProcessor::oops_do(&clear_weak_handle_ref);
     in_full_gc = true;
   }
 }
