@@ -316,7 +316,8 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
 }
 
 void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, bool isTenured) {
-    obj->removeAnchorList();
+    precond(!obj->hasShortcut());
+    obj->clearAnchorList();
     rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
     RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects, isTenured);

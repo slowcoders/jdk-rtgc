@@ -139,7 +139,16 @@ int GCObject::tryRemoveReferrer(GCObject* referrer) {
     return 0;
 }
 
-void GCObject::removeAnchorList() {
+void GCObject::clearAnchorList() {
+    if (hasMultiRef()) {
+        ReferrerList* referrers = getReferrerList();
+        _rtgc.gRefListPool.delete_(referrers);
+        setHasMultiRef(false);
+    }    
+    this->_refs = 0;
+}
+
+void GCObject::removeAllAnchors() {
     rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
 
     if (this->hasShortcut()) {
@@ -147,15 +156,8 @@ void GCObject::removeAnchorList() {
         SafeShortcut* shortcut = this->getShortcut();
         shortcut->shrinkTailTo(this->getSafeAnchor());
     }  
-
-    if (hasMultiRef()) {
-        ReferrerList* referrers = getReferrerList();
-        _rtgc.gRefListPool.delete_(referrers);
-        setHasMultiRef(false);
-    }    
-    this->_refs = 0;
-    this->invalidateSafeAnchor();
-    rtgc_debug_log(this, "anchor-list cleared by removeAnchorList %p\n", this);
+    clearAnchorList();
+    rtgc_debug_log(this, "anchor-list cleared by removeAllAnchors %p\n", this);
 }
 
 template<bool isGarbage>

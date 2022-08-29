@@ -89,7 +89,9 @@ public:
 
 	int tryRemoveReferrer(GCObject* referrer);
 
-	void removeAnchorList();
+	void clearAnchorList();
+
+	void removeAllAnchors();
 
 	bool removeMatchedReferrers(GCObject* referrer);
 

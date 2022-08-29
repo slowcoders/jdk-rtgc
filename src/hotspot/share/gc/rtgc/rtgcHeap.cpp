@@ -641,7 +641,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
 
   node->markGarbage("destroy_trackable");
-  node->removeAnchorList();
+  node->removeAllAnchors();
 
   rtgc_log(LOG_OPT(4), "destroyed done %p(%s)\n", node, RTGC::getClassName(node));
 

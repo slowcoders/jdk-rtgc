@@ -188,7 +188,7 @@ bool rtHeapEx::removeWeakAnchors(GCObject* node) {
         "invalid soft/weak referent %p [ref=%p(%s)]\n", node, anchor, getClassName(anchor));
   } 
 
-  node->removeAnchorList();
+  node->removeAllAnchors();
 
   return true;
 }
