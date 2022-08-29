@@ -48,6 +48,7 @@ public:
   oopDesc* get_valid_referent(oopDesc* ref);
 
   void remove_reference(oop ref_op, oop prev_ref_op, oop next_ref_op, bool is_alive) {
+    fatal("not checked");
     if (is_alive) {
       if (refType != REF_FINAL) {
         HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_op, _referent_off, oop(NULL));
@@ -95,7 +96,13 @@ oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
 
   bool is_full_gc = scanType >= REF_OTHER;
   if (is_full_gc) {
-    if (DO_CROSS_CHECK_REF) return obj->is_gc_marked() ? obj : NULL;
+    if (DO_CROSS_CHECK_REF) {
+      if (obj->is_gc_marked()) {
+        precond(!to_obj(obj)->isGarbageMarked());
+        return obj;
+      }
+      return NULL;
+    }
 
     GCObject* node = to_obj(obj);
     precond(node->isTrackable());
@@ -114,7 +121,10 @@ oopDesc* RtRefProcessor<refType>::get_valid_forwardee(oopDesc* obj) {
   } 
 
   if (to_obj(obj)->isTrackable()) {
-    if (to_obj(obj)->isGarbageMarked()) return NULL;
+    if (to_obj(obj)->isGarbageMarked()) {
+      precond(!obj->is_gc_marked());
+      return NULL;
+    }
     return obj;
   }
 
@@ -457,9 +467,13 @@ void RtRefProcessor<refType>::break_reference_links() {
 #endif
 
     GCObject* referent_node = to_obj(referent);
-    if (referent_node->getRootRefCount() > 0) continue;
+    if (referent_node->getRootRefCount() > 0) {
+      precond(!referent_node->isGarbageMarked());
+      continue;
+    }
 
     GCObject* ref_node = to_obj(ref_op);
+    precond(!ref_node->isGarbageMarked());
     if (referent_node->isTrackable()) {
       if (!referent_node->isUnstableMarked()) {
         if (referent_node->hasShortcut() && referent_node->getSafeAnchor() == ref_node) {
@@ -474,7 +488,7 @@ void RtRefProcessor<refType>::break_reference_links() {
     }
     ref_node->markGarbage();
   }
-  rtgc_log(true, "invalidate_referent %d/%d\n", _refs.size(), cntRef);  
+  rtgc_log(true, "break_reference_links %d/%d\n", _refs.size(), cntRef);  
 }
 
 #if DO_CROSS_CHECK_REF
@@ -492,18 +506,20 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
         node->unmarkGarbage();
       } else {
         precond(!ref_op->is_gc_marked());
-        garbage_list->push_back(node);
         _refs.removeFast(i);
+        garbage_list->push_back(node);
         continue;
       }
     }
     else if (!rtHeap::is_alive(ref_op)) {
+      precond(!ref_op->is_gc_marked());
       _refs.removeFast(i);
       continue;
     }
     oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
     precond(referent != NULL);
     if (!rtHeap::is_alive(referent)) {
+      precond(!referent->is_gc_marked());
       _refs.removeFast(i);
       continue;
     }
@@ -552,6 +568,8 @@ void RtRefProcessor<refType>::adjust_ref_q_pointers() {
     }
     prev_ref_op = ref_op;
   } 
+  rtgc_log(true, "adjust_ref_q_pointers %d\n", _refs.size());
+
 }
 
 
