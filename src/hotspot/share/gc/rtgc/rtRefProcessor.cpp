@@ -483,8 +483,7 @@ void RtRefProcessor<refType>::break_reference_links() {
         rtgc_log(false, "add unstable referent %p %d\n", referent, referent_node->getRootRefCount());
       }
     } else {
-      rtgc_log(true, "yg referent %p\n", referent);
-      // postcond(!cast_to_oop(node)->is_gc_marked())
+      rtgc_log(false, "yg referent %p\n", referent);
     }
     ref_node->markGarbage();
   }
@@ -496,7 +495,9 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
   auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
   int cntRef = _refs.size();
   for (int i = cntRef; --i >= 0; ) {
+      rtgc_log(is_full_gc && !resurrect_ref, "ref0 %d %p\n", i, (void*)NULL);
     oop ref_op = _refs.at(i);
+      rtgc_log(is_full_gc && !resurrect_ref, "ref1 %d %p\n", i, (void*)ref_op);
     GCObject* node = to_obj(ref_op);
     if (resurrect_ref) {
       precond(node->isTrackable());
@@ -504,6 +505,7 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
       if (!node->isUnreachable()) {
         precond(ref_op->is_gc_marked());
         node->unmarkGarbage();
+        postcond(!node->isUnstableMarked());
       } else {
         precond(!ref_op->is_gc_marked());
         _refs.removeFast(i);
@@ -516,25 +518,38 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
       _refs.removeFast(i);
       continue;
     }
-    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
-    precond(referent != NULL);
-    if (!rtHeap::is_alive(referent)) {
-      precond(!referent->is_gc_marked());
-      _refs.removeFast(i);
-      continue;
+
+    if (!is_full_gc || resurrect_ref) {
+      oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
+      precond(referent != NULL);
+      if (!rtHeap::is_alive(referent)) {
+        rtgc_log(is_full_gc && !resurrect_ref, "ref gc %d %p\n", i, (void*)ref_op);
+        precond(!referent->is_gc_marked());
+        _refs.removeFast(i);
+        continue;
+      }
     }
-    if (is_full_gc || !node->isTrackable()) {
+
+    if (!resurrect_ref && (is_full_gc || !node->isTrackable())) {
       /* 첫 등록된 reference 는 copy_to_survival_space() 실행 전에는 trackable이 아니다.*/
+      rtgc_log(is_full_gc && !resurrect_ref, "ref4 %d %p\n", i, (void*)ref_op);
       oop forwardee = ref_op->forwardee();
       _refs.at(i) = (is_full_gc && forwardee == NULL) ? ref_op : forwardee;
     }
+      rtgc_log(is_full_gc && !resurrect_ref, "ref5 %d %p\n", i, (void*)ref_op);
   }
   if (resurrect_ref) {
     _rtgc.g_pGarbageProcessor->collectGarbage(true);    
+    for (int i = _refs.size(); --i >= 0; ) {
+      oop ref_op = _refs.at(i);
+    oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
+      rtgc_log(is_full_gc, "ref %d %p -> %p\n", i, (void*)ref_op, referent);
+    }
   }
   rtgc_log(true, "adjust_points %d/%d\n", _refs.size(), cntRef);
 }
 #endif
+
 
 template <ReferenceType refType>
 void RtRefProcessor<refType>::adjust_ref_q_pointers() {

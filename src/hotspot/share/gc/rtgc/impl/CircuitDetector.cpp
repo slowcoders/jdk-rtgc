@@ -298,6 +298,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
             detectGarbage(node);
+            postcond(node->isGarbageMarked() || !node->isUnstableMarked());
         }
 
         _unsafeObjects.resize(0);
@@ -346,8 +347,9 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
         _visitedNodes.push_back(node);
         return true;
     }
+    
+    node->unmarkUnstable();
     if (node->getRootRefCount() > 0) {
-        node->unmarkUnstable();
         return false;
     } 
     scanSurvivalPath(node);

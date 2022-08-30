@@ -132,7 +132,7 @@ class JNIHandles : AllStatic {
 };
 
 
-#define DISABLE_LOCAL_JNI_REF false
+#define DISABLE_LOCAL_JNI_REF true
 // JNI handle blocks holding local/global JNI handles
 
 class JNIHandleBlock : public CHeapObj<mtInternal> {

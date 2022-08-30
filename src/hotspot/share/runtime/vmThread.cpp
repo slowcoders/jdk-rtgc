@@ -142,7 +142,7 @@ void VMThread::run() {
   // Notify_lock wait checks on active_handles() to rewait in
   // case of spurious wakeup, it should wait on the last
   // value set prior to the notify
-  this->set_active_handles(JNIHandleBlock::allocate_block(/*RTGC_ONLY(this)*/));
+  this->set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
 
   {
     MutexLocker ml(Notify_lock);

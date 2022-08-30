@@ -138,7 +138,7 @@ static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
 
 bool rtHeap::is_alive(oopDesc* p, bool assert_alive) {
   GCObject* node = to_obj(p);
-  bool alive = node->isTrackable() ? !node->isGarbageMarked() : p->is_gc_marked();
+  bool alive = !node->isGarbageMarked() && (node->isTrackable() || p->is_gc_marked());
   if (assert_alive) {
     assert(alive, "invalid pointer %p(%s) isClass=%d\n", 
         p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
@@ -281,7 +281,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
         GCRuntime::onAssignRootVariable_internal(to_obj(*end));
       }
 
-      _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);//reinterpret_cast<GCObject**>(src_0), cnt_root);
+      _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
 
       end = src_0 + cnt_root;
       for (; end < end_of_new_root; end++) {
@@ -399,7 +399,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
-  debug_only(precond(!to_node(p)->isUnstableMarked()));
+  assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   to_obj(p)->markDirtyReferrerPoints();
 }
 
@@ -592,7 +592,6 @@ void GCNode::markGarbage(const char* reason)  {
   assert(!cast_to_oop(this)->is_gc_marked() || reason == NULL,
       "invalid garbage marking on %p(%s)\n", this, getClassName(this));
   _flags.isGarbage = true;
-  debug_only(unmarkUnstable();)
 }
 
 #ifdef ASSERT
@@ -624,9 +623,13 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  precond(node->isTrackable());
-  precond(node->isGarbageMarked());
-  if (node->isGarbageMarked()) return;
+  assert(!is_alive(p), "wrong on garbage %p(%s) tr=%d rc=%d %d\n", 
+        node, RTGC::getClassName(node), 
+        node->isTrackable(), node->getRootRefCount(), node->hasReferrer());
+  precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrer());
+  return;
+
+  fatal("should not be here!!");
   rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   rtgc_log(LOG_OPT(4), "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
   

@@ -421,11 +421,12 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
 #if DISABLE_LOCAL_JNI_REF
     assert(thread == block->local_thread(), 
         "thread=%p local_thread=%p\n", thread, block->local_thread());
-    if (thread == NULL) {
+    if (thread == NULL) 
 #endif      
+    {
       block->oops_do(&_handle_eraser);
       rtgc_log(block == RTGC::debug_obj2, "release_block done %p\n", block);
-    //}
+    }
   }
 #endif
   assert(thread == NULL || thread == Thread::current(), "sanity check");
