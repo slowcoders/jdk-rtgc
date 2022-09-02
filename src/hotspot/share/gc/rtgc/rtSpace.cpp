@@ -112,6 +112,8 @@ void FreeMemStore::clearStore() {
 }
 
 void RuntimeHeap::reclaimObject(GCObject* obj) {
+  precond(!cast_to_oop(obj)->is_gc_marked());
+  precond(obj->isTrackable());
   g_freeMemStore.reclaimMemory(obj);
   obj->markDestroyed();
 }

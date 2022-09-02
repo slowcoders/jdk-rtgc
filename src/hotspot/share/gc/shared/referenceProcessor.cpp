@@ -398,8 +398,10 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
     } else {
       void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
       if (do_enqueue_and_clear) {
-        rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
-        if (EnableRTGC) iter.obj()->obj_field_put_raw(java_lang_ref_Reference::referent_offset(), nullptr);
+        if (EnableRTGC && rtHeap::DoCrossCheck) {
+          rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
+          // iter.obj()->obj_field_put_raw(java_lang_ref_Reference::referent_offset(), nullptr);
+        }
         iter.clear_referent();
         iter.enqueue();
         log_enqueued_ref(iter, "cleared");

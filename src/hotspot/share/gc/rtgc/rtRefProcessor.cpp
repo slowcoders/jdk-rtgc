@@ -494,10 +494,9 @@ void RtRefProcessor<refType>::break_reference_links() {
 static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect_ref) {
   auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
   int cntRef = _refs.size();
+  rtgc_log(true, "adjust_points start %d\n", cntRef);
   for (int i = cntRef; --i >= 0; ) {
-      rtgc_log(is_full_gc && !resurrect_ref, "ref0 %d %p\n", i, (void*)NULL);
     oop ref_op = _refs.at(i);
-      rtgc_log(is_full_gc && !resurrect_ref, "ref1 %d %p\n", i, (void*)ref_op);
     GCObject* node = to_obj(ref_op);
     if (resurrect_ref) {
       precond(node->isTrackable());
@@ -523,7 +522,6 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
       oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
       precond(referent != NULL);
       if (!rtHeap::is_alive(referent)) {
-        rtgc_log(is_full_gc && !resurrect_ref, "ref gc %d %p\n", i, (void*)ref_op);
         precond(!referent->is_gc_marked());
         _refs.removeFast(i);
         continue;
@@ -532,18 +530,16 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
 
     if (!resurrect_ref && (is_full_gc || !node->isTrackable())) {
       /* 첫 등록된 reference 는 copy_to_survival_space() 실행 전에는 trackable이 아니다.*/
-      rtgc_log(is_full_gc && !resurrect_ref, "ref4 %d %p\n", i, (void*)ref_op);
       oop forwardee = ref_op->forwardee();
       _refs.at(i) = (is_full_gc && forwardee == NULL) ? ref_op : forwardee;
     }
-      rtgc_log(is_full_gc && !resurrect_ref, "ref5 %d %p\n", i, (void*)ref_op);
   }
   if (resurrect_ref) {
     _rtgc.g_pGarbageProcessor->collectGarbage(true);    
     for (int i = _refs.size(); --i >= 0; ) {
       oop ref_op = _refs.at(i);
     oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
-      rtgc_log(is_full_gc, "ref %d %p -> %p\n", i, (void*)ref_op, referent);
+      //rtgc_log(is_full_gc, "ref %d %p -> %p\n", i, (void*)ref_op, referent);
     }
   }
   rtgc_log(true, "adjust_points %d/%d\n", _refs.size(), cntRef);
@@ -554,6 +550,7 @@ static void adjust_points(HugeArray<oop>& _refs, bool is_full_gc, bool resurrect
 template <ReferenceType refType>
 void RtRefProcessor<refType>::adjust_ref_q_pointers() {
   const char* ref_type = reference_type_to_string(refType);
+  rtgc_log(true, "adjust_ref_q_pointers %s %p %d\n", ref_type, _ref_q, _refs.size());
   oopDesc* prev_ref_op = NULL;
   oop next_ref_op;
   for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
@@ -583,7 +580,6 @@ void RtRefProcessor<refType>::adjust_ref_q_pointers() {
     }
     prev_ref_op = ref_op;
   } 
-  rtgc_log(true, "adjust_ref_q_pointers %d\n", _refs.size());
 
 }
 

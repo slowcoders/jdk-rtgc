@@ -49,7 +49,6 @@ public:
         obj = p;
       }
       link = to_obj(obj);
-      precond(!link->is_corrupted());
     } else if ((link = to_obj(obj))->isGarbageMarked()) {
       return;
     }
@@ -63,7 +62,6 @@ public:
 
 void RuntimeHeap::scanInstanceGraph(GCObject* root, RefTracer2 trace, HugeArray<GCObject*>* stack, bool isTenured) {
   precond(root->isTrackable());
-  precond(!root->is_corrupted());
 
   oopDesc* p = cast_to_oop(root);
   if (!isTenured) {

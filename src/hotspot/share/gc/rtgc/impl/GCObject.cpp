@@ -328,13 +328,6 @@ void GCObject::invaliateSurvivalPath(GCObject* newTail) {
 	}
 }
 
-void GCObject::clear_copyed_old_obj() {
-    this->_refs = -1;
-}
-
-bool GCObject::is_corrupted() {
-    return this->_refs == (uint32_t)-1;
-}
 
 #if 0
 bool GCArray::visitLinks(LinkVisitor visitor, void* callbackParam) {

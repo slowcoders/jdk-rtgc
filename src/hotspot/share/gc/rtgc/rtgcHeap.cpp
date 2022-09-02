@@ -400,6 +400,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
   assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
+  // TODO markDirty 시점이 너무 이름. 필요없다??
   to_obj(p)->markDirtyReferrerPoints();
 }
 
@@ -700,6 +701,7 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
 
 void rtHeap::finish_rtgc() {
   in_full_gc = false;
+  rtgc_log(true, "finish_rtgc %d\n", g_stack_roots.length());
   rtHeap__clearStack();
 }
 
@@ -740,19 +742,4 @@ void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
   }
 }
 
-
-void __check_old_p(oopDesc* old, oopDesc* new_p) {
-  GCObject* node = to_obj(old);
-  node->clear_copyed_old_obj();
-  // GCObject* obj = to_obj(new_p);
-
-  // if (node->getRootRefCount() > 0
-  // ||  node->hasReferrer()
-  // ||  node->getShortcutId() != NO_SAFE_ANCHOR) {
-  //   precond(node->getRootRefCount() == obj->getRootRefCount());
-  //   int anchors = node->hasMultiRef() ? 2 : node->hasReferrer() ? 1 : 0;
-  //   rtgc_log(true, "%p rc=%d, anchor=%d shorcut=%d\n",
-  //     node, node->getRootRefCount(), anchors, node->getShortcutId());
-  // }
-}
 

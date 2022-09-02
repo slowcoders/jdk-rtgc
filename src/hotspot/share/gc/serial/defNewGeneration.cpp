@@ -755,14 +755,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Try allocating obj in to-space (unless too old)
   if (old->age() < tenuring_threshold()) {
-    precond(tenuring_threshold() <= markWord::max_age);
-    Klass* klass = cast_to_oop(old)->klass();
-    if (klass->id() == InstanceRefKlassID) {
-      ReferenceType scanType = ((InstanceRefKlass*)klass)->reference_type();
-      assert(REF_WEAK != scanType && REF_SOFT != scanType, "%p age =%d\n", (void*)old, old->age());
-    }
-
-
     obj = cast_to_oop(to()->allocate(s));
   }
 
@@ -791,11 +783,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
 #ifdef INCLUDE_RTGC
 #ifdef ASSERT
-  void __check_old_p(oopDesc* ptr, oopDesc* new_p);
-  
   if (EnableRTGC) {
-    //__check_old_p(old, obj);
-    // oopDesc::clear_rt_node(cast_from_oop<HeapWord*>(old));
     RTGC::adjust_debug_pointer(old, obj);
   }
 #endif

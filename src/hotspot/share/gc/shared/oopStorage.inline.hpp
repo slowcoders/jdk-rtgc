@@ -263,11 +263,6 @@ public:
       if (_is_alive->do_object_b(v)) {
         result = _f(ptr);
       } else {
-#if INCLUDE_RTGC
-        if (RtLazyClearWeakHandle) {
-          rtHeap::clear_weak_reachable(v);
-        }
-#endif        
         *ptr = NULL;            // Clear dead value.
       }
     }

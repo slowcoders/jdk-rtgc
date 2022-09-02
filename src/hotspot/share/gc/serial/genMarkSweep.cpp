@@ -113,6 +113,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::finish_adjust_pointers(true);
+    // rtHeap::finish_rtgc();
   }
 #endif
 

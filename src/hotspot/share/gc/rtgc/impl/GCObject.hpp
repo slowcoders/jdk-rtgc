@@ -97,9 +97,6 @@ public:
 
 	void clearGarbageAnchors();
 
-	void clear_copyed_old_obj();
-
-	bool is_corrupted();
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
