@@ -272,6 +272,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     oop* src_0 = g_young_roots.adr_at(0);
     if (ENABLE_GC) {
       if (!is_full_gc) {
+        rtgc_log(true, "rtHeap__clear_garbage_young_roots\n");
         _rtgc.g_pGarbageProcessor->validateGarbageList();
       }
 
@@ -337,6 +338,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
 #endif
 }
 
+template<bool is_full_gc>
 void rtHeap__clearStack() {
   int cnt_root = g_stack_roots.length();
   if (cnt_root > 0) {
@@ -345,7 +347,21 @@ void rtHeap__clearStack() {
     rtgc_log(LOG_OPT(8), "clear_stack_roots %d\n", 
         g_stack_roots.length());
     for (; src < end; src++) {
-      GCRuntime::onEraseRootVariable_internal(src[0]);
+      GCObject* erased = src[0];
+      precond(erased->isTrackable());
+      if (!is_full_gc) {
+        GCRuntime::onEraseRootVariable_internal(erased);
+      }
+      else if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
+        if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {
+          erased->markUnstable();
+          if (is_full_gc) {
+            oop new_p = cast_to_oop(erased)->forwardee();
+            erased = new_p == NULL ? erased : to_obj(new_p);
+          }
+          _rtgc.g_pGarbageProcessor->addUnstable_ex(erased);
+        }
+      }
     }
     rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", 
         g_stack_roots.length());
@@ -364,14 +380,23 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
   oop* src = g_young_roots.adr_at(0);
   oop* end = src + g_saved_young_root_count;
 
+#ifdef ASSERT
   for (oop* p = src; p < end; p++) {
     GCObject* node = to_obj(*p);
     assert(!node->isGarbageMarked(), "invalid yg-root %p(%s)\n", node, RTGC::getClassName(node));
   }
-
+#endif
+  HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
-    if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
+    if (is_full_gc) {
+      if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
+    } else if (node->isUnreachable()) {
+      node->markGarbage();
+      garbages->push_back(node);
+      rtgc_log(false, "skip garbage yg-root %p\n", node);
+      continue;
+    }
 
     rtgc_log(LOG_OPT(8), "iterate yg root %p\n", (void*)node);
     bool is_root = closure->do_object_b(cast_to_oop(node));
@@ -389,6 +414,8 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
   rtgc_debug_log(node, "add link %p -> %p\n", anchor, link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
   if (node->isGarbageMarked()) {
+    assert(in_full_gc || node->isYoungRoot(), "no y-root %p(%s)\n",
+        node, RTGC::getClassName(node));
     resurrect_young_root(node);
   }
 
@@ -426,8 +453,8 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   RTGC::adjust_debug_pointer(old_p, new_p);
 #endif   
 
-  _has_young_ref |= is_in_young(new_p);
   if (_new_anchor_p == NULL) return;
+  _has_young_ref |= is_in_young(new_p);
 
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
@@ -527,6 +554,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
 
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
+  // precond(is_alive(old_p));
   if (!is_alive(old_p)) {
     precond(!old_p->is_gc_marked() || is_dead_space(old_p));
     int size = old_p->size_given_klass(old_p->klass());
@@ -670,11 +698,12 @@ void rtHeap::finish_adjust_pointers(bool is_full_gc) {
     g_adjust_pointer_closure._old_gen_start = NULL;
     rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     GCRuntime::adjustShortcutPoints();
+    rtHeap__clearStack<true>();
   } else {
     rtHeap__clear_garbage_young_roots(is_full_gc);
     rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     _rtgc.g_pGarbageProcessor->collectGarbage(false);
-    rtHeap__clearStack();
+    rtHeap__clearStack<false>();
   }
 }
 
@@ -702,7 +731,7 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
 void rtHeap::finish_rtgc() {
   in_full_gc = false;
   rtgc_log(true, "finish_rtgc %d\n", g_stack_roots.length());
-  rtHeap__clearStack();
+  // rtHeap__clearStack();
 }
 
 

@@ -279,6 +279,10 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 }
 
 
+void GarbageProcessor::addUnstable_ex(GCObject* obj) {
+    _unsafeObjects.push_back(obj);
+}
+
 void GarbageProcessor::addUnstable(GCObject* obj) {
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());

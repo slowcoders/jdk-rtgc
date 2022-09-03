@@ -207,7 +207,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       }
       // see if we might want to pretend this object is alive so that
       // we don't have to compact quite as often.
-      if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
+      if (!EnableRTGC && cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
         oop obj = cast_to_oop(cur_obj);
         compact_top = cp->space->forward(obj, obj->size(), cp, compact_top);
         end_of_live = end;

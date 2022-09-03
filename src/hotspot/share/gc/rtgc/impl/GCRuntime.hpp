@@ -24,6 +24,7 @@ public:
 	}
 
 	void addUnstable(GCObject* node);
+	void addUnstable_ex(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
 	void collectGarbage(bool isTenured);
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
