@@ -630,6 +630,11 @@ void DefNewGeneration::collect(bool   full,
   // "evacuate followers".
   evacuate_followers.do_void();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
+  }
+#endif
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
   rp->setup_policy(clear_all_soft_refs);
@@ -642,7 +647,6 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
     rtHeap::process_final_phantom_references(&evacuate_followers, false);
     rtHeap::finish_adjust_pointers(false);
   }

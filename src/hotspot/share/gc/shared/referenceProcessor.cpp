@@ -212,6 +212,12 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
   // here so that we use the new value during processing of the
   // discovered soft refs.
 
+#if INCLUDE_RTGC
+  if (rtHeap::DoCrossCheck) {
+    extern jlong __get_soft_ref_timestamp_clock();
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock();
+  } else
+#endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
 
   ReferenceProcessorStats stats(total_count(_discoveredSoftRefs),

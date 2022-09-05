@@ -105,6 +105,10 @@ static const char* reference_type_to_string(ReferenceType rt) {
 
 jlong rtHeapEx::_soft_ref_timestamp_clock;
 
+jlong __get_soft_ref_timestamp_clock() {
+  return rtHeapEx::_soft_ref_timestamp_clock;
+}
+
 void rtHeapEx::update_soft_ref_master_clock() {
   // Update (advance) the soft ref master clock field. This must be done
   // after processing the soft ref list.
@@ -426,8 +430,11 @@ void RtRefProcessor<refType>::break_reference_links(ReferencePolicy* policy) {
     prev_ref_op = ref_op;
 #endif
 
-    if (refType == REF_SOFT && !policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
-      continue;   
+    if (refType == REF_SOFT) {
+      if (!policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
+        continue;   
+      }
+      rtgc_log(true, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
     }
 
     GCObject* referent_node = to_obj(referent);
@@ -610,9 +617,9 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
 void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy) {
   // const char* ref_type = reference_type_to_string(clear_ref);
-  // rtgc_log(true, "process_weak_soft_references %s\n", ref_type);
   __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
   rtHeapEx::_soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
+  rtgc_log(true, "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
 
   if (policy != NULL) {
       g_softRefProcessor.break_reference_links(policy);
@@ -685,8 +692,8 @@ void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear
   if (!rtHeap::is_alive(referent)) return;
 
   g_cntMisRef ++;
-  rtgc_log(true, "++g_cntMisRef %s %p tr=%d, %d/%d\n", 
-      reference_type_to_string(refType), node, node->isTrackable(), 
+  rtgc_log(true, "++g_cntMisRef %s %p tr=%d, rc=%d, %d/%d\n", 
+      reference_type_to_string(refType), node, node->isTrackable(), node->getRootRefCount(),
       g_cntMisRef, g_cntGarbageRef);
 }
 
