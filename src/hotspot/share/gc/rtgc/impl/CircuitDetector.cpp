@@ -271,8 +271,9 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
         rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
     }
-    if (link->isUnsafeTrackable()) {
-        rtgc_log(LOG_OPT(14), "Add unsafe object by clear_garbage_links %p\n", link);
+    if (!link->isUnstableMarked() && link->isUnsafeTrackable()) {
+        link->markUnstable();
+        rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
         return true;
     } 
     return false;
@@ -280,28 +281,35 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
+    precond(obj->isTrackable());
+    precond(obj->isUnstableMarked());
     _unsafeObjects.push_back(obj);
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());
+    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
     obj->markUnstable();
     _unsafeObjects.push_back(obj);
 }
 
 void GarbageProcessor::collectGarbage(bool isTenured) {
     rtgc_log(false, "collectGarbage cntUnsafe %d\n", _unsafeObjects.size()); 
-    collectGarbage(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
+    collectGarbage<false>(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
 }
 
+template <bool scanUnstableOnly>
 void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isTenured) {
     while (cntUnsafe > 0) {
         rtgc_log(LOG_OPT(14), "collectGarbage cntUnsafe %d\n", cntUnsafe); 
         GCObject** end = ppNode + cntUnsafe;
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
-            detectGarbage(node);
+            if (!scanUnstableOnly || node->isUnstableMarked()) {
+                bool isGarbage = detectGarbage(node);
+                rtgc_debug_log(node, "detectGarbage=%p garbage=%d\n", node, isGarbage);
+            }
             postcond(node->isGarbageMarked() || !node->isUnstableMarked());
         }
 
@@ -343,7 +351,8 @@ void GarbageProcessor::validateGarbageList() {
 
 bool GarbageProcessor::detectGarbage(GCObject* node) {
     if (node->isGarbageMarked()) {
-        assert(node->isDestroyed() || _visitedNodes.contains(node), "incrrect marked garbage %p\n", node);
+        assert(node->isDestroyed() || _visitedNodes.contains(node), 
+            "incorrect marked garbage %p(%s)\n", node, getClassName(node));
         return true;
     }
     if (node->isUnreachable()) {

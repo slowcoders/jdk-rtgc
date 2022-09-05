@@ -5,6 +5,7 @@
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtRefProcessor.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "logging/logConfiguration.hpp"
 
@@ -222,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-  // "[Ljava/nio/file/Path;",
+   "java/nio/DirectByteBuffer$Deallocator",
   // "java/lang/Module",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
@@ -274,6 +275,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
   } 
 }
 
+
 void RTGC::initialize() {
 #ifdef _LP64
   is_narrow_oop_mode = UseCompressedOops;
@@ -284,6 +286,7 @@ void RTGC::initialize() {
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
+  rtHeapEx::initializeRefProcessor();
   if (1) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 

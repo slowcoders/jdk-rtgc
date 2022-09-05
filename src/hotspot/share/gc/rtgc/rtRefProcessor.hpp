@@ -6,20 +6,19 @@
 
 namespace RTGC {
 
-class rtHeapEx : rtHeap {
+class rtHeapEx {
 public:  
   static void adjust_ref_q_pointers(bool is_full_gc);
 
-  template <ReferenceType scanType>
-  static bool removeWeakAnchors(GCObject* node);
-
-  template <ReferenceType scanType>
-  static bool clear_garbage_links_and_weak_anchors(GCObject* link, GCObject* garbageAnchor);
+  static void initializeRefProcessor();
 
   static void validate_trackable_refs();
 
   static void invalidate_soft_weak_references(ReferenceType clear_type);
 
+  static void update_soft_ref_master_clock();
+
+  static jlong _soft_ref_timestamp_clock;
 };
 
 };

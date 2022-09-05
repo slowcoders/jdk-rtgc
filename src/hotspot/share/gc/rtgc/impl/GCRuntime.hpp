@@ -27,6 +27,7 @@ public:
 	void addUnstable_ex(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
 	void collectGarbage(bool isTenured);
+	template <bool scanUnstableOnly>
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
 	bool detectGarbage(GCObject* node);

@@ -71,7 +71,6 @@ int GCRuntime::getReferrerListCount() {
 #endif
 
 void GCRuntime::detectUnsafeObject(GCObject* erased) {
-    rtgc_debug_log(erased, "%p unsafe=%d, alreadyMarked=%d\n", erased, erased->isUnsafeTrackable(), erased->isUnstableMarked())
     if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {
         _rtgc.g_pGarbageProcessor->addUnstable(erased);
         // GCRuntime::detectGarbages(erased);

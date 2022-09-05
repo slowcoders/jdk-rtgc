@@ -49,6 +49,9 @@
 #include "runtime/sharedRuntime.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_RTGC
+  #include "gc/rtgc/RTGC.hpp"
+#endif  
 
 
 // Initialization done by VM thread in vm_init_globals()
@@ -132,6 +135,7 @@ jint init_globals() {
   VMRegImpl::set_regName(); // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
+  RTGC_ONLY(RTGC::initialize();)
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
   interpreter_init_code();  // after javaClasses_init and before any method gets linked
   referenceProcessor_init();

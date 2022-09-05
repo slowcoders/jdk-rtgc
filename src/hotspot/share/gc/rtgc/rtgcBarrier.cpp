@@ -711,7 +711,6 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
 
 void RtgcBarrier::init_barrier_runtime() {
   if (rt_store != 0) return;
-  RTGC::initialize();
   int shift = rtgc_getOopShift();
   switch(shift) {
     case 0:

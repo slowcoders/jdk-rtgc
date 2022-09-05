@@ -208,7 +208,7 @@ static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
                 _rtgc.gRefListPool.delete_(referrers);
                 node->_refs = 0;
                 node->invalidateSafeAnchor();
-                rtgc_debug_log(node, "anchor-list cleared by removeMatchedReferrers %p\n", node);
+                rtgc_debug_log(node, "anchor-list cleared by removeMatchedReferrers multi %p\n", node);
             }
             else {
                 GCObject* remained = referrers->at(0);

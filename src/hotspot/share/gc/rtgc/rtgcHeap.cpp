@@ -272,7 +272,6 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     oop* src_0 = g_young_roots.adr_at(0);
     if (ENABLE_GC) {
       if (!is_full_gc) {
-        rtgc_log(true, "rtHeap__clear_garbage_young_roots\n");
         _rtgc.g_pGarbageProcessor->validateGarbageList();
       }
 
@@ -453,8 +452,8 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   RTGC::adjust_debug_pointer(old_p, new_p);
 #endif   
 
-  if (_new_anchor_p == NULL) return;
   _has_young_ref |= is_in_young(new_p);
+  if (_new_anchor_p == NULL) return;
 
   // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
@@ -652,9 +651,9 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  assert(!is_alive(p), "wrong on garbage %p(%s) tr=%d rc=%d %d\n", 
+  assert(!is_alive(p), "wrong on garbage %p(%s) tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
         node, RTGC::getClassName(node), 
-        node->isTrackable(), node->getRootRefCount(), node->hasReferrer());
+        node->isTrackable(), node->getRootRefCount(), node->hasReferrer(), node->isUnstableMarked());
   precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrer());
   return;
 

@@ -251,7 +251,8 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     if (!rtHeap::DoCrossCheck) {
       rtHeap::iterate_young_roots(NULL/*&closure*/, true);
     }
-    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_type);
+    ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
   }
 #endif
   // Process reference objects found during marking
