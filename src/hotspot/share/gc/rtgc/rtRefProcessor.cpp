@@ -448,6 +448,7 @@ void RtRefProcessor<refType>::break_reference_links(ReferencePolicy* policy) {
     precond(!ref_node->isGarbageMarked());
     if (REMOVE_REF_LINK) {
       GCRuntime::disconnectReferenceLink(referent_node, ref_node);
+      ref_node->markDirtyReferrerPoints();
       //referent_node->removeReferrer(ref_node);
     } else {
       if (referent_node->isTrackable()) {
@@ -517,9 +518,12 @@ static void adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect
         continue;
       }
       if (resurrect_ref && REMOVE_REF_LINK) {
-        rtgc_log(false, "REATACH ref %p r=%d, rc=%d\n", 
-            referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
-        to_obj(referent)->addReferrer(ref_node);
+        if (ref_node->isDirtyReferrerPoints()) {
+          ref_node->unmarkDirtyReferrerPoints();
+          rtgc_log(true, "REATTACH ref %p r=%d, rc=%d\n", 
+              referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
+          to_obj(referent)->addReferrer(ref_node);
+        }
       }
     }
 
@@ -725,12 +729,13 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent) {
       break;
 
     case REF_FINAL:
-      to_obj(referent)->markActiveFinalizereReachable();
       ref_q = &g_finalRefProcessor._ref_q;
       rtgc_log(true || LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent);
       #if DO_CROSS_CHECK_REF
-        HeapAccess<>::oop_store_at(ref, referent_offset, referent);
+        HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent);
         return;
+      #else
+        to_obj(referent)->markActiveFinalizereReachable();
       #endif
       break;
 
