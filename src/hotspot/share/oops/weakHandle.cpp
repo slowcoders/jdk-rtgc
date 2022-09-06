@@ -42,6 +42,7 @@ WeakHandle::WeakHandle(OopStorage* storage, oop obj) :
                           "Unable to create new weak oop handle in OopStorage %s",
                           storage->name());
   }
+
   NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, obj);
 }
 

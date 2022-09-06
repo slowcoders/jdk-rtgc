@@ -70,7 +70,9 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
 
 inline void MarkSweep::follow_klass(Klass* klass) {
   oop op = klass->class_loader_data()->holder_no_keepalive();
-  _is_rt_anchor_trackable = false;
+#if INCLUDE_RTGC
+  _is_rt_anchor_trackable = false;// rtHeap::is_trackable(op);
+#endif
   MarkSweep::mark_and_push(&op);
 }
 

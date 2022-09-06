@@ -82,7 +82,9 @@ inline void MarkSweep::follow_array(objArrayOop array) {
   }
 }
 
+#if INCLUDE_RTGC
 bool MarkSweep::_is_rt_anchor_trackable = false;
+#endif
 inline void MarkSweep::follow_object(oop obj) {
   assert(obj->is_gc_marked(), "should be marked");
   if (obj->is_objArray()) {
@@ -90,9 +92,11 @@ inline void MarkSweep::follow_object(oop obj) {
     // be split into chunks if needed.
     MarkSweep::follow_array((objArrayOop)obj);
   } else {
+#if INCLUDE_RTGC
     if (rtHeap::DoCrossCheck) {
       _is_rt_anchor_trackable = rtHeap::is_trackable(obj);
     }
+#endif    
     obj->oop_iterate(&mark_and_push_closure);
   }
 }
@@ -105,9 +109,11 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int stride = MIN2(len - beg_index, (int) ObjArrayMarkingStride);
   const int end_index = beg_index + stride;
 
+#if INCLUDE_RTGC
   if (rtHeap::DoCrossCheck) {
     _is_rt_anchor_trackable = rtHeap::is_trackable(array);
   }
+#endif
   array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
 
   if (end_index < len) {

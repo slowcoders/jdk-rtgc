@@ -107,9 +107,10 @@ bool GCRuntime::tryDisconnectReferenceLink(
 }
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-    // precond(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
+    precond(!RTGC::is_debug_pointer(assigned) || assigned->getRootRefCount() == ZERO_ROOT_REF);
     assigned->incrementRootRefCount();
     rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
+
 }
 
 void GCRuntime::onAssignRootVariable(GCObject* assigned) {

@@ -77,10 +77,6 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
   return false;
 }
 
-#if INCLUDE_RTGC
-
-#endif
-
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.

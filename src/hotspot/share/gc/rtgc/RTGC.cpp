@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-  "java/lang/reflect/Method",
+   "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
   // "java/nio/DirectByteBuffer$Deallocator",
   // "java/lang/Module",
     // "java/lang/invoke/MethodTypeForm",
@@ -250,9 +250,16 @@ bool RTGC::is_debug_pointer(void* ptr) {
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
-      if (className != NULL && strstr((char*)obj->klass()->name()->bytes(), className)
-        && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
-        rtgc_log(1, "debug class resolved %s\n", obj->klass()->name()->bytes());
+      Klass* klass = obj->klass();
+      if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
+        Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
+        if (k2 != NULL) {
+          klass = k2;
+        }
+      } 
+      if (className != NULL && strstr((char*)klass->name()->bytes(), className)) {
+        //&& obj->klass()->name()->utf8_length() == (int)strlen(className)) {
+        rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = obj->klass();
         return true;
       }

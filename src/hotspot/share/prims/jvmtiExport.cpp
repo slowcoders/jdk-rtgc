@@ -2843,7 +2843,6 @@ void JvmtiObjectAllocEventCollector::generate_call_for_allocated() {
     set_enabled(false);
     for (int i = 0; i < _allocated->length(); i++) {
       oop obj = _allocated->at(i).resolve();
-      rtgc_debug_log(obj, "generate_call_for_allocated %p\n", (void*)obj);
       _post_callback(JavaThread::current(), obj);
       // Release OopHandle
       _allocated->at(i).release(JvmtiExport::jvmti_oop_storage());

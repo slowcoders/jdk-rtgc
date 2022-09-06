@@ -98,8 +98,9 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/impl/GCNode.hpp"
+#endif
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif

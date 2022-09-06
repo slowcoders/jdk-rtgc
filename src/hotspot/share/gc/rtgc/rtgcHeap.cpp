@@ -207,6 +207,7 @@ static void resurrect_young_root(GCObject* node) {
   rtgc_log(LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
       node, RTGC::getClassName(node), node->isYoungRoot());
   node->unmarkGarbage();
+  node->unmarkDirtyReferrerPoints();  
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
       node->unmarkYoungRoot();
@@ -392,6 +393,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
     } else if (node->isUnreachable()) {
       node->markGarbage();
+      node->markDirtyReferrerPoints();
       garbages->push_back(node);
       rtgc_log(false, "skip garbage yg-root %p\n", node);
       continue;
@@ -578,6 +580,9 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       }
       new_anchor_p = p;
     }
+  } else {
+    assert(!to_obj(old_p)->isUnreachable(), "unreachable trackable %p(%s)\n", 
+      old_p, getClassName(to_obj(old_p)));
   }
 
   rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
@@ -595,7 +600,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 
   to_obj(old_p)->unmarkDirtyReferrerPoints();
   postcond(rtHeap::is_alive(old_p));
-  postcond(!to_obj(old_p)->isUnreachable());
+  postcond(!to_obj(old_p)->isTrackable() || !to_obj(old_p)->isUnreachable());
   return size; 
 }
 
@@ -630,14 +635,23 @@ void GCNode::markGarbage(const char* reason)  {
 }
 
 #ifdef ASSERT
-static void mark_ghost_anchors(GCObject* node, int depth = 0) {
+void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
   if (node->isUnreachable()) return;
   precond(node->getRootRefCount() == 0);
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {
-    rtgc_log(node->hasSafeAnchor(), " safe anchor(%p:%d) -> node(%p)\n", 
-        node->getSafeAnchor(), node->getShortcutId(), node);
+    if (node->hasSafeAnchor()) {
+      GCObject* anchor = node->getSafeAnchor();
+      rtgc_log(true, "safe anchor[%d] %p(%s)[%d] unsafe:%d rc:%d gm:%d isClass=%d -> %p(%s)\n", 
+          depth, anchor, RTGC::getClassName(anchor),
+          anchor->getShortcutId(), anchor->isUnstableMarked(), 
+          anchor->getRootRefCount(), cast_to_oop(anchor)->is_gc_marked(), 
+          cast_to_oop(anchor)->klass() == vmClasses::Class_klass(),
+          node, RTGC::getClassName(node));
+      mark_ghost_anchors(anchor, depth + 1);
+      return;
+    }
     GCObject* anchor = ai.next();
     if (!anchor->isGarbageMarked()) {//} && !is_java_reference(cast_to_oop(anchor), (ReferenceType)-1)) {
       if (cast_to_oop(anchor)->is_gc_marked()) {
@@ -647,8 +661,8 @@ static void mark_ghost_anchors(GCObject* node, int depth = 0) {
       rtgc_log(true, "ghost anchor[%d:unsafe:%d] %p:%d(%s) of garbage %p(%s)\n", 
           depth, anchor->isUnstableMarked(), anchor, anchor->getRootRefCount(),
           RTGC::getClassName(anchor), node, RTGC::getClassName(node));
-      if (++ depth < 5) {
-        mark_ghost_anchors(anchor, depth);
+      if (depth < 5) {
+        mark_ghost_anchors(anchor, depth + 1);
       }
       //if (!anchor->isUnstableMarked()) {
       //  rtgc_log(true || LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, RTGC::getClassName(anchor))
@@ -662,7 +676,7 @@ static void mark_ghost_anchors(GCObject* node, int depth = 0) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p)) mark_ghost_anchors(to_obj(p));
+  if (is_alive(p)) rtHeapEx::mark_ghost_anchors(to_obj(p));
 
   assert(!is_alive(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
@@ -742,7 +756,7 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
 
 void rtHeap::finish_rtgc() {
   in_full_gc = false;
-  rtgc_log(true, "finish_rtgc %d\n", g_stack_roots.length());
+  // rtgc_log(true, "finish_rtgc %d\n", g_stack_roots.length());
   // rtHeap__clearStack();
 }
 

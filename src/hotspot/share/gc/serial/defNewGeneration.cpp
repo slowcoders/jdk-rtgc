@@ -82,7 +82,6 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
 }
 
-
 DefNewGeneration::KeepAliveClosure::
 KeepAliveClosure(ScanWeakRefClosure* cl) : _cl(cl) {
   _rs = GenCollectedHeap::heap()->rem_set();
@@ -533,7 +532,6 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   size_t const desired_survivor_size = (size_t)((((double)survivor_capacity) * TargetSurvivorRatio) / 100);
 
   _tenuring_threshold = age_table()->compute_tenuring_threshold(desired_survivor_size);
-  postcond(_tenuring_threshold <= markWord::max_age);
 
   if (UsePerfData) {
     GCPolicyCounters* gc_counters = GenCollectedHeap::heap()->counters();
@@ -645,6 +643,8 @@ void DefNewGeneration::collect(bool   full,
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
   pt.print_all_references();
 
+  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
+
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(&evacuate_followers, false);
@@ -652,7 +652,6 @@ void DefNewGeneration::collect(bool   full,
   }
 #endif
   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
-
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");

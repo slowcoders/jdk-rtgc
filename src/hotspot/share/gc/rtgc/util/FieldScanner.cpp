@@ -24,8 +24,14 @@ class FieldIterator : public BasicOopIterateClosure {
   HugeArray<GCObject*>* _stack;
 
 public:
+  bool _hasForwardedPointers;
+
   FieldIterator(oopDesc* p, RefTracer2 trace_fn, HugeArray<GCObject*>* stack)
       : _base(to_obj(p)), _fn(trace_fn), _stack(stack) {
+        if (!isTenured) {
+          this->_hasForwardedPointers = to_obj(p)->isYoungRoot()
+            && !to_obj(p)->isDirtyReferrerPoints();
+        }
   }
 
   virtual void do_oop(oop* o) { work_oop(RawAccess<>::oop_load(o)); }
@@ -36,7 +42,15 @@ public:
     if (obj == NULL) return;
 
     GCObject* link = to_obj(obj);
-    if (!isTenured && !link->isTrackable()) {
+    if (link->isGarbageMarked()) {
+      return;
+    }
+
+    if (!isTenured && !_hasForwardedPointers && !link->isTrackable()) {
+      /**
+       * 참고) base 가 young_root 인 경우엔, 이미 해당 Field 의 pointer 가
+       * forwarded 된 객체의 주소로 변경된 상태이다.
+       */
       if (!obj->is_gc_marked()) {
         link->clearAnchorList();
         rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
@@ -45,8 +59,6 @@ public:
       oop p = obj->forwardee();
       precond(p != NULL);
       link = to_obj(p);
-    } else if (link->isGarbageMarked()) {
-      return;
     }
     // precond(p != NULL);
     if (_fn(link, _base)) {

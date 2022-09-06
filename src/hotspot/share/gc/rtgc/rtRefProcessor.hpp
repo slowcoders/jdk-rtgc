@@ -18,6 +18,8 @@ public:
 
   static void update_soft_ref_master_clock();
 
+  static void mark_ghost_anchors(GCObject* node, int depth = 0);
+
   static jlong _soft_ref_timestamp_clock;
 };
 
