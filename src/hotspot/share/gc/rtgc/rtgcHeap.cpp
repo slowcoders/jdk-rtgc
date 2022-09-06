@@ -430,15 +430,17 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   to_obj(p)->markDirtyReferrerPoints();
 }
 
+// TODO 함수 삭제.
 void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
-  /**
-   * @brief Full-GC 과정에서 adjust_pointers 를 수행하기 직전에 호출된다.
-   * 즉, old_p 객체의 field는 유효한 old 객체를 가리키고 있다.
-   */
-  rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, new_p);
-  precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
-  to_obj(old_p)->markTrackable();
-  debug_only(g_cntTrackable++);
+  fatal("deprecated");
+  // /**
+  //  * @brief Full-GC 과정에서 adjust_pointers 를 수행하기 직전에 호출된다.
+  //  * 즉, old_p 객체의 field는 유효한 old 객체를 가리키고 있다.
+  //  */
+  // rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, new_p);
+  // precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
+  // to_obj(old_p)->markTrackable();
+  // debug_only(g_cntTrackable++);
 }
 
 template <typename T>
@@ -570,7 +572,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     oopDesc* p = old_p->forwardee();
     if (p == NULL) p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(p)) {
-      mark_pending_trackable(old_p, p);
+      to_obj(old_p)->markTrackable();
+      if (to_obj(old_p)->isUnreachable()) {
+        mark_survivor_reachable(old_p);
+      }
       new_anchor_p = p;
     }
   }
@@ -589,6 +594,8 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   __adjust_anchor_pointers(old_p); 
 
   to_obj(old_p)->unmarkDirtyReferrerPoints();
+  postcond(rtHeap::is_alive(old_p));
+  postcond(!to_obj(old_p)->isUnreachable());
   return size; 
 }
 
@@ -623,26 +630,30 @@ void GCNode::markGarbage(const char* reason)  {
 }
 
 #ifdef ASSERT
-static void mark_ghost_anchors(GCObject* node) {
+static void mark_ghost_anchors(GCObject* node, int depth = 0) {
   if (node->isUnreachable()) return;
   precond(node->getRootRefCount() == 0);
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {
+    rtgc_log(node->hasSafeAnchor(), " safe anchor(%p:%d) -> node(%p)\n", 
+        node->getSafeAnchor(), node->getShortcutId(), node);
     GCObject* anchor = ai.next();
-    if (!anchor->isGarbageMarked() && !is_java_reference(cast_to_oop(anchor), (ReferenceType)-1)) {
+    if (!anchor->isGarbageMarked()) {//} && !is_java_reference(cast_to_oop(anchor), (ReferenceType)-1)) {
       if (cast_to_oop(anchor)->is_gc_marked()) {
         cast_to_oop(anchor)->print_on(tty);
       }
 
-      assert(!cast_to_oop(anchor)->is_gc_marked(), "wrong anchor %p(%s) of garbage %p(%s) dp=%p\n", 
-          anchor, RTGC::getClassName(anchor), node, RTGC::getClassName(node), 
-          !is_java_reference(cast_to_oop(anchor), REF_PHANTOM) ? NULL :
-              (void*)(oop)RawAccess<>::oop_load_at(cast_to_oop(anchor), discovered_off));
-      if (!anchor->isUnstableMarked()) {
-        rtgc_log(true || LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, "");//RTGC::getClassName(anchor))
-        anchor->markUnstable();
+      rtgc_log(true, "ghost anchor[%d:unsafe:%d] %p:%d(%s) of garbage %p(%s)\n", 
+          depth, anchor->isUnstableMarked(), anchor, anchor->getRootRefCount(),
+          RTGC::getClassName(anchor), node, RTGC::getClassName(node));
+      if (++ depth < 5) {
+        mark_ghost_anchors(anchor, depth);
       }
+      //if (!anchor->isUnstableMarked()) {
+      //  rtgc_log(true || LOG_OPT(4), "mark ghost anchor %p(%s)\n", anchor, RTGC::getClassName(anchor))
+      //  anchor->markUnstable();
+      //}
     }
   }
 }
@@ -651,8 +662,10 @@ static void mark_ghost_anchors(GCObject* node) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  assert(!is_alive(p), "wrong on garbage %p(%s) tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
-        node, RTGC::getClassName(node), 
+  if (is_alive(p)) mark_ghost_anchors(to_obj(p));
+
+  assert(!is_alive(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
+        node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
         node->isTrackable(), node->getRootRefCount(), node->hasReferrer(), node->isUnstableMarked());
   precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrer());
   return;

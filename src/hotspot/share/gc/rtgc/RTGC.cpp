@@ -223,7 +223,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-   "java/nio/DirectByteBuffer$Deallocator",
+  "java/lang/reflect/Method",
+  // "java/nio/DirectByteBuffer$Deallocator",
   // "java/lang/Module",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",

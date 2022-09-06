@@ -35,17 +35,17 @@ public:
   void work_oop(oop obj) {
     if (obj == NULL) return;
 
-    GCObject* link;;
-    if (!isTenured && !to_obj(obj)->isTrackable()) {
+    GCObject* link = to_obj(obj);
+    if (!isTenured && !link->isTrackable()) {
       if (!obj->is_gc_marked()) {
-        to_obj(obj)->clearAnchorList();
+        link->clearAnchorList();
         rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
         return;
       }
       oop p = obj->forwardee();
       precond(p != NULL);
       link = to_obj(p);
-    } else if ((link = to_obj(obj))->isGarbageMarked()) {
+    } else if (link->isGarbageMarked()) {
       return;
     }
     // precond(p != NULL);

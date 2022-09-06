@@ -281,8 +281,6 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
-    precond(obj->isTrackable());
-    precond(obj->isUnstableMarked());
     _unsafeObjects.push_back(obj);
 }
 
@@ -296,6 +294,7 @@ void GarbageProcessor::addUnstable(GCObject* obj) {
 
 void GarbageProcessor::collectGarbage(bool isTenured) {
     rtgc_log(false, "collectGarbage cntUnsafe %d\n", _unsafeObjects.size()); 
+    // TODO <true> 에서 정상 동작해야 한다.
     collectGarbage<false>(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
 }
 

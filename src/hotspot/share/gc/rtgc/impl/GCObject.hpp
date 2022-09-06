@@ -67,6 +67,7 @@ public:
 	}
 
 	void invalidateShortcutId() {
+		precond(hasSafeAnchor());
 		// no-shortcut. but this has valid safe-anchor.
 		setShortcutId_unsafe(INVALID_SHORTCUT);
 	}

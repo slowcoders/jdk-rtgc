@@ -434,7 +434,7 @@ void RtRefProcessor<refType>::break_reference_links(ReferencePolicy* policy) {
       if (!policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
         continue;   
       }
-      rtgc_log(true, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
+      rtgc_debug_log(referent, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
     }
 
     GCObject* referent_node = to_obj(referent);
@@ -520,7 +520,7 @@ static void adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect
       if (resurrect_ref && REMOVE_REF_LINK) {
         if (ref_node->isDirtyReferrerPoints()) {
           ref_node->unmarkDirtyReferrerPoints();
-          rtgc_log(true, "REATTACH ref %p r=%d, rc=%d\n", 
+          rtgc_debug_log(referent, "REATTACH ref %p r=%d, rc=%d\n", 
               referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
           to_obj(referent)->addReferrer(ref_node);
         }
