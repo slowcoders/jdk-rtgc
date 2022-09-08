@@ -76,4 +76,13 @@ inline ByteSize Klass::vtable_start_offset() {
   return in_ByteSize(InstanceKlass::header_size() * wordSize);
 }
 
+#if INCLUDE_RTGC // clear_java_mirror_handle
+inline void Klass::clear_java_mirror_handle() { 
+  if (_java_mirror.peek() != NULL) {
+    _java_mirror.replace(NULL);
+    _java_mirror = OopHandle(); 
+  }
+}
+#endif
+
 #endif // SHARE_OOPS_KLASS_INLINE_HPP

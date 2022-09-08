@@ -75,6 +75,7 @@
 #include "utilities/stack.inline.hpp"
 #include "utilities/vmError.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtgcBarrier.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci.hpp"
 #endif
@@ -125,10 +126,15 @@ jint GenCollectedHeap::initialize() {
 
   ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
-  RTGC_ONLY(if (RtNoDirtyCardMarking)) {  
+  
+#if INCLUDE_RTGC  
+  if (EnableRTGC) RtgcBarrier::init_barrier_runtime();
+  if (RtNoDirtyCardMarking) {  
     bs = new RtgcBarrierSet(_rem_set);
   }
-  else {
+  else 
+#endif  
+  {
     _rem_set->initialize();
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();
@@ -674,6 +680,12 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::finish_rtgc();
+  }
+#endif
+
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
@@ -842,8 +854,27 @@ void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
 }
 
+#if INCLUDE_RTGC
+class ReMarkWeakReachableClosure: public BoolObjectClosure {
+  public:
+  virtual bool do_object_b(oop p) {
+    precond(p != NULL);
+    rtHeap::mark_weak_reachable(p);
+    return true;
+  }
+};
+#endif
+
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
-  WeakProcessor::oops_do(root_closure);
+#if INCLUDE_RTGC
+  if (RtLazyClearWeakHandle) {
+    ReMarkWeakReachableClosure remark_closure;
+    WeakProcessor::weak_oops_do(&remark_closure, root_closure);
+  } else 
+#endif
+  {
+    WeakProcessor::oops_do(root_closure);
+  }
   _young_gen->ref_processor()->weak_oops_do(root_closure);
   _old_gen->ref_processor()->weak_oops_do(root_closure);
 }

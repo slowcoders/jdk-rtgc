@@ -1,62 +1,3 @@
-## TODO
-- Old-G 에 객체 A를 allocate 하고, 바로 full-GC 수행 시, A 의 trackable-marking 여부 확인!!
-  -> rtHeap::adjust_points 을 통해 처리.
-- FinalReference 의 referent 는 rootRefCount 만 증가시킨다. 
-  즉, rootRefCount 가 1인 final-referent 는 garbage.
-- YoungRoot resurrection.
-- lock temporary WeakHandles. (YG GC 시에는 GC 되지 않음).
-- SafepointSynchronize::begin()/end()확인.
-- SafepointSynchronize::arm_safepoint() 분석
-- YG 객체에 의한 Old 객체 참조 문제.
-   1) YG 객체도 AnchorList를 생성한다. - 데이터 소비 및 속도 문제.
-   2) YG 객체에 의한 참조는 Ref-Count 변경 - YG Garbage 객체에 대한 추가적 Scan 필요 (Old 객체에 대한 refCount 감소를 위해).
-   3) YG 객체에 의한 참조 시 unmarkGarbage 실행.
-- Reference 처리 문제
-   1) Reference 를 referent 의 anchor 로 등록하면,
-      referent 만 따로 가비지 처리하지 못한다.
-      - 단, YG GC 시에는 문제가 없다.
-      - Full GC 시에는 각 Reference 의 referent 별로, Reference 를 제외한 Anchor 의 수를 세어
-        Garbage 검사를 할 수 있다.
-      - FinalizeReference(=Finalizer) 의 경우, 별도의 List-Q 를 통해 저장된다. 이에 매우 긴 SafeShorcut 이 생성된다.
-      - PhantomReference 는 존속기간을 늘리는 문제가 발생.
-   2) Reference 를 referent 의 anchor 로 등록하지 않으면,
-      referent 값을 지우지 않은 채 referent 가 삭제될 수 있다.
-      이를 방지하려면, stringRefCount 와 별도로 weakRefCount 가 관리되어야 한다.
-      (stringRefCount 하나로 관리하면, 순환 가비지 처리 불가)
-      softRefCount 도 별도 관리 필요??? ㅡ,.ㅡ
-   3) GC Root marking 시에, 가비지 처리 대상이 아닌 referent 를 stack-root-marking 한다.
-      YG-GC 시에는 reference 를 일반 객체와 동일하게 처리하므로, referent 가 별도 GC 되지 않는다.
-         referent 만 old-G 에 allocation 되거나, forwaring 된 경우에 대해 확인 필요!!
-      Full-GC 시에 WeakReferent 는 항상 별도 GC 대상이므로 stack-root-marking 이 필요없다.
-      SoftReference 에 한해서 별도 관리가 필요하다. (1차 Full-GC 후, SoftReference 를 재처리하는 경우도 대비.)
-        -> SoftReference 를 일반 anchor 로 등록한 후, 
-           soft-referent 의 anchor 중 SoftReference 를 제외한 anchor 의 수를 세어 GC 여부 재판별 가능.
-           soft-referent 가 가비지로 판별되면 그 ref-link 에 대해서도 동일 조건으로 GC 여부 재판별 가능.
-      FinalizeReference 에 대한 resurrection 처리 또한 필요하다.
-         -> 필드 변경 시마다 resurrection 을 하기 보다는 finalize 처리 전에 resurrection 을 일괄 처리(?)
-         -> finalizable 객체가 가비지로 판별 시, 해당 객체를 가비지 markging 하지 않고, finalizeQueue 에만 push!
-
-
-      
-
-## RTGC 1차 구현
-1. Ref Counting 방식의 단점.
-   가비지 제거 전에 refCount 및 refSet 을 update 하는 과정이 필요하다.
-   refSet 은 Compact GC 에 적합하지 않다. 
-   - 다량의 객체가 빈번하게 가비지로 변경되는 Younger Generation 은 TLAB + Compact-GC 가 유리
-2. Old-Generation 에 대해서만 RTGC 적용.
-   소량의 객체가 빈번하게 가비지로 변경되는 Older Generation 에 RTGC 가 적합.
-   RefLink 관리 부담 감소  
-3. Compact GC Overhead 처리
-   별도 Mem-Manager 구현?
-3. YG의 root가 되는 old 객체에 대한 Garbage 여부를 판별하여 YG GC 효율성 높이기 
-   Age 가 MinAge 이상인 YG 객체에 대한 GC 판별
-     
-
-## Mark & Compact GC의 장점.
-   소량의 객체가 Strong-reachable 상태인 경우, 즉 Younger Generation에 적합.
-   TLAB 활용성 극대화.
-
 
 ## 1. Prepare external libraries
 -  jtreg 
@@ -96,8 +37,8 @@ bash configure --with-jvm-variants=client \
 ```
 
 ## 3. Make Images
-    `make images CONF=linux debug LOG_LVEL=info`
-    `make images CONF=macosx debug LOG_LVEL=info`
+    `make images CONF=linux debug LOG_LEVEL=info`
+    `make images CONF=macosx debug LOG_LEVEL=info`
 
 ## 4. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
@@ -129,6 +70,21 @@ bash configure --with-jvm-variants=client \
 ```
 
 ## 5. Tests
+- full test
+   `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
+
+- oom 발생 (serial 도 마찬가지)
+   sh exec_test.sh jdk/internal/shellsupport/doc/JavadocHelperTest
+
+- module jdk.compiler does not export com.sun.tools.javac.xxx to unnamed module 오류 해결 방법
+      --add-opens=jdk.compiler/com.sun.tools.javac.xxx=ALL-UNNAMED \
+
+- 
+   make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
+
+- serial gc
+   make test CONF="macosx" TEST="gc/serial"
+
 - new RTGC error
 ```
    make test CONF="macosx" TEST="jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java"  
@@ -171,7 +127,10 @@ bash configure --with-jvm-variants=client \
 export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/jdk/jfr/event/gc/collection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar
 
 - macosx
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
+ 
+   
+   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
 - linux
    ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
    
@@ -416,3 +375,43 @@ DefNewGeneration::collect() ...
                         -> Reference->discovered field 이용.
 
 
+==============================
+Test summary 2022 07/20
+==============================
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1586    21     3 <<
+>> jtreg:test/jdk:tier1                               2062  2055     3     4 <<
+>> jtreg:test/langtools:tier1                         4214  4199     0    15 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1582    24     4 <<
+>> jtreg:test/jdk:tier1                               2062  2054     3     5 <<
+>> jtreg:test/langtools:tier1                         4215  4205     0    10 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0 
+
+==============================
+Test summary Orignal version
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1593    16     1 <<
+>> jtreg:test/jdk:tier1                               2062  2048     6     8 <<
+>> jtreg:test/langtools:tier1                         4019  3874   136     9 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+
+  yg->process_roots(ScanningOption SO_ScavengeCodeCache, 
+                OopClosure* strong_roots = DefNewScanClosure,
+                CLDClosure* strong_cld_closure = cld_closure, 
+                CLDClosure* weak_cld_closure = cld_closure, 
+                CodeBlobToOopClosure* code_roots = &MarkingCodeBlobClosure(root_closure,
+                                                   CodeBlobToOopClosure::FixRelocations);
+                
+  old_g->process_roots(ScanningOption GenCollectedHeap::SO_None,
+               OopClosure* strong_roots = MarkSweep::FollowRootClosure(root_closure),
+               CLDClosure* strong_cld_closure = CLDToOopClosure
+               CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure,
+               CodeBlobToOopClosure* code_roots = &MarkingCodeBlobClosure(root_closure, is_adjust_phase)

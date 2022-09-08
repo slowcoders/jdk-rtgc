@@ -324,7 +324,7 @@ void Thread::initialize_tlab() {
 
 #ifdef ASSERT  
 void Thread::set_active_handles(JNIHandleBlock* block) { 
-  RTGC_ONLY(precond(block == NULL || this == block->local_thread());)
+  RTGC_ONLY(precond(!EnableRTGC || block == NULL || this == block->local_thread());)
   _active_handles = block; 
 }
 #endif
@@ -1536,13 +1536,21 @@ void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
+#if INCLUDE_RTGC    
+    JNIHandleBlock::release_block(block, this);
+#else
     JNIHandleBlock::release_block(block);
+#endif    
   }
 
   if (free_handle_block() != NULL) {
     JNIHandleBlock* block = free_handle_block();
     set_free_handle_block(NULL);
+#if INCLUDE_RTGC    
+    JNIHandleBlock::release_block(block, this);
+#else
     JNIHandleBlock::release_block(block);
+#endif    
   }
 
   // These have to be removed while this is still a valid thread.

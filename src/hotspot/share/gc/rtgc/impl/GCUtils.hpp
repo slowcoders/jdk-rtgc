@@ -61,6 +61,7 @@ struct FixedAllocator {
 
     static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
         capacity = (MEM_BUCKET_SIZE - offset) / item_size;
+        rtgc_log(true, "fixed_alloc cap=%d, off=%d\n", capacity, offset);
         void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_SIZE);
         VirtualMemory::commit_memory(mem, 0, MEM_BUCKET_SIZE);
     }
@@ -71,6 +72,7 @@ struct FixedAllocator {
         int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
         VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
         capacity = (mem_offset + MEM_BUCKET_SIZE - offset) / item_size;
+        rtgc_log(true, "fixed_realloc cap=%d, off=%d\n", capacity, offset);
         return mem; 
     }
 
@@ -160,6 +162,14 @@ public:
         return _data->_items + _data->_size++;
     }
 
+    T* push_empty_at(int idx) {
+        push_empty();
+        int copy_size = (size() - idx) * sizeof(T);
+        T* src = adr_at(idx);
+        memmove(src + 1, src, copy_size);
+        return src;
+    }
+
     void push_back(T item) {
         T* back = push_empty();
         back[0] = item;
@@ -191,7 +201,7 @@ public:
     }
 
     void resize(size_t __n) {
-        precond(__n >= 0 && __n < _data->_capacity);
+        precond(__n >= 0 && __n <= _data->_capacity);
         _data->_size = (int)__n;
     }
 
@@ -214,7 +224,18 @@ public:
         return this;
     }
 
-    bool remove(T v) {
+    void removeAndShift(int idx) {
+        T* mem = adr_at(idx);
+        int newSize = this->size() - 1;
+        this->resize(newSize);
+        int remain = newSize - idx;
+        if (remain > 0) {
+            memcpy(mem, mem + 1, sizeof(T) * remain);
+        }
+    }
+
+
+    bool removeFast(T v) {
         int idx = indexOf(v);
         if (idx < 0) {
             return false;
@@ -434,7 +455,12 @@ public:
     // }
 };
 
-
+template <class T>
+class HugeArray : public SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> {
+    typedef SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> _SUPER;
+public:    
+    HugeArray() : _SUPER(1024) {}
+};
 
 template <class T, size_t MAX_BUCKET, int indexOffset, int clearOffset>
 class MemoryPool {

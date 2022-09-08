@@ -98,6 +98,9 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtgcHeap.hpp"
+#endif
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif
@@ -3204,8 +3207,15 @@ JVM_SetReferent0 를 추가해야 한다.
 */
 JVM_ENTRY(void, JVM_SetReferent0(JNIEnv *env, jobject ref, jobject referent))
   oop ref_oop = JNIHandles::resolve_non_null(ref);
-  oop referent_oop = referent == NULL ? NULL : JNIHandles::resolve_non_null(referent);
-  rtHeap::init_java_reference(ref_oop, referent_oop);
+  if (referent == NULL) return;
+  
+  oop referent_oop = JNIHandles::resolve_non_null(referent);
+  if (RtNoDiscoverPhantom) {
+    rtHeap::init_java_reference(ref_oop, referent_oop);
+  } else {
+    ptrdiff_t referent_offset = java_lang_ref_Reference::referent_offset();  
+    HeapAccess<>::oop_store_at((oopDesc*)ref_oop, referent_offset, (oopDesc*)referent_oop);
+  }
   return;
 JVM_END
 #endif

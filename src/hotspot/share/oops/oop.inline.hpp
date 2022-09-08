@@ -133,9 +133,6 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
   if (UseCompressedClassPointers) {
     *(int*)(((char*)mem) + klass_gap_offset_in_bytes()) = v;
   }
-#if INCLUDE_RTGC // clear rtNode
-  clear_rt_node(mem);
-#endif
 }
 
 #if INCLUDE_RTGC // clear rtNode

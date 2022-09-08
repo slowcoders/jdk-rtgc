@@ -103,6 +103,11 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 template <typename T>
 void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
+#ifdef ASSERT
+  if (_trackable_anchor == NULL && !RtNoDirtyCardMarking) {
+    return;
+  }
+#endif
   precond(_trackable_anchor != NULL);
   rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
 }
@@ -157,11 +162,6 @@ template <class T> inline void ScanWeakRefClosure::do_oop_work(T* p) {
                                       : _g->copy_to_survivor_space(obj);
     RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
   }
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  else if (EnableRTGC && rtHeap::is_trackable(obj)) {
-    rtHeap::mark_survivor_reachable(obj);
-  }
-#endif  
 }
 
 inline void ScanWeakRefClosure::do_oop(oop* p)       { ScanWeakRefClosure::do_oop_work(p); }

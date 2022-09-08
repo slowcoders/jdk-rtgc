@@ -212,6 +212,12 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
   // here so that we use the new value during processing of the
   // discovered soft refs.
 
+#if INCLUDE_RTGC
+  if (rtHeap::DoCrossCheck) {
+    extern jlong __get_soft_ref_timestamp_clock();
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock();
+  } else
+#endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
 
   ReferenceProcessorStats stats(total_count(_discoveredSoftRefs),
@@ -378,6 +384,9 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   DiscoveredListIterator iter(refs_list, keep_alive, is_alive);
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
+    if (EnableRTGC && rtHeap::DoCrossCheck) {
+      precond(rtHeap::is_alive(iter.obj()));
+    }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if
       // discovery is not atomic (checked by load_ptrs).  Remove
@@ -396,7 +405,12 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
       iter.make_referent_alive();
       iter.move_to_next();
     } else {
+      void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
       if (do_enqueue_and_clear) {
+        if (EnableRTGC && rtHeap::DoCrossCheck) {
+          rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
+          iter.obj()->obj_field_put_raw(java_lang_ref_Reference::referent_offset(), nullptr);
+        }
         iter.clear_referent();
         iter.enqueue();
         log_enqueued_ref(iter, "cleared");

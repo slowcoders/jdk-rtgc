@@ -119,7 +119,7 @@ void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
 void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) {
     precond(bytes % MEM_BUCKET_SIZE == 0);
 #if _USE_JVM
-    rtgc_log(true, "commit_memory\n");
+    rtgc_log(1, "commit_memory\n");
     return;
 #elif defined(_MSC_VER)
     addr = VirtualAlloc(bucket, MEM_BUCKET_SIZE, MEM_COMMIT, PAGE_READWRITE);

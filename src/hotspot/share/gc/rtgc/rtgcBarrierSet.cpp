@@ -50,8 +50,9 @@ void RtgcBarrierSet::on_thread_destroy(Thread *thread) {
 }
 
 void RtgcBarrierSet::on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {
-  rtgc_debug_log(new_obj, "on_slowpath_allocation_exit %p\n", (void*)new_obj);
-  if (!_card_table->is_in_young(new_obj)) {
-    rtHeap::mark_empty_trackable(new_obj);
-  }
+  // ** Do not mark empty_trackable. It will marked later as promoted trackable.
+  // if (!_card_table->is_in_young(new_obj)) {
+  //   rtgc_log(true, "on_slowpath_allocation_exit trackable %p\n", (void*)new_obj);
+  //   //rtHeap::mark_empty_trackable(new_obj);
+  // }
 }

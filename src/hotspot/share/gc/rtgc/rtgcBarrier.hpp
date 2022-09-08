@@ -30,20 +30,23 @@ class RtgcBarrier : public AllStatic {
   static bool rt_cmpset_unknown(volatile void* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
+  static oopDesc* rt_load_c1(T* addr, oopDesc* base);
+
+  template<DecoratorSet decorators, typename T> 
   static void rt_store_c1(T* addr, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
   static oopDesc* rt_xchg_c1(T* addr, oopDesc* new_value, oopDesc* base);
 
   template<DecoratorSet decorators, typename T> 
-  static bool rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
+  static oopDesc* rt_cmpset_c1(T* addr, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 
 public:
   static void init_barrier_runtime();
 
   static inline bool is_raw_access(DecoratorSet decorators, bool op_store = true) {
     DecoratorSet no_barrier = AS_RAW | AS_NO_KEEPALIVE;
-    if (op_store) {
+    if (op_store && !RtLazyClearWeakHandle) {
       no_barrier |= ON_PHANTOM_OOP_REF;
     }
     return (no_barrier & decorators) != 0;
@@ -108,12 +111,14 @@ public:
     return rt_load(p, base);
   }
 
+  static oopDesc* oop_load_unknown(volatile void* p, oopDesc* base);
+
   static oopDesc* oop_load_not_in_heap(volatile oop* p);
   static oopDesc* oop_load_not_in_heap(volatile narrowOop* p) {
     return rt_load_not_in_heap(p);
   }
 
-  static void clone_post_barrier(oopDesc* new_obj);
+  static void oop_clone_in_heap(oop src, oop dst, size_t size);
 
   static int oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, arrayOopDesc* dst_array);
   static int oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array);

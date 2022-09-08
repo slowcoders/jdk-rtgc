@@ -6,17 +6,12 @@ namespace RTGC {
 
 typedef SimpleVector<GCObject*> NodeList;
 
-class ShortcutPool : public MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> {
-	SafeShortcut* _no_safe_anchor;
-	SafeShortcut* _no_safe_shortcut;
-public:
-	void initialize() {
-		MemoryPool::initialize();
-		_no_safe_anchor = MemoryPool::allocate();
-		_no_safe_shortcut = MemoryPool::allocate();
-		_no_safe_anchor->~SafeShortcut();
-		_no_safe_shortcut->~SafeShortcut();
-	}
+
+
+class RuntimeHeap {
+public:	
+	static void reclaimObject(GCObject* obj);
+	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
 class GarbageProcessor {
@@ -24,20 +19,37 @@ class GarbageProcessor {
 	GCObject* delete_q;
 
 public:
-	SimpleVector<GCObject*> _unsafeObjects;
 	GarbageProcessor() : _traceStack(255) {
 		delete_q = nullptr;
 	}
 
-	void destroyObject(GCObject* garbage);
-	void reclaimObjects();
-	static bool detectGarbage(GCObject* unsafeObj);
-	static void collectGarbage(GCObject** ppNode, int cntNode);
+	void addUnstable(GCObject* node);
+	void addUnstable_ex(GCObject* node);
+	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
+	void collectGarbage(bool isTenured);
+	template <bool scanUnstableOnly>
+	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
+
+	bool detectGarbage(GCObject* node);
+	void validateGarbageList();
+	bool hasStableSurvivalPath(GCObject* node);
+	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 
 private:
-	void addGarbage(GCObject* garbage);
+    HugeArray<GCObject*> _unsafeObjects;
+    HugeArray<GCObject*> _visitedNodes;
+    HugeArray<AnchorIterator> _trackers;
+    SafeShortcut* reachableShortcurQ;
+
+    bool findSurvivalPath(ShortOOP& tail);
+    bool scanSurvivalPath(GCObject* tail);
+    void constructShortcut();
+    void clearReachableShortcutMarks();
+
+	static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor);
 };
 
+typedef MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> ShortcutPool;
 typedef MemoryPool<ReferrerList, 64*1024*1024, 1, 0> ReferrerListPool;
 typedef MemoryPool<TinyChunk, 64*1024*1024, 1, -1> TinyMemPool;
 
@@ -53,6 +65,7 @@ public:
 		g_shortcutPool.initialize();
 		gTinyPool.initialize();
 		gRefListPool.initialize();
+		SafeShortcut::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
 	}
 
@@ -81,6 +94,8 @@ public:
 	static void connectReferenceLink(GCObject* assigned, GCObject* owner);
 
 	static void disconnectReferenceLink(GCObject* erased, GCObject* owner);
+
+	static bool tryDisconnectReferenceLink(GCObject* erased, GCObject* owner);
 
 	static void onAssignRootVariable_internal(GCObject* assigned);
 

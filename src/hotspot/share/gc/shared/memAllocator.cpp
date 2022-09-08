@@ -364,6 +364,13 @@ oop MemAllocator::allocate() const {
     HeapWord* mem = mem_allocate(allocation);
     if (mem != NULL) {
       obj = initialize(mem);
+#if INCLUDE_RTGC // clear rtNode
+      if (EnableRTGC) {
+        oopDesc::clear_rt_node(mem);
+        // BarrierSet *bs = BarrierSet::barrier_set();
+        // bs->on_slowpath_allocation_exit(NULL, obj);
+      }      
+#endif  
     } else {
       // The unhandled oop detector will poison local variable obj,
       // so reset it to NULL if mem is NULL.
@@ -418,11 +425,6 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   if (_do_zero) {
     mem_clear(mem);
   }
-#if INCLUDE_RTGC // clear rtNode
-  else {
-    oopDesc::clear_rt_node(mem);
-  }
-#endif  
   arrayOopDesc::set_length(mem, _length);
   return finish(mem);
 }

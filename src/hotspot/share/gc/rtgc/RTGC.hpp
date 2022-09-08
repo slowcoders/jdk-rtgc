@@ -5,15 +5,8 @@
 namespace RTGC {
   class GCNode;
   class GCObject;
-  typedef bool (*RefTracer1)(GCObject* obj);
-  typedef bool (*RefTracer2)(GCObject* obj, void* param);
-  typedef bool (*RefTracer3)(GCObject* obj, GCObject* anchor, void* param);
+  typedef bool (*RefTracer2)(GCObject* obj, GCObject* anchor);
   
-  void scanInstanceGraph(GCObject* obj, RefTracer1 tracer);
-  void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, void* param);
-  void scanInstanceGraph(GCObject* obj, RefTracer3 tracer, void* param);
-  void iterateReferents(GCObject* obj, RefTracer2 trace, void* param);
-
   extern bool is_narrow_oop_mode;
 
   inline static GCNode* to_node(void* obj) {
@@ -43,7 +36,7 @@ namespace RTGC {
     publish_and_lock_heap(to_obj(obj), true);
   }
 
-  GCObject* getForwardee(GCObject* obj);
+  GCObject* getForwardee(GCObject* obj, const char* tag="");
 
   bool lock_if_published(GCObject* obj);
 
@@ -53,13 +46,13 @@ namespace RTGC {
 
   bool heap_locked_bySelf();
 
-  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer);
+  void add_referrer_ex(oopDesc* obj, oopDesc* referrer, bool checkYoungRoot);
+
+  void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, oopDesc* debug_base);
 
   void on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
   void on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
-
-  void collectGarbage(GCObject** objects, int count);
 
   const char* getClassName(GCNode* obj, bool showClassInfo = false);
 };

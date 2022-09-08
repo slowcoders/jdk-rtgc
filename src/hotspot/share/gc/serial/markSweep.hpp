@@ -118,6 +118,9 @@ class MarkSweep : AllStatic {
  public:
   static void initialize();
 
+#if INCLUDE_RTGC
+  static bool _is_rt_anchor_trackable;
+#endif
   // Public closures
   static IsAliveClosure       is_alive;
   static FollowRootClosure    follow_root_closure;

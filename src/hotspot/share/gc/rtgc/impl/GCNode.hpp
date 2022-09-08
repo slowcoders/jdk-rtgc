@@ -5,46 +5,43 @@
 #include "../rtgcDebug.hpp"
 
 #define ZERO_ROOT_REF 		0
+static const int NO_SAFE_ANCHOR = 0;
+static const int INVALID_SHORTCUT = 1;
 
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
-enum class TraceState : int {
-	NOT_TRACED,
-	IN_TRACING,
-	TRACE_FINISHED,
-};
 
 struct GCFlags {
 	uint32_t isTrackable: 1;
 	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
 	uint32_t dirtyReferrerPoints: 1;
-	uint32_t unused: 1;
+	uint32_t isUnstable: 1;
 
-	uint32_t traceState: 2;
+	uint32_t contextFlag: 1;
 	uint32_t isPublished: 1;
 	uint32_t hasMultiRef: 1;
 #if ZERO_ROOT_REF < 0	
-	int32_t rootRefCount: 23;
+	int32_t rootRefCount: 24;
 #else
-	uint32_t rootRefCount: 23;
+	uint32_t rootRefCount: 24;
 #endif
 };
 
 class GCNode {
 	int64_t _klass[1];
 public:
-	GCFlags _flags;
-	uint32_t _refs;
 	union {
 		int32_t _shortcutId;
 		GCNode* _nextUntrackable;
 	};
+	uint32_t _refs;
+	GCFlags _flags;
 	static int _cntTrackable;
 
 public:
-	void clear() { 
+	void clearFlags() { 
 		_refs = 0; 
 		*(int*)&_flags = 0;
 		_nextUntrackable = NULL; 
@@ -97,30 +94,35 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
-	TraceState getTraceState() {
-		return (TraceState)_flags.traceState;
+	bool isActiveFinalizerReachable() {
+		return _flags.rootRefCount & 0x01;
 	}
 
-	void setTraceState(TraceState state) {
-		_flags.traceState = (int)state;
+	void unmarkActiveFinalizereReachable() {
+		_flags.rootRefCount &= ~0x01;
 	}
 
-	void markGarbage();
+	void markActiveFinalizereReachable() {
+		_flags.rootRefCount |= 0x01;
+	}
+
+	bool isUnstableMarked() {
+		return _flags.isUnstable;
+	}
+
+	void markUnstable() {
+		_flags.isUnstable = true;
+	}
+
+	void unmarkUnstable() {
+		_flags.isUnstable = false;
+	}
+
+	void markGarbage(const char* reason = NULL);
 
 	void unmarkGarbage() {
 		_flags.isGarbage = false;
-	}
-
-	bool isKeepAlive() {
-		return *(int32_t*)&_flags < 0;
-	}
-
-	void markKeepAlive() {
-		*(int32_t*)&_flags |= (1 << 31);
-	}
-
-	void unmarkKeepAlive() {
-		*(int32_t*)&_flags &= ~(1 << 31);
+		_flags.isUnstable = false;
 	}
 
 
@@ -136,29 +138,34 @@ public:
 		_flags.hasMultiRef = multiRef;
 	}
 
+	bool isStrongRootReachable() {
+		return _flags.rootRefCount > 1;
+	}
+
 	int getRootRefCount() {
 		return _flags.rootRefCount;
 	}
 
 	int incrementRootRefCount() {
-		return ++_flags.rootRefCount;
+		return (_flags.rootRefCount += 2);
 	}
 
 	int decrementRootRefCount() {
-		precond(_flags.rootRefCount > ZERO_ROOT_REF);
-		return --_flags.rootRefCount;
+		assert(_flags.rootRefCount > ZERO_ROOT_REF + 1, "wrong ref-count %p(%d) garbage=%d\n", 
+			this, _flags.rootRefCount, isGarbageMarked());
+		return (_flags.rootRefCount -= 2);
 	}
 
 	bool isGarbageMarked() {
 		return _flags.isGarbage;
 	}
 
-	bool isAnchored() {
-		return _flags.rootRefCount > ZERO_ROOT_REF || this->hasReferrer();
+	bool isUnreachable() {
+		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
 	}
 
-	bool isUnsafe() {
-		return _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == 0;
+	bool isUnsafeTrackable() {
+		return isTrackable() &&  _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {

@@ -32,12 +32,14 @@
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-class ModRefBarrierSetC1 : public BarrierSetC1 {
+#if INCLUDE_RTGC
+#include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 
-protected:
-#if INCLUDE_RTGC // check !EnableRTGC
-  ModRefBarrierSetC1() { precond(!EnableRTGC); }
+class ModRefBarrierSetC1: public RtgcBarrierSetC1 {
+#else
+class ModRefBarrierSetC1 : public BarrierSetC1 {
 #endif
+protected:
 
   virtual void pre_barrier(LIRAccess& access, LIR_Opr addr_opr,
                            LIR_Opr pre_val, CodeEmitInfo* info) {}

@@ -26,8 +26,6 @@ public:
 	void init(int initialSize);
 };
 
-static const int INVALID_SHORTCUT = 1;
-
 class GCObject : public GCNode {
 	friend class GCRuntime;
 	friend class GarbageProcessor;
@@ -51,12 +49,31 @@ public:
 
 	void setSafeAnchor(GCObject* anchor);
 
+	int getShortcutId() {
+		return this->_shortcutId;
+	}
+
 	void setShortcutId_unsafe(int shortcutId) {
 		this->_shortcutId = shortcutId;
 	}
 
-	int getShortcutId() {
-		return this->_shortcutId;
+	void invalidateSafeAnchor() {
+		// no-shortcut. no safe-anchor.
+		setShortcutId_unsafe(NO_SAFE_ANCHOR);
+	}
+
+	bool hasSafeAnchor() {
+		return getShortcutId() > NO_SAFE_ANCHOR;
+	}
+
+	void invalidateShortcutId() {
+		precond(hasSafeAnchor());
+		// no-shortcut. but this has valid safe-anchor.
+		setShortcutId_unsafe(INVALID_SHORTCUT);
+	}
+
+	bool hasShortcut() {
+		return getShortcutId() > INVALID_SHORTCUT;
 	}
 
 	GCObject* getSingleAnchor();
@@ -71,44 +88,58 @@ public:
 
 	int removeReferrer(GCObject* referrer);
 
-	void removeAnchorList();
+	int tryRemoveReferrer(GCObject* referrer);
+
+	void clearAnchorList();
+
+	void removeAllAnchors();
 
 	bool removeMatchedReferrers(GCObject* referrer);
+
+	void clearGarbageAnchors();
+
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
 static const bool _EnableShortcut = true;
+#define ENABLE_REACHBLE_SHORTCUT_CACHE false
 
 class SafeShortcut {
-	uint16_t _mark;
-	uint16_t _cntNode;
-	uint32_t _next;
+	GCObject* _inTracing;
 	ShortOOP _anchor;
 	ShortOOP _tail;
 
 	SafeShortcut(GCObject* anchor, GCObject* tail) :  
-			_mark(0), _cntNode(0), _next(0), _anchor(anchor), _tail(tail) {}
+			_inTracing(NULL), _anchor(anchor), _tail(tail) {}
 public:
 	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
 
-	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode) {
+	static void initialize();
+
+	static SafeShortcut* create(GCObject* anchor, GCObject* tail, int cntNode, bool replace_shorcut = false) {
 		int s_id = INVALID_SHORTCUT;
 		SafeShortcut* shortcut = NULL;
 		if (_EnableShortcut && cntNode > MIN_SHORTCUT_LENGTH) {
 			shortcut = new SafeShortcut(anchor, tail);
 			s_id = getIndex(shortcut);
 		}
+		int cc = 0;
 		for (GCObject* node = tail; node != anchor; node = node->getSafeAnchor()) {
+			debug_only(precond(++cc < 10000));
+			precond(replace_shorcut || node->getShortcutId() <= INVALID_SHORTCUT);
 			node->setShortcutId_unsafe(s_id);
 		}
 		if (shortcut != NULL) {
-	        // rtgc_log(true, "shotcut[%d:%d] assigned %p->%p\n", s_id, cntNode, anchor, tail);
+	        rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 
+				s_id, cntNode, anchor, tail);
 			shortcut->vailidateShortcut();
 		}
 		return shortcut;
 	}
 
 	bool isValid() { return *(int32_t*)&_anchor != 0; }
+
+	int getIndex() { return getIndex(this); }
 
 	static int getIndex(SafeShortcut* circuit);
 
@@ -118,6 +149,7 @@ public:
 
 	void operator delete(void* ptr);
 
+#if ENABLE_REACHBLE_SHORTCUT_CACHE
 	bool isReachable() {
 		return _mark & 2;
 	}
@@ -134,16 +166,19 @@ public:
 	void unmarkReachable() {
 		_mark &= ~2;
 	}
+#endif
 
-	void markInTracing() {
-		_mark |= 1;
+	void markInTracing(GCObject* obj) {
+		assert(!inTracing(), "aleady in tracing %p", obj);
+		_inTracing = obj;
 	}
 	void unmarkInTracing() {
-		_mark &= ~1;
+		_inTracing = NULL;
 	}
 	bool inTracing() {
-		return (_mark & 1);
+		return _inTracing != NULL;
 	}
+	bool inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut);
 
 	const ShortOOP& anchor() { return _anchor; }
 
@@ -161,32 +196,13 @@ public:
 
 	void vailidateShortcut();
 
-	void extendTail(GCObject* tail) {
-		precond(tail != NULL); 
-		precond(tail != _tail); 
-		int s_id = getIndex(this);
-	    // rtgc_log(true, "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
-		GCObject* old_tail = _tail;
-		for (GCObject* node = tail; node != old_tail; node = node->getSafeAnchor()) {
-			node->setShortcutId_unsafe(s_id);
-		}
-		this->_tail = tail;
-		vailidateShortcut();
-	}
+	void extendTail(GCObject* tail);
 
-	void extendAnchor(GCObject* anchor) { 
-		precond(anchor != NULL); 
-		precond(anchor != _anchor); 
-		int s_id = getIndex(this);
-	    // rtgc_log(true, "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
-		for (GCObject* node = _anchor; node != anchor; node = node->getSafeAnchor()) {
-			node->setShortcutId_unsafe(s_id);
-		}
-		this->_anchor = anchor;
-		vailidateShortcut();
-	}
+	void extendAnchor(GCObject* anchor);
 
 	void shrinkAnchorTo(GCObject* newAnchor);
+
+	void shrinkTailTo(GCObject* newTail);
 
 	static bool isValidIndex(int idx);
 };

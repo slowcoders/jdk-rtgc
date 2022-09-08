@@ -15,6 +15,8 @@ namespace RTGC {
   static const int LOG_REF_LINK   = 4;
   static const int LOG_GCNODE     = 5;
   static const int LOG_SCANNER    = 6;
+  static const int LOG_SHORTCUT   = 7;
+  static const int LOG_REF        = 8;
 
   inline int LOG_OPTION(int category, int function) {
     return LOG_CATEGORY_BASE * category + (1 << function);

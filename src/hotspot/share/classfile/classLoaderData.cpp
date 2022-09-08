@@ -152,7 +152,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _class_loader_klass(NULL), _name(NULL), _name_and_id(NULL) {
 
   if (!h_class_loader.is_null()) {
-    _class_loader = _handles.add(h_class_loader());
+    _class_loader = _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h_class_loader());
     _class_loader_klass = h_class_loader->klass();
     initialize_name(h_class_loader);
   }
@@ -189,30 +189,40 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
   }
 }
 
-OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
+OopHandle ClassLoaderData::ChunkedHandleList::add(RTGC_ONLY_ARG(bool scan_incremental) oop o) {
+  Chunk* c;
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  Chunk* c = Atomic::load_acquire(&_tail);
-  if (c == NULL || c->_size == Chunk::CAPACITY) {
-    Chunk* next = new Chunk(NULL);
-    if (c == NULL) {
-      Atomic::release_store(&_head, next);
-    } else {
-      c->_next = next;
+  if (EnableRTGC && scan_incremental) { // RTGC_OPT_CLD_SCAN
+    c = Atomic::load_acquire(&_tail);
+    if (c == NULL || c->_size == Chunk::CAPACITY) {
+      Chunk* next = new Chunk(NULL);
+      if (c == NULL) {
+        Atomic::release_store(&_head, next);
+      } else {
+        c->_next = next;
+      }
+      Atomic::release_store(&_tail, next);
+      c = next;
     }
-    Atomic::release_store(&_tail, next);
-    c = next;
+  } else
+#endif
+  {
+    c = Atomic::load_acquire(&_head);
+    if (c == NULL || c->_size == Chunk::CAPACITY) {
+      c = new Chunk(c);
+      Atomic::release_store(&_head, c);
+    }
   }
-#else
-  Chunk* c = Atomic::load_acquire(&_head);
-  if (c == NULL || c->_size == Chunk::CAPACITY) {
-    c = new Chunk(c);
-    Atomic::release_store(&_head, c);
-  }
-#endif  
   oop* handle = &c->_data[c->_size];
+#if INCLUDE_RTGC  
+  if (EnableRTGC && !scan_incremental) { 
+    NativeAccess<AS_NO_KEEPALIVE>::oop_store(handle, o);
+  } else 
+#endif
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
+
   Atomic::release_store(&c->_size, c->_size + 1);
-  RTGC_ONLY(postcond(RTGC::to_node(o)->getRootRefCount() > 0);)
+  RTGC_ONLY(postcond(!EnableRTGC || !scan_incremental || rtHeap::ensure_weak_reachable(o));)
 
   return OopHandle(handle);
 }
@@ -392,14 +402,14 @@ void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
     clear_modified_oops();
   }
 
-  if (_handles.incremental_oops_do(f)) {
+  if (_has_class_mirror_holder) {
+    _handles.oops_do(f);
+    record_modified_oops();
+  } else if (_handles.incremental_oops_do(f)) {
     record_modified_oops();
   }
   rtgc_trace(10, "incremental_oops_do = %p, keep_alive %d\n", //, last %p:%d\n", 
           this, this->keep_alive());//, _last_chunk, _last_idx);
-
-
-
 }
 #endif
 
@@ -655,8 +665,10 @@ void ClassLoaderData::unload() {
   ClassLoaderDataGraph::adjust_saved_class(this);
 
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  HandleReleaseClosure handleRelease; 
-  _handles.oops_do(&handleRelease);
+  if (EnableRTGC && !_has_class_mirror_holder) {
+    HandleReleaseClosure handleRelease; 
+    _handles.oops_do(&handleRelease);
+  }
 #endif
 }
 
@@ -893,7 +905,7 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
 OopHandle ClassLoaderData::add_handle(Handle h) {
   MutexLocker ml(metaspace_lock(),  Mutex::_no_safepoint_check_flag);
   record_modified_oops();
-  return _handles.add(h());
+  return _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h());
 }
 
 void ClassLoaderData::remove_handle(OopHandle h) {
@@ -901,7 +913,7 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
-    RTGC_ONLY(assert(*ptr == NULL || RTGC::to_node(*ptr)->getRootRefCount() > 0, 
+    RTGC_ONLY(assert(*ptr == NULL || rtHeap::ensure_weak_reachable(*ptr), 
         "Illegal Object%p\n", (void*)*ptr);)
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
@@ -913,7 +925,7 @@ void ClassLoaderData::init_handle_locked(OopHandle& dest, Handle h) {
     return;
   } else {
     record_modified_oops();
-    dest = _handles.add(h());
+    dest = _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h());
   }
 }
 
@@ -988,7 +1000,6 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       ((ConstantPool*)m)->release_C_heap_structures();
     } else if (m->is_klass()) {
       InstanceKlass* ik = (InstanceKlass*)m;
-      RTGC_ONLY(fatal("Not tested in RTGC");)
       // also releases ik->constants() C heap memory
       ik->release_C_heap_structures();
       // Remove the class so unloading events aren't triggered for

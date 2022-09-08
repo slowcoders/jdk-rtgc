@@ -73,12 +73,10 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-      // rtgc_log(true, "mark alive referent -- %p\n", (void*)p);
-      rtHeap::mark_survivor_reachable(p);
-    } else if (!p->is_forwarded()) {
-      return false;
+      return rtHeap::is_alive(p);
+    } else {
+      return p->is_forwarded();
     }
-    return true;
   }
 #endif
   return cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end() || p->is_forwarded();
@@ -113,6 +111,7 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
+    rtHeap::oop_recycled_iterate(_scan_older);
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -583,7 +582,8 @@ void DefNewGeneration::collect(bool   full,
   _preserved_marks_set.init(1);
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::prepare_rtgc(false);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
   } else 
@@ -620,7 +620,7 @@ void DefNewGeneration::collect(bool   full,
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-                              RTGC_ONLY(EnableRTGC ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
+                              RTGC_ONLY(RtNoDirtyCardMarking ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
@@ -628,6 +628,11 @@ void DefNewGeneration::collect(bool   full,
   // "evacuate followers".
   evacuate_followers.do_void();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
+  }
+#endif
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
   rp->setup_policy(clear_all_soft_refs);
@@ -640,17 +645,17 @@ void DefNewGeneration::collect(bool   full,
 
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_final_phantom_references(&evacuate_followers, false);
+    rtHeap::finish_adjust_pointers(false);
+  }
+#endif
   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::discover_java_references(false);
-    rtHeap::finish_compaction_gc(false);
-  }
-#endif
 
   if (!_promotion_failed) {
     // Swap the survivor spaces.

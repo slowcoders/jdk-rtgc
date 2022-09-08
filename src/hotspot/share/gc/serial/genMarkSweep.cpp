@@ -74,12 +74,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   }
 #endif
 
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    rtHeap::prepare_full_gc();
-  }
-#endif
-
   // hook up weak ref data so it can be used during Mark-Sweep
   assert(ref_processor() == NULL, "no stomping");
   assert(rp != NULL, "should be non-NULL");
@@ -98,6 +92,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::prepare_rtgc(true);
+  }
+#endif
+
   mark_sweep_phase1(clear_all_softrefs);
 
   mark_sweep_phase2();
@@ -108,17 +108,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::discover_java_references(true);
-  }
-#endif
-
   mark_sweep_phase3();
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::finish_compaction_gc(true);
+    rtHeap::finish_adjust_pointers(true);
+    // rtHeap::finish_rtgc();
   }
 #endif
 
@@ -215,8 +210,19 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
                             &follow_cld_closure);
   }
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    // YoungRootClosure2 closure;
+    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
+    if (!rtHeap::DoCrossCheck) {
+      rtHeap::iterate_young_roots(NULL/*&closure*/, true);
+    }
+    ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
+  }
+#endif
   // Process reference objects found during marking
-  {
+  if (!EnableRTGC || rtHeap::DoCrossCheck) {
     GCTraceTime(Debug, gc, phases) tm_m("Reference Processing", gc_timer());
 
     ref_processor()->setup_policy(clear_all_softrefs);
@@ -226,6 +232,14 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     pt.print_all_references();
     gc_tracer()->report_gc_reference_stats(stats);
   }
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
+//    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_type);
+    rtHeap::process_final_phantom_references(&follow_stack_closure, true);
+  }
+#endif
 
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");

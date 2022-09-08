@@ -107,8 +107,6 @@ static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAcces
 
   __ movl(tmp3, Address(obj, offset_gc_flags));
   __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
-  // __ andl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
-  // notZero 바꿔서 test.
   __ jcc(Assembler::zero, rawAccess);
 }
 

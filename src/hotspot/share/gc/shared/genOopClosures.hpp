@@ -105,13 +105,13 @@ public:
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
   int _cnt_young_ref;
-  debug_only(oop anchor;)
+  debug_only(oop _anchor;)
 public:
   YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
   
   bool do_object_b(oop obj) {
     _cnt_young_ref = 0;
-    debug_only(anchor = obj;)
+    debug_only(_anchor = obj;)
     obj->oop_iterate(this);
     return _cnt_young_ref > 0;
   }
@@ -122,9 +122,7 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    assert(rtHeap::is_alive(obj), "invalid ref-link %p(%s)->%p(%s)\n",
-      (void*)anchor, anchor->klass()->name()->bytes(),
-      (void*)obj, obj->klass()->name()->bytes());
+    rtHeap::keep_alive_trackable(obj);
   }
 };
 #endif
@@ -148,7 +146,11 @@ public:
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
-    rtHeap::mark_survivor_reachable(obj);
+    if (rtHeap::is_trackable(obj)) {
+      rtHeap::mark_survivor_reachable(obj);
+    } else {
+      // it is allocated in tenured_space in just before YG-gc;
+    }
   }
 
   void do_iterate(oop obj) {
