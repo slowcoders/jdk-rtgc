@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-   "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
+  //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
   // "java/nio/DirectByteBuffer$Deallocator",
   // "java/lang/Module",
     // "java/lang/invoke/MethodTypeForm",
@@ -248,22 +248,21 @@ bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj) return true;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    Klass* klass = obj->klass();
+    if (true) {
+      if (vmClasses::Class_klass() != klass) return false;
+      klass = java_lang_Class::as_Klass(cast_to_oop(obj));
+      if (klass == NULL) return false;
+    }
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
-      Klass* klass = obj->klass();
-      if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
-        Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
-        if (k2 != NULL) {
-          klass = k2;
-        }
-      } 
-      if (className != NULL && strstr((char*)klass->name()->bytes(), className)) {
-        //&& obj->klass()->name()->utf8_length() == (int)strlen(className)) {
+      if (className != NULL && strstr((char*)klass->name()->bytes(), className)
+          /*&& obj->klass()->name()->utf8_length() == (int)strlen(className)*/) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
-        debugKlass[i] = obj->klass();
+        debugKlass[i] = klass;
         return true;
       }
-    } else if (obj->klass() == debugKlass[i]) {
+    } else if (klass == debugKlass[i]) {
       return true;
     }
   }
@@ -295,7 +294,7 @@ void RTGC::initialize() {
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (1) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (0) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

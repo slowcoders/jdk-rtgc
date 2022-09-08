@@ -139,14 +139,9 @@ int GCObject::tryRemoveReferrer(GCObject* referrer) {
     return 0;
 }
 
-static int cntCC = 0;
-
 void GCObject::clearAnchorList() {
-#ifdef ASSERT    
-    if (RTGC::is_debug_pointer((void*)this)) {
-        rtgc_log(1, "all anchor removed (%d) from %p isMulti=%d tr=%d rc=%d\n", cntCC, this, hasMultiRef(), isTrackable(), getRootRefCount());
-    }
-#endif
+    rtgc_debug_log(this, "all anchor removed from %p isMulti=%d tr=%d rc=%d\n",
+        this, hasMultiRef(), isTrackable(), getRootRefCount());
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         _rtgc.gRefListPool.delete_(referrers);

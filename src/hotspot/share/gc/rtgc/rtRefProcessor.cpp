@@ -269,7 +269,7 @@ void RtRefProcessor<refType>::process_references(OopClosure* keep_alive) {
   oopDesc* pending_tail_acc = NULL;
   oopDesc* pending_head = NULL;
   for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
-    // rtgc_log(true || LOG_OPT(3), "check %s %p\n", ref_type, (void*)ref_op);
+    rtgc_log(LOG_OPT(3), "check %s %p\n", ref_type, (void*)ref_op);
     next_ref_op = RawAccess<>::oop_load_at(ref_op, _discovered_off);
     precond(ref_op != next_ref_op);
     debug_only(cnt_ref++;)
@@ -454,7 +454,7 @@ void RtRefProcessor<refType>::break_reference_links(ReferencePolicy* policy) {
     GCRuntime::disconnectReferenceLink(referent_node, ref_node);
     ref_node->markDirtyReferrerPoints();
   }
-  rtgc_log(true, "break_reference_links %d/%d\n", _refs->size(), cntRef);  
+  rtgc_log(LOG_OPT(3), "break_reference_links %d/%d\n", _refs->size(), cntRef);  
 }
 
 
@@ -499,8 +499,8 @@ static void adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect
 
       if (ref_node->isDirtyReferrerPoints()) {
         ref_node->unmarkDirtyReferrerPoints();
-        rtgc_log(g_cntCleanRef == 5, "REATTACH ref %p r=%d, rc=%d\n", 
-            referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
+        // rtgc_log(g_cntCleanRef == 5, "REATTACH ref %p r=%d, rc=%d\n", 
+        //     referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
         to_obj(referent)->addReferrer(ref_node);
       }
     }
@@ -519,7 +519,7 @@ static void adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect
 template <ReferenceType refType>
 void RtRefProcessor<refType>::adjust_ref_q_pointers() {
   const char* ref_type = reference_type_to_string(refType);
-  rtgc_log(true, "adjust_ref_q_pointers 22 %s %p %d\n", ref_type, _ref_q, _refs->size());
+  rtgc_log(LOG_OPT(3), "adjust_ref_q_pointers 22 %s %p %d\n", ref_type, _ref_q, _refs->size());
   oopDesc* prev_ref_op = NULL;
   oop next_ref_op;
   for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {

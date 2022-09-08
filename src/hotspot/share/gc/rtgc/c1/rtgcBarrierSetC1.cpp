@@ -47,7 +47,7 @@ static const int LOG_OPT(int function) {
 }
 
 void __trace(narrowOop* addr) {
-  rtgc_log(true, "__TRCAE %p\n", addr);
+  rtgc_log(1, "__TRCAE %p\n", addr);
 }
 void __break(narrowOop* addr) {
   assert(false, "__BREAK %p\n", addr);

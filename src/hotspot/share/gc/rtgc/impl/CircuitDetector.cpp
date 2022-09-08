@@ -62,7 +62,6 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node) {
                 GCObject* obj = (GCObject*)_visitedNodes.at(i);
                 obj->unmarkGarbage();
             }
-            // rtgc_log(true, "resize %d to %d\n", _visitedNodes.size(), trace_top);
             _visitedNodes.resize(trace_top);
         }
         constructShortcut();
@@ -266,7 +265,7 @@ void GarbageProcessor::constructShortcut() {
 
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     precond(garbageAnchor->isTrackable());
-    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    //rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (!link->removeMatchedReferrers(garbageAnchor)) {
         rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
