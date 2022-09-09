@@ -270,28 +270,38 @@ void rtHeap::mark_young_root_reachable(oopDesc* p) {
 
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   int cnt_root = is_full_gc ? g_young_roots.length() : g_saved_young_root_count;
-  if (cnt_root > 0) {
+  if (!is_full_gc) {
+    _rtgc.g_pGarbageProcessor->validateGarbageList();
+  }
+  if (g_young_roots.length() == 0) {
+    //rtgc_log(true, "no roots\n");
+    _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+  } else {
     oop* src_0 = g_young_roots.adr_at(0);
-    if (ENABLE_GC) {
-      if (!is_full_gc) {
-        _rtgc.g_pGarbageProcessor->validateGarbageList();
-      }
+    if (cnt_root > 0) {
+      if (ENABLE_GC) {
 
-      oop* end = src_0 + cnt_root;
-      oop* end_of_new_root = src_0 + g_young_roots.length();
-      for (; end < end_of_new_root; end++) {
-        GCRuntime::onAssignRootVariable_internal(to_obj(*end));
-      }
+        oop* end = src_0 + cnt_root;
+        oop* end_of_new_root = src_0 + g_young_roots.length();
+        for (; end < end_of_new_root; end++) {
+          precond(to_obj(*end)->isStrongRootReachable());
+          precond(to_obj(*end)->isYoungRoot());
+          //GCRuntime::onAssignRootVariable_internal(to_obj(*end));
+        }
 
+        //rtgc_log(true, "scan roots %d\n", cnt_root);
+        _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+
+        end = src_0 + cnt_root;
+        for (; end < end_of_new_root; end++) {
+          //GCRuntime::onEraseRootVariable_internal(to_obj(*end));
+        }
+      }
+      rtgc_log(LOG_OPT(8), "collectGarbage yg-root finished\n")
+    } else {
+      // rtgc_log(true, "no saved roots\n");
       _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-
-      end = src_0 + cnt_root;
-      for (; end < end_of_new_root; end++) {
-        GCRuntime::onEraseRootVariable_internal(to_obj(*end));
-      }
-
     }
-    rtgc_log(LOG_OPT(8), "collectGarbage yg-root finished\n")
     oop* dst = src_0;
     oop* end = src_0 + cnt_root;
 
@@ -304,6 +314,8 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
           *dst = cast_to_oop(node);
         }
         dst ++;
+      } else {
+        // rtgc_log(true, "removed yg-root %p\n", node);
       }
     }
 
@@ -390,6 +402,8 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
+    precond(!node->isGarbageMarked());
+    assert(node->isYoungRoot(), "invalid young root %p\n", node);
     if (is_full_gc) {
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
     } else if (node->isUnreachable()) {
@@ -406,7 +420,6 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
       node->unmarkYoungRoot();
     } 
   }
-  _rtgc.g_pGarbageProcessor->validateGarbageList();
 }
 
 
@@ -428,7 +441,7 @@ void rtHeap::add_promoted_link(oopDesc* anchor, oopDesc* link, bool is_tenured_l
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   precond(!to_node(p)->isGarbageMarked());
-  assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
+  // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   to_obj(p)->markDirtyReferrerPoints();
 }
@@ -659,7 +672,7 @@ void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
         cast_to_oop(anchor)->print_on(tty);
       }
 
-      rtgc_log(true, "ghost anchor[%d:unsafe:%d] %p:%d(%s) of garbage %p(%s)\n", 
+      rtgc_log(1, "ghost anchor[%d:unsafe:%d] %p:%d(%s) of garbage %p(%s)\n", 
           depth, anchor->isUnstableMarked(), anchor, anchor->getRootRefCount(),
           RTGC::getClassName(anchor), node, RTGC::getClassName(node));
       if (depth < 5) {
@@ -723,9 +736,9 @@ void rtHeap::finish_adjust_pointers(bool is_full_gc) {
     GCRuntime::adjustShortcutPoints();
     rtHeap__clearStack<true>();
   } else {
-    rtHeap__clear_garbage_young_roots(is_full_gc);
+    // rtHeap__clear_garbage_young_roots(is_full_gc);
     rtHeapEx::adjust_ref_q_pointers(is_full_gc);
-    _rtgc.g_pGarbageProcessor->collectGarbage(false);
+    // _rtgc.g_pGarbageProcessor->collectGarbage(false);
     rtHeap__clearStack<false>();
   }
 }

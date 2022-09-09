@@ -297,6 +297,14 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     // Clean JVMCI metadata handles.
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
+
+#if INCLUDE_RTGC
+    {
+      // clear garbage of unloaded class.
+      void rtHeap__clear_garbage_young_roots(bool is_full_gc);
+      rtHeap__clear_garbage_young_roots(true);
+    }
+#endif    
   }
 
   gc_tracer()->report_object_count_after_gc(&is_alive);

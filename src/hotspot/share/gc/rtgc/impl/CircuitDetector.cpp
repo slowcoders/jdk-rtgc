@@ -283,6 +283,11 @@ void GarbageProcessor::addUnstable_ex(GCObject* obj) {
     _unsafeObjects.push_back(obj);
 }
 
+static int __break() {
+    fatal("rtgc break");
+    return 0;
+}
+
 void GarbageProcessor::addUnstable(GCObject* obj) {
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());
@@ -328,6 +333,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
 
 void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, bool isTenured) {
     precond(!obj->hasShortcut());
+    precond(obj->isGarbageMarked());
     obj->clearAnchorList();
     rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    

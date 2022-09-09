@@ -142,6 +142,12 @@ public:
 		return _flags.rootRefCount > 1;
 	}
 
+	bool isStrongReachable() {
+		return isStrongRootReachable() || hasReferrer();
+	}
+
+
+
 	int getRootRefCount() {
 		return _flags.rootRefCount;
 	}

@@ -4,6 +4,8 @@
 #include "rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 
+class RefProcProxyTask;
+
 namespace RTGC {
 
 class rtHeapEx {
@@ -19,6 +21,9 @@ public:
   static void update_soft_ref_master_clock();
 
   static void mark_ghost_anchors(GCObject* node, int depth = 0);
+
+  static void keep_alive_final_referents(RefProcProxyTask* proxy_task);
+
 
   static jlong _soft_ref_timestamp_clock;
 };
