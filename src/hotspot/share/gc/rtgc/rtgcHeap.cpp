@@ -140,8 +140,9 @@ bool rtHeap::is_alive(oopDesc* p, bool assert_alive) {
   GCObject* node = to_obj(p);
   bool alive = !node->isGarbageMarked() && (node->isTrackable() || p->is_gc_marked());
   if (assert_alive) {
-    assert(alive, "invalid pointer %p(%s) isClass=%d\n", 
-        p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
+    assert(alive, "invalid pointer %p(%s) isClass=%d t=%d gc_m=%d rc=%d\n", 
+        p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass(),
+        node->isTrackable(), p->is_gc_marked(), node->getRootRefCount());
   }
   return alive;
 }

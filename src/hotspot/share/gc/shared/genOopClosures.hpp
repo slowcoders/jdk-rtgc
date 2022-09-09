@@ -122,7 +122,7 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    rtHeap::keep_alive_trackable(obj);
+    precond(rtHeap::is_alive(obj, true));
   }
 };
 #endif

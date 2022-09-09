@@ -213,7 +213,7 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
   // discovered soft refs.
 
 #if INCLUDE_RTGC
-  if (rtHeap::DoCrossCheck) {
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
     extern jlong __get_soft_ref_timestamp_clock();
     _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock();
   } else
@@ -385,7 +385,7 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
     if (EnableRTGC && rtHeap::DoCrossCheck) {
-      precond(rtHeap::is_alive(iter.obj()));
+      precond(rtHeap::is_alive(iter.obj(), true));
     }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if
@@ -1281,11 +1281,6 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
       log_develop_trace(gc, ref)("Precleaning Reference (" INTPTR_FORMAT ": %s)",
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
       // Remove Reference object from list
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-      if (EnableRTGC) {
-          fatal("gotcha!");
-      }
-#endif      
       iter.remove();
       // Keep alive its cohort.
       iter.make_referent_alive();
