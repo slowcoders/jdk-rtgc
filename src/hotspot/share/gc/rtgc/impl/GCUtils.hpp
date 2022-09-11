@@ -273,7 +273,7 @@ class GCObject;
 typedef bool (*LinkVisitor)(GCObject* anchor, GCObject* link, void* param);
 
 template <class T>
-class RefIterator {
+class NodeIterator {
 public:
     T* _current;
     T* _end;

@@ -51,11 +51,17 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 #endif
 }
 
-bool GarbageProcessor::scanSurvivalPath(GCObject* node) {
+bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool checkBrokenLink) {
     ShortOOP tail = node;
     precond(EnableRTGC);
+    precond(node->isTrackable());
     int trace_top = _visitedNodes.size();
-    bool hasSurvivalPath = findSurvivalPath(tail);
+    bool hasSurvivalPath;
+    if (checkBrokenLink) {
+      hasSurvivalPath = findSurvivalPath<true>(tail);
+    } else {
+      hasSurvivalPath = findSurvivalPath<false>(tail);
+    }
     if (hasSurvivalPath) {
         if (_visitedNodes.size() != trace_top) {
             for (int i = _visitedNodes.size(); --i >= trace_top; ) {
@@ -88,6 +94,7 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node) {
     return hasSurvivalPath;
 }
 
+template<bool checkBrokenLink>
 bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
     AnchorIterator* it = _trackers.push_empty();
     it->initSingleIterator(&tail);
@@ -132,6 +139,15 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             rtgc_log(LOG_OPT(7), "pass marked %p:%d[%d](gm=%d)\n", 
                 R, R->getShortcutId(), _trackers.size(), R->isGarbageMarked());
             continue;
+        }
+
+        if (checkBrokenLink && R->isDirtyReferrerPoints()) {
+            it = &_trackers.at(_trackers.size() - 2);
+            GCObject* top = it->peekPrev();
+            //rtgc_log(true, "check broken=%d  %p -> %p\n", RuntimeHeap::is_broken_link(R, top), R, top);
+            if (RuntimeHeap::is_broken_link(R, top)) {
+                continue;
+            }
         }
 
         if (R->getRootRefCount() > ZERO_ROOT_REF) {
@@ -310,7 +326,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
             if (!scanUnstableOnly || node->isUnstableMarked()) {
-                bool isGarbage = detectGarbage(node);
+                bool isGarbage = detectGarbage(node, false);
                 rtgc_debug_log(node, "detectGarbage=%p garbage=%d\n", node, isGarbage);
             }
             postcond(node->isGarbageMarked() || !node->isUnstableMarked());
@@ -353,24 +369,56 @@ void GarbageProcessor::validateGarbageList() {
     }
 }
 
-bool GarbageProcessor::detectGarbage(GCObject* node) {
-    if (node->isGarbageMarked()) {
-        assert(node->isDestroyed() || _visitedNodes.contains(node), 
-            "incorrect marked garbage %p(%s)\n", node, getClassName(node));
-        return true;
+bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
+    if (!checkBrokenLink) {
+        if (node->isGarbageMarked()) {
+            assert(node->isDestroyed() || _visitedNodes.contains(node), 
+                "incorrect marked garbage %p(%s)\n", node, getClassName(node));
+            return true;
+        }
+        if (node->isUnreachable()) {
+            node->markGarbage("collectGarbage");
+            _visitedNodes.push_back(node);
+            return true;
+        }
     }
-    if (node->isUnreachable()) {
-        node->markGarbage("collectGarbage");
-        _visitedNodes.push_back(node);
-        return true;
-    }
-    
     node->unmarkUnstable();
     if (node->getRootRefCount() > 0) {
         return false;
-    } 
-    scanSurvivalPath(node);
-    return node->isGarbageMarked();
+    }
+    if (checkBrokenLink) { 
+        precond(!node->isGarbageMarked());
+        precond(node->hasReferrer());
+        if (!node->isTrackable()) {
+            if (!node->hasMultiRef()) {
+                precond(node->getSingleAnchor()->isDirtyReferrerPoints());
+                return true;
+            } else {
+                ReferrerList* referrers = node->getReferrerList();
+                bool clear_referrer = false;
+                for (int i = referrers->size(); --i >= 0; ) {
+                    GCObject* anchor = referrers->at(i);
+                    if (!anchor->isDirtyReferrerPoints()) {
+                        clear_referrer = true;
+                        scanSurvivalPath(anchor, checkBrokenLink);
+                        if (!anchor->isGarbageMarked()) {
+                            return false;
+                        }
+                    }
+                }
+                if (clear_referrer) {
+                    node->clearGarbageAnchors();
+                }
+                return true;
+            }
+        }
+    }
+
+    scanSurvivalPath(node, checkBrokenLink);
+    if (node->isGarbageMarked()) {
+        return true;
+    }
+    return false;
 }
 
 bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {

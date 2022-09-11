@@ -235,13 +235,13 @@ void rtHeap::keep_alive_trackable(oopDesc* obj) {
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
+  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
   }
 
-  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   precond (!node->isGarbageMarked());
   if (node->isStrongRootReachable()) return;
   rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
@@ -405,9 +405,11 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
     precond(!node->isGarbageMarked());
     assert(node->isYoungRoot(), "invalid young root %p\n", node);
     if (is_full_gc) {
-      if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
+      if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
     } else if (node->isUnreachable()) {
       node->markGarbage();
+      // markDirtyReferrerPoints
+      // -> FieldIterator 에서 yg-root 의 field 가 forwarded 값을 가진가를 확인하기 위하여 사용한다.
       node->markDirtyReferrerPoints();
       garbages->push_back(node);
       rtgc_log(false, "skip garbage yg-root %p\n", node);
@@ -650,7 +652,7 @@ void GCNode::markGarbage(const char* reason)  {
 
 #ifdef ASSERT
 void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
-  if (node->isUnreachable()) return;
+  if (node->isUnreachable() || node->getRootRefCount() > 1) return;
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {

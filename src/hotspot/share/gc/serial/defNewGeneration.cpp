@@ -630,7 +630,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
+    rtHeap::process_weak_soft_references(NULL);
   }
 #endif
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
@@ -647,7 +647,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(&evacuate_followers, false);
+    rtHeap::process_final_phantom_references(&scan_closure, &evacuate_followers, false);
     rtHeap::finish_adjust_pointers(false);
   }
 #endif

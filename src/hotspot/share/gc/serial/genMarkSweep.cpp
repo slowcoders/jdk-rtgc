@@ -252,7 +252,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
       rtHeap::iterate_young_roots(NULL/*&closure*/, true);
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
-    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
+    rtHeap::process_weak_soft_references(policy);
   }
 #endif
   // Process reference objects found during marking
@@ -271,7 +271,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   if (EnableRTGC) {
     ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
 //    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_type);
-    rtHeap::process_final_phantom_references(&follow_stack_closure, true);
+    rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
 

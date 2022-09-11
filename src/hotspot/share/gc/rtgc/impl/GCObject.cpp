@@ -176,7 +176,7 @@ static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
     if (!node->hasMultiRef()) {
         if (node->_refs == 0) return false;
         if (isGarbage) {
-            if (!node->getSingleAnchor()->isGarbageMarked()) return false;
+            if (!node->getSingleAnchor()->isDirtyReferrerPoints()) return false;
         }
         else {
             if (node->_refs != _pointer2offset(referrer)) return false;
@@ -205,7 +205,7 @@ static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
         if (isGarbage) {
             ReferrerList* referrers = node->getReferrerList();
             for (int i = referrers->size(); --i >= 0; ) {
-                if (referrers->at(i)->isGarbageMarked()) {
+                if (referrers->at(i)->isDirtyReferrerPoints()) {
                     referrers->removeFast(i);
                 }
             }

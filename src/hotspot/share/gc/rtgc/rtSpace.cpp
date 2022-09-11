@@ -120,6 +120,12 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   obj->markDestroyed();
 }
 
+bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
+  return cast_to_oop(link) == 
+      java_lang_ref_Reference::unknown_referent_no_keepalive(cast_to_oop(anchor));
+}
+
+
 bool rtHeap::is_destroyed(oopDesc* p) {
   return to_obj(p)->isDestroyed();
 }

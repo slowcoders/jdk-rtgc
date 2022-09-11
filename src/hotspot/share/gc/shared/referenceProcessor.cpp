@@ -41,6 +41,7 @@
 #include "runtime/java.hpp"
 #include "runtime/nonJavaThread.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtRefProcessor.hpp"
 
 ReferencePolicy* ReferenceProcessor::_always_clear_soft_ref_policy = NULL;
 ReferencePolicy* ReferenceProcessor::_default_soft_ref_policy      = NULL;
@@ -377,6 +378,10 @@ size_t ReferenceProcessor::process_soft_ref_reconsider_work(DiscoveredList&    r
   return iter.removed();
 }
 
+#if INCLUDE_RTGC
+void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
+#endif
+
 size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    refs_list,
                                                              BoolObjectClosure* is_alive,
                                                              OopClosure*        keep_alive,
@@ -385,7 +390,7 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
     if (EnableRTGC && rtHeap::DoCrossCheck) {
-      precond(rtHeap::is_alive(iter.obj(), true));
+      precond(!iter.obj()->is_gc_marked() || rtHeap::is_alive(iter.obj(), true));
     }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if
@@ -405,7 +410,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
       iter.make_referent_alive();
       iter.move_to_next();
     } else {
-      void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
       if (do_enqueue_and_clear) {
         if (EnableRTGC && rtHeap::DoCrossCheck) {
           rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
@@ -438,11 +442,16 @@ size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_li
     iter.load_ptrs(DEBUG_ONLY(false /* allow_null_referent */));
     // keep the referent and followers around
     iter.make_referent_alive();
+#if INCLUDE_RTGC
+    if (EnableRTGC && rtHeap::DoCrossCheck) {
+      // iter.referent() 는 이미 forwarded 객체로 변경된 상태임;
+      rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
+    }
+#endif    
 
     // Self-loop next, to mark the FinalReference not active.
     assert(java_lang_ref_Reference::next(iter.obj()) == NULL, "enqueued FinalReference");
     java_lang_ref_Reference::set_next_raw(iter.obj(), iter.obj());
-
     iter.enqueue();
     log_enqueued_ref(iter, "Final");
     iter.next();

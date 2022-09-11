@@ -11,6 +11,7 @@ typedef SimpleVector<GCObject*> NodeList;
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
+	static bool is_broken_link(GCObject* anchor, GCObject* link);
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
@@ -30,7 +31,7 @@ public:
 	template <bool scanUnstableOnly>
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
-	bool detectGarbage(GCObject* node);
+	bool detectGarbage(GCObject* node, bool checkBrokenLink);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
@@ -41,8 +42,9 @@ private:
     HugeArray<AnchorIterator> _trackers;
     SafeShortcut* reachableShortcurQ;
 
+	template<bool checkBrokenLink>
     bool findSurvivalPath(ShortOOP& tail);
-    bool scanSurvivalPath(GCObject* tail);
+    bool scanSurvivalPath(GCObject* tail, bool checkBrokenLink);
     void constructShortcut();
     void clearReachableShortcutMarks();
 

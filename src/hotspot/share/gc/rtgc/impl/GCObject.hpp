@@ -209,7 +209,7 @@ public:
 
 
 
-class AnchorIterator : public RefIterator<ShortOOP> {
+class AnchorIterator : public NodeIterator<ShortOOP> {
 public:
 	AnchorIterator() {}
 
