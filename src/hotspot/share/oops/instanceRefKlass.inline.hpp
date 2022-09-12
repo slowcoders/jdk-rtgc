@@ -81,7 +81,7 @@ template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
-  if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type == REF_PHANTOM)) {
+  if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type >= REF_PHANTOM)) {
     T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
     T heap_oop = RawAccess<>::oop_load(referent_addr);
     if (!CompressedOops::is_null(heap_oop)) {
@@ -141,7 +141,7 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
       {
         ReferenceType type = reference_type();
-        if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type == REF_PHANTOM)) {
+        if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type >= REF_FINAL)) {
           T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
           T heap_oop = RawAccess<>::oop_load(referent_addr);
           if (!CompressedOops::is_null(heap_oop)) {

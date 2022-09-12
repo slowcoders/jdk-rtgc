@@ -623,6 +623,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 
 void rtHeap::prepare_point_adjustment() {
   if (g_adjust_pointer_closure._old_gen_start != NULL) return;
+  rtHeapEx::adjust_ref_q_pointers(true);
 
   void* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
   g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
@@ -734,7 +735,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 void rtHeap::finish_adjust_pointers(bool is_full_gc) {
   if (is_full_gc) {
     g_adjust_pointer_closure._old_gen_start = NULL;
-    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     GCRuntime::adjustShortcutPoints();
     rtHeap__clearStack<true>();
   } else {

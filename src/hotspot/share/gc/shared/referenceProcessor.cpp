@@ -238,6 +238,12 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
     process_soft_weak_final_refs(proxy_task, phase_times);
   }
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    RTGC::rtHeapEx::keep_alive_final_referents(&proxy_task);
+  }
+  if (rtHeap::DoCrossCheck)
+#endif
   {
     RefProcTotalPhaseTimesTracker tt(RefPhase3, &phase_times);
     process_final_keep_alive(proxy_task, phase_times);
@@ -445,7 +451,8 @@ size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_li
 #if INCLUDE_RTGC
     if (EnableRTGC && rtHeap::DoCrossCheck) {
       // iter.referent() 는 이미 forwarded 객체로 변경된 상태임;
-      rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
+      rtHeap__ensure_garbage_referent(iter.obj(), java_lang_ref_Reference::unknown_referent_no_keepalive(iter.obj()), 
+          _current_soft_ref_policy != _default_soft_ref_policy);
     }
 #endif    
 
