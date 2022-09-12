@@ -238,12 +238,12 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
     process_soft_weak_final_refs(proxy_task, phase_times);
   }
 
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    RTGC::rtHeapEx::keep_alive_final_referents(&proxy_task);
-  }
-  if (rtHeap::DoCrossCheck)
-#endif
+// #if INCLUDE_RTGC
+//   if (EnableRTGC) {
+//     RTGC::rtHeapEx::keep_alive_final_referents(&proxy_task);
+//   }
+//   if (rtHeap::DoCrossCheck)
+// #endif
   {
     RefProcTotalPhaseTimesTracker tt(RefPhase3, &phase_times);
     process_final_keep_alive(proxy_task, phase_times);

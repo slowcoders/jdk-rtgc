@@ -860,7 +860,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   complete_gc->do_void();
   rtHeap__clear_garbage_young_roots(is_full_gc);
 
-  for (RefIterator iter(g_finalList); (ref = iter.next_ref<>()) != NULL; ) {
+  for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
     GCObject* referent = to_obj(iter.referent_p());
     if (referent->isTrackable() ? !referent->isStrongReachable() : !cast_to_oop(referent)->is_gc_marked()) {
       rtgc_log(true, "final ref cleared 1 %p -> %p\n", (void*)ref, referent);
@@ -943,10 +943,10 @@ void __process_final_phantom_references(OopClosure* keep_alive, VoidClosure* com
 
 void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc) {
   if (is_tenure_gc) {
-    //__keep_alive_final_referents<true>(keep_alive, complete_gc);
+    __keep_alive_final_referents<true>(keep_alive, complete_gc);
     __process_final_phantom_references<true>(keep_alive, complete_gc);
   } else {
-    //__keep_alive_final_referents<false>(keep_alive, complete_gc);
+    __keep_alive_final_referents<false>(keep_alive, complete_gc);
     __process_final_phantom_references<false>(keep_alive, complete_gc);
   }
 }
