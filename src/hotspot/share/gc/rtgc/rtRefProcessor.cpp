@@ -866,8 +866,18 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       rtgc_log(true, "final ref cleared 1 %p -> %p\n", (void*)ref, referent);
       referent->unmarkActiveFinalizereReachable();
       postcond(referent->isUnreachable());
+      if (!is_full_gc) {
+        iter.adjust_ref_pointer<is_full_gc>();
+      }
+      if ((rtHeap::DoCrossCheck || !referent->isTrackable()) && !cast_to_oop(referent)->is_gc_marked()) {
+        if (UseCompressedOops) {
+          keep_alive->do_oop((narrowOop*)iter.referent_addr());
+        } else {
+          keep_alive->do_oop((oop*)iter.referent_addr());
+        }
+      }
       if (ref->isTrackable()) {
-        RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), true);
+        RTGC::add_referrer_ex(iter.referent_p(), cast_to_oop(ref), true);
       }
       iter.enqueue_curr_ref(false);
     } else {
@@ -876,6 +886,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       rtHeapEx::mark_ghost_anchors(referent);
     }
   }
+  complete_gc->do_void();
 }
 
 void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
@@ -931,10 +942,10 @@ void __process_final_phantom_references(OopClosure* keep_alive, VoidClosure* com
     oop enqueued_top_np = Universe::swap_reference_pending_list(g_pending_head);
     link_pending_reference(g_pending_tail, enqueued_top_np);
 #ifdef ASSERT
-    for (oop p = g_pending_head; p != enqueued_top_np; p = RawAccess<>::oop_load_at(p, RefListBase::_discovered_off)) {
-      oop r = RawAccess<>::oop_load_at(p, RefListBase::_referent_off);
-      // rtgc_log(true, "ref %p(%s) %p", (void*)p, getClassName(to_obj(p)), (void*)r);
-      assert(r == NULL, "ref %p(%s)", (void*)p, getClassName(to_obj(p)));
+    for (oop ref_p = g_pending_head; ref_p != enqueued_top_np; ref_p = RawAccess<>::oop_load_at(ref_p, RefListBase::_discovered_off)) {
+      oop r = RawAccess<>::oop_load_at(ref_p, RefListBase::_referent_off);
+      // rtgc_log(true, "ref %p(%s) %p", (void*)ref_p, getClassName(to_obj(ref_p)), (void*)r);
+      assert(r == NULL || InstanceKlass::cast(ref_p->klass())->reference_type() == REF_FINAL, "ref %p(%s)", (void*)ref_p, getClassName(to_obj(ref_p)));
     }
 #endif
     g_pending_head = NULL;
