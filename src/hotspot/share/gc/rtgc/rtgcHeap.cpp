@@ -637,17 +637,17 @@ void GCNode::markGarbage(const char* reason)  {
 #ifdef ASSERT
 void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
   if (node->isUnreachable()) return;
-  precond(node->getRootRefCount() == 0);
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {
     if (node->hasSafeAnchor()) {
       GCObject* anchor = node->getSafeAnchor();
-      rtgc_log(true, "safe anchor[%d] %p(%s)[%d] unsafe:%d rc:%d gm:%d isClass=%d -> %p(%s)\n", 
+      bool isClass = cast_to_oop(anchor)->klass() == vmClasses::Class_klass();
+      rtgc_log(true, "safe anchor[%d] %p(%s)[%d] unsafe:%d rc:%d gm:%d isClass=%d cldAlive=%d -> %p(%s)\n", 
           depth, anchor, RTGC::getClassName(anchor),
           anchor->getShortcutId(), anchor->isUnstableMarked(), 
           anchor->getRootRefCount(), cast_to_oop(anchor)->is_gc_marked(), 
-          cast_to_oop(anchor)->klass() == vmClasses::Class_klass(),
+          isClass, !isClass ? 0 : java_lang_Class::as_Klass(cast_to_oop(anchor))->class_loader_data()->is_alive(),
           node, RTGC::getClassName(node));
       mark_ghost_anchors(anchor, depth + 1);
       return;

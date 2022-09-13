@@ -484,7 +484,8 @@ static void adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect
     }
     if (!ref_op->is_gc_marked()) {
       rtHeapEx::mark_ghost_anchors(ref_node);
-      precond(ref_op->is_gc_marked());
+      //precond(ref_op->is_gc_marked());
+      continue;
     }
     postcond(!ref_node->isUnstableMarked());
 
@@ -614,7 +615,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
 
 void rtHeap::process_final_phantom_references(VoidClosure* complete_gc, bool is_tenure_gc) {
 #if DO_CROSS_CHECK_REF
-  assert(g_cntMisRef == 0, "g_cntMisRef %d/%d\n", g_cntMisRef, g_cntGarbageRef);
+  // assert(g_cntMisRef == 0, "g_cntMisRef %d/%d\n", g_cntMisRef, g_cntGarbageRef);
   g_cntMisRef = g_cntGarbageRef = 0;
 #endif  
   if (is_tenure_gc) {

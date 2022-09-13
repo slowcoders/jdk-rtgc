@@ -248,22 +248,22 @@ bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj) return true;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    Klass* klass = obj->klass();
     if (debugKlass[i] == NULL) {
-      const char* className = debugClassNames[i];
-      Klass* klass = obj->klass();
-      if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
-        Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
-        if (k2 != NULL) {
-          klass = k2;
-        }
+      if (true) {
+        if (vmClasses::Class_klass() != klass) return false;
+        klass = java_lang_Class::as_Klass(cast_to_oop(obj));
+        if (klass == NULL) return false;
       } 
+
+      const char* className = debugClassNames[i];
       if (className != NULL && strstr((char*)klass->name()->bytes(), className)) {
         //&& obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
-        debugKlass[i] = obj->klass();
+        debugKlass[i] = klass;
         return true;
       }
-    } else if (obj->klass() == debugKlass[i]) {
+    } else if (klass == debugKlass[i]) {
       return true;
     }
   }
