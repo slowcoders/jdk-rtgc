@@ -20,7 +20,7 @@ public:
 
   static void update_soft_ref_master_clock();
 
-  static void mark_ghost_anchors(GCObject* node, int depth = 0);
+  static bool print_ghost_anchors(GCObject* node, int depth = 0);
 
   static void keep_alive_final_referents(RefProcProxyTask* proxy_task);
 
