@@ -92,6 +92,8 @@ public:
   void do_iterate(oop obj) {
     _trackable_anchor = obj;
     _is_young_root = false;
+    zeedh "mark_trackable 만 처리. mark_survivor_reachable 없이!"
+
     rtHeap::mark_promoted_trackable(obj);
     obj->oop_iterate(this);
     if (_is_young_root) {
@@ -149,6 +151,8 @@ public:
     if (rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
     } else {
+      zeedh "mark_promoted_trackable 처리"
+
       // it is allocated in tenured_space in just before YG-gc;
     }
   }

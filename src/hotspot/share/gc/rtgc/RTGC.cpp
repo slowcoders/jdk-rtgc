@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-  //  "LookupHelper+0x0000000800221800",
+    "java/lang/ref/Finalizer",
   //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
   // "java/nio/DirectByteBuffer$Deallocator",
     // "java/lang/invoke/MethodTypeForm",
@@ -249,7 +249,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
-    if (true) {
+    if (false) {
       if (vmClasses::Class_klass() != klass) return false;
       klass = java_lang_Class::as_Klass(cast_to_oop(obj));
       if (klass == NULL) return false;
