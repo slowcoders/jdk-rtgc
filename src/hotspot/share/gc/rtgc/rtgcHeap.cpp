@@ -652,8 +652,8 @@ void GCNode::markGarbage(const char* reason)  {
 }
 
 #ifdef ASSERT
-void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
-  if (node->isUnreachable() || node->getRootRefCount() > 1) return;
+bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
+  if (node->isUnreachable() || node->getRootRefCount() > 1) return true;
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {
@@ -666,8 +666,8 @@ void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
           anchor->getRootRefCount(), cast_to_oop(anchor)->is_gc_marked(), 
           isClass, !isClass ? NULL : (void*)cast_to_oop(anchor)->klass()->class_loader_data()->holder_no_keepalive(),
           node, RTGC::getClassName(node));
-      mark_ghost_anchors(anchor, depth + 1);
-      return;
+      print_ghost_anchors(anchor, depth + 1);
+      return true;
     }
     GCObject* anchor = ai.next();
     if (!anchor->isGarbageMarked()) {//} && !is_java_reference(cast_to_oop(anchor), (ReferenceType)-1)) {
@@ -679,17 +679,18 @@ void rtHeapEx::mark_ghost_anchors(GCObject* node, int depth) {
           depth, anchor->isUnstableMarked(), anchor, anchor->getRootRefCount(),
           RTGC::getClassName(anchor), node, RTGC::getClassName(node));
       if (depth < 5) {
-        mark_ghost_anchors(anchor, depth + 1);
+        print_ghost_anchors(anchor, depth + 1);
       }
     }
   }
+  return false;
 }
 #endif
 
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p)) rtHeapEx::mark_ghost_anchors(to_obj(p));
+  if (is_alive(p)) rtHeapEx::print_ghost_anchors(to_obj(p));
 
   assert(!is_alive(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
@@ -705,7 +706,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   if (ENABLE_GC) {  
     assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
         node->getRootRefCount(), node, RTGC::getClassName(node));
-    // mark_ghost_anchors(node);
+    // print_ghost_anchors(node);
   }
 #endif
 

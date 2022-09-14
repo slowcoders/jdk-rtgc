@@ -131,6 +131,11 @@ public:
     return java_lang_ref_Reference::referent_addr_raw(_curr_ref);
   }
 
+  oopDesc* get_raw_referent_p() {
+    oop p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
+    return p;
+  }
+
   template <bool skipGarbageRef = true, bool skipClearedRef = true>
   GCObject* next_ref() {
     while (true) {
@@ -157,13 +162,15 @@ public:
         precond(rtHeap::is_alive(_curr_ref));
       } else if (!rtHeap::is_alive(_curr_ref)) {
         assert(!do_cross_test || !_curr_ref->is_gc_marked(), 
-            "invalid gargabe %p(s) tr=%d, rc=%d\n", 
-            (void*)_curr_ref, /*RTGC::getClassName(to_obj(_curr_ref)),*/ to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount());
+            "invalid gargabe %p(%s) tr=%d, rc=%d ghost=%d\n", 
+            (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)),
+            to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(),
+            rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
         this->remove_curr_ref();
         continue;
       }
 
-      _referent_p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
+      _referent_p = get_raw_referent_p();
       assert(do_cross_test || _referent_p != NULL, "null referent ref %p\n", (void*)_curr_ref);
 
       if (!skipClearedRef) {
@@ -222,7 +229,9 @@ public:
       precond((void*)new_p > (void*)0x30);
       // rtgc_log(true, "move referent %p -> %p\n", (void*)old_p, (void*)new_p);
       RawAccess<>::oop_store_at(_curr_ref, _referent_off, new_p);
-      _referent_p = new_p;
+      if (!is_full_gc) {
+        _referent_p = new_p;
+      }
     }
   }
 
@@ -661,79 +670,79 @@ void RtRefList<refType>::break_reference_links(ReferencePolicy* policy) {
 #if DO_CROSS_CHECK_REF
 
 
-static void __adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect_ref, ReferenceType refType) {
-  const char* ref_type$ = reference_type_to_string(refType);
-  auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
-  int cntRef = _refs->size();
-  rtgc_log(false, "adjust_points %s start resurrect %d cnt %d\n", ref_type$, resurrect_ref, cntRef);
-  for (int i = cntRef; --i >= 0; ) {
-    oop ref_op = _refs->at(i);
-    GCObject* ref_node = to_obj(ref_op);
+// static void __adjust_points(HugeArray<oop>* _refs, bool is_full_gc, bool resurrect_ref, ReferenceType refType) {
+//   const char* ref_type$ = reference_type_to_string(refType);
+//   auto garbage_list = _rtgc.g_pGarbageProcessor->getGarbageNodes();
+//   int cntRef = _refs->size();
+//   rtgc_log(false, "adjust_points %s start resurrect %d cnt %d\n", ref_type$, resurrect_ref, cntRef);
+//   for (int i = cntRef; --i >= 0; ) {
+//     oop ref_op = _refs->at(i);
+//     GCObject* ref_node = to_obj(ref_op);
 
-    // if (refType == REF_FINAL) {
-    //   GCObject* referent_node = to_obj(java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op));
-    //   if (!referent_node->isStrongReachable()) {
-    //     referent_node->unmarkActiveFinalizereReachable();
-    //     precond(referent_node->isUnreachable());
-    //     postcond(node->getRootRefCount() == 0);
-    //     if (to_obj(ref_op)->isTrackable()) {
-    //       RTGC::add_referrer_ex(cast_to_oop(referent_node), ref_op, true);
-    //     }
-    //     _refs->removeFast(i);
-    //   }
-    //   continue;
-    // }
+//     // if (refType == REF_FINAL) {
+//     //   GCObject* referent_node = to_obj(java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op));
+//     //   if (!referent_node->isStrongReachable()) {
+//     //     referent_node->unmarkActiveFinalizereReachable();
+//     //     precond(referent_node->isUnreachable());
+//     //     postcond(node->getRootRefCount() == 0);
+//     //     if (to_obj(ref_op)->isTrackable()) {
+//     //       RTGC::add_referrer_ex(cast_to_oop(referent_node), ref_op, true);
+//     //     }
+//     //     _refs->removeFast(i);
+//     //   }
+//     //   continue;
+//     // }
 
-    if (!is_full_gc && ref_node->isTrackable()) {
-      #ifdef ASSERT
-        oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
-        assert(referent != NULL, "%s ref %p\n", ref_type$, ref_node);
-        // ref 가 yg-root 이면, referent 는 이미 forwarded-object 로 변경된 상태.
-        // 이로 인해 referent->is_gc_marked() 값이 false 임.
-        postcond(to_obj(referent)->isTrackable() || ref_node->isYoungRoot());
-      #endif
-      continue;
-    }
+//     if (!is_full_gc && ref_node->isTrackable()) {
+//       #ifdef ASSERT
+//         oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
+//         assert(referent != NULL, "%s ref %p\n", ref_type$, ref_node);
+//         // ref 가 yg-root 이면, referent 는 이미 forwarded-object 로 변경된 상태.
+//         // 이로 인해 referent->is_gc_marked() 값이 false 임.
+//         postcond(to_obj(referent)->isTrackable() || ref_node->isYoungRoot());
+//       #endif
+//       continue;
+//     }
 
-    if (!rtHeap::is_alive(ref_op)) {
-      precond(!ref_op->is_gc_marked());
-        //rtgc_log(true, "ref removed 1 %p\n", (void*)ref_op);
-      _refs->removeFast(i);
-      continue;
-    }
+//     if (!rtHeap::is_alive(ref_op)) {
+//       precond(!ref_op->is_gc_marked());
+//         //rtgc_log(true, "ref removed 1 %p\n", (void*)ref_op);
+//       _refs->removeFast(i);
+//       continue;
+//     }
 
-    if (!ref_op->is_gc_marked()) {
-      rtHeapEx::mark_ghost_anchors(ref_node);
-      precond(ref_op->is_gc_marked());
-    }
+//     if (!ref_op->is_gc_marked()) {
+//       rtHeapEx::print_ghost_anchors(ref_node);
+//       precond(ref_op->is_gc_marked());
+//     }
 
-    postcond(!ref_node->isUnstableMarked());
+//     postcond(!ref_node->isUnstableMarked());
 
-    if (resurrect_ref) {
-      oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
-      precond(referent != NULL || rtHeap::DoCrossCheck);
-      if ((rtHeap::DoCrossCheck && referent == NULL) || !rtHeap::is_alive(referent)) {
-        precond(referent == NULL || !referent->is_gc_marked());
-        _refs->removeFast(i);
-        continue;
-      }
+//     if (resurrect_ref) {
+//       oopDesc* referent = java_lang_ref_Reference::unknown_referent_no_keepalive(ref_op);
+//       precond(referent != NULL || rtHeap::DoCrossCheck);
+//       if ((rtHeap::DoCrossCheck && referent == NULL) || !rtHeap::is_alive(referent)) {
+//         precond(referent == NULL || !referent->is_gc_marked());
+//         _refs->removeFast(i);
+//         continue;
+//       }
 
-      if (ref_node->isDirtyReferrerPoints()) {
-        ref_node->unmarkDirtyReferrerPoints();
-        // rtgc_log(g_cntCleanRef == 5, "REATTACH ref %p r=%d, rc=%d\n", 
-        //     referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
-        to_obj(referent)->addReferrer(ref_node);
-      }
-    }
+//       if (ref_node->isDirtyReferrerPoints()) {
+//         ref_node->unmarkDirtyReferrerPoints();
+//         // rtgc_log(g_cntCleanRef == 5, "REATTACH ref %p r=%d, rc=%d\n", 
+//         //     referent, to_obj(referent)->hasReferrer(), to_obj(referent)->getRootRefCount());
+//         to_obj(referent)->addReferrer(ref_node);
+//       }
+//     }
 
-    if (!resurrect_ref && (is_full_gc || !ref_node->isTrackable())) {
-      /* 첫 등록된 reference 는 copy_to_survival_space() 실행 전에는 trackable이 아니다.*/
-      oop forwardee = ref_op->forwardee();
-      _refs->at(i) = (is_full_gc && forwardee == NULL) ? ref_op : forwardee;
-    }
-  }
-  rtgc_log(false, "adjust_points %d/%d\n", _refs->size(), cntRef);
-}
+//     if (!resurrect_ref && (is_full_gc || !ref_node->isTrackable())) {
+//       /* 첫 등록된 reference 는 copy_to_survival_space() 실행 전에는 trackable이 아니다.*/
+//       oop forwardee = ref_op->forwardee();
+//       _refs->at(i) = (is_full_gc && forwardee == NULL) ? ref_op : forwardee;
+//     }
+//   }
+//   rtgc_log(false, "adjust_points %d/%d\n", _refs->size(), cntRef);
+// }
 #endif
 
 
@@ -772,9 +781,66 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
 
 void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
+template<typename T, bool is_full_gc>
+static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* complete_gc) {
+  GCObject* ref;
+  if (is_full_gc) {
+    for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
+      GCObject* referent = to_obj(iter.referent_p());
+      if ((rtHeap::DoCrossCheck || !referent->isTrackable()) && !cast_to_oop(referent)->is_gc_marked()) {
+        // resurrect
+        rtgc_log(true, "resurrect final ref %p\n", referent);
+        keep_alive->do_oop((T*)iter.referent_addr());
+        iter.enqueue_curr_ref(false);
+      } else {
+        referent->markActiveFinalizereReachable();
+      }
+    }
+  }
+
+  if (!rtHeap::DoCrossCheck) {
+    for (RefIterator iter(g_finalList); (ref = iter.next_ref<>()) != NULL; ) {
+      oop referent_p = iter.referent_p();
+      if (!to_obj(referent_p)->isTrackable() && !referent_p->is_gc_marked()) {
+        keep_alive->do_oop((T*)iter.referent_addr());
+      }
+    }
+  }
+
+  complete_gc->do_void();
+  rtHeap__clear_garbage_young_roots(is_full_gc);
+
+  for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
+    GCObject* referent = to_obj(iter.referent_p());
+    if (!is_full_gc) {
+      iter.adjust_ref_pointer<is_full_gc>();
+      postcond((void*)referent == iter.get_raw_referent_p());
+    }
+    if (referent->isTrackable() ? !referent->isStrongReachable() : !cast_to_oop(referent)->is_gc_marked()) {
+      rtgc_log(true, "final ref cleared 1 %p -> %p\n", (void*)ref, referent);
+      referent->unmarkActiveFinalizereReachable();
+      postcond(referent->isUnreachable());
+      if ((rtHeap::DoCrossCheck || !referent->isTrackable()) && !cast_to_oop(referent)->is_gc_marked()) {
+        keep_alive->do_oop((T*)iter.referent_addr());
+      }
+      if (ref->isTrackable()) {
+        RTGC::add_referrer_ex(iter.referent_p(), cast_to_oop(ref), true);
+      }
+      iter.enqueue_curr_ref(false);
+    } else {
+      if (!is_full_gc) {
+        iter.adjust_referent_pointer<is_full_gc>();
+      }
+      rtgc_log(true, "final ref not cleared %p -> %p(%s) tr=%d rc=%d\n", (void*)ref, referent, 
+          getClassName(referent), referent->isTrackable(), referent->getRootRefCount());
+      //rtHeapEx::print_ghost_anchors(referent);
+    }
+  }
+  complete_gc->do_void();
+}
 
 
-void rtHeap::process_weak_soft_references(ReferencePolicy* policy) {
+void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy) {
   // const char* ref_type$ = reference_type_to_string(clear_ref);
   // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
   rtHeapEx::_soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
@@ -891,27 +957,26 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
 
 void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
   SerialGCRefProcProxyTask* task = (SerialGCRefProcProxyTask*)proxy_task;
+  OopClosure* keep_alive = task->keep_alive_closure();
+  VoidClosure* complete_gc = task->complete_gc_closure();
+
   if (rtHeap::in_full_gc) {
-    __keep_alive_final_referents<true>(task->keep_alive_closure(), task->complete_gc_closure());
+    if (UseCompressedOops) {
+      __keep_alive_final_referents<narrowOop, true>(keep_alive, complete_gc);
+    } else {
+      __keep_alive_final_referents<oop, true>(keep_alive, complete_gc);
+    }
   } else {
-    __keep_alive_final_referents<false>(task->keep_alive_closure(), task->complete_gc_closure());
-  }
-  // task->complete_gc_closure()->do_void();
-  // rtHeap__clear_garbage_young_roots(rtHeap::in_full_gc);
-  // if (rtHeap::in_full_gc) {
-  //   if (rtHeap::DoCrossCheck) {
-  //     __adjust_points(&g_softList._refs, true, true, REF_SOFT);
-  //     __adjust_points(&g_weakList._refs, true, true, REF_WEAK);
-  //   } else {
-  //     g_weakList.process_references<REF_OTHER>(NULL);
-  //     g_softList.process_references<REF_OTHER>(NULL);
-  //   }
-  //   //rtHeap__clear_garbage_young_roots(true);
-  // }
+    if (UseCompressedOops) {
+      __keep_alive_final_referents<narrowOop, false>(keep_alive, complete_gc);
+    } else {
+      __keep_alive_final_referents<oop, false>(keep_alive, complete_gc);
+    }
+  }  
 }
 
 template <bool is_full_gc>
-void __process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc) {
+void __process_final_phantom_references() {
   // rtgc_log(true, "g_finalList %d\n", g_finalList._refs.size());
   // for (RefIterator iter(g_finalList); iter.next_ref<false, false>() != NULL; ) {
   //   if (!rtHeap::is_alive(iter.referent_p)) {
@@ -952,13 +1017,11 @@ void __process_final_phantom_references(OopClosure* keep_alive, VoidClosure* com
   }
 }
 
-void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc) {
+void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
   if (is_tenure_gc) {
-    __keep_alive_final_referents<true>(keep_alive, complete_gc);
-    __process_final_phantom_references<true>(keep_alive, complete_gc);
+    __process_final_phantom_references<true>();
   } else {
-    __keep_alive_final_referents<false>(keep_alive, complete_gc);
-    __process_final_phantom_references<false>(keep_alive, complete_gc);
+    __process_final_phantom_references<false>();
   }
 }
 
@@ -1000,26 +1063,28 @@ void __adjust_ref_q_pointers() {
 #if DO_CROSS_CHECK_REF
   __check_garbage_referents();
 #endif  
-  // rtgc_log(true, "g_softList 2 %d\n", g_softList._refs.size());
+  rtgc_log(true, "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator iter(g_softList); iter.next_ref<true, !is_full_gc>() != NULL; ) {
     iter.adjust_ref_pointer<is_full_gc>();
+    iter.adjust_referent_pointer<is_full_gc>();
   } 
-  // rtgc_log(true, "g_weakList 2 %d\n", g_weakList._refs.size());
+  rtgc_log(true, "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator iter(g_weakList); iter.next_ref<true, !is_full_gc>() != NULL; ) {
     iter.adjust_ref_pointer<is_full_gc>();
-  } 
-
-  // rtgc_log(true, "g_finalList 2 %p\n", g_finalList._ref_q);
-  for (RefIterator iter(g_finalList); iter.next_ref<false, false>() != NULL; ) {
-    iter.adjust_ref_pointer<is_full_gc>();
+    iter.adjust_referent_pointer<is_full_gc>();
   } 
 
   if (is_full_gc) {
-    // rtgc_log(true, "g_phantomList 2 %p\n", g_phantomList._ref_q);
-    for (RefIterator iter(g_phantomList); iter.next_ref<false, false>() != NULL; ) {
-      iter.adjust_referent_pointer<is_full_gc>();
+    rtgc_log(true, "g_finalList 2 %p\n", g_finalList._ref_q);
+    for (RefIterator iter(g_finalList); iter.next_ref<false, false>() != NULL; ) {
       iter.adjust_ref_pointer<is_full_gc>();
-      // rtgc_log(true, "B) phantom ref %p -> %p\n", iter.ref(), iter.referent_p())
+      iter.adjust_referent_pointer<is_full_gc>();
+    } 
+
+    rtgc_log(true, "g_phantomList 2 %p\n", g_phantomList._ref_q);
+    for (RefIterator iter(g_phantomList); iter.next_ref<false, false>() != NULL; ) {
+      iter.adjust_ref_pointer<is_full_gc>();
+      iter.adjust_referent_pointer<is_full_gc>();
     } 
   }
 }
