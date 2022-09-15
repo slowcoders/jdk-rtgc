@@ -395,7 +395,7 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
     if (EnableRTGC && rtHeap::DoCrossCheck) {
-      precond(!iter.obj()->is_gc_marked() || rtHeap::is_alive(iter.obj(), true));
+      precond(!iter.obj()->is_gc_marked() || rtHeap::is_alive(iter.obj()));
     }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if

@@ -42,7 +42,7 @@ inline void MarkSweep::mark_object(oop obj) {
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
-  RTGC_ONLY(precond(!EnableRTGC || rtHeap::is_alive(obj, true));)
+  RTGC_ONLY(precond(!EnableRTGC || rtHeap::is_alive(obj));)
 
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);

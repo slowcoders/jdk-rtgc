@@ -83,8 +83,6 @@ public:
   void barrier(T* p, oop forwardee);
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  template <typename T>
-  void add_promoted_link(T* p, oop obj, bool root_reahchable);
 
   template <typename T>
   void trackable_barrier(T* p, oop obj);
@@ -92,9 +90,9 @@ public:
   void do_iterate(oop obj) {
     _trackable_anchor = obj;
     _is_young_root = false;
-    zeedh "mark_trackable 만 처리. mark_survivor_reachable 없이!"
+    // fatal("mark_trackable 만 처리. mark_survivor_reachable 없이!");
 
-    rtHeap::mark_promoted_trackable(obj);
+    rtHeap::mark_trackable(obj);
     obj->oop_iterate(this);
     if (_is_young_root) {
       rtHeap::add_young_root(obj, obj);
@@ -106,25 +104,25 @@ public:
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
-  int _cnt_young_ref;
+  bool _has_young_ref;
   debug_only(oop _anchor;)
 public:
   YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
   
   bool do_object_b(oop obj) {
-    _cnt_young_ref = 0;
+    _has_young_ref = false;
     debug_only(_anchor = obj;)
     obj->oop_iterate(this);
-    return _cnt_young_ref > 0;
+    return _has_young_ref;
   }
 
   template <typename T>
   void barrier(T* p, oop new_obj) {
-    if (!rtHeap::is_trackable(new_obj)) _cnt_young_ref ++;
+    _has_young_ref = true;
   }
 
   void trackable_barrier(void* p, oop obj) {
-    precond(rtHeap::is_alive(obj, true));
+    // precond(rtHeap::is_alive(obj, true));
   }
 };
 #endif
@@ -148,13 +146,7 @@ public:
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
-    if (rtHeap::is_trackable(obj)) {
-      rtHeap::mark_survivor_reachable(obj);
-    } else {
-      zeedh "mark_promoted_trackable 처리"
-
-      // it is allocated in tenured_space in just before YG-gc;
-    }
+    rtHeap::mark_survivor_reachable(obj);
   }
 
   void do_iterate(oop obj) {

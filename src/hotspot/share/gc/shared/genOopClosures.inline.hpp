@@ -60,10 +60,16 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
       oop new_obj = obj->is_forwarded() ? obj->forwardee()
                                         : _young_gen->copy_to_survivor_space(obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-
+#if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
       static_cast<Derived*>(this)->barrier(p, new_obj);
     }
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#else
+      if (cast_from_oop<HeapWord*>(new_obj) < _young_gen_end) {
+        static_cast<Derived*>(this)->barrier(p, new_obj);
+      } else {
+        static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+      }
+    }
     else if (EnableRTGC) {
       static_cast<Derived*>(this)->trackable_barrier(p, obj);
     }
@@ -87,8 +93,9 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
-    add_promoted_link(p, new_obj, false);
+    precond(cast_from_oop<HeapWord*>(new_obj) < _old_gen_start);
+    _is_young_root = true;
+    rtHeap::add_trackable_link(_trackable_anchor, new_obj);
   }
 #endif
   RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
@@ -101,22 +108,12 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 
-template <typename T>
-void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
-#ifdef ASSERT
-  if (_trackable_anchor == NULL && !RtNoDirtyCardMarking) {
-    return;
-  }
-#endif
-  precond(_trackable_anchor != NULL);
-  rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
-}
 
 template <typename T>
 void DefNewYoungerGenClosure::trackable_barrier(T* p, oop obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
-  add_promoted_link(p, obj, true);
+  rtHeap::add_trackable_link(_trackable_anchor, obj);
 }
 
 #endif
