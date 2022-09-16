@@ -634,15 +634,27 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       iter.adjust_ref_pointer<is_full_gc>();
       postcond((void*)referent == iter.get_raw_referent_p());
     }
-    if (referent->isTrackable() ? !referent->isStrongReachable() : !cast_to_oop(referent)->is_gc_marked()) {
+    bool is_gc_marked;
+    if (rtHeap::DoCrossCheck) { 
+      is_gc_marked = cast_to_oop(referent)->is_gc_marked();
+    } else {
+      is_gc_marked = referent->isTrackable() ? referent->isStrongReachable() : cast_to_oop(referent)->is_gc_marked();
+    }
+    if (!is_gc_marked) {
+      keep_alive->do_oop((T*)iter.referent_addr());
+      GCObject* old_referent = referent;
+      if (is_full_gc) {
+        postcond(referent == (void*)iter.get_raw_referent_p());
+      } else {
+        referent = to_obj(iter.get_raw_referent_p());
+      }
       referent->unmarkActiveFinalizereReachable();
       postcond(referent->isUnreachable());
-      if ((rtHeap::DoCrossCheck || !referent->isTrackable()) && !cast_to_oop(referent)->is_gc_marked()) {
-        keep_alive->do_oop((T*)iter.referent_addr());
-      }
-      rtgc_log(true, "final ref cleared 1 %p(%p) -> %p(%p)\n", (void*)ref, iter.ref(), referent, iter.get_raw_referent_p());
+      postcond(cast_to_oop(old_referent)->is_gc_marked());
+      postcond(!rtHeap::is_active_finalizer_reachable(cast_to_oop(referent)));
+      rtgc_log(true, "final ref cleared 1 %p(%p) -> %p(%p)\n", (void*)ref, iter.ref(), old_referent, referent);
       if (to_obj(iter.ref())->isTrackable()) {
-        RTGC::add_referrer_ex(iter.get_raw_referent_p(), iter.ref(), true);
+        RTGC::add_referrer_ex(cast_to_oop(referent), iter.ref(), true);
       }
       iter.enqueue_curr_ref(false);
     } else {
@@ -801,6 +813,7 @@ void  __check_garbage_referents() {
 
 
 bool rtHeap::is_active_finalizer_reachable(oopDesc* final_referent) {
+  rtgc_log(true, "final ref reachable %p re=%d\n", (void*)final_referent, to_obj(final_referent)->isActiveFinalizerReachable());
   return to_obj(final_referent)->isActiveFinalizerReachable();
 }
 

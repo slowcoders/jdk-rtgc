@@ -165,7 +165,7 @@ void GCObject::removeAllAnchors() {
 template<bool isGarbage>
 static bool is_match(GCObject* node, GCObject* referrer) {
     if (isGarbage) {
-        return node->isGarbageMarked();
+        return node->isDirtyReferrerPoints();
     } else {
         return node == referrer;
     }

@@ -144,7 +144,7 @@ oop java_lang_ref_Reference::unknown_referent_no_keepalive(oop ref) {
 void java_lang_ref_Reference::clear_referent(oop ref) {
 #if INCLUDE_RTGC
   ReferenceType refType = InstanceKlass::cast(ref->klass())->reference_type();
-  if (RtNoDiscoverPhantom && rtHeap::DoCrossCheck ? refType == REF_PHANTOM : refType != REF_FINAL) {
+  if (RtNoDiscoverPhantom && (rtHeap::DoCrossCheck ? refType == REF_PHANTOM : refType != REF_FINAL)) {
     if (refType == REF_PHANTOM) {
       ref->obj_field_put_raw(_referent_offset, ref);
     } else {
@@ -153,6 +153,7 @@ void java_lang_ref_Reference::clear_referent(oop ref) {
   } else
 #endif
   {
+    rtgc_log(refType == REF_FINAL, "final ref cleared %p, %p\n", (void*)ref, (void*)unknown_referent_no_keepalive(ref));
     ref->obj_field_put(_referent_offset, nullptr);
   }
 }

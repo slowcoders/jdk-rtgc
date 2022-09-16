@@ -615,6 +615,8 @@ void GenCollectedHeap::do_collection(bool           full,
       MemoryService::track_memory_usage();
 
       gc_epilogue(complete);
+    } else {
+      rtgc_log(true, "do_full_collection after young-gc\n");
     }
 
     print_heap_after_gc();
