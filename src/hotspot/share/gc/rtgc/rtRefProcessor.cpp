@@ -49,7 +49,7 @@ public:
     precond(link == RawAccess<>::oop_load_at(anchor, RefListBase::_discovered_off));
     if (link != NULL && to_node(anchor)->isTrackable()) {
       precond(!to_obj(link)->isGarbageMarked());
-      RTGC::add_referrer_ex(link, anchor, true);
+      RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc);
     }
   }
 
@@ -474,7 +474,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
     if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_ex(discovered, obj, true);
+      RTGC::add_referrer_ex(discovered, obj, !rtHeap::in_full_gc);
     }
   }
 }
@@ -487,7 +487,7 @@ template<typename T, bool is_full_gc>
 static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* complete_gc) {
   GCObject* ref;
   if (is_full_gc) {
-    rtgc_log(true, "final q %p\n", g_finalList._ref_q);
+    rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
     for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
       GCObject* referent = to_obj(iter.referent());
       if ((rtHeap::DoCrossCheck || !referent->isTrackable()) && !cast_to_oop(referent)->is_gc_marked()) {
@@ -495,7 +495,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         rtgc_log(true, "resurrect final referent %p\n", referent);
         keep_alive->do_oop((T*)iter.referent_addr());
         if (ref->isTrackable()) {
-          RTGC::add_referrer_ex(iter.referent(), iter.ref(), true);
+          RTGC::add_referrer_ex(iter.referent(), iter.ref(), !is_full_gc);
         }
         iter.enqueue_curr_ref(false);
       } else {
@@ -542,7 +542,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       postcond(!rtHeap::is_active_finalizer_reachable(cast_to_oop(referent)));
       rtgc_log(true, "final ref cleared 1 %p(%p) -> %p(%p)\n", (void*)ref, iter.ref(), old_referent, referent);
       if (to_obj(iter.ref())->isTrackable()) {
-        RTGC::add_referrer_ex(cast_to_oop(referent), iter.ref(), true);
+        RTGC::add_referrer_ex(cast_to_oop(referent), iter.ref(), !is_full_gc);
       } else if (!is_full_gc && referent->isTrackable()) {
         // young gc 종료 후 Unsafe List 등록되도록 한다.
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
@@ -557,7 +557,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       //rtHeapEx::print_ghost_anchors(referent);
     }
   }
-  rtgc_log(true, "final q %p\n", g_finalList._ref_q);
+  rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
   complete_gc->do_void();
   RefListBase::flush_penging_list();
 }

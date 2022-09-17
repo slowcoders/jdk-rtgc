@@ -27,6 +27,7 @@ bool rtHeap::in_full_gc = false;
 using namespace rtHeapUtil;
 
 namespace RTGC {
+  bool yg_root_locked = false;
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
@@ -149,6 +150,7 @@ bool rtHeap::is_alive(oopDesc* p) {
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
   precond(to_obj(old_p)->isTrackable());
   precond(!to_obj(old_p)->isGarbageMarked());
+  precond(!yg_root_locked);
   to_obj(old_p)->markYoungRoot();
   g_young_roots.push_back(new_p);
   rtgc_debug_log(old_p, "mark YG Root (%p)->%p idx=%d\n", old_p, new_p, g_young_roots.size());
@@ -531,6 +533,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
   rtgc_log(LOG_OPT(8), "old_gen_heap_start %p\n", old_gen_heap_start);
+  yg_root_locked = false;
   rtHeapEx::adjust_ref_q_pointers(true);
 }
 
@@ -654,6 +657,7 @@ class ClearWeakHandleRef: public OopClosure {
 
 void rtHeap::prepare_rtgc(bool is_full_gc) {
   if (is_full_gc) {
+    yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
     WeakProcessor::oops_do(&clear_weak_handle_ref);
@@ -675,8 +679,6 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
 
 void rtHeap::finish_rtgc() {
   in_full_gc = false;
-  // rtgc_log(true, "finish_rtgc %d\n", g_stack_roots.length());
-  // rtHeap__clearStack();
 }
 
 
