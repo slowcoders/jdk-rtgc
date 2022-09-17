@@ -14,7 +14,7 @@ class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
 class ReferencePolicy;
-class DefNewYoungerGenClosure;
+class MarkOldTrackableClosure;
 
 class rtHeap : AllStatic {
 public:
@@ -36,7 +36,7 @@ public:
   static void mark_survivor_reachable(oopDesc* tenured_p);
 
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
-  static void oop_recycled_iterate(DefNewYoungerGenClosure* closure);
+  static void oop_recycled_iterate(MarkOldTrackableClosure* closure);
   static void mark_weak_reachable(oopDesc* new_p);
   static void clear_weak_reachable(oopDesc* new_p);
   static bool ensure_weak_reachable(oopDesc* new_p);

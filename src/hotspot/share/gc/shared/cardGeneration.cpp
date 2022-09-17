@@ -38,6 +38,7 @@
 #include "runtime/java.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
+
 CardGeneration::CardGeneration(ReservedSpace rs,
                                size_t initial_byte_size,
                                CardTableRS* remset) :

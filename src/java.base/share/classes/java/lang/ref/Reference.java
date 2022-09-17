@@ -420,7 +420,6 @@ public abstract class Reference<T> {
         assert this instanceof FinalReference;
         assert next != null; // I.e. FinalReference is inactive
         this.referent = null;
-        System.err.println("final ref cleared");
     }
 
     /* -- Queue operations -- */

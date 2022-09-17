@@ -66,43 +66,54 @@ public:
 // Closure for scanning DefNewGeneration when iterating over the old generation.
 //
 // This closure performs barrier store calls on pointers into the DefNewGeneration.
+#if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class DefNewYoungerGenClosure : public FastScanClosure<DefNewYoungerGenClosure> {
 private:
   Generation*  _old_gen;
   HeapWord*    _old_gen_start;
   CardTableRS* _rs;
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  oopDesc* _trackable_anchor;
-  bool _is_young_root;
-#endif
 
 public:
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen);
 
   template <typename T>
   void barrier(T* p, oop forwardee);
+};
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#else // RTGC_OPT_YOUNG_ROOTS
+template <bool do_mark_trackable> 
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<do_mark_trackable>> {
+private:
+  Generation*  _old_gen;
+  oopDesc* _trackable_anchor;
+  bool _is_young_root;
+
+public:
+  ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
+    : FastScanClosure<ScanTrackableClosure<do_mark_trackable>>(young_gen), 
+    _old_gen(old_gen) {}
+
+  template <typename T>
+  void barrier(T* p, oop forwardee);
 
   template <typename T>
   void trackable_barrier(T* p, oop obj);
 
-  void do_iterate(oop obj) {
-    _trackable_anchor = obj;
-    _is_young_root = false;
-    // fatal("mark_trackable 만 처리. mark_survivor_reachable 없이!");
-
-    rtHeap::mark_trackable(obj);
-    obj->oop_iterate(this);
-    if (_is_young_root) {
-      rtHeap::add_young_root(obj, obj);
-    }
-    debug_only(_trackable_anchor = NULL;)
-  }
-#endif
+  void do_iterate(oop obj);
 };
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
+public:  
+  DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<false>(young_gen, old_gen) {}
+};
+
+class MarkOldTrackableClosure : public ScanTrackableClosure<true> {
+public:  
+  MarkOldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true>(young_gen, old_gen) {}
+};
+
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
   bool _has_young_ref;
   debug_only(oop _anchor;)
@@ -122,7 +133,7 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    // precond(rtHeap::is_alive(obj, true));
+    precond(rtHeap::is_alive(obj));
   }
 };
 #endif

@@ -13,6 +13,7 @@
 #include "oops/instanceRefKlass.inline.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/weakProcessor.hpp"
+#include "gc/shared/genOopClosures.inline.hpp"
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtSpace.hpp"
@@ -224,7 +225,7 @@ void rtHeap__addResurrectedObject(GCObject* node) {
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
-  // assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
+  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
@@ -307,7 +308,7 @@ void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   for (;src < end; src++) {
     GCObject* node = to_obj(*src);
-    precond(!node->isGarbageMarked());
+    precond(is_full_gc || !node->isGarbageMarked());
     assert(node->isYoungRoot(), "invalid young root %p\n", node);
     if (is_full_gc) {
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
@@ -370,6 +371,7 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
+  rtgc_debug_log(old_p, "adjust_point %p -> %p\n", old_p, (void*)new_p);
   if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT
@@ -704,7 +706,7 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
 //   return left_size - right_size;
 // }
 
-void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
+void rtHeap::oop_recycled_iterate(MarkOldTrackableClosure* closure) {
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
     GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {

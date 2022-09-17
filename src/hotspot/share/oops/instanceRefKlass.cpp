@@ -79,10 +79,13 @@ void InstanceRefKlass::update_nonstatic_oop_maps(Klass* k) {
 void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   // Verify referent field
+  if (reference_type() != REF_PHANTOM) return;
+  rtgc_log(true, "oop_verify_on %p (%s)\n", (void*)obj, obj->klass()->name()->bytes());
   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
   if (referent != NULL) {
     guarantee(oopDesc::is_oop(referent), "referent field heap failed %p.%p", (void*)obj, (void*)referent);
   }
+  rtgc_log(true, "oop_verify_on next %p\n", (void*)obj);
   // Additional verification for next field, which must be a Reference or null
   oop next = java_lang_ref_Reference::next(obj);
   if (next != NULL) {
@@ -90,4 +93,5 @@ void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
     guarantee(next->is_instance(), "next field should be an instance");
     guarantee(InstanceKlass::cast(next->klass())->is_reference_instance_klass(), "next field verify failed");
   }
+  rtgc_log(true, "oop_verify_on done %p\n", (void*)obj);
 }

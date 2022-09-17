@@ -370,12 +370,12 @@ void GarbageProcessor::validateGarbageList() {
 }
 
 bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
+    if (node->isGarbageMarked()) {
+        assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
+            "incorrect marked garbage %p(%s)\n", node, getClassName(node));
+        return true;
+    }
     if (!checkBrokenLink) {
-        if (node->isGarbageMarked()) {
-            assert(node->isDestroyed() || _visitedNodes.contains(node), 
-                "incorrect marked garbage %p(%s)\n", node, getClassName(node));
-            return true;
-        }
         if (node->isUnreachable()) {
             node->markGarbage("collectGarbage");
             _visitedNodes.push_back(node);

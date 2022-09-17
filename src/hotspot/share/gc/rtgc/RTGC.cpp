@@ -223,7 +223,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-    "java/lang/ref/Finalizer",
+  "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    //"java/lang/ref/Finalizer",
   //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
   // "java/nio/DirectByteBuffer$Deallocator",
     // "java/lang/invoke/MethodTypeForm",
@@ -247,6 +248,8 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
+  if (to_obj(ptr)->isActiveFinalizerReachable()) return true;
+
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
     if (false) {
@@ -257,7 +260,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
       if (className != NULL && strstr((char*)klass->name()->bytes(), className)
-          /*&& obj->klass()->name()->utf8_length() == (int)strlen(className)*/) {
+          && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
         return true;

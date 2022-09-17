@@ -111,7 +111,7 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
-    rtHeap::oop_recycled_iterate(_scan_older);
+    rtHeap::oop_recycled_iterate(reinterpret_cast<MarkOldTrackableClosure*>(&_scan_older));
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -608,6 +608,9 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
+    MarkOldTrackableClosure* mark_old_trackable_closure =
+        reinterpret_cast<MarkOldTrackableClosure*>(&younger_gen_closure);
+    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(mark_old_trackable_closure);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
   } else 
@@ -769,6 +772,10 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
+#ifdef INCLUDE_RTGC
+    precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
+    rtHeap::mark_trackable(obj);
+#endif
   } else {
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;
