@@ -86,7 +86,14 @@ namespace RTGC {
     }
   };
 
+  enum SkipPolicy {
+    SkipNone = 0,
+    SkipGarbageRef = 1,
+    SkipClearedRef = 2,
+    SkipInvalidRef = SkipGarbageRef | SkipClearedRef
+  };
 
+  template <bool is_full_gc>
   class RefIterator  {
     RefList& _refList;
     int _discovered_off;
@@ -134,8 +141,8 @@ namespace RTGC {
       return p;
     }
 
-    template <bool skipGarbageRef = true, bool skipClearedRef = true>
-    GCObject* next_ref() {
+    // template <SkipPolicy policy>
+    GCObject* next_ref(SkipPolicy policy) {
       while (true) {
         if (do_cross_test) {
           if (--_idx < 0) return NULL;
@@ -157,7 +164,7 @@ namespace RTGC {
         }
         precond((void*)_curr_ref > (void*)0x30);
 
-        if (!skipGarbageRef) {
+        if ((policy & SkipGarbageRef) == 0) {
           precond(rtHeap::is_alive(_curr_ref));
         } else if (!rtHeap::is_alive(_curr_ref)) {
           assert(!do_cross_test || !_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
@@ -173,13 +180,13 @@ namespace RTGC {
         _referent_p = get_raw_referent();
         assert(do_cross_test || _referent_p != NULL, "null referent ref %p\n", (void*)_curr_ref);
 
-        if (!skipClearedRef) {
+        if ((policy & SkipClearedRef) == 0) {
           postcond(_referent_p != (do_cross_test ? oop(NULL) : _curr_ref));
         }
         else if (_referent_p == (do_cross_test ? oop(NULL) : _curr_ref)) {
           rtgc_log(LOG_OPT(3), "remove cleared ref %p\n", (void*)_curr_ref);
-          if (!rtHeap::in_full_gc) {
-            adjust_ref_pointer<false>();
+          if (!is_full_gc) {
+            adjust_ref_pointer();
           }
           clear_referent();
           clear_discovered();
@@ -192,15 +199,15 @@ namespace RTGC {
       }
     }
 
-    template <bool is_full_gc>
+    // template <bool is_full_gc>
     oop get_valid_forwardee(oop old_p) {
       return (!is_full_gc && to_obj(old_p)->isTrackable()) ? NULL :  old_p->forwardee();
     }
 
-    template <bool is_full_gc>
+    // template <bool is_full_gc>
     void adjust_ref_pointer() {
       precond(!rtHeap::DoCrossCheck || _curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
-      oop new_p = get_valid_forwardee<is_full_gc>(_curr_ref);
+      oop new_p = get_valid_forwardee(_curr_ref);
       if (new_p != NULL) {
         precond((void*)new_p > (void*)32);
         if (do_cross_test) {
@@ -222,12 +229,12 @@ namespace RTGC {
       }
     }
 
-    template <bool is_full_gc>
+    // template <bool is_full_gc>
     void adjust_referent_pointer() {
       if (do_cross_test) return;
       
       oop old_p = _referent_p;
-      oop new_p = get_valid_forwardee<is_full_gc>(old_p);
+      oop new_p = get_valid_forwardee(old_p);
       if (new_p == NULL) {
         postcond(is_full_gc || to_obj(old_p)->isTrackable());
       } else if (new_p != old_p) {
@@ -442,10 +449,10 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 template<typename T, bool is_full_gc>
 static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* complete_gc) {
   GCObject* ref;
-  for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
+  for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     GCObject* referent = to_obj(iter.referent());
     if (!is_full_gc) {
-      iter.adjust_ref_pointer<is_full_gc>();
+      iter.adjust_ref_pointer();
       ref = to_obj(iter.ref());
       postcond((void*)referent == iter.get_raw_referent());
     }
@@ -480,7 +487,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         // remark!
         referent->markActiveFinalizereReachable();
       } else {
-        iter.adjust_referent_pointer<is_full_gc>();
+        iter.adjust_referent_pointer();
       }
       rtgc_log(LOG_OPT(3), "final ref not cleared %p -> %p(%s) tr=%d rc=%d\n", (void*)iter.ref(), iter.referent(), 
           getClassName(referent), referent->isTrackable(), referent->getRootRefCount());
@@ -503,19 +510,19 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   if (policy != NULL) {
     g_cntCleanRef ++;
     GCObject* ref;
-    for (RefIterator iter(g_finalList); (ref = iter.next_ref<false, false>()) != NULL; ) {
+    for (RefIterator<true> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
       to_obj(iter.referent())->unmarkActiveFinalizereReachable();
     }
 
-  rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
-    for (RefIterator iter(g_softList); (ref = iter.next_ref<false, true>()) != NULL; ) {
+    rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipClearedRef)) != NULL; ) {
       if (policy->should_clear_reference(iter.ref(), rtHeapEx::_soft_ref_timestamp_clock)) {
         ref->markDirtyReferrerPoints();
         iter.break_weak_soft_link();
       }
     }
     
-    for (RefIterator iter(g_weakList); (ref = iter.next_ref<false, true>()) != NULL; ) {
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef)) != NULL; ) {
       ref->markDirtyReferrerPoints();
       iter.break_weak_soft_link();
     }
@@ -524,15 +531,15 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
       rtHeap::iterate_young_roots(NULL, true);
     }
     
-  rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
-    for (RefIterator iter(g_softList); (ref = iter.next_ref<true, false>()) != NULL; ) {
+    rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipGarbageRef)) != NULL; ) {
       if (ref->isDirtyReferrerPoints()) {
         iter.clear_weak_soft_garbage_referent();
         ref->unmarkDirtyReferrerPoints();
       }
     }
 
-    for (RefIterator iter(g_weakList); (ref = iter.next_ref<true, false>()) != NULL; ) {
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipGarbageRef)) != NULL; ) {
       precond(ref->isDirtyReferrerPoints());
       iter.clear_weak_soft_garbage_referent();
       ref->unmarkDirtyReferrerPoints();
@@ -569,28 +576,28 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
 template <bool is_full_gc>
 void __process_final_phantom_references() {
   // rtgc_log(LOG_OPT(3), "g_finalList %d\n", g_finalList._refs.size());
-  // for (RefIterator iter(g_finalList); iter.next_ref<false, false>() != NULL; ) {
+  // for (RefIterator iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
   //   if (!rtHeap::is_alive(iter.referent_p)) {
   //     iter.enqueue_curr_ref();
   //   } else {
-  //     iter.adjust_ref_pointer<is_full_gc>();
+  //     iter.adjust_ref_pointer();
   //   }
   // } 
   // phantom referent 에 대한 forwading 처리 필요!!
 
   // rtgc_log(LOG_OPT(3), "g_phantomList %p\n", g_phantomList._ref_q);
-  for (RefIterator iter(g_phantomList); iter.next_ref<true, true>() != NULL; ) {
+  for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     precond((void*)iter.referent() != NULL);
     precond((void*)iter.referent() > (void*)0x30);
     bool is_alive = rtHeap::is_alive(iter.referent());
     if (!is_full_gc) {
-      iter.adjust_ref_pointer<is_full_gc>();
+      iter.adjust_ref_pointer();
     }
     rtgc_log(LOG_OPT(3), "A) garbage phantom ref %p -> %p is_alive = %d\n", iter.ref(), iter.referent(), is_alive);
     if (!is_alive) {
       iter.enqueue_curr_ref(true);
     } else if (!is_full_gc) {
-      iter.adjust_referent_pointer<is_full_gc>();
+      iter.adjust_referent_pointer();
     }
   } 
 
@@ -646,28 +653,29 @@ void __adjust_ref_q_pointers() {
 #if DO_CROSS_CHECK_REF
   __check_garbage_referents();
 #endif  
+  SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
-  for (RefIterator iter(g_softList); iter.next_ref<true, !is_full_gc>() != NULL; ) {
-    iter.adjust_ref_pointer<is_full_gc>();
-    iter.adjust_referent_pointer<is_full_gc>();
+  for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
+    iter.adjust_ref_pointer();
+    iter.adjust_referent_pointer();
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
-  for (RefIterator iter(g_weakList); iter.next_ref<true, !is_full_gc>() != NULL; ) {
-    iter.adjust_ref_pointer<is_full_gc>();
-    iter.adjust_referent_pointer<is_full_gc>();
+  for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
+    iter.adjust_ref_pointer();
+    iter.adjust_referent_pointer();
   } 
 
   if (is_full_gc) {
     rtgc_log(LOG_OPT(3), "g_finalList 2 %p\n", g_finalList._ref_q);
-    for (RefIterator iter(g_finalList); iter.next_ref<false, false>() != NULL; ) {
-      iter.adjust_ref_pointer<is_full_gc>();
-      iter.adjust_referent_pointer<is_full_gc>();
+    for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
+      iter.adjust_ref_pointer();
+      iter.adjust_referent_pointer();
     } 
 
     rtgc_log(LOG_OPT(3), "g_phantomList 2 %p\n", g_phantomList._ref_q);
-    for (RefIterator iter(g_phantomList); iter.next_ref<false, false>() != NULL; ) {
-      iter.adjust_ref_pointer<is_full_gc>();
-      iter.adjust_referent_pointer<is_full_gc>();
+    for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipNone) != NULL; ) {
+      iter.adjust_ref_pointer();
+      iter.adjust_referent_pointer();
       rtgc_log(LOG_OPT(3), "B) phantom ref %p -> %p\n", iter.ref(), iter.referent());
     } 
   }
