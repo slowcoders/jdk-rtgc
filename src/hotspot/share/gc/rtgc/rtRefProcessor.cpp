@@ -10,315 +10,314 @@ using namespace rtHeapUtil;
 using namespace RTGC;
 
 #define DO_CROSS_CHECK_REF true
-#if DO_CROSS_CHECK_REF
-static int g_cntMisRef = 0;
-static int g_cntGarbageRef = 0;
-static int g_cntCleanRef = 0;
-#endif
+
 bool rtHeap::DoCrossCheck = DO_CROSS_CHECK_REF;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_REF, function);
 }
 
-HugeArray<oop> g_garbage_referents;
-static ReferenceType __getRefType(oop ref_p) {
-  return InstanceKlass::cast(ref_p->klass())->reference_type();
-}
-
-class RefListBase {
-public:
 #if DO_CROSS_CHECK_REF
-  HugeArray<oop> _refs;
+static int g_cntMisRef = 0;
+static int g_cntGarbageRef = 0;
+static int g_cntCleanRef = 0;
+static HugeArray<oop> g_garbage_referents;
 #endif
-  oopDesc* _ref_q;
-  static int _referent_off;
-  static int _discovered_off;
-  static oop g_pending_head;
-  static oop g_pending_tail;
 
-  RefListBase() { 
-    _ref_q = NULL; 
+namespace RTGC {
+
+  static ReferenceType __getRefType(oop ref_p) {
+    return InstanceKlass::cast(ref_p->klass())->reference_type();
   }
 
-  virtual ReferenceType ref_type() = 0;
-
-  static void link_pending_reference(oop anchor, oop link) {
-    // rtgc_log(LOG_OPT(3), "link_pending_reference %p -> %p\n", (void*)anchor, (void*)link);
-    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(anchor, RefListBase::_discovered_off, link);
-    precond(link == RawAccess<>::oop_load_at(anchor, RefListBase::_discovered_off));
-    if (link != NULL && to_node(anchor)->isTrackable()) {
-      precond(!to_obj(link)->isGarbageMarked());
-      RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc);
-    }
-  }
-
-  static void enqueue_pending_ref(oop ref_p) {
-    if (g_pending_head == NULL) {
-      g_pending_head = g_pending_tail = ref_p;
-    } else {
-      link_pending_reference(ref_p, g_pending_head);
-      g_pending_head = ref_p;
-    }
-  }
-
-  static void flush_penging_list() {
-    if (g_pending_head != NULL) {
-      oop enqueued_top_np = Universe::swap_reference_pending_list(g_pending_head);
-      link_pending_reference(g_pending_tail, enqueued_top_np);
-  #ifdef ASSERT
-      for (oop ref_p = g_pending_head; ref_p != enqueued_top_np; ref_p = RawAccess<>::oop_load_at(ref_p, RefListBase::_discovered_off)) {
-        oop r = RawAccess<>::oop_load_at(ref_p, RefListBase::_referent_off);
-        // rtgc_log(LOG_OPT(3), "ref %p(%s) %p", (void*)ref_p, getClassName(to_obj(ref_p)), (void*)r);
-        assert(r == NULL || InstanceKlass::cast(ref_p->klass())->reference_type() == REF_FINAL, "ref %p(%s)", (void*)ref_p, getClassName(to_obj(ref_p)));
-      }
+  class RefList {
+  public:
+    oopDesc* _ref_q;
+    ReferenceType _ref_type;
+  #if DO_CROSS_CHECK_REF
+    HugeArray<oop> _refs;
   #endif
-      g_pending_head = NULL;
+    static int _referent_off;
+    static int _discovered_off;
+    static oop g_pending_head;
+    static oop g_pending_tail;
+
+    RefList(ReferenceType ref_type) { 
+      _ref_q = NULL; 
+      _ref_type = ref_type;
     }
-  }
-};
 
-template <ReferenceType refType>
-class RtRefList : public RefListBase {
-public:
+    ReferenceType ref_type() {
+      return _ref_type;
+    }
 
-  template <ReferenceType scanType>
-  oopDesc* get_valid_forwardee(oopDesc* obj);
+    static void link_pending_reference(oop anchor, oop link) {
+      // rtgc_log(LOG_OPT(3), "link_pending_reference %p -> %p\n", (void*)anchor, (void*)link);
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(anchor, RefList::_discovered_off, link);
+      precond(link == RawAccess<>::oop_load_at(anchor, RefList::_discovered_off));
+      if (link != NULL && to_node(anchor)->isTrackable()) {
+        precond(!to_obj(link)->isGarbageMarked());
+        RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc);
+      }
+    }
 
-  ReferenceType ref_type() { return refType; }
-
-  void break_reference_links(ReferencePolicy* policy);
-};
-
-oop RefListBase::g_pending_head = NULL;
-oop RefListBase::g_pending_tail;
-int RefListBase::_referent_off;
-int RefListBase::_discovered_off;
-
-class RefIterator  {
-
-  RefListBase& _refList;
-  int _discovered_off;
-  int _referent_off;
-
-  bool do_cross_test;
-  int _idx;
-  oop _curr_ref;
-  oop _next_ref;
-  oop _prev_ref_op;
-  oop _referent_p;
-  bool _ref_removed;
-
-public:  
-  RefIterator(RefListBase &refProcessor) : _refList(refProcessor) {
-    _next_ref = refProcessor._ref_q;
-    do_cross_test = _next_ref == NULL;
-
-    _curr_ref = _prev_ref_op = NULL;
-    _discovered_off = refProcessor._discovered_off;
-    _referent_off = refProcessor._referent_off;
-    _referent_p = NULL;
-    _ref_removed = false;
-    _idx = refProcessor._refs.size();
-  }
-
-  bool in_cross_test_mode() {
-    return do_cross_test;
-  }
-
-  oopDesc* ref() {
-    return _curr_ref;
-  }
-
-  oopDesc* referent() {
-    return _referent_p;
-  }
-
-  HeapWord* referent_addr() {
-    return java_lang_ref_Reference::referent_addr_raw(_curr_ref);
-  }
-
-  oopDesc* get_raw_referent() {
-    oop p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
-    return p;
-  }
-
-  template <bool skipGarbageRef = true, bool skipClearedRef = true>
-  GCObject* next_ref() {
-    while (true) {
-      if (do_cross_test) {
-        if (--_idx < 0) return NULL;
-        _curr_ref = _refList._refs.at(_idx);
+    static void enqueue_pending_ref(oop ref_p) {
+      if (g_pending_head == NULL) {
+        g_pending_head = g_pending_tail = ref_p;
       } else {
-        if (_ref_removed && _prev_ref_op != _curr_ref) {
-          _ref_removed = false;
-          if (_prev_ref_op == NULL) {
-            precond(_refList._ref_q == _curr_ref);
-          } else {
-            precond(RawAccess<>::oop_load_at(_prev_ref_op, _discovered_off) == _curr_ref);        
+        link_pending_reference(ref_p, g_pending_head);
+        g_pending_head = ref_p;
+      }
+    }
+
+    static void flush_penging_list() {
+      if (g_pending_head != NULL) {
+        oop enqueued_top_np = Universe::swap_reference_pending_list(g_pending_head);
+        link_pending_reference(g_pending_tail, enqueued_top_np);
+    #ifdef ASSERT
+        for (oop ref_p = g_pending_head; ref_p != enqueued_top_np; ref_p = RawAccess<>::oop_load_at(ref_p, RefList::_discovered_off)) {
+          oop r = RawAccess<>::oop_load_at(ref_p, RefList::_referent_off);
+          // rtgc_log(LOG_OPT(3), "ref %p(%s) %p", (void*)ref_p, getClassName(to_obj(ref_p)), (void*)r);
+          assert(r == NULL || InstanceKlass::cast(ref_p->klass())->reference_type() == REF_FINAL, "ref %p(%s)", (void*)ref_p, getClassName(to_obj(ref_p)));
+        }
+    #endif
+        g_pending_head = NULL;
+      }
+    }
+  };
+
+
+  class RefIterator  {
+    RefList& _refList;
+    int _discovered_off;
+    int _referent_off;
+
+    bool do_cross_test;
+    int _idx;
+    oop _curr_ref;
+    oop _next_ref;
+    oop _prev_ref_op;
+    oop _referent_p;
+    bool _ref_removed;
+
+  public:  
+    RefIterator(RefList &refProcessor) : _refList(refProcessor) {
+      _next_ref = refProcessor._ref_q;
+      do_cross_test = _next_ref == NULL;
+
+      _curr_ref = _prev_ref_op = NULL;
+      _discovered_off = refProcessor._discovered_off;
+      _referent_off = refProcessor._referent_off;
+      _referent_p = NULL;
+      _ref_removed = false;
+      _idx = refProcessor._refs.size();
+    }
+
+    bool in_cross_test_mode() {
+      return do_cross_test;
+    }
+
+    oopDesc* ref() {
+      return _curr_ref;
+    }
+
+    oopDesc* referent() {
+      return _referent_p;
+    }
+
+    HeapWord* referent_addr() {
+      return java_lang_ref_Reference::referent_addr_raw(_curr_ref);
+    }
+
+    oopDesc* get_raw_referent() {
+      oop p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
+      return p;
+    }
+
+    template <bool skipGarbageRef = true, bool skipClearedRef = true>
+    GCObject* next_ref() {
+      while (true) {
+        if (do_cross_test) {
+          if (--_idx < 0) return NULL;
+          _curr_ref = _refList._refs.at(_idx);
+        } else {
+          if (_ref_removed && _prev_ref_op != _curr_ref) {
+            _ref_removed = false;
+            if (_prev_ref_op == NULL) {
+              precond(_refList._ref_q == _curr_ref);
+            } else {
+              precond(RawAccess<>::oop_load_at(_prev_ref_op, _discovered_off) == _curr_ref);        
+            }
           }
+          _prev_ref_op = _curr_ref;
+          _curr_ref = _next_ref;
+          if (_curr_ref == NULL) return NULL;
+          _next_ref = RawAccess<>::oop_load_at(_curr_ref, _discovered_off);
+          postcond(_curr_ref != _next_ref);
         }
-        _prev_ref_op = _curr_ref;
-        _curr_ref = _next_ref;
-        if (_curr_ref == NULL) return NULL;
-        _next_ref = RawAccess<>::oop_load_at(_curr_ref, _discovered_off);
-        postcond(_curr_ref != _next_ref);
-      }
-      precond((void*)_curr_ref > (void*)0x30);
+        precond((void*)_curr_ref > (void*)0x30);
 
-      if (!skipGarbageRef) {
-        precond(rtHeap::is_alive(_curr_ref));
-      } else if (!rtHeap::is_alive(_curr_ref)) {
-        assert(!do_cross_test || !_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
-            "invalid gargabe %p(%s) tr=%d, rc=%d ghost=%d\n", 
-            (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)),
-            to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(),
-            rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
-        this->remove_curr_ref();
-        continue;
-      }
-      precond(__getRefType(_curr_ref) == _refList.ref_type());
-
-      _referent_p = get_raw_referent();
-      assert(do_cross_test || _referent_p != NULL, "null referent ref %p\n", (void*)_curr_ref);
-
-      if (!skipClearedRef) {
-        postcond(_referent_p != (do_cross_test ? oop(NULL) : _curr_ref));
-      }
-      else if (_referent_p == (do_cross_test ? oop(NULL) : _curr_ref)) {
-        rtgc_log(LOG_OPT(3), "remove cleared ref %p\n", (void*)_curr_ref);
-        if (!rtHeap::in_full_gc) {
-          adjust_ref_pointer<false>();
+        if (!skipGarbageRef) {
+          precond(rtHeap::is_alive(_curr_ref));
+        } else if (!rtHeap::is_alive(_curr_ref)) {
+          assert(!do_cross_test || !_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
+              "invalid gargabe %p(%s) tr=%d, rc=%d ghost=%d\n", 
+              (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)),
+              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(),
+              rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
+          this->remove_curr_ref();
+          continue;
         }
+        precond(__getRefType(_curr_ref) == _refList.ref_type());
+
+        _referent_p = get_raw_referent();
+        assert(do_cross_test || _referent_p != NULL, "null referent ref %p\n", (void*)_curr_ref);
+
+        if (!skipClearedRef) {
+          postcond(_referent_p != (do_cross_test ? oop(NULL) : _curr_ref));
+        }
+        else if (_referent_p == (do_cross_test ? oop(NULL) : _curr_ref)) {
+          rtgc_log(LOG_OPT(3), "remove cleared ref %p\n", (void*)_curr_ref);
+          if (!rtHeap::in_full_gc) {
+            adjust_ref_pointer<false>();
+          }
+          clear_referent();
+          clear_discovered();
+          this->remove_curr_ref();
+          continue;
+        }
+
+        precond((void*)_curr_ref > (void*)32);
+        return to_obj(_curr_ref);
+      }
+    }
+
+    template <bool is_full_gc>
+    oop get_valid_forwardee(oop old_p) {
+      return (!is_full_gc && to_obj(old_p)->isTrackable()) ? NULL :  old_p->forwardee();
+    }
+
+    template <bool is_full_gc>
+    void adjust_ref_pointer() {
+      precond(!rtHeap::DoCrossCheck || _curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
+      oop new_p = get_valid_forwardee<is_full_gc>(_curr_ref);
+      if (new_p != NULL) {
+        precond((void*)new_p > (void*)32);
+        if (do_cross_test) {
+          _refList._refs.at(_idx) = new_p;
+        }
+        else if (_prev_ref_op == NULL) {
+          _refList._ref_q = new_p;
+        } else {
+          RawAccess<>::oop_store_at(_prev_ref_op, _discovered_off, new_p);
+        }
+        // rtgc_log(LOG_OPT(3), "X) phantom ref moved %p -> %p\n", (void*)_curr_ref, (void*)new_p);
+        if (!is_full_gc) {
+          _curr_ref = new_p;
+        } else {
+          // 객체 복사가 되지 않은 상태.
+        }
+      } else {
+        postcond(is_full_gc || to_obj(_curr_ref)->isTrackable());
+      }
+    }
+
+    template <bool is_full_gc>
+    void adjust_referent_pointer() {
+      if (do_cross_test) return;
+      
+      oop old_p = _referent_p;
+      oop new_p = get_valid_forwardee<is_full_gc>(old_p);
+      if (new_p == NULL) {
+        postcond(is_full_gc || to_obj(old_p)->isTrackable());
+      } else if (new_p != old_p) {
+        precond((void*)new_p > (void*)0x30);
+        // rtgc_log(LOG_OPT(3), "move referent %p -> %p\n", (void*)old_p, (void*)new_p);
+        RawAccess<>::oop_store_at(_curr_ref, _referent_off, new_p);
+        if (!is_full_gc) {
+          _referent_p = new_p;
+        }
+      }
+    }
+
+    void enqueue_curr_ref(bool clear_referent_p) {
+      if (clear_referent_p) {
         clear_referent();
-        clear_discovered();
-        this->remove_curr_ref();
-        continue;
       }
-
-      precond((void*)_curr_ref > (void*)32);
-      return to_obj(_curr_ref);
+      oop ref_p = _curr_ref;
+      remove_curr_ref();
+      
+      if (do_cross_test) return;
+      RefList::enqueue_pending_ref(ref_p);
     }
-  }
 
-  template <bool is_full_gc>
-  oop get_valid_forwardee(oop old_p) {
-    return (!is_full_gc && to_obj(old_p)->isTrackable()) ? NULL :  old_p->forwardee();
-  }
-
-  template <bool is_full_gc>
-  void adjust_ref_pointer() {
-    precond(!rtHeap::DoCrossCheck || _curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
-    oop new_p = get_valid_forwardee<is_full_gc>(_curr_ref);
-    if (new_p != NULL) {
-      precond((void*)new_p > (void*)32);
+    void remove_curr_ref() {
       if (do_cross_test) {
-        _refList._refs.at(_idx) = new_p;
-      }
-      else if (_prev_ref_op == NULL) {
-        _refList._ref_q = new_p;
+        _refList._refs.removeFast(_idx);
+        rtgc_log(false, "remove ref %p %d/%d\n", (void*)_curr_ref, _idx, _refList._refs.size());
       } else {
-        RawAccess<>::oop_store_at(_prev_ref_op, _discovered_off, new_p);
-      }
-      // rtgc_log(LOG_OPT(3), "X) phantom ref moved %p -> %p\n", (void*)_curr_ref, (void*)new_p);
-      if (!is_full_gc) {
-        _curr_ref = new_p;
-      } else {
-        // 객체 복사가 되지 않은 상태.
-      }
-    } else {
-      postcond(is_full_gc || to_obj(_curr_ref)->isTrackable());
-    }
-  }
-
-  template <bool is_full_gc>
-  void adjust_referent_pointer() {
-    if (do_cross_test) return;
-    
-    oop old_p = _referent_p;
-    oop new_p = get_valid_forwardee<is_full_gc>(old_p);
-    if (new_p == NULL) {
-      postcond(is_full_gc || to_obj(old_p)->isTrackable());
-    } else if (new_p != old_p) {
-      precond((void*)new_p > (void*)0x30);
-      // rtgc_log(LOG_OPT(3), "move referent %p -> %p\n", (void*)old_p, (void*)new_p);
-      RawAccess<>::oop_store_at(_curr_ref, _referent_off, new_p);
-      if (!is_full_gc) {
-        _referent_p = new_p;
+        if (_prev_ref_op == NULL) {
+          _refList._ref_q = _next_ref;
+        } else {
+          RawAccess<>::oop_store_at(_prev_ref_op, _discovered_off, _next_ref);
+        }
+        _ref_removed = true;
+        _curr_ref = _prev_ref_op;
       }
     }
-  }
 
-  void enqueue_curr_ref(bool clear_referent_p) {
-    if (clear_referent_p) {
-      clear_referent();
-    }
-    oop ref_p = _curr_ref;
-    remove_curr_ref();
-    
-    if (do_cross_test) return;
-    RefListBase::enqueue_pending_ref(ref_p);
-  }
-
-  void remove_curr_ref() {
-    if (do_cross_test) {
-      _refList._refs.removeFast(_idx);
-      rtgc_log(false, "remove ref %p %d/%d\n", (void*)_curr_ref, _idx, _refList._refs.size());
-    } else {
-      if (_prev_ref_op == NULL) {
-        _refList._ref_q = _next_ref;
-      } else {
-        RawAccess<>::oop_store_at(_prev_ref_op, _discovered_off, _next_ref);
+    void break_weak_soft_link() {
+      GCObject* ref = to_obj(_curr_ref);
+      GCObject* referent = to_obj(this->_referent_p);
+      if (referent->hasShortcut() && referent->getSafeAnchor() == ref) {
+        referent->getShortcut()->split(ref, referent);
       }
-      _ref_removed = true;
-      _curr_ref = _prev_ref_op;
+    } 
+
+    void clear_weak_soft_garbage_referent() {
+      GCObject* referent = to_obj(_referent_p);
+      if (referent->isTrackable()) {
+        _rtgc.g_pGarbageProcessor->detectGarbage(referent, true);
+      }
+      if (!rtHeap::is_alive(_referent_p)) {
+        precond(!do_cross_test || !_referent_p->is_gc_marked());
+        referent->clearGarbageAnchors();
+        enqueue_curr_ref(false);
+      }
     }
-  }
 
-  void break_weak_soft_link() {
-    GCObject* ref = to_obj(_curr_ref);
-    GCObject* referent = to_obj(this->_referent_p);
-    if (referent->hasShortcut() && referent->getSafeAnchor() == ref) {
-      referent->getShortcut()->split(ref, referent);
+  private:  
+    void clear_discovered() {
+      if (do_cross_test) return;
+      RawAccess<>::oop_store_at(_curr_ref, _discovered_off, oop(NULL));
     }
-  } 
 
-  void clear_weak_soft_garbage_referent() {
-    GCObject* referent = to_obj(_referent_p);
-    if (referent->isTrackable()) {
-      _rtgc.g_pGarbageProcessor->detectGarbage(referent, true);
+    void clear_referent() {
+      if (do_cross_test) return;
+      // rtgc_log(LOG_OPT(3), "clear referent ref %p\n", (void*)_curr_ref);
+      RawAccess<>::oop_store_at(_curr_ref, _referent_off, oop(NULL));
     }
-    if (!rtHeap::is_alive(_referent_p)) {
-      precond(!do_cross_test || !_referent_p->is_gc_marked());
-      referent->clearGarbageAnchors();
-      enqueue_curr_ref(false);
-    }
-  }
 
-private:  
-  void clear_discovered() {
-    if (do_cross_test) return;
-    RawAccess<>::oop_store_at(_curr_ref, _discovered_off, oop(NULL));
-  }
-
-  void clear_referent() {
-    if (do_cross_test) return;
-    // rtgc_log(LOG_OPT(3), "clear referent ref %p\n", (void*)_curr_ref);
-    RawAccess<>::oop_store_at(_curr_ref, _referent_off, oop(NULL));
-  }
-
+  };
 };
 
-static RtRefList<REF_SOFT>   g_softList;
-static RtRefList<REF_WEAK>   g_weakList;
-static RtRefList<REF_FINAL>   g_finalList;
-static RtRefList<REF_PHANTOM> g_phantomList;
+using namespace RTGC;
+oop RefList::g_pending_head = NULL;
+oop RefList::g_pending_tail;
+int RefList::_referent_off;
+int RefList::_discovered_off;
+
+
+static RefList g_softList(REF_SOFT);
+static RefList g_weakList(REF_WEAK);
+static RefList g_finalList(REF_FINAL);
+static RefList g_phantomList(REF_PHANTOM);
 
 void rtHeapEx::initializeRefProcessor() {
-  RefListBase::_referent_off = java_lang_ref_Reference::referent_offset();
-  RefListBase::_discovered_off = java_lang_ref_Reference::discovered_offset();
-  postcond(RefListBase::_referent_off != 0);
-  postcond(RefListBase::_discovered_off != 0);
+  RefList::_referent_off = java_lang_ref_Reference::referent_offset();
+  RefList::_discovered_off = java_lang_ref_Reference::discovered_offset();
+  postcond(RefList::_referent_off != 0);
+  postcond(RefList::_discovered_off != 0);
 }
 
 static const char* reference_type_to_string(ReferenceType rt) {
@@ -370,102 +369,59 @@ void rtHeapEx::update_soft_ref_master_clock() {
   // past clock value.
 }
 
-template <ReferenceType refType>
-template <ReferenceType scanType>
-oopDesc* RtRefList<refType>::get_valid_forwardee(oopDesc* obj) {
-  precond(_referent_off != 0 && _discovered_off != 0);
-
-  bool is_full_gc = scanType >= REF_OTHER;
-  if (is_full_gc) {
-    if (DO_CROSS_CHECK_REF) {
-      if (obj->is_gc_marked()) {
-        precond(!to_obj(obj)->isGarbageMarked());
-        return obj;
-      }
-      return NULL;
-    }
-
-    GCObject* node = to_obj(obj);
-    precond(node->isTrackable());
-    if (refType == REF_SOFT || refType == REF_WEAK) {
-      precond(node->isGarbageMarked());
-      node->clearGarbageAnchors();
-      if (!node->isUnreachable()) {
-        node->unmarkGarbage();
-        return obj;
-      } else {
-        _rtgc.g_pGarbageProcessor->getGarbageNodes()->push_back(node);
-        return NULL;
-      }
-    }
-    return node->isGarbageMarked() ? NULL : obj;
-  } 
-
-  if (to_obj(obj)->isTrackable()) {
-    if (to_obj(obj)->isGarbageMarked()) {
-      precond(!obj->is_gc_marked());
-      return NULL;
-    }
-    return obj;
-  }
-
-  if (!obj->is_gc_marked()) return NULL;
-  postcond(!to_obj(obj)->isGarbageMarked());
-  return obj->forwardee();
-}
 
 
-static const bool REMOVE_REF_LINK = true;
-template <ReferenceType refType>
-void RtRefList<refType>::break_reference_links(ReferencePolicy* policy) {
-  precond(_referent_off != 0 && _discovered_off != 0);
-#if DO_CROSS_CHECK_REF
-  int cntRef = _refs->size();
-  for (int i = cntRef; --i >= 0; ) {
-    oopDesc* ref_op = _refs->at(i);
-#else
-  oop next_ref_op;
-  oop prev_ref_op = NULL;
-  for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
-    next_ref_op = RawAccess<>::oop_load_at(ref_op, _discovered_off);
-#endif    
-    oopDesc* referent = ref_op->obj_field_access<AS_NO_KEEPALIVE>(_referent_off);
-#if DO_CROSS_CHECK_REF
-    if (referent == NULL) {
-      _refs->removeFast(i);
-      continue;
-    } 
-#else
-    if (referent == ref_op) {
-      remove_reference(ref_op, prev_ref_op, next_ref_op, true);
-      continue;
-    }
-    prev_ref_op = ref_op;
-#endif
+// static const bool REMOVE_REF_LINK = true;
+// template <ReferenceType refType>
+// void RtRefList<refType>::break_reference_links(ReferencePolicy* policy) {
+//   precond(_referent_off != 0 && _discovered_off != 0);
+// #if DO_CROSS_CHECK_REF
+//   int cntRef = _refs->size();
+//   for (int i = cntRef; --i >= 0; ) {
+//     oopDesc* ref_op = _refs->at(i);
+// #else
+//   oop next_ref_op;
+//   oop prev_ref_op = NULL;
+//   for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
+//     next_ref_op = RawAccess<>::oop_load_at(ref_op, _discovered_off);
+// #endif    
+//     oopDesc* referent = ref_op->obj_field_access<AS_NO_KEEPALIVE>(_referent_off);
+// #if DO_CROSS_CHECK_REF
+//     if (referent == NULL) {
+//       _refs->removeFast(i);
+//       continue;
+//     } 
+// #else
+//     if (referent == ref_op) {
+//       remove_reference(ref_op, prev_ref_op, next_ref_op, true);
+//       continue;
+//     }
+//     prev_ref_op = ref_op;
+// #endif
 
-    if (refType == REF_SOFT) {
-      if (!policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
-        continue;   
-      }
-      rtgc_debug_log(referent, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
-    }
+//     if (refType == REF_SOFT) {
+//       if (!policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
+//         continue;   
+//       }
+//       rtgc_debug_log(referent, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
+//     }
 
-    GCObject* referent_node = to_obj(referent);
-    precond(!referent_node->isGarbageMarked());
-    // rtgc_log(refType == REF_WEAK && g_cntCleanRef == 5, 
-    //     "weak ref %p -> %p(%d)\n", ref_op, referent, referent_node->getRootRefCount());
-    if (referent_node->getRootRefCount() > 0) {
-      continue;
-    }
+//     GCObject* referent_node = to_obj(referent);
+//     precond(!referent_node->isGarbageMarked());
+//     // rtgc_log(refType == REF_WEAK && g_cntCleanRef == 5, 
+//     //     "weak ref %p -> %p(%d)\n", ref_op, referent, referent_node->getRootRefCount());
+//     if (referent_node->getRootRefCount() > 0) {
+//       continue;
+//     }
 
-    GCObject* ref_node = to_obj(ref_op);
-    precond(ref_node->isTrackable());
-    precond(!ref_node->isGarbageMarked());
-    GCRuntime::disconnectReferenceLink(referent_node, ref_node);
-    ref_node->markDirtyReferrerPoints();
-  }
-  rtgc_log(LOG_OPT(3), "break_reference_links %d/%d\n", _refs->size(), cntRef);  
-}
+//     GCObject* ref_node = to_obj(ref_op);
+//     precond(ref_node->isTrackable());
+//     precond(!ref_node->isGarbageMarked());
+//     GCRuntime::disconnectReferenceLink(referent_node, ref_node);
+//     ref_node->markDirtyReferrerPoints();
+//   }
+//   rtgc_log(LOG_OPT(3), "break_reference_links %d/%d\n", _refs->size(), cntRef);  
+// }
 
 
 void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
@@ -533,7 +489,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   }
   rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
   complete_gc->do_void();
-  RefListBase::flush_penging_list();
+  RefList::flush_penging_list();
   rtHeap__clear_garbage_young_roots(is_full_gc);
 }
 
@@ -638,7 +594,7 @@ void __process_final_phantom_references() {
     }
   } 
 
-  RefListBase::flush_penging_list();
+  RefList::flush_penging_list();
 }
 
 void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
