@@ -528,23 +528,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 }
 
 
-void rtHeap::prepare_point_adjustment() {
-  if (g_adjust_pointer_closure._old_gen_start != NULL) return;
-  rtHeapEx::adjust_ref_q_pointers(true);
-
-  void* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
-  g_adjust_pointer_closure._old_gen_start = (HeapWord*)old_gen_heap_start;
+void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
+  g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
   rtgc_log(LOG_OPT(8), "old_gen_heap_start %p\n", old_gen_heap_start);
-  if (g_young_roots.size() > 0) {
-    oop* src_0 = g_young_roots.adr_at(0);
-    oop* dst = src_0;
-    oop* end = src_0 + g_young_roots.size();
-    for (oop* src = src_0; src < end; src++) {
-      GCObject* node = to_obj(*src);
-      node->unmarkYoungRoot();
-    }
-    g_young_roots.resize(0);
-  }
+  rtHeapEx::adjust_ref_q_pointers(true);
 }
 
 void GCNode::markGarbage(const char* reason)  {
@@ -670,6 +657,18 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
     WeakProcessor::oops_do(&clear_weak_handle_ref);
+
+    if (g_young_roots.size() > 0) {
+      oop* src_0 = g_young_roots.adr_at(0);
+      oop* dst = src_0;
+      oop* end = src_0 + g_young_roots.size();
+      for (oop* src = src_0; src < end; src++) {
+        GCObject* node = to_obj(*src);
+        node->unmarkYoungRoot();
+      }
+      g_young_roots.resize(0);
+    }
+
     in_full_gc = true;
   }
 }

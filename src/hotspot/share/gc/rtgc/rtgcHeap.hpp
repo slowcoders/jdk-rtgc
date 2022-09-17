@@ -42,7 +42,7 @@ public:
   static bool ensure_weak_reachable(oopDesc* new_p);
 
   // for full gc
-  static void prepare_point_adjustment();
+  static void prepare_adjust_pointers(HeapWord* old_gen_heap_start);
   static size_t adjust_pointers(oopDesc* old_p);
   static void mark_pending_trackable(oopDesc* old_p, void* new_p);
   static void mark_forwarded(oopDesc* p);

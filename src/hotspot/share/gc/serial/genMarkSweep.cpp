@@ -108,12 +108,18 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    HeapWord* old_gen_heap_start = old_gen()->reserved().start();
+    rtHeap::prepare_adjust_pointers(old_gen_heap_start);
+  }
+#endif
+
   mark_sweep_phase3();
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::finish_adjust_pointers(true);
-    // rtHeap::finish_rtgc();
   }
 #endif
 

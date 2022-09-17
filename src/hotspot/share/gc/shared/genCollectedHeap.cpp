@@ -616,7 +616,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
       gc_epilogue(complete);
     } else {
-      rtgc_log(true, "do_full_collection after young-gc\n");
+      // rtgc_log(true, "do_full_collection after young-gc\n");
     }
 
     print_heap_after_gc();

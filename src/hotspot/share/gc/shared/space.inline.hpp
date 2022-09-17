@@ -244,11 +244,6 @@ template <class SpaceType>
 inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   // adjust all the interior pointers to point at the new locations of objects
   // Used by MarkSweep::mark_sweep_phase3()
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    rtHeap::prepare_point_adjustment();
-  }
-#endif
   HeapWord* cur_obj = space->bottom();
   HeapWord* const end_of_live = space->_end_of_live;  // Established by "scan_and_forward".
   HeapWord* const first_dead = space->_first_dead;    // Established by "scan_and_forward".

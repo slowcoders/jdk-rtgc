@@ -223,7 +223,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-  "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
   //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
   // "java/nio/DirectByteBuffer$Deallocator",
@@ -297,7 +297,7 @@ void RTGC::initialize() {
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (1 || UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (0) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
