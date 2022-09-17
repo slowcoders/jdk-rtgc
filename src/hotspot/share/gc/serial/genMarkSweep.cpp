@@ -110,7 +110,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC
   if (EnableRTGC) {
-    HeapWord* old_gen_heap_start = old_gen()->reserved().start();
+    HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
     rtHeap::prepare_adjust_pointers(old_gen_heap_start);
   }
 #endif

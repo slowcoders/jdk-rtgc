@@ -99,10 +99,12 @@ public:
 	}
 
 	void unmarkActiveFinalizereReachable() {
+		precond(isActiveFinalizerReachable());
 		_flags.rootRefCount &= ~0x01;
 	}
 
 	void markActiveFinalizereReachable() {
+		precond(!isActiveFinalizerReachable());
 		_flags.rootRefCount |= 0x01;
 	}
 
