@@ -126,10 +126,6 @@ bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
 }
 
 
-bool rtHeap::is_destroyed(oopDesc* p) {
-  return to_obj(p)->isDestroyed();
-}
-
 void rtHeap__addResurrectedObject(GCObject* node);
 
 HeapWord* RtSpace::allocate(size_t word_size) {

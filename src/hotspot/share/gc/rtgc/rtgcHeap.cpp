@@ -176,13 +176,6 @@ bool rtHeap::ensure_weak_reachable(oopDesc* p) {
   return obj->isStrongRootReachable();
 }
 
-void rtHeap::mark_empty_trackable(oopDesc* p) {
-  rtgc_log(LOG_OPT(9), "mark_empty_trackable %p\n", p);
-  GCObject* obj = to_obj(p);
-  obj->markTrackable();
-  debug_only(g_cntTrackable++);
-}
-
 
 /**
  * @brief YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
@@ -217,13 +210,6 @@ void rtHeap__addResurrectedObject(GCObject* node) {
   g_stack_roots.append(node);
 }
 
-// void rtHeap::keep_alive_trackable(oopDesc* obj) {
-//   GCObject* node = to_obj(obj);
-//   precond(node->isTrackable());
-//   if (node->isGarbageMarked()) {
-//     resurrect_young_root(node);
-//   }
-// }
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
@@ -241,27 +227,6 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   g_stack_roots.append(node);
 }
 
-
-
-
-
-void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
-  if (!is_full_gc) {
-    _rtgc.g_pGarbageProcessor->validateGarbageList();
-  }
-  _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-
-  int old_cnt = g_young_roots.size();
-  for (int i = old_cnt; --i >= 0; ) {
-    GCObject* node = to_obj(g_young_roots.at(i));
-    if (node->isGarbageMarked() || !node->isYoungRoot()) {
-      g_young_roots.removeFast(i);
-    }
-  }
-
-  rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d\n", 
-      old_cnt, g_young_roots.size());
-}
 
 template<bool is_full_gc>
 void rtHeap__clearStack() {
@@ -294,7 +259,31 @@ void rtHeap__clearStack() {
   }
 }
 
-void rtHeap::iterate_young_roots(BoolObjectClosure* closure, bool is_full_gc) {
+void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
+  if (!is_full_gc) {
+    _rtgc.g_pGarbageProcessor->validateGarbageList();
+  }
+  _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+
+  int old_cnt = g_young_roots.size();
+  for (int i = old_cnt; --i >= 0; ) {
+    GCObject* node = to_obj(g_young_roots.at(i));
+    if (node->isGarbageMarked() || !node->isYoungRoot()) {
+      g_young_roots.removeFast(i);
+    }
+  }
+
+  if (!is_full_gc) {
+    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
+    rtHeap__clearStack<false>();
+  }
+  rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d\n", 
+      old_cnt, g_young_roots.size());
+}
+
+
+
+void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_gc) {
   g_young_root_closure = closure;
   int young_root_count = g_young_roots.size();
 
@@ -356,18 +345,6 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   to_obj(p)->markDirtyReferrerPoints();
 }
 
-// TODO 함수 삭제.
-void rtHeap::mark_pending_trackable(oopDesc* old_p, void* new_p) {
-  fatal("deprecated");
-  // /**
-  //  * @brief Full-GC 과정에서 adjust_pointers 를 수행하기 직전에 호출된다.
-  //  * 즉, old_p 객체의 field는 유효한 old 객체를 가리키고 있다.
-  //  */
-  // rtgc_debug_log(old_p, "mark_pending_trackable %p -> %p\n", old_p, new_p);
-  // precond((void*)old_p->forwardee() == new_p || (old_p->forwardee() == NULL && old_p == new_p));
-  // to_obj(old_p)->markTrackable();
-  // debug_only(g_cntTrackable++);
-}
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
@@ -630,17 +607,10 @@ void rtHeap::destroy_trackable(oopDesc* p) {
   }
 }
 
-void rtHeap::finish_adjust_pointers(bool is_full_gc) {
-  if (is_full_gc) {
-    g_adjust_pointer_closure._old_gen_start = NULL;
-    GCRuntime::adjustShortcutPoints();
-    rtHeap__clearStack<true>();
-  } else {
-    // rtHeap__clear_garbage_young_roots(is_full_gc);
-    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
-    // _rtgc.g_pGarbageProcessor->collectGarbage(false);
-    rtHeap__clearStack<false>();
-  }
+void rtHeap::finish_adjust_pointers() {
+  g_adjust_pointer_closure._old_gen_start = NULL;
+  GCRuntime::adjustShortcutPoints();
+  rtHeap__clearStack<true>();
 }
 
 class ClearWeakHandleRef: public OopClosure {

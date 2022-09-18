@@ -162,7 +162,6 @@ namespace RTGC {
           _next_ref = RawAccess<>::oop_load_at(_curr_ref, _discovered_off);
           postcond(_curr_ref != _next_ref);
         }
-        precond((void*)_curr_ref > (void*)0x30);
 
         if ((policy & SkipGarbageRef) == 0) {
           precond(rtHeap::is_alive(_curr_ref));
@@ -528,7 +527,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     }
 
     if (!rtHeap::DoCrossCheck) {
-      rtHeap::iterate_young_roots(NULL, true);
+      rtHeap::iterate_younger_gen_roots(NULL, true);
     }
     
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());

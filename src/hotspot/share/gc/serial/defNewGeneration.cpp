@@ -652,7 +652,6 @@ void DefNewGeneration::collect(bool   full,
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(false);
-    rtHeap::finish_adjust_pointers(false);
   }
 #endif
   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
