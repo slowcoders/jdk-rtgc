@@ -1,3 +1,6 @@
+#ifndef SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP
+#define SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP
+
 #include "GCObject.hpp" 
 #include "gc/rtgc/rtgcDebug.hpp"
 
@@ -120,3 +123,4 @@ extern GCRuntime _rtgc;
 }
 
 
+#endif // SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP

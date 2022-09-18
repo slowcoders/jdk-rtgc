@@ -24,13 +24,13 @@ public:
   static bool is_alive(oopDesc* p);
 
   static void prepare_rtgc(bool is_full_gc);
+  static void iterate_younger_gen_roots(BoolObjectClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc();
 
   // for younger object collection
   static void add_promoted_trackable(oopDesc* new_p);
   static void mark_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
-  static void iterate_younger_gen_roots(BoolObjectClosure* young_root_closure, bool is_full_gc);
   static void mark_survivor_reachable(oopDesc* tenured_p);
 
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);

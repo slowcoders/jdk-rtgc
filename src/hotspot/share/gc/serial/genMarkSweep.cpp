@@ -214,17 +214,6 @@ public:
   void do_oop_work(T* p) {
     MarkSweep::_is_rt_anchor_trackable = true;
     MarkSweep::mark_and_push(p);
-    // T heap_oop = RawAccess<>::oop_load(p);
-    // if (!CompressedOops::is_null(heap_oop)) {
-    //   oop obj = CompressedOops::decode_not_null(heap_oop);
-    //   if (!(rtHeap::DoCrossCheck && rtHeap::is_trackable(obj))) {
-    //     if (!obj->mark().is_marked()) {
-    //       MarkSweep::mark_object(obj);
-    //       MarkSweep::_marking_stack.push(obj);
-    //     }
-    //     _cnt_young_ref ++;
-    //   }
-    // }
   }
 };
 

@@ -99,9 +99,7 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (RtNoDirtyCardMarking) {
-    rtHeap::iterate_younger_gen_roots(static_cast<YoungRootClosure*>(old_gen_closure), false);
-  } else 
+  if (!RtNoDirtyCardMarking)  
 #endif
   {
     old_gen()->younger_refs_iterate(old_gen_closure);

@@ -624,10 +624,15 @@ void DefNewGeneration::collect(bool   full,
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-                              RTGC_ONLY(RtNoDirtyCardMarking ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
+                              RTGC_ONLY(RtNoDirtyCardMarking ? NULL : (OopIterateClosure*)&younger_gen_closure)
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (RtNoDirtyCardMarking) {
+    rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
+  }
+#endif
 
   // "evacuate followers".
   evacuate_followers.do_void();
