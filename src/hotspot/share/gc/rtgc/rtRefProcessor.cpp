@@ -462,6 +462,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       is_gc_marked = referent->isTrackable() ? referent->isStrongReachable() : cast_to_oop(referent)->is_gc_marked();
     }
     if (!is_gc_marked) {
+      if (is_full_gc) {
+        MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
+      }
       keep_alive->do_oop((T*)iter.referent_addr());
       GCObject* old_referent = referent;
       if (is_full_gc) {

@@ -49,22 +49,26 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
+inline void MarkSweep::mark_and_push_internal(oop obj) {
+#if INCLUDE_RTGC
+  if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
+    if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
+      rtHeap::mark_survivor_reachable(obj);
+    }
+    if (!rtHeap::DoCrossCheck) return;
+  } 
+#endif
+  if (!obj->mark().is_marked()) {
+    mark_object(obj);
+    _marking_stack.push(obj);
+  }
+}
+
 template <class T> inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-#if INCLUDE_RTGC
-    if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
-      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
-        rtHeap::mark_survivor_reachable(obj);
-      }
-      if (!rtHeap::DoCrossCheck) return;
-    } 
-#endif
-    if (!obj->mark().is_marked()) {
-      mark_object(obj);
-      _marking_stack.push(obj);
-    }
+    mark_and_push_internal(obj);
   }
 }
 

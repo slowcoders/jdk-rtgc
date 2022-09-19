@@ -197,23 +197,30 @@ void GenMarkSweep::deallocate_stacks() {
 }
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-class YoungRootClosure2 : public MarkAndPushClosure, public BoolObjectClosure {
-  int _cnt_young_ref;
-  debug_only(oop _anchor;)
+class TenuredYoungRootClosure : public MarkAndPushClosure, public BoolObjectClosure {
+  bool _is_young_ref;
 public:
   
   bool do_object_b(oop obj) {
-    _cnt_young_ref = 0;
-    debug_only(_anchor = obj;)
+    _is_young_ref = false;
     obj->oop_iterate(this);
     MarkSweep::follow_stack();
-    return _cnt_young_ref > 0;
+    return _is_young_ref;
   }
 
   template <typename T>
   void do_oop_work(T* p) {
-    MarkSweep::_is_rt_anchor_trackable = true;
-    MarkSweep::mark_and_push(p);
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop obj = CompressedOops::decode_not_null(heap_oop);
+      if (!rtHeap::is_trackable(obj)) {
+        _is_young_ref = true;
+      } else if (!rtHeap::DoCrossCheck) {
+        return;
+      }
+      MarkSweep::_is_rt_anchor_trackable = true;
+      MarkSweep::mark_and_push_internal(obj);
+    }
   }
 };
 
@@ -241,10 +248,10 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    // YoungRootClosure2 closure;
+    TenuredYoungRootClosure closure;
     ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
     if (!rtHeap::DoCrossCheck) {
-      rtHeap::iterate_younger_gen_roots(NULL/*&closure*/, true);
+      rtHeap::iterate_younger_gen_roots(&closure, true);
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
