@@ -378,59 +378,6 @@ void rtHeapEx::update_soft_ref_master_clock() {
 
 
 
-// static const bool REMOVE_REF_LINK = true;
-// template <ReferenceType refType>
-// void RtRefList<refType>::break_reference_links(ReferencePolicy* policy) {
-//   precond(_referent_off != 0 && _discovered_off != 0);
-// #if DO_CROSS_CHECK_REF
-//   int cntRef = _refs->size();
-//   for (int i = cntRef; --i >= 0; ) {
-//     oopDesc* ref_op = _refs->at(i);
-// #else
-//   oop next_ref_op;
-//   oop prev_ref_op = NULL;
-//   for (oop ref_op = _ref_q; ref_op != NULL; ref_op = next_ref_op) {
-//     next_ref_op = RawAccess<>::oop_load_at(ref_op, _discovered_off);
-// #endif    
-//     oopDesc* referent = ref_op->obj_field_access<AS_NO_KEEPALIVE>(_referent_off);
-// #if DO_CROSS_CHECK_REF
-//     if (referent == NULL) {
-//       _refs->removeFast(i);
-//       continue;
-//     } 
-// #else
-//     if (referent == ref_op) {
-//       remove_reference(ref_op, prev_ref_op, next_ref_op, true);
-//       continue;
-//     }
-//     prev_ref_op = ref_op;
-// #endif
-
-//     if (refType == REF_SOFT) {
-//       if (!policy->should_clear_reference(ref_op, rtHeapEx::_soft_ref_timestamp_clock)) {
-//         continue;   
-//       }
-//       rtgc_debug_log(referent, "clear soft ref %p -> %p(%d)\n", ref_op, referent, to_obj(referent)->getRootRefCount());
-//     }
-
-//     GCObject* referent_node = to_obj(referent);
-//     precond(!referent_node->isGarbageMarked());
-//     // rtgc_log(refType == REF_WEAK && g_cntCleanRef == 5, 
-//     //     "weak ref %p -> %p(%d)\n", ref_op, referent, referent_node->getRootRefCount());
-//     if (referent_node->getRootRefCount() > 0) {
-//       continue;
-//     }
-
-//     GCObject* ref_node = to_obj(ref_op);
-//     precond(ref_node->isTrackable());
-//     precond(!ref_node->isGarbageMarked());
-//     GCRuntime::disconnectReferenceLink(referent_node, ref_node);
-//     ref_node->markDirtyReferrerPoints();
-//   }
-//   rtgc_log(LOG_OPT(3), "break_reference_links %d/%d\n", _refs->size(), cntRef);  
-// }
-
-
 void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   rtgc_log(LOG_OPT(3), "link_discovered_pending_reference from %p to %p\n", (void*)ref_q, end);
   oopDesc* discovered;
@@ -546,8 +493,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
       iter.clear_weak_soft_garbage_referent();
       ref->unmarkDirtyReferrerPoints();
     }
-    // g_softList.break_reference_links(policy);
-    // g_weakList.break_reference_links(policy);
   }
   if (!rtHeap::DoCrossCheck) {
     rtHeapEx::update_soft_ref_master_clock();
@@ -577,16 +522,6 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
 
 template <bool is_full_gc>
 void __process_final_phantom_references() {
-  // rtgc_log(LOG_OPT(3), "g_finalList %d\n", g_finalList._refs.size());
-  // for (RefIterator iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
-  //   if (!rtHeap::is_alive(iter.referent_p)) {
-  //     iter.enqueue_curr_ref();
-  //   } else {
-  //     iter.adjust_ref_pointer();
-  //   }
-  // } 
-  // phantom referent 에 대한 forwading 처리 필요!!
-
   // rtgc_log(LOG_OPT(3), "g_phantomList %p\n", g_phantomList._ref_q);
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     precond((void*)iter.referent() != NULL);
@@ -684,11 +619,6 @@ void __adjust_ref_q_pointers() {
 }
 
 void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
-  // #if DO_CROSS_CHECK_REF
-  //   __adjust_points(&g_softList._refs, is_full_gc, false, REF_SOFT);
-  //   __adjust_points(&g_weakList._refs, is_full_gc, false, REF_WEAK);
-  //   // __adjust_points(&g_finalList._refs, is_full_gc, false, REF_FINAL);
-  // #endif
   if (is_full_gc) {
     __adjust_ref_q_pointers<true>();
   } else {
