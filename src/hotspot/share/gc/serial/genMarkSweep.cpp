@@ -49,6 +49,7 @@
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "memory/universe.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -222,6 +223,10 @@ public:
       MarkSweep::mark_and_push_internal(obj);
     }
   }
+
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
 };
 
 #endif
@@ -249,8 +254,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     TenuredYoungRootClosure closure;
-    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
-    if (!rtHeap::DoCrossCheck) {
+    if (true || !rtHeap::DoCrossCheck) {
       rtHeap::iterate_younger_gen_roots(&closure, true);
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
@@ -271,8 +275,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
-//    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_type);
     rtHeap::process_final_phantom_references(true);
   }
 #endif

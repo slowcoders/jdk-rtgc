@@ -10,6 +10,7 @@ using namespace rtHeapUtil;
 using namespace RTGC;
 
 #define DO_CROSS_CHECK_REF true
+#define PARTIAL_COLLECTION false
 
 bool rtHeap::DoCrossCheck = DO_CROSS_CHECK_REF;
 
@@ -57,7 +58,7 @@ namespace RTGC {
       precond(link == RawAccess<>::oop_load_at(anchor, RefList::_discovered_off));
       if (link != NULL && to_node(anchor)->isTrackable()) {
         precond(!to_obj(link)->isGarbageMarked());
-        RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc);
+        RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc || PARTIAL_COLLECTION);
       }
     }
 
@@ -436,7 +437,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
     if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_ex(discovered, obj, !rtHeap::in_full_gc);
+      RTGC::add_referrer_ex(discovered, obj, !rtHeap::in_full_gc || PARTIAL_COLLECTION);
     }
   }
 }
@@ -462,10 +463,12 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       is_gc_marked = referent->isTrackable() ? referent->isStrongReachable() : cast_to_oop(referent)->is_gc_marked();
     }
     if (!is_gc_marked) {
-      if (is_full_gc) {
+      if (is_full_gc && rtHeap::DoCrossCheck) {
         MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
       }
-      keep_alive->do_oop((T*)iter.referent_addr());
+      if (is_full_gc || !referent->isTrackable()) {
+        keep_alive->do_oop((T*)iter.referent_addr());
+      }
       GCObject* old_referent = referent;
       if (is_full_gc) {
         postcond(referent == (void*)iter.get_raw_referent());
@@ -478,9 +481,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       postcond(!rtHeap::is_active_finalizer_reachable(cast_to_oop(referent)));
       rtgc_log(LOG_OPT(3), "final ref cleared 1 %p -> %p(%p)\n", (void*)ref, old_referent, referent);
       if (ref->isTrackable()) {
-        RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc);
-      } else if (!is_full_gc && referent->isTrackable()) {
-        // young gc 종료 후 Unsafe List 등록되도록 한다.
+        RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
+      } else if (referent->isTrackable()) {
+        // gc 종료 후 Unsafe List 등록되도록 한다.
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
       }
       iter.enqueue_curr_ref(false);
@@ -517,31 +520,28 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     }
 
     rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
-    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipClearedRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipInvalidRef)) != NULL; ) {
       if (policy->should_clear_reference(iter.ref(), rtHeapEx::_soft_ref_timestamp_clock)) {
         ref->markDirtyReferrerPoints();
         iter.break_weak_soft_link();
       }
     }
     
-    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipInvalidRef)) != NULL; ) {
       ref->markDirtyReferrerPoints();
       iter.break_weak_soft_link();
     }
 
-    if (!rtHeap::DoCrossCheck) {
-      rtHeap::iterate_younger_gen_roots(NULL, true);
-    }
-    
+
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
-    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipGarbageRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
       if (ref->isDirtyReferrerPoints()) {
         iter.clear_weak_soft_garbage_referent();
         ref->unmarkDirtyReferrerPoints();
       }
     }
 
-    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipGarbageRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
       precond(ref->isDirtyReferrerPoints());
       iter.clear_weak_soft_garbage_referent();
       ref->unmarkDirtyReferrerPoints();
