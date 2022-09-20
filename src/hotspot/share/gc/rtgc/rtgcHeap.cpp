@@ -284,7 +284,15 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
 
 
 void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_gc) {
-  g_young_root_closure = closure;
+  if (is_full_gc) {
+    if (closure != NULL) {
+      g_young_root_closure = closure;
+      return;
+    } 
+    closure = g_young_root_closure;
+  } else {
+    g_young_root_closure = closure;
+  }
   int young_root_count = g_young_roots.size();
 
   oop* src = g_young_roots.adr_at(0);
@@ -302,7 +310,7 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
     precond(is_full_gc || !node->isGarbageMarked());
     assert(node->isYoungRoot(), "invalid young root %p\n", node);
     if (is_full_gc) {
-      if (_rtgc.g_pGarbageProcessor->detectGarbage(node, false)) continue;
+      if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
     } else if (node->isUnreachable()) {
       node->markGarbage();
       // markDirtyReferrerPoints
@@ -642,7 +650,7 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
     WeakProcessor::oops_do(&clear_weak_handle_ref);
-
+    rtHeapEx::clear_finalizer_reachables();
     in_full_gc = true;
   }
 }

@@ -423,7 +423,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         referent = to_obj(iter.get_raw_referent());
         referent->unmarkActiveFinalizereReachable();
       }
-      postcond(referent->isUnreachable());
+      assert(referent->isUnreachable(), "%p rc=%d, hasReferer=%d %d\n", 
+          referent, referent->getRootRefCount(), referent->hasReferrer(),
+          rtHeapEx::print_ghost_anchors(referent));
       postcond(cast_to_oop(old_referent)->is_gc_marked());
       postcond(!rtHeap::is_active_finalizer_reachable(cast_to_oop(referent)));
       rtgc_log(LOG_OPT(3), "final ref cleared 1 %p -> %p(%p)\n", (void*)ref, old_referent, referent);
@@ -452,6 +454,12 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   rtHeap__clear_garbage_young_roots(is_full_gc);
 }
 
+void rtHeapEx::clear_finalizer_reachables() {
+  GCObject* ref;
+  for (RefIterator<true> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
+    to_obj(iter.referent())->unmarkActiveFinalizereReachable();
+  }
+}
 
 void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy) {
   // const char* ref_type$ = reference_type_to_string(clear_ref);
@@ -462,9 +470,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   if (policy != NULL) {
     g_cntCleanRef ++;
     GCObject* ref;
-    for (RefIterator<true> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
-      to_obj(iter.referent())->unmarkActiveFinalizereReachable();
-    }
 
     rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
     for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipInvalidRef)) != NULL; ) {
@@ -479,6 +484,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
       iter.break_weak_soft_link();
     }
 
+    rtHeap::iterate_younger_gen_roots(NULL, true);
 
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
     for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipNone)) != NULL; ) {

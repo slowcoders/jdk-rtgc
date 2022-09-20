@@ -386,8 +386,6 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
         return false;
     }
     if (checkBrokenLink) { 
-        precond(!node->isGarbageMarked());
-        precond(node->hasReferrer());
         if (!node->isTrackable()) {
             if (!node->hasMultiRef()) {
                 precond(node->getSingleAnchor()->isDirtyReferrerPoints());
