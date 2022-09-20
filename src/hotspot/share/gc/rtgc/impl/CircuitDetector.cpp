@@ -72,7 +72,7 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool checkBrokenLink) {
         }
         constructShortcut();
     }
-#ifdef ASSERT        
+#if 0 //def ASSERT        
     else {
         for (int i = _visitedNodes.size(); --i >= trace_top; ) {
             GCObject* obj = (GCObject*)_visitedNodes.at(i);

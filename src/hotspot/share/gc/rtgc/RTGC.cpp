@@ -225,7 +225,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
-  //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
+   "java/lang/invoke/MethodType",
   // "java/nio/DirectByteBuffer$Deallocator",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
@@ -248,7 +248,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
-  // if (to_obj(ptr)->isActiveFinalizerReachable()) return true;
+  if (to_obj(ptr)->isActiveFinalizerReachable()) return false;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
