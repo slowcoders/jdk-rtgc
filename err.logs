@@ -487,3 +487,5 @@ sh exec_test.sh jdk/javadoc/tool/enum/docComments/EnumCommentTest
 sh exec_test.sh jdk/javadoc/tool/sampleapi/SampleApiTest
 sh exec_test.sh jdk/javadoc/tool/AddOpensTest
 sh exec_test.sh jdk/javadoc/tool/6964914/TestUserDoclet
+
+sh exec_test.sh serviceability/dcmd/gc/RunFinalizationTest

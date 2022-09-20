@@ -254,6 +254,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     TenuredYoungRootClosure closure;
+    closure.set_ref_discoverer(_ref_processor);
     if (true || !rtHeap::DoCrossCheck) {
       rtHeap::iterate_younger_gen_roots(&closure, true);
     }

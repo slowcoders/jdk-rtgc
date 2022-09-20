@@ -44,6 +44,7 @@ public class RunFinalizationTest {
 
     public static void main(String ... args) throws Exception {
         List<String> javaArgs = new ArrayList<>();
+        javaArgs.add("-XX:+UnlockExperimentalVMOptions");
         javaArgs.add("-cp");
         javaArgs.add(System.getProperty("test.class.path"));
         javaArgs.add(TEST_APP_NAME);

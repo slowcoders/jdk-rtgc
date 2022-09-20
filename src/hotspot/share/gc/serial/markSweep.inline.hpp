@@ -45,8 +45,8 @@ inline void MarkSweep::mark_object(oop obj) {
   obj->set_mark(markWord::prototype().set_marked());
   RTGC_ONLY(precond(!EnableRTGC || rtHeap::is_alive(obj));)
   if (RTGC::is_debug_pointer(obj)) {
-    precond(++cnt_rtgc_referent_mark != 342);
-    //rtgc_log(true, "referent marked %p [%d]\n", (void*)obj, ++cnt_rtgc_referent_mark);
+    //precond(++cnt_rtgc_referent_mark != 342);
+    rtgc_log(true, "referent marked %p [%d]\n", (void*)obj, ++cnt_rtgc_referent_mark);
   }
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
