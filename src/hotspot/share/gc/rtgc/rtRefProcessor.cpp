@@ -662,7 +662,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     case REF_FINAL:
       ref_q = &g_finalList._ref_q;
       to_obj(referent_p)->markActiveFinalizereReachable();
-      rtgc_log(LOG_OPT(3) || LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent_p);
+      rtgc_log(LOG_OPT(3), "created Final ref %p for %p\n", (void*)ref, referent_p);
       break;
 
     default:
