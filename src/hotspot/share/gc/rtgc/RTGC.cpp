@@ -248,7 +248,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
-  if (to_obj(ptr)->isActiveFinalizerReachable()) return false;
+  if (!UnlockExperimentalVMOptions || to_obj(ptr)->isActiveFinalizerReachable()) return false;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
