@@ -141,7 +141,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             continue;
         }
 
-        if (checkBrokenLink && R->isDirtyReferrerPoints()) {
+        if (checkBrokenLink && R->isDirtyReferrerPoints() && _trackers.size() >= 2) {
             it = &_trackers.at(_trackers.size() - 2);
             GCObject* top = it->peekPrev();
             if (RuntimeHeap::is_broken_link(R, top)) {

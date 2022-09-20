@@ -568,7 +568,7 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
         cast_to_oop(anchor)->print_on(tty);
       }
 
-      rtgc_log(1, "ghost anchor[%d:unsafe:%d] %p:%d(%s) of garbage %p(%s)\n", 
+      rtgc_log(1, "ghost anchor[%d:unsafe:%d] %p rc=%d(%s) of garbage %p(%s)\n", 
           depth, anchor->isUnstableMarked(), anchor, anchor->getRootRefCount(),
           RTGC::getClassName(anchor), node, RTGC::getClassName(node));
       if (depth < 5) {
