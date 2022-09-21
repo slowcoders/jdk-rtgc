@@ -291,7 +291,7 @@ namespace RTGC {
             "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         referent->clearGarbageAnchors();
-        enqueue_curr_ref(false);
+        enqueue_curr_ref(true);
       }
     }
 
