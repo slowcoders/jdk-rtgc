@@ -203,6 +203,9 @@ class TenuredYoungRootClosure : public MarkAndPushClosure, public BoolObjectClos
 public:
   
   bool do_object_b(oop obj) {
+    if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
+      return true;
+    }
     _is_young_ref = false;
     obj->oop_iterate(this);
     MarkSweep::follow_stack();

@@ -1077,10 +1077,8 @@ bool ReferenceProcessor::is_subject_to_discovery(oop const obj) const {
 //     might Policy #0 above, but at marginally increased cost
 //     and complexity in processing these references.
 //     We call this choice the "RefeferentBasedDiscovery" policy.
-extern int cnt_rtgc_referent_mark;
 bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   // Make sure we are discovering refs (rather than processing discovered refs).
-  rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
   if (!_discovering_refs || !RegisterReferences) {
     return false;
   }
@@ -1095,7 +1093,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
     // Reference is not in the originating generation;
     // don't treat it specially (i.e. we want to scan it as a normal
     // object with strong references).
-    rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked !is_subject_to_discovery %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
     return false;
   }
 
@@ -1105,7 +1102,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
     verify_referent(obj);
     oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);
     if (is_alive_non_header()->do_object_b(referent)) {
-      rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked is_alive_non_header %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
       return false;  // referent is reachable
     }
   }
@@ -1118,7 +1114,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
     // at a full collection cycle, this is always currently
     // accurate.
     if (!_current_soft_ref_policy->should_clear_reference(obj, _soft_ref_timestamp_clock)) {
-      rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked !should_clear_reference %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
       return false;
     }
   }
@@ -1136,7 +1131,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       // assumes that an object is not processed twice;
       // if it's been already discovered it must be on another
       // generation's discovered list; so we won't discover it.
-      rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked ReferentBasedDiscovery %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
       return false;
     } else {
       assert(RefDiscoveryPolicy == ReferenceBasedDiscovery,
@@ -1158,7 +1152,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
         (discovery_is_atomic() &&
          is_subject_to_discovery(java_lang_ref_Reference::unknown_referent_no_keepalive(obj)))) {
     } else {
-      rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked 22 %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
       return false;
     }
   } else {
@@ -1169,7 +1162,6 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
   // Get the right type of discovered queue head.
   DiscoveredList* list = get_discovered_list(rt);
   if (list == NULL) {
-      rtgc_log(cnt_rtgc_referent_mark >= 340, "referent marked 33 %p [%d]\n", (void*)obj, cnt_rtgc_referent_mark);
     return false;   // nothing special needs to be done
   }
 

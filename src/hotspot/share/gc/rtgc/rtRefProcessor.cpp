@@ -287,7 +287,7 @@ namespace RTGC {
         _rtgc.g_pGarbageProcessor->detectGarbage(referent, true);
       }
       if (!rtHeap::is_alive(_referent_p)) {
-        assert(!do_cross_test || (!is_full_gc && referent->isTrackable()) || !_referent_p->is_gc_marked(),
+        assert(!_referent_p->is_gc_marked(),
             "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         referent->clearGarbageAnchors();
