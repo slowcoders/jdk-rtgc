@@ -46,7 +46,9 @@ int GCObject::removeReferrer(GCObject* referrer) {
     precond(referrer != this);
 #ifdef ASSERT    
     if (RTGC::is_debug_pointer((void*)this) || RTGC::is_debug_pointer((void*)referrer)) {
-        rtgc_log(1, "anchor %p removed from %p isMulti=%d tr=%d rc=%d\n", referrer, this, hasMultiRef(), isTrackable(), getRootRefCount());
+        rtgc_log(1, "anchor %p(gc_m=%d) removed from %p isMulti=%d tr=%d rc=%d\n", 
+            referrer, cast_to_oop(referrer)->is_gc_marked(), this, hasMultiRef(), 
+            isTrackable(), getRootRefCount());
     }
 #endif
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
@@ -162,20 +164,20 @@ void GCObject::removeAllAnchors() {
     rtgc_debug_log(this, "anchor-list cleared by removeAllAnchors %p\n", this);
 }
 
-template<bool isGarbage>
+template<bool removeDirty>
 static bool is_match(GCObject* node, GCObject* referrer) {
-    if (isGarbage) {
+    if (removeDirty) {
         return node->isDirtyReferrerPoints();
     } else {
         return node == referrer;
     }
 }
 
-template<bool isGarbage>
+template<bool removeDirty>
 static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
     if (!node->hasMultiRef()) {
         if (node->_refs == 0) return false;
-        if (isGarbage) {
+        if (removeDirty) {
             if (!node->getSingleAnchor()->isDirtyReferrerPoints()) return false;
         }
         else {
@@ -194,7 +196,7 @@ static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
     }
     else {
         ReferrerList* referrers = _rtgc.gRefListPool.getPointer(node->_refs);
-        if (node->hasSafeAnchor() && is_match<isGarbage>(referrers->at(0), referrer)) {
+        if (node->hasSafeAnchor() && is_match<removeDirty>(referrers->at(0), referrer)) {
             if (node->hasShortcut()) {
                 node->getShortcut()->split(referrer, node);
             } else {
@@ -202,7 +204,7 @@ static bool remove_matched_referrers(GCObject* node, GCObject* referrer) {
             }
             postcond(!node->hasSafeAnchor());
         }
-        if (isGarbage) {
+        if (removeDirty) {
             ReferrerList* referrers = node->getReferrerList();
             for (int i = referrers->size(); --i >= 0; ) {
                 if (referrers->at(i)->isDirtyReferrerPoints()) {

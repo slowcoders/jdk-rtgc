@@ -259,6 +259,7 @@ void rtHeap__clearStack() {
   }
 }
 
+
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   if (!is_full_gc) {
     _rtgc.g_pGarbageProcessor->validateGarbageList();
@@ -312,7 +313,7 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
     if (is_full_gc) {
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
     } else if (node->isUnreachable()) {
-      node->markGarbage();
+      node->markGarbage("unreachable young root");
       // markDirtyReferrerPoints
       // -> FieldIterator 에서 yg-root 의 field 가 forwarded 값을 가진가를 확인하기 위하여 사용한다.
       node->markDirtyReferrerPoints();
@@ -535,6 +536,7 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
 
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
+    precond(this->isTrackable());
     rtgc_debug_log(this, "garbage marking on %p(%s) %s\n", this, getClassName(this), reason);
   }
   assert(!this->isGarbageMarked(),
@@ -650,7 +652,7 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
     WeakProcessor::oops_do(&clear_weak_handle_ref);
-    rtHeapEx::clear_finalizer_reachables();
+    // rtHeapEx::clear_finalizer_reachables();
     in_full_gc = true;
   }
 }

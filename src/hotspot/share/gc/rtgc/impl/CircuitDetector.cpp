@@ -179,7 +179,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             R->initIterator(it);
         }
 
-        R->markGarbage();
+        R->markGarbage(NULL);
         // postcond(!_visitedNodes.contains(R));
         _visitedNodes.push_back(R);
     }
@@ -337,7 +337,11 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
         end = ppNode + _visitedNodes.size();
         for (; ppNode < end; ppNode++) {
             GCObject* obj = *ppNode;
-            destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
+            if (obj->isGarbageMarked()) {
+                destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
+            } else {
+                // garbage resurrected!
+            }
         }
         _visitedNodes.resize(0);
 
@@ -369,6 +373,7 @@ void GarbageProcessor::validateGarbageList() {
 }
 
 bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
+    precond(node->isTrackable());
     if (node->isGarbageMarked()) {
         assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
             "incorrect marked garbage %p(%s)\n", node, getClassName(node));

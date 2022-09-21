@@ -225,7 +225,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
-   "java/lang/invoke/MethodType",
+   "jdk/nio/zipfs/ZipFileSystem",
   // "java/nio/DirectByteBuffer$Deallocator",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
@@ -248,7 +248,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
-  if (!UnlockExperimentalVMOptions || to_obj(ptr)->isActiveFinalizerReachable()) return false;
+  if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
@@ -297,7 +297,7 @@ void RTGC::initialize() {
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (0) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;

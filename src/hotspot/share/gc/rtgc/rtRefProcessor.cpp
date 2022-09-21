@@ -400,7 +400,11 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   GCObject* ref;
   for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     GCObject* referent = to_obj(iter.referent());
-    if (!is_full_gc) {
+    if (is_full_gc) {
+      if (referent->isTrackable()) {
+        _rtgc.g_pGarbageProcessor->detectGarbage(referent, false);
+      }
+    } else {
       iter.adjust_ref_pointer();
       ref = to_obj(iter.ref());
       postcond((void*)referent == iter.get_raw_referent());
@@ -408,17 +412,21 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     bool is_gc_marked;
     if (rtHeap::DoCrossCheck && is_full_gc) { 
       is_gc_marked = cast_to_oop(referent)->is_gc_marked();
-      precond(is_gc_marked == referent->isStrongReachable());
+      assert(is_gc_marked == (!referent->isGarbageMarked() && referent->isStrongReachable()), 
+          "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d hasReferer=%d garbage=%d ghost=%d\n", 
+          referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
+          referent->isUnstableMarked(), 
+          referent->hasReferrer(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
     } else {
       is_gc_marked = referent->isTrackable() ? referent->isStrongReachable() : cast_to_oop(referent)->is_gc_marked();
     }
     if (!is_gc_marked) {
-      if (is_full_gc && rtHeap::DoCrossCheck) {
-        MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
-      }
       if (is_full_gc || !referent->isTrackable()) {
+        rtgc_log(true, "resurrect final referent %p -> %p\n", referent, (void*)iter.referent())
+        if (is_full_gc && rtHeap::DoCrossCheck) {
+          MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
+        }
         keep_alive->do_oop((T*)iter.referent_addr());
-        // rtgc_log(true, "resurrect final referent %p -> %p\n", referent, (void*)iter.referent())
       }
       GCObject* old_referent = referent;
       if (is_full_gc) {
@@ -472,7 +480,8 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   rtgc_log(false, "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
 
   if (policy != NULL) {
-    g_cntCleanRef ++;
+    rtHeapEx::clear_finalizer_reachables();
+
     GCObject* ref;
 
     rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());

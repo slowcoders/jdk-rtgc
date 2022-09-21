@@ -173,7 +173,7 @@ public:
 	}
 
 	bool isUnsafeTrackable() {
-		return isTrackable() &&  _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
+		return isTrackable() &&  _flags.rootRefCount <= 1 && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {
