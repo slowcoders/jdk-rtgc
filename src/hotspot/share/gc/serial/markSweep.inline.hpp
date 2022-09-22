@@ -113,7 +113,7 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
            "should be forwarded");
 
     if (new_obj != NULL) {
-      assert(is_object_aligned(new_obj), "oop must be aligned");
+      assert(is_object_aligned(new_obj), "oop must be aligned %p\n", (void*)new_obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
 #if INCLUDE_RTGC
       if (new_oop != NULL) {

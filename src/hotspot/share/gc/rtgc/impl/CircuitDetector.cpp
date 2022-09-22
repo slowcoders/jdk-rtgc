@@ -410,7 +410,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
                     }
                 }
                 if (clear_referrer) {
-                    node->clearGarbageAnchors();
+                    node->removeBrokenAnchors();
                 }
                 return true;
             }

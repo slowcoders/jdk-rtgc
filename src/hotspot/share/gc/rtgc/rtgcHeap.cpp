@@ -190,7 +190,7 @@ void rtHeap::mark_trackable(oopDesc* new_p) {
 
 static void resurrect_young_root(GCObject* node) {
   precond(node->isGarbageMarked());
-  rtgc_log(true || LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
+  rtgc_log(LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
       node, RTGC::getClassName(node), node->isYoungRoot());
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  

@@ -237,7 +237,7 @@ bool GCObject::removeMatchedReferrers(GCObject* referrer) {
     return remove_matched_referrers<false>(this, referrer);
 }
 
-void GCObject::clearGarbageAnchors() {
+void GCObject::removeBrokenAnchors() {
     remove_matched_referrers<true>(this, NULL);
 }
 

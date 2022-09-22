@@ -96,7 +96,7 @@ public:
 
 	bool removeMatchedReferrers(GCObject* referrer);
 
-	void clearGarbageAnchors();
+	void removeBrokenAnchors();
 
 };
 

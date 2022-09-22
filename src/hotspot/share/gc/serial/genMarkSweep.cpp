@@ -231,6 +231,7 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 };
+static TenuredYoungRootClosure young_root_closure;
 
 #endif
 
@@ -256,10 +257,9 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    TenuredYoungRootClosure closure;
-    closure.set_ref_discoverer(_ref_processor);
     if (true || !rtHeap::DoCrossCheck) {
-      rtHeap::iterate_younger_gen_roots(&closure, true);
+      young_root_closure.set_ref_discoverer(_ref_processor);
+      rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
