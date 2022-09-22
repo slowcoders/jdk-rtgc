@@ -412,7 +412,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     bool is_gc_marked;
     if (rtHeap::DoCrossCheck && is_full_gc) { 
       is_gc_marked = cast_to_oop(referent)->is_gc_marked();
-      assert(is_gc_marked == (!referent->isGarbageMarked() && referent->isStrongReachable()), 
+      assert(!referent->isTrackable() || is_gc_marked == (!referent->isGarbageMarked() && referent->isStrongReachable()), 
           "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d hasReferer=%d garbage=%d ghost=%d\n", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
           referent->isUnstableMarked(), 
@@ -426,6 +426,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         if (is_full_gc && rtHeap::DoCrossCheck) {
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
         }
+        referent->unmarkGarbage();
         keep_alive->do_oop((T*)iter.referent_addr());
       }
       GCObject* old_referent = referent;
@@ -435,10 +436,10 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         referent = to_obj(iter.get_raw_referent());
         referent->unmarkActiveFinalizereReachable();
       }
-      assert(referent->isUnreachable(), "%p rc=%d, hasReferer=%d %d\n", 
-          referent, referent->getRootRefCount(), referent->hasReferrer(),
-          0);//rtHeapEx::print_ghost_anchors(referent));
-      postcond(cast_to_oop(old_referent)->is_gc_marked());
+      // assert( referent->isUnreachable(), "%p rc=%d, hasReferer=%d %d\n", 
+      //     referent, referent->getRootRefCount(), referent->hasReferrer(),
+      //     0);//rtHeapEx::print_ghost_anchors(referent));
+      postcond(!rtHeap::DoCrossCheck || cast_to_oop(old_referent)->is_gc_marked());
       postcond(!rtHeap::is_active_finalizer_reachable(cast_to_oop(referent)));
       rtgc_log(LOG_OPT(3), "final ref cleared 1 %p -> %p(%p)\n", (void*)ref, old_referent, referent);
       if (ref->isTrackable()) {

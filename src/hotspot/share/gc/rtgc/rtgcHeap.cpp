@@ -190,10 +190,11 @@ void rtHeap::mark_trackable(oopDesc* new_p) {
 
 static void resurrect_young_root(GCObject* node) {
   precond(node->isGarbageMarked());
-  rtgc_log(LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
+  rtgc_log(true || LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
       node, RTGC::getClassName(node), node->isYoungRoot());
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
+  precond(g_young_root_closure != NULL);
   if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
       node->unmarkYoungRoot();
@@ -291,6 +292,7 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
       return;
     } 
     closure = g_young_root_closure;
+    precond(closure != NULL);
   } else {
     g_young_root_closure = closure;
   }

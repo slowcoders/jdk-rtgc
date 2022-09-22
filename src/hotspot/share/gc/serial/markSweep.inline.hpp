@@ -38,13 +38,18 @@
 #include "gc/rtgc/rtgcHeap.hpp"
 
 extern int cnt_rtgc_referent_mark;
+inline int __break__(oop obj) {
+  rtgc_log(true, "referent marked %p tr=%d\n", (void*)obj, rtHeap::is_trackable(obj));
+  fatal("__break__");
+  return 0;
+}
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
   RTGC_ONLY(precond(!EnableRTGC || rtHeap::is_alive(obj));)
-  //rtgc_debug_log(obj, "referent marked %p [%d]\n", (void*)obj, ++cnt_rtgc_referent_mark);
+  // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
