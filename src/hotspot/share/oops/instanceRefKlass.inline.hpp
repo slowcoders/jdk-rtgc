@@ -152,6 +152,8 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
             else if (type == REF_PHANTOM || 
                 rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
               break;
+            } else {
+              rtgc_log(true, "do_fields %d %p\n", type, (void*)CompressedOops::decode_not_null(heap_oop));
             }
           }
         }

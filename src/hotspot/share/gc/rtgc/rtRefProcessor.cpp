@@ -629,7 +629,7 @@ void __adjust_ref_q_pointers() {
     iter.adjust_referent_pointer();
   } 
 
-  for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
+  for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(NoGarbageCheck) != NULL; ) {
     postcond(to_obj(iter.referent())->isActiveFinalizerReachable());
   } 
 
