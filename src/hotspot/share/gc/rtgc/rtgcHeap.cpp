@@ -216,18 +216,19 @@ void rtHeap__addResurrectedObject(GCObject* node) {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
   assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
-  if (!node->isStrongRootReachable()) {
-    rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
-    GCRuntime::onAssignRootVariable_internal(node);
-    g_stack_roots.append(node);
-  }
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
+    // garbage marking 된 상태는 stack marking 이 끝난 상태.
+    if (node->isStrongReachable()) return;
   }
-
-  precond (!node->isGarbageMarked());
+  else if (node->isStrongRootReachable()) {
+    return;
+  }
+  rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
+  GCRuntime::onAssignRootVariable_internal(node);
+  g_stack_roots.append(node);
 }
 
 
@@ -248,6 +249,7 @@ void rtHeap__clearStack() {
       else if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {
           erased->markUnstable();
+          rtgc_debug_log(erased, "add unsafe=%p\n", erased);
           if (is_full_gc) {
             oop new_p = cast_to_oop(erased)->forwardee();
             erased = new_p == NULL ? erased : to_obj(new_p);

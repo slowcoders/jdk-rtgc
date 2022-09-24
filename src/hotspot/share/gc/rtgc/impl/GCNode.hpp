@@ -98,12 +98,12 @@ public:
 		return _flags.rootRefCount & 0x01;
 	}
 
-	void unmarkActiveFinalizereReachable() {
+	void unmarkActiveFinalizerReachable() {
 		precond(isActiveFinalizerReachable());
 		_flags.rootRefCount &= ~0x01;
 	}
 
-	void markActiveFinalizereReachable() {
+	void markActiveFinalizerReachable() {
 		precond(!isActiveFinalizerReachable());
 		_flags.rootRefCount |= 0x01;
 	}

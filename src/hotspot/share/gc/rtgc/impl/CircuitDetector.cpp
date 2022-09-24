@@ -304,9 +304,9 @@ static int __break() {
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
+    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());
-    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
     obj->markUnstable();
     _unsafeObjects.push_back(obj);
 }
@@ -326,7 +326,6 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
             GCObject* node = *ppNode;
             if (!scanUnstableOnly || node->isUnstableMarked()) {
                 bool isGarbage = detectGarbage(node, false);
-                rtgc_debug_log(node, "detectGarbage=%p garbage=%d\n", node, isGarbage);
             }
             postcond(node->isGarbageMarked() || !node->isUnstableMarked());
         }
@@ -419,6 +418,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
 
     scanSurvivalPath(node, checkBrokenLink);
     if (node->isGarbageMarked()) {
+        rtgc_debug_log(node, "garbage marked on %p\n", node);
         return true;
     }
     return false;

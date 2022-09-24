@@ -57,11 +57,23 @@ inline void MarkSweep::mark_object(oop obj) {
 
 inline void MarkSweep::mark_and_push_internal(oop obj) {
 #if INCLUDE_RTGC
-  if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
-    if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
-      rtHeap::mark_survivor_reachable(obj);
+  if (EnableRTGC) {
+    if (rtHeap::DoCrossCheck > 0) {
+      if (!_is_rt_anchor_trackable && rtHeap::is_trackable(obj)) {
+        rtHeap::mark_survivor_reachable(obj);
+      }
+    } else if (!rtHeap::is_alive(obj)) {
+      if (rtHeap::is_trackable(obj)) {
+        rtHeap::mark_survivor_reachable(obj);
+        if (rtHeap::DoCrossCheck && !obj->mark().is_marked()) {
+            mark_object(obj);
+        }
+      } else {
+        mark_object(obj);
+      }
+      _marking_stack.push(obj);
+      return;
     }
-    if (!rtHeap::DoCrossCheck) return;
   } 
 #endif
   if (!obj->mark().is_marked()) {

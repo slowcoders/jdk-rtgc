@@ -208,7 +208,7 @@ public:
     }
     _is_young_ref = false;
     obj->oop_iterate(this);
-    MarkSweep::follow_stack();
+    //MarkSweep::follow_stack();
     return _is_young_ref;
   }
 

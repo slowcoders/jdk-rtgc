@@ -18,7 +18,7 @@ class MarkOldTrackableClosure;
 
 class rtHeap : AllStatic {
 public:
-  static bool DoCrossCheck;
+  static int  DoCrossCheck;
   static bool in_full_gc;
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p);

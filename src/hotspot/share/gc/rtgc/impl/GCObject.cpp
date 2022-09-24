@@ -44,16 +44,13 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 int GCObject::removeReferrer(GCObject* referrer) {
     precond(referrer != this);
-#ifdef ASSERT    
-    if (RTGC::is_debug_pointer((void*)this) || RTGC::is_debug_pointer((void*)referrer)) {
-        rtgc_log(1, "anchor %p(gc_m=%d) removed from %p isMulti=%d tr=%d rc=%d\n", 
-            referrer, cast_to_oop(referrer)->is_gc_marked(), this, hasMultiRef(), 
-            isTrackable(), getRootRefCount());
-    }
-#endif
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
+    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from %p isMulti=%d tr=%d rc=%d\n", 
+            referrer, RTGC::getClassName(referrer), 
+            cast_to_oop(referrer)->is_gc_marked(), this, hasMultiRef(), 
+            isTrackable(), getRootRefCount());
 
     if (!hasMultiRef()) {
         assert(_refs == _pointer2offset(referrer), 
