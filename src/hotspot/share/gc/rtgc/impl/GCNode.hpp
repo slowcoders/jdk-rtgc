@@ -122,9 +122,11 @@ public:
 
 	void markGarbage(const char* reason = NULL);
 
-	void unmarkGarbage() {
+	void unmarkGarbage(bool resurrected=true) {
+		// rtgc_log(resurrected, "resurrected %p\n", this);
 		_flags.isGarbage = false;
-		_flags.isUnstable = false;
+		// _flags.isUnstable = false;
+		// _flags.dirtyReferrerPoints = false;
 	}
 
 
@@ -178,6 +180,10 @@ public:
 
 	bool isPublished() {
 		return _flags.isPublished;
+	}
+
+	void markPublished() {
+		_flags.isPublished = true;
 	}
 };
 

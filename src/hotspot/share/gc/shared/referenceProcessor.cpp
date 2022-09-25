@@ -90,6 +90,12 @@ void ReferenceProcessor::enable_discovery(bool check_no_refs) {
   // field in ReferenceProcessor here so that we use the new
   // value during reference discovery.
 
+#if INCLUDE_RTGC
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    extern jlong __get_soft_ref_timestamp_clock(bool reset);
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(true);
+  } else
+#endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
   _discovering_refs = true;
 }
@@ -215,8 +221,8 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
 
 #if INCLUDE_RTGC
   if (EnableRTGC && rtHeap::DoCrossCheck) {
-    extern jlong __get_soft_ref_timestamp_clock();
-    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock();
+    extern jlong __get_soft_ref_timestamp_clock(bool reset);
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(false);
   } else
 #endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
@@ -267,6 +273,12 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
   _referent = java_lang_ref_Reference::unknown_referent_no_keepalive(_current_discovered);
   assert(Universe::heap()->is_in_or_null(_referent),
          "Wrong oop found in java.lang.Reference object");
+#if INCLUDE_RTGC
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    precond(rtHeap::is_alive(_current_discovered));
+    precond(!_referent->is_gc_marked() || rtHeap::is_alive(_referent));
+  }
+#endif
   assert(allow_null_referent ?
              oopDesc::is_oop_or_null(_referent)
            : oopDesc::is_oop(_referent),
@@ -394,9 +406,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   DiscoveredListIterator iter(refs_list, keep_alive, is_alive);
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
-    if (EnableRTGC && rtHeap::DoCrossCheck) {
-      precond(!iter.obj()->is_gc_marked() || rtHeap::is_alive(iter.obj()));
-    }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if
       // discovery is not atomic (checked by load_ptrs).  Remove

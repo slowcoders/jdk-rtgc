@@ -107,7 +107,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             GCObject* top = it->peekPrev();
             rtgc_log(LOG_OPT(7), "SurvivalPath pop %p[%d]\n", 
                 top, _trackers.size());
-            if (!top->isGarbageMarked()) {
+            if (!top->isGarbageMarked()) {//} && (checkBrokenLink || !top->isDirtyReferrerPoints())) {
                 /** 
                  * L:SHRINK_ANCHOR 에 의해서 top 이 속한 부분이 shortcut 에서 제외된 경우,
                  * 1) top 역시 garbage marking 되거나, 
@@ -125,7 +125,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
                 shortcut->shrinkAnchorTo(top);
                 it = _trackers.push_empty();
                 top->initIterator(it);
-                top->markGarbage("poped shortcut ramp");
+                top->markGarbage(NULL);
                 _visitedNodes.push_back(top);
                 break;
             }
@@ -133,7 +133,6 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
 
         GCObject* R = it->next();
         SafeShortcut* shortcut = R->getShortcut();
-        precond(shortcut != NULL);
 
         if (R->isGarbageMarked() || shortcut->inContiguousTracing(R, &shortcut)) {
             rtgc_log(LOG_OPT(7), "pass marked %p:%d[%d](gm=%d)\n", 
@@ -142,9 +141,10 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         if (checkBrokenLink && R->isDirtyReferrerPoints() && _trackers.size() >= 2) {
-            it = &_trackers.at(_trackers.size() - 2);
-            GCObject* top = it->peekPrev();
-            if (RuntimeHeap::is_broken_link(R, top)) {
+            // -1 이 현재, -2가 referent 의 위치.
+            GCObject* referent = _trackers.at(_trackers.size() - 2).peekPrev();
+            if (RuntimeHeap::is_broken_link(R, referent)) {
+                rtgc_log(LOG_OPT(7), "pass Broken Link %p[%d] -> %p\n", R, _trackers.size(), referent);
                 continue;
             }
         }
@@ -203,6 +203,8 @@ void GarbageProcessor::constructShortcut() {
             assert(link->hasReferrer(),
                 "link has no anchor %p:%d\n", obj, obj->getShortcutId());
             link->setSafeAnchor(obj);
+        } else {
+            precond (lastShortcut == NULL || obj == lastShortcut->anchor());
         }
 
         assert(SafeShortcut::isValidIndex(obj->getShortcutId()),
@@ -225,23 +227,6 @@ void GarbageProcessor::constructShortcut() {
             ss->unmarkInTracing();
             if (cntNode > 0) {
                 if (obj == ss->tail()) {
-                #ifdef ASSERT
-                    for (GCObject* n = tail; n != obj; n = n->getSafeAnchor()) {
-                        precond(n != ss->anchor());
-                    }
-                #elif 0
-                    int tail_len = 0;
-                    GCObject* next;
-                    for (GCObject* n = tail; n != obj; n = next) {
-                        tail_len ++;
-                        next = n->getSafeAnchor();
-                        if (n == ss->anchor()) {
-                            SafeShortcut::create(next, tail, cntNode);
-                            tail = next;//n->getSafeAnchor();
-                            break;
-                        }
-                    }
-                #endif
                     rtgc_log(LOG_OPT(10), "extend Shortcut tail %d\n", ss->getIndex());
                     ss->extendTail(tail);
                 }
@@ -260,6 +245,8 @@ void GarbageProcessor::constructShortcut() {
         }
     }
     
+    rtgc_log(LOG_OPT(7), "SafeShortcut created 0\n")
+
     GCObject* root = ait->peekPrev();        
     precond(root == NULL || root->getRootRefCount() > ZERO_ROOT_REF);
     if (link != NULL) {

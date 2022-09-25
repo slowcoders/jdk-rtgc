@@ -216,19 +216,17 @@ void rtHeap__addResurrectedObject(GCObject* node) {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
   assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
+  if (!node->isStrongRootReachable()) {
+    rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
+    GCRuntime::onAssignRootVariable_internal(node);
+    g_stack_roots.append(node);
+  }
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
     // garbage marking 된 상태는 stack marking 이 끝난 상태.
-    if (node->isStrongReachable()) return;
   }
-  else if (node->isStrongRootReachable()) {
-    return;
-  }
-  rtgc_log(LOG_OPT(9), "add stack root %p\n", new_p);
-  GCRuntime::onAssignRootVariable_internal(node);
-  g_stack_roots.append(node);
 }
 
 
@@ -320,8 +318,7 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
     } else if (node->isUnreachable()) {
       node->markGarbage("unreachable young root");
-      // markDirtyReferrerPoints
-      // -> FieldIterator 에서 yg-root 의 field 가 forwarded 값을 가진가를 확인하기 위하여 사용한다.
+      // -> FieldIterator 에서 yg-root garbage 의 field 가 forwarded 값인 가를 확인하기 위하여 사용한다.
       node->markDirtyReferrerPoints();
       garbages->push_back(node);
       rtgc_log(false, "skip garbage yg-root %p\n", node);
@@ -354,10 +351,18 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
 
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
-  precond(!to_node(p)->isGarbageMarked());
+  GCObject* node = to_obj(p);
+  precond(!node->isGarbageMarked());
+  assert(!node->isTrackable() || 
+    node->isStrongRootReachable() || 
+    ((false && node->isPublished()) ? node->hasSafeAnchor() : node->hasReferrer()) ||
+    node->isUnstableMarked(),
+      " invalid node %p(%s) rc=%d, safeAnchor=%d unsafe=%d\n", 
+      node, RTGC::getClassName(node),
+      node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
   // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
-  to_obj(p)->markDirtyReferrerPoints();
+  node->markDirtyReferrerPoints();
 }
 
 
@@ -550,6 +555,7 @@ void GCNode::markGarbage(const char* reason)  {
   assert(!cast_to_oop(this)->is_gc_marked() || reason == NULL,
       "invalid garbage marking on %p(%s)\n", this, getClassName(this));
   _flags.isGarbage = true;
+  _flags.isPublished = true;
 }
 
 #ifdef ASSERT

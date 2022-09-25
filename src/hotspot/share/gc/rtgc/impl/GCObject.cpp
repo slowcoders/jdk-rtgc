@@ -266,8 +266,8 @@ void GCObject::setSafeAnchor(GCObject* anchor) {
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         int idx = referrers->indexOf(anchor);
-        assert(idx >= 0, "incorrect anchor(%p) for this(%p)",
-            anchor, this);
+        assert(idx >= 0, "incorrect anchor %p(%s) for this %p(%s)",
+            anchor, RTGC::getClassName(anchor), this, RTGC::getClassName(this));
         if (idx != 0) {
             GCObject* tmp = referrers->at(0);
             referrers->at(0) = anchor;
@@ -279,6 +279,7 @@ void GCObject::setSafeAnchor(GCObject* anchor) {
         assert(front == anchor, "incorrect safe anchor(%p) for this(%p). it must be (%p)",
             anchor, this, front);
     }
+    // this->setShortcutId_unsafe(INVALID_SHORTCUT);
 }
 
 SafeShortcut* GCObject::getShortcut() {

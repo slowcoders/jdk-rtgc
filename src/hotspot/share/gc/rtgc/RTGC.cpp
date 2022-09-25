@@ -225,7 +225,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
-    "jdk/nio/zipfs/ZipFileSystem",
+    // "jdk/nio/zipfs/ZipFileSystem",
   // "java/nio/DirectByteBuffer$Deallocator",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
@@ -297,13 +297,14 @@ void RTGC::initialize() {
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (true || UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-  // enableLog(LOG_REF, 3);
+    // enableLog(LOG_SCANNER, 7);
+    // enableLog(LOG_SCANNER, 10);
 
   if (UnlockExperimentalVMOptions) {
     // debugClassNames[0] = "java/util/HashMap$Node";

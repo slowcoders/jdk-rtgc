@@ -152,10 +152,14 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
             else if (type == REF_PHANTOM || 
                 rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
               break;
-            } else {
-              rtgc_log(true, "do_fields %d %p\n", type, (void*)CompressedOops::decode_not_null(heap_oop));
             }
           }
+        } else {
+          rtgc_log(true, "do_fields %d %p of %p\n", 
+            type, (void*)obj, (void*)java_lang_ref_Reference::unknown_referent_no_keepalive(obj));
+          precond(NULL == java_lang_ref_Reference::unknown_referent_no_keepalive(obj) ||
+              rtHeap::is_alive(java_lang_ref_Reference::unknown_referent_no_keepalive(obj)) ||
+              !rtHeap::is_alive(obj));
         }
       }
 #endif      
