@@ -192,11 +192,12 @@ void rtHeap::mark_trackable(oopDesc* new_p) {
 static void resurrect_young_root(GCObject* node) {
   precond(node->isGarbageMarked());
   precond(node->isTrackable());
-  rtgc_log(LOG_OPT(11), "resurrect obj %p (%s) root=%d\n", 
-      node, RTGC::getClassName(node), node->isYoungRoot());
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
-  precond(g_young_root_closure != NULL);
+  oop anchor = g_young_root_closure->current_anchor();
+  precond(anchor == NULL || node->containsReferrer(to_obj(anchor)));
+  rtgc_log(true || LOG_OPT(11), "resurrect obj %p -> %p  root=%d\n", 
+      (void*)anchor, node, node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
       node->unmarkYoungRoot();
@@ -376,11 +377,10 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  rtgc_debug_log(old_p, "adjust_point %p -> %p\n", old_p, (void*)new_p);
   if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT
-  ensure_alive_or_deadsapce(old_p);
+  ensure_alive_or_deadsapce(old_p, _old_anchor_p);
   RTGC::adjust_debug_pointer(old_p, new_p);
 #endif   
 
@@ -547,7 +547,6 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
     }
     g_young_roots.resize(0);
   }
-
   rtHeapEx::adjust_ref_q_pointers(true);
 }
 

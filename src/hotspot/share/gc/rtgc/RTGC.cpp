@@ -108,6 +108,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
 
+
 void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   add_referrer_unsafe(p, base, base);
   if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
@@ -226,7 +227,7 @@ const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
-   "java/lang/invoke/LambdaFormEditor$Transform",
+  //  "java/lang/invoke/LambdaFormEditor$Transform",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
     // "java/lang/invoke/MethodType",

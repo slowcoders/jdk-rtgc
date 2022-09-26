@@ -662,7 +662,7 @@ void  __check_garbage_referents() {
     }
     else if (rtHeap::is_alive(referent_p)) {
       g_cntMisRef ++;
-      rtgc_log(LOG_OPT(3), "++g_cntMisRef %s %p -> %p tr=%d, rc=%d, %d/%d\n", 
+      rtgc_log(1, "++g_cntMisRef %s %p -> %p tr=%d, rc=%d, %d/%d\n", 
           reference_type_to_string(refType), ref_p, referent_node, referent_node->isTrackable(), referent_node->getRootRefCount(),
           g_cntMisRef, g_cntGarbageRef);
     }
@@ -687,9 +687,15 @@ void __adjust_ref_q_pointers() {
 #endif  
   SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
-  for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
+  GCObject* old_ref;
+  for (RefIterator<is_full_gc> iter(g_softList); (old_ref = iter.next_ref(soft_weak_policy)) != NULL; ) {
+    bool ref_alive = iter.ref()->is_gc_marked();
+    bool referent_alive = iter.referent()->is_gc_marked();
     iter.adjust_ref_pointer();
     iter.adjust_referent_pointer();
+    rtgc_log(true, "active soft ref %p->%p(%d) ==> %p->%p(%d)\n", 
+        old_ref, (void*)iter.ref(), ref_alive, 
+        (void*)iter.referent(), (void*)iter.referent()->forwardee(), referent_alive);
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
@@ -727,6 +733,7 @@ void rtHeapEx::adjust_ref_q_pointers(bool is_full_gc) {
 
 void rtHeap__ensure_garbage_referent(oopDesc* ref_p, oopDesc* referent_p, bool clear_soft) {
   precond(rtHeap::DoCrossCheck);
+  rtgc_log(true, "enq ref(%p) of %p\n", ref_p, referent_p);
   g_garbage_referents.push_back(ref_p);
   g_garbage_referents.push_back(referent_p);
 }

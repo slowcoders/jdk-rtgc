@@ -207,7 +207,10 @@ public:
       return true;
     }
     _is_young_ref = false;
+    oop old_anchor = _current_anchor;
+    _current_anchor = obj;
     obj->oop_iterate(this);
+    _current_anchor = old_anchor;
     return _is_young_ref;
   }
 

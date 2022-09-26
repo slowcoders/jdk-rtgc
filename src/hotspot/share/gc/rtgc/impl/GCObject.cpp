@@ -138,6 +138,20 @@ int GCObject::tryRemoveReferrer(GCObject* referrer) {
     return 0;
 }
 
+bool GCObject::containsReferrer(GCObject* referrer) {
+    precond(referrer != this);
+    if (!hasReferrer()) return false;
+
+    if (!hasMultiRef()) {
+        return _refs == _pointer2offset(referrer);
+    }
+    else {
+        ReferrerList* referrers = getReferrerList();
+        int idx = referrers->indexOf(referrer);
+        return idx >= 0;
+    }
+}
+
 void GCObject::clearAnchorList() {
     rtgc_debug_log(this, "all anchor removed from %p isMulti=%d tr=%d rc=%d\n",
         this, hasMultiRef(), isTrackable(), getRootRefCount());

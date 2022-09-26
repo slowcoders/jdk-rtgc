@@ -84,6 +84,8 @@ public:
 
 	bool visitLinks(LinkVisitor visitor, void* callbackParam);
 
+	bool containsReferrer(GCObject* node);
+
 	void addReferrer(GCObject* referrer);
 
 	int removeReferrer(GCObject* referrer);

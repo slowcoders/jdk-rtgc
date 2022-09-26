@@ -119,7 +119,6 @@ public:
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
   bool _has_young_ref;
   VoidClosure* _complete_closure;
-  debug_only(oop _anchor;)
 public:
   YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
    : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
@@ -128,8 +127,10 @@ public:
 
   bool iterate_tenured_young_root_oop(oop obj) {
     _has_young_ref = false;
-    debug_only(_anchor = obj;)
+    oop old_anchor = _current_anchor;
+    _current_anchor = obj;
     obj->oop_iterate(this);
+    _current_anchor = old_anchor;
     return _has_young_ref;
   }
 

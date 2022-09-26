@@ -16,11 +16,11 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
   return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
 }
 
-void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p) {
+void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
   assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "invalid pointer %p(%s) isClass=%d isTr=%d\n", 
+        "invalid pointer %p(%s) isClass=%d isTr=%d anchor=%p(%s)\n", 
         old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass(),
-        to_obj(old_p)->isTrackable());
+        to_obj(old_p)->isTrackable(), anchor, anchor==NULL?"":RTGC::getClassName(to_obj(anchor)));
 }
 
 static size_t obj_size_in_word(oopDesc* obj) { 
