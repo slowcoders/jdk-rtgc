@@ -57,6 +57,7 @@ public:
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
   void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
+  static bool is_keep_alive_scan() { return false; }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -108,23 +109,32 @@ public:
     : ScanTrackableClosure<false>(young_gen, old_gen) {}
 };
 
-class MarkOldTrackableClosure : public ScanTrackableClosure<true> {
+class PromotedTrackableClosure : public ScanTrackableClosure<true> {
 public:  
-  MarkOldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+  PromotedTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
+
 };
 
-class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
+class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
   bool _has_young_ref;
+  VoidClosure* _complete_closure;
   debug_only(oop _anchor;)
 public:
-  YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
+  YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
+   : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
   
-  bool do_object_b(oop obj) {
+  static bool is_keep_alive_scan() { return true; }
+
+  bool iterate_tenured_young_root_oop(oop obj) {
     _has_young_ref = false;
     debug_only(_anchor = obj;)
     obj->oop_iterate(this);
     return _has_young_ref;
+  }
+
+  void do_complete() {
+      _complete_closure->do_void();
   }
 
   template <typename T>

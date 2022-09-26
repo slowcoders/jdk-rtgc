@@ -86,8 +86,9 @@ namespace RTGC {
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
+  int g_saved_young_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
-  BoolObjectClosure* g_young_root_closure;
+  RtYoungRootClosure* g_young_root_closure;
   const bool USE_PENDING_TRACKABLES = false;
   oopDesc* empty_trackable;
 };
@@ -196,7 +197,7 @@ static void resurrect_young_root(GCObject* node) {
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
   precond(g_young_root_closure != NULL);
-  if (!g_young_root_closure->do_object_b(cast_to_oop(node))) {
+  if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
       node->unmarkYoungRoot();
     }
@@ -287,7 +288,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
 
 
 
-void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_gc) {
+void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full_gc) {
   if (is_full_gc) {
     if (closure != NULL) {
       g_young_root_closure = closure;
@@ -298,7 +299,7 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
   } else {
     g_young_root_closure = closure;
   }
-  int young_root_count = g_young_roots.size();
+  int young_root_count = is_full_gc ? g_young_roots.size() : g_saved_young_root_count;
 
   oop* src = g_young_roots.adr_at(0);
   oop* end = src + young_root_count;
@@ -326,7 +327,8 @@ void rtHeap::iterate_younger_gen_roots(BoolObjectClosure* closure, bool is_full_
     }
 
     rtgc_log(LOG_OPT(8), "iterate yg root %p\n", (void*)node);
-    bool is_root = closure->do_object_b(cast_to_oop(node));
+    bool is_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
+    closure->do_complete();
     if (!is_root) {
       node->unmarkYoungRoot();
     } 
@@ -340,6 +342,10 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   rtgc_debug_log(node, "add link %p -> %p\n", anchor, link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
   if (node->isGarbageMarked()) {
+    assert(node->hasReferrer() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
+        "invalid link %p(%s) -> %p(%s)\n", 
+        anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
+
     assert(in_full_gc || node->isYoungRoot(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
@@ -666,6 +672,8 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
     WeakProcessor::oops_do(&clear_weak_handle_ref);
     // rtHeapEx::clear_finalizer_reachables();
     in_full_gc = true;
+  } else {
+    g_saved_young_root_count = g_young_roots.size();
   }
 }
 
@@ -699,7 +707,7 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
 //   return left_size - right_size;
 // }
 
-void rtHeap::oop_recycled_iterate(MarkOldTrackableClosure* closure) {
+void rtHeap::oop_recycled_iterate(PromotedTrackableClosure* closure) {
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
     GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {

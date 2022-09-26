@@ -226,7 +226,7 @@ const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     //"java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
-  // "java/nio/DirectByteBuffer$Deallocator",
+   "java/lang/invoke/LambdaFormEditor$Transform",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
     // "java/lang/invoke/MethodType",

@@ -65,14 +65,19 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
     }
 #else
     if (cast_from_oop<HeapWord*>(obj) < _young_gen_end) {
-      assert(!_young_gen->to()->is_in_reserved(obj), "Scanning field twice?");
-      oop new_obj = obj->is_forwarded() ? obj->forwardee()
-                                        : _young_gen->copy_to_survivor_space(obj);
-      RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-      if (rtHeap::is_trackable(new_obj)) {
-        static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+      oop new_obj;
+      if (false && Derived::is_keep_alive_scan() && _young_gen->to()->is_in_reserved(obj)) {
+        static_cast<Derived*>(this)->barrier(p, obj);
       } else {
-        static_cast<Derived*>(this)->barrier(p, new_obj);
+        assert(!_young_gen->to()->is_in_reserved(obj), "Scanning field twice?");
+        oop new_obj = obj->is_forwarded() ? obj->forwardee()
+                                          : _young_gen->copy_to_survivor_space(obj);
+        RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
+        if (rtHeap::is_trackable(new_obj)) {
+          static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+        } else {
+          static_cast<Derived*>(this)->barrier(p, new_obj);
+        }
       }
     }
     else if (EnableRTGC) {
@@ -84,9 +89,9 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
 }
 
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(oop* p)       { do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(oop* p)       { Derived::do_oop_work(p); }
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { Derived::do_oop_work(p); }
 
 #if !INCLUDE_RTGC
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :

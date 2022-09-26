@@ -198,18 +198,21 @@ void GenMarkSweep::deallocate_stacks() {
 }
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-class TenuredYoungRootClosure : public MarkAndPushClosure, public BoolObjectClosure {
+class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
   bool _is_young_ref;
 public:
   
-  bool do_object_b(oop obj) {
+  bool iterate_tenured_young_root_oop(oop obj) {
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;
     }
     _is_young_ref = false;
     obj->oop_iterate(this);
-    //MarkSweep::follow_stack();
     return _is_young_ref;
+  }
+
+  void do_complete() {
+    MarkSweep::follow_stack();
   }
 
   template <typename T>

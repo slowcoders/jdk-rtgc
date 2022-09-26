@@ -14,7 +14,13 @@ class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
 class ReferencePolicy;
-class MarkOldTrackableClosure;
+class PromotedTrackableClosure;
+
+class RtYoungRootClosure {
+public:  
+  virtual bool iterate_tenured_young_root_oop(oop root) = 0;
+  virtual void do_complete() = 0;
+};
 
 class rtHeap : AllStatic {
 public:
@@ -24,7 +30,7 @@ public:
   static bool is_alive(oopDesc* p);
 
   static void prepare_rtgc(bool is_full_gc);
-  static void iterate_younger_gen_roots(BoolObjectClosure* young_root_closure, bool is_full_gc);
+  static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc();
 
   // for younger object collection
@@ -34,7 +40,7 @@ public:
   static void mark_survivor_reachable(oopDesc* tenured_p);
 
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
-  static void oop_recycled_iterate(MarkOldTrackableClosure* closure);
+  static void oop_recycled_iterate(PromotedTrackableClosure* closure);
 
   // for full gc
   static void mark_forwarded(oopDesc* p);

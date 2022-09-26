@@ -111,7 +111,7 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
-    rtHeap::oop_recycled_iterate(reinterpret_cast<MarkOldTrackableClosure*>(&_scan_older));
+    rtHeap::oop_recycled_iterate(reinterpret_cast<PromotedTrackableClosure*>(&_scan_older));
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -595,9 +595,6 @@ void DefNewGeneration::collect(bool   full,
   }
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS  
-  YoungRootClosure        young_root_closure(this);
-#endif
 
   CLDScanClosure cld_scan_closure(&scan_closure);
 
@@ -607,9 +604,10 @@ void DefNewGeneration::collect(bool   full,
                                                   &younger_gen_closure);
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  YoungRootClosure        young_root_closure(this, &evacuate_followers);
   if (EnableRTGC) {
-    MarkOldTrackableClosure* mark_old_trackable_closure =
-        reinterpret_cast<MarkOldTrackableClosure*>(&younger_gen_closure);
+    PromotedTrackableClosure* mark_old_trackable_closure =
+        reinterpret_cast<PromotedTrackableClosure*>(&younger_gen_closure);
     static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(mark_old_trackable_closure);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
@@ -628,14 +626,18 @@ void DefNewGeneration::collect(bool   full,
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
+  // "evacuate followers".
+  evacuate_followers.do_void();
+
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (RtNoDirtyCardMarking) {
+    rtgc_log(true, "iterate_younger_gen_roots started\n")
     rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
+    rtgc_log(true, "iterate_younger_gen_roots done\n")
+    evacuate_followers.do_void();
   }
 #endif
 
-  // "evacuate followers".
-  evacuate_followers.do_void();
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
