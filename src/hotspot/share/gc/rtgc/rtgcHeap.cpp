@@ -196,7 +196,7 @@ static void resurrect_young_root(GCObject* node) {
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
   precond(anchor == NULL || node->containsReferrer(to_obj(anchor)));
-  rtgc_log(true || LOG_OPT(11), "resurrect obj %p -> %p  root=%d\n", 
+  rtgc_log(LOG_OPT(11), "resurrect obj %p -> %p  root=%d\n", 
       (void*)anchor, node, node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
@@ -547,7 +547,6 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
     }
     g_young_roots.resize(0);
   }
-  rtHeapEx::adjust_ref_q_pointers(true);
 }
 
 void GCNode::markGarbage(const char* reason)  {
@@ -647,6 +646,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
 void rtHeap::finish_adjust_pointers() {
   g_adjust_pointer_closure._old_gen_start = NULL;
+  rtHeapEx::adjust_ref_q_pointers(true);
   GCRuntime::adjustShortcutPoints();
   rtHeap__clearStack<true>();
 }

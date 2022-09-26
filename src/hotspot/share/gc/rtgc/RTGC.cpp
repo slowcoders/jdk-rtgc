@@ -225,7 +225,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    //"java/lang/ref/Finalizer",
+    // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
   //  "java/lang/invoke/LambdaFormEditor$Transform",
     // "java/lang/invoke/MethodTypeForm",
@@ -298,14 +298,12 @@ void RTGC::initialize() {
   RTGC::debug_obj = (void*)-1;
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (true || UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
-    // enableLog(LOG_SCANNER, 7);
-    // enableLog(LOG_SCANNER, 10);
 
   if (UnlockExperimentalVMOptions) {
     // debugClassNames[0] = "java/util/HashMap$Node";

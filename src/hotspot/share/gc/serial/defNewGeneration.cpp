@@ -631,10 +631,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (RtNoDirtyCardMarking) {
-    rtgc_log(true, "iterate_younger_gen_roots started\n")
     rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
-    rtgc_log(true, "iterate_younger_gen_roots done\n")
-    evacuate_followers.do_void();
   }
 #endif
 
