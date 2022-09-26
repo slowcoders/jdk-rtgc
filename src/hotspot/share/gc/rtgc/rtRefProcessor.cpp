@@ -452,7 +452,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     }
     if (!is_gc_marked) {
       if (true || is_full_gc || !referent->isTrackable()) {
-        rtgc_log(LOG_OPT(3), "resurrect final referent %p -> %p\n", referent, (void*)iter.referent())
+        rtgc_log(true || LOG_OPT(3), "resurrect final referent %p -> %p\n", referent, (void*)iter.referent())
         if (is_full_gc && rtHeap::DoCrossCheck) {
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
         }

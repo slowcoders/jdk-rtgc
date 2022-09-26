@@ -141,6 +141,8 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
       {
         ReferenceType type = reference_type();
+        rtgc_log(rtHeap::in_full_gc, "do_fields %d %p\n", 
+            type, (void*)obj);
         if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type >= REF_FINAL)) {
           T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
           T heap_oop = RawAccess<>::oop_load(referent_addr);
@@ -155,8 +157,6 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
             }
           }
         } else {
-          rtgc_log(true, "do_fields %d %p of %p\n", 
-            type, (void*)obj, (void*)java_lang_ref_Reference::unknown_referent_no_keepalive(obj));
           precond(NULL == java_lang_ref_Reference::unknown_referent_no_keepalive(obj) ||
               rtHeap::is_alive(java_lang_ref_Reference::unknown_referent_no_keepalive(obj)) ||
               !rtHeap::is_alive(obj));
