@@ -272,11 +272,15 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
         rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
     }
-    if (!link->isUnstableMarked() && link->isUnsafeTrackable()) {
-        link->markUnstable();
-        rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
-        return true;
-    } 
+    if (link->isUnsafeTrackable()) {
+        if (!link->isUnstableMarked()) {
+            link->markUnstable();
+            rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
+            return true;
+        }  else {
+            rtgc_debug_log(link, "Already marked unsafe before clear_garbage_links %p\n", link);
+        }
+    }
     return false;
 }
 
@@ -376,31 +380,6 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
     node->unmarkUnstable();
     if (node->getRootRefCount() > 0) {
         return false;
-    }
-    if (checkBrokenLink) { 
-        if (!node->isTrackable()) {
-            if (!node->hasMultiRef()) {
-                precond(node->getSingleAnchor()->isDirtyReferrerPoints());
-                return true;
-            } else {
-                ReferrerList* referrers = node->getReferrerList();
-                bool clear_referrer = false;
-                for (int i = referrers->size(); --i >= 0; ) {
-                    GCObject* anchor = referrers->at(i);
-                    if (!anchor->isDirtyReferrerPoints()) {
-                        clear_referrer = true;
-                        scanSurvivalPath(anchor, checkBrokenLink);
-                        if (!anchor->isGarbageMarked()) {
-                            return false;
-                        }
-                    }
-                }
-                if (clear_referrer) {
-                    node->removeBrokenAnchors();
-                }
-                return true;
-            }
-        }
     }
 
     scanSurvivalPath(node, checkBrokenLink);

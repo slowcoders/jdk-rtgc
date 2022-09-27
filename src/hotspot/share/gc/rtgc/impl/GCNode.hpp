@@ -150,7 +150,10 @@ public:
 		return isStrongRootReachable() || hasReferrer();
 	}
 
-
+	void invalidateAnchorList_unsafe() {
+		_flags.hasMultiRef = 0;
+		this->_refs = 0;
+	}
 
 	int getRootRefCount() {
 		return _flags.rootRefCount;

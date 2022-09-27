@@ -224,6 +224,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
+  0, // reserved for -XX:AbortVMOnExceptionMessage=''
+  //  "compiler/c2/Test7190310$1",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -249,6 +251,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
+  // if (ptr < (void*)0x203990310) return true;
   // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -273,7 +276,10 @@ bool RTGC::is_debug_pointer(void* ptr) {
   return false;
 }
 
-void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
+void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
+  if (destroy_old_node) {
+    to_node(old_p)->invalidateAnchorList_unsafe();
+  }
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
   
@@ -304,6 +310,7 @@ void RTGC::initialize() {
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
   debugOptions[0] = UnlockExperimentalVMOptions;
+  debugClassNames[0] = AbortVMOnExceptionMessage;
 
   if (UnlockExperimentalVMOptions) {
     // debugClassNames[0] = "java/util/HashMap$Node";

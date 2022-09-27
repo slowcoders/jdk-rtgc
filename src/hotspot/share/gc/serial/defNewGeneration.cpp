@@ -798,7 +798,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 #ifdef INCLUDE_RTGC
 #ifdef ASSERT
   if (EnableRTGC) {
-    RTGC::adjust_debug_pointer(old, obj);
+    RTGC::adjust_debug_pointer(old, obj, true);
   }
 #endif
 #endif
