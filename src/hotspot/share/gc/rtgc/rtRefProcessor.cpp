@@ -802,7 +802,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       break;
   }
 
-  precond(!to_obj(ref)->isTrackable());
+  // 참고) 생성 도중 full-gc 가 발생한 경우, ref 가 trackble 상태일 수 있다.
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent_p);
 
   oop next_discovered = Atomic::xchg(ref_q, ref);

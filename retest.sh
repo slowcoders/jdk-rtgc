@@ -6,6 +6,12 @@
 # -XX:+UnlockExperimentalVMOptions 
 # -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
 # compiler/uncommontrap/TestDeoptOOM
+# runtime/ErrorHandling/TestGZippedHeapDumpOnOutOfMemoryError
+# runtime/ErrorHandling/TestHeapDumpPath
+# runtime/Unsafe/InternalErrorTest
+# runtime/modules/ModuleStress/ModuleStress
+# runtime/modules/ClassLoaderNoUnnamedModuleTest
+# runtime/logging/VtablesTest
 
 pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_classUnloading_methodUnloading_TestMethodUnloading_java/scratch/0 && \
 HOME=/Users/zeedh \
