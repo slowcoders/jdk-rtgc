@@ -6,6 +6,8 @@
 # -XX:+UnlockExperimentalVMOptions 
 # -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
 # compiler/uncommontrap/TestDeoptOOM
+#
+# gc/logging/TestMetaSpaceLog
 # runtime/ErrorHandling/TestGZippedHeapDumpOnOutOfMemoryError
 # runtime/ErrorHandling/TestHeapDumpPath
 # runtime/Unsafe/InternalErrorTest

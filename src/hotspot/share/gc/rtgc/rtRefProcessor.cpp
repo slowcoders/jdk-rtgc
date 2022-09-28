@@ -630,7 +630,6 @@ void __process_final_phantom_references() {
   // rtgc_log(LOG_OPT(3), "g_phantomList %p\n", g_phantomList._ref_q);
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     precond((void*)iter.referent() != NULL);
-    precond((void*)iter.referent() > (void*)0x30);
     bool is_alive = rtHeap::is_alive(iter.referent());
     if (!is_full_gc) {
       iter.adjust_ref_pointer();
@@ -805,8 +804,11 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   // 참고) 생성 도중 full-gc 가 발생한 경우, ref 가 trackble 상태일 수 있다.
   HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, referent_offset, referent_p);
 
-  oop next_discovered = Atomic::xchg(ref_q, ref);
-  java_lang_ref_Reference::set_discovered_raw(ref, next_discovered);
+  while (true) {
+    oopDesc* head = *ref_q;
+    HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, RefList::_discovered_off, head);
+    if (head == Atomic::cmpxchg(ref_q, head, ref)) break;
+  }
   return;
 }
 
