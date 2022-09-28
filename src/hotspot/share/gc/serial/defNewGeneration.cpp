@@ -741,6 +741,7 @@ void DefNewGeneration::restore_preserved_marks() {
 void DefNewGeneration::handle_promotion_failure(oop old) {
   log_debug(gc, promotion)("Promotion failure size = %d) ", old->size());
 
+  rtgc_log(true, "Promotion failure size = %d\n", old->size());
   _promotion_failed = true;
   _promotion_failed_info.register_copy_failure(old->size());
   _preserved_marks_set.get()->push_if_necessary(old, old->mark());
