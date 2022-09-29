@@ -233,15 +233,20 @@ namespace RTGC {
 
     // template <bool is_full_gc>
     oop get_valid_forwardee(oop old_p) {
-      return (!is_full_gc && to_obj(old_p)->isTrackable()) ? NULL :  old_p->forwardee();
+      if (is_full_gc) {
+        oop new_p = old_p->forwardee();
+        return new_p == NULL ? old_p : new_p;
+      } else if (to_obj(old_p)->isTrackable()) {
+        return old_p;
+      } else {
+        return old_p->forwardee();
+      }
     }
 
-    // template <bool is_full_gc>
-    void adjust_ref_pointer() {
+    bool adjust_ref_pointer() {
       precond(!rtHeap::DoCrossCheck || _curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
       oop new_p = get_valid_forwardee(_curr_ref);
-      if (new_p != NULL) {
-        precond((void*)new_p > (void*)32);
+      if (new_p != _curr_ref) {
         if (do_cross_test) {
           _refList._refs.at(_idx) = new_p;
         }
@@ -250,27 +255,28 @@ namespace RTGC {
         } else {
           RawAccess<>::oop_store_at(_prev_ref_op, _discovered_off, new_p);
         }
-        // rtgc_log(LOG_OPT(3), "X) phantom ref moved %p -> %p\n", (void*)_curr_ref, (void*)new_p);
+
         if (!is_full_gc) {
           _curr_ref = new_p;
         } else {
           // 객체 복사가 되지 않은 상태.
         }
+      } else if (!is_full_gc) {
+        return to_obj(_curr_ref)->isTrackable();
       } else {
         postcond(is_full_gc || to_obj(_curr_ref)->isTrackable());
       }
+      return true;
     }
 
     // template <bool is_full_gc>
     void adjust_referent_pointer() {
       if (do_cross_test) return;
       
-      oop old_p = _referent_p;
-      oop new_p = get_valid_forwardee(old_p);
-      if (new_p == NULL) {
-        postcond(is_full_gc || to_obj(old_p)->isTrackable());
-      } else if (new_p != old_p) {
-        precond((void*)new_p > (void*)0x30);
+      oop new_p = get_valid_forwardee(_referent_p);
+      if (new_p == _referent_p) {
+        postcond(is_full_gc || to_obj(_referent_p)->isTrackable());
+      } else {
         // rtgc_log(LOG_OPT(3), "move referent %p -> %p\n", (void*)old_p, (void*)new_p);
         RawAccess<>::oop_store_at(_curr_ref, _referent_off, new_p);
         if (!is_full_gc) {
@@ -443,12 +449,14 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   GCObject* ref;
   for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     GCObject* referent = to_obj(iter.referent());
+    bool is_new_ref = true;
     if (is_full_gc) {
       if (referent->isTrackable()) {
         _rtgc.g_pGarbageProcessor->detectGarbage(referent, false);
       }
     } else {
-      iter.adjust_ref_pointer();
+      is_new_ref = iter.adjust_ref_pointer();
+      precond(is_new_ref);
       ref = to_obj(iter.ref());
       postcond((void*)referent == iter.get_raw_referent());
     }
@@ -464,7 +472,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       is_gc_marked = referent->isTrackable() ? referent->isStrongReachable() : cast_to_oop(referent)->is_gc_marked();
     }
     if (!is_gc_marked) {
-      if (true || is_full_gc || !referent->isTrackable()) {
+      if (true) {
         rtgc_log(LOG_OPT(3), "resurrect final ref %p of %p\n", ref, referent);
         if (is_full_gc && rtHeap::DoCrossCheck) {
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
@@ -506,7 +514,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       if (is_full_gc) {
         // remark!
         referent->markActiveFinalizerReachable();
-      } else {
+      } else if (is_new_ref) {
         iter.adjust_referent_pointer();
       }
       assert(referent->isActiveFinalizerReachable(), "must be ActiveFinalizerReachable %p\n", referent);
@@ -631,13 +639,11 @@ void __process_final_phantom_references() {
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     precond((void*)iter.referent() != NULL);
     bool is_alive = rtHeap::is_alive(iter.referent());
-    if (!is_full_gc) {
-      iter.adjust_ref_pointer();
-    }
-    rtgc_log(LOG_OPT(3), "A) garbage phantom ref %p -> %p is_alive = %d\n", iter.ref(), iter.referent(), is_alive);
+    bool is_new_ref = !is_full_gc && iter.adjust_ref_pointer();
+    precond(is_full_gc || is_new_ref);
     if (!is_alive) {
       iter.enqueue_curr_ref(true);
-    } else if (!is_full_gc) {
+    } else if (is_new_ref) {
       iter.adjust_referent_pointer();
     }
   } 
