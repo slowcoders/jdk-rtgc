@@ -165,7 +165,7 @@ namespace RTGC {
       }
       return is_garbage;
     }
-    // template <SkipPolicy policy>
+
     GCObject* next_ref(SkipPolicy policy) {
       while (true) {
         if (do_cross_test) {
@@ -231,7 +231,6 @@ namespace RTGC {
       return to_obj(_curr_ref);
     }
 
-    // template <bool is_full_gc>
     oop get_valid_forwardee(oop old_p) {
       if (is_full_gc) {
         oop new_p = old_p->forwardee();
@@ -269,7 +268,6 @@ namespace RTGC {
       return true;
     }
 
-    // template <bool is_full_gc>
     void adjust_referent_pointer() {
       if (do_cross_test) return;
       
@@ -327,7 +325,7 @@ namespace RTGC {
       if (referent->isTrackable()) {
         _rtgc.g_pGarbageProcessor->detectGarbage(referent, true);
       }
-      rtgc_log(false && _refList.ref_type() == REF_WEAK,
+      rtgc_log(UnlockExperimentalVMOptions,
           "referent<%d> %p(%s) alive=%d, tr=%d gm=%d refT=%d multi=%d\n", 
           _refList.ref_type(), referent, RTGC::getClassName(referent), rtHeap::is_alive(_referent_p),
           referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
@@ -637,8 +635,9 @@ template <bool is_full_gc>
 void __process_final_phantom_references() {
   // rtgc_log(LOG_OPT(3), "g_phantomList %p\n", g_phantomList._ref_q);
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
-    precond((void*)iter.referent() != NULL);
-    bool is_alive = rtHeap::is_alive(iter.referent());
+    oopDesc* old_referent = iter.referent();
+    precond(old_referent != NULL);
+    bool is_alive = rtHeap::is_alive(old_referent);
     bool is_new_ref = !is_full_gc && iter.adjust_ref_pointer();
     precond(is_full_gc || is_new_ref);
     if (!is_alive) {
@@ -646,6 +645,8 @@ void __process_final_phantom_references() {
     } else if (is_new_ref) {
       iter.adjust_referent_pointer();
     }
+    rtgc_log(UnlockExperimentalVMOptions || LOG_OPT(3), 
+      "check phantom ref) %p(alive=%d) of %p -> %p\n", iter.ref(), is_alive, old_referent, iter.referent());
   } 
 
   RefList::flush_penging_list();
@@ -733,9 +734,11 @@ void __adjust_ref_q_pointers() {
 
     rtgc_log(LOG_OPT(3), "g_phantomList 2 %p\n", g_phantomList._ref_q);
     for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipNone) != NULL; ) {
+      oopDesc* old_p = iter.referent();
       iter.adjust_ref_pointer();
       iter.adjust_referent_pointer();
-      rtgc_log(LOG_OPT(3), "B) phantom ref %p -> %p\n", iter.ref(), iter.referent());
+      rtgc_log(UnlockExperimentalVMOptions || LOG_OPT(3), 
+        "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
     } 
   }
 }
@@ -752,7 +755,7 @@ void rtHeap__ensure_garbage_referent(oopDesc* ref_p, oopDesc* referent_p, bool c
   precond(rtHeap::DoCrossCheck);
   rtgc_log(LOG_OPT(3), "enq ref(%p) of %p\n", ref_p, referent_p);
   int idx = g_garbage_referents.indexOf(ref_p);
-  precond(idx >= 0);
+  assert(idx >= 0, "ref[%d] %p of %p not found\n", __getRefType(ref_p),  ref_p, referent_p);
   g_garbage_referents.removeFast(idx);
 }
 
@@ -780,7 +783,8 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   switch (refType) {
     case REF_PHANTOM:
       ref_q = &g_phantomList._ref_q;
-      rtgc_log(LOG_OPT(3), "created Phantom ref %p for %p\n", (void*)ref, referent_p);
+      rtgc_log(LOG_OPT(3), 
+          "created Phantom ref %p for %p\n", (void*)ref, referent_p);
       break;
 
     case REF_FINAL:

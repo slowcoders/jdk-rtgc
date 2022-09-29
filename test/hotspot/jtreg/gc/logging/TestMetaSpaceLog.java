@@ -107,7 +107,7 @@ public class TestMetaSpaceLog {
 
     OutputAnalyzer output = null;
     try {
-      output = new OutputAnalyzer(pb.start());
+      output = new OutputAnalyzer(pb.inheritIO().start());
       verifyContainsMetaSpaceUpdate(output);
     } catch (Exception e) {
       // For error diagnosis: print and throw.

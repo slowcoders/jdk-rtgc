@@ -51,94 +51,33 @@ bash configure --with-jvm-variants=client \
    -> JTREG_RETAIN ?= fail,error,hs_err_pid*
 ```
 
-- precompiled file 삭제
-```sh 
-   rm -rf ./build/macosx-x86_64-client-fastdebug/hotspot/variant-client/libjvm/objs/precompiled 
-```
-
-- coredump file 찾기.
-  find build -name "hs_err_pid*"
-
-- coredump file 삭제.<br>
-  find build -name "hs_err_pid*" | xargs rm 
-
-
 - logTrigger
 ```
    new java.util.concurrent.atomic.AtomicLong().compareAndExchange(
       0x876543DB876543DBL, 0x123456DB00000000L + (category << 24) + functions));` 
 ```
 
-## 5. Tests
-- full test
-   `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
-
-- oom 발생 (serial 도 마찬가지)
-   sh exec_test.sh jdk/internal/shellsupport/doc/JavadocHelperTest
-
 - module jdk.compiler does not export com.sun.tools.javac.xxx to unnamed module 오류 해결 방법
+```
       --add-opens=jdk.compiler/com.sun.tools.javac.xxx=ALL-UNNAMED \
-
-- 
-   make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
-
-- serial gc
-   make test CONF="macosx" TEST="gc/serial"
-
-- new RTGC error
-```
-   make test CONF="macosx" TEST="jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java"  
-   make test CONF="macosx" TEST="runtime/Monitor/SyncOnValueBasedClassTest.java"
 ```
 
-- narrowOop shift test (0,1,2,3,4)
+- retest.sh 실행 시 WhiteBox jni link error 발생 시, 아래 스크립트를 먼저 실행.
 ```
-   make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
-```
-   
-
-- implicit null check exception.
-```
-   make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+   rerun: ... 
+      jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
 ```
 
-- unsafeAccess
+- retest.sh 실행 시 log 가 출력되지 않으면, inheritIO() 추가.
 ```
-   make test CONF="macosx" TEST=" \
-      compiler/unsafe/SunMiscUnsafeAccessTestObject.java \
-      compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject.java "
-```
-
-- Huge object (size > 256K)
-```
-   make test CONF="macosx" TEST="gc/g1/plab/TestPLABPromotion.java"
-   make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
-```
-
-- Single stack check
-```
-   make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
+   ProcessBuiler.inheritIO().start();
 ```
 
 6. Test file build
    javac test/rtgc/Main.java
 
 7. Custom Test 실행
-
-- macosx
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-   -XX:+UnlockExperimentalVMOptions \
-   -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1' \
-   -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
- 
-
-   
    ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
-- linux
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
-   
-   // enable c1_LIRGenerator 
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 
 
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
