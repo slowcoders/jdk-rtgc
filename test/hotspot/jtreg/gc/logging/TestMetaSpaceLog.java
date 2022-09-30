@@ -63,11 +63,9 @@ public class TestMetaSpaceLog {
 
   public static void main(String[] args) throws Exception {
     testMetaSpaceUpdate();
-    //throw new RuntimeException();
   }
 
   private static boolean check2(String s) {
-    System.err.println(s);
     return s.contains("[gc,metaspace");
   }
 
@@ -98,7 +96,6 @@ public class TestMetaSpaceLog {
       ProcessTools.createTestJvm(
           "-Xlog:gc*",
           "-Xbootclasspath/a:.",
-          "-XX:+UnlockExperimentalVMOptions",
           "-XX:+UnlockDiagnosticVMOptions",
           "-XX:+WhiteBoxAPI",
           "-Xmx1000M",
@@ -107,7 +104,7 @@ public class TestMetaSpaceLog {
 
     OutputAnalyzer output = null;
     try {
-      output = new OutputAnalyzer(pb.inheritIO().start());
+      output = new OutputAnalyzer(pb.start());
       verifyContainsMetaSpaceUpdate(output);
     } catch (Exception e) {
       // For error diagnosis: print and throw.
@@ -130,8 +127,6 @@ public class TestMetaSpaceLog {
     }
 
     public static void main(String args[]) {
-      System.out.println("main - out");
-      System.err.println("main - err");
       WhiteBox wb = WhiteBox.getWhiteBox();
       for(int i = 0; i < 100000; i++) {
         loadClass(wb);

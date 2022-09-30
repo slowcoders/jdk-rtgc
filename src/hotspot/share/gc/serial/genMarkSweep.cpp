@@ -240,21 +240,23 @@ public:
 static TenuredYoungRootClosure young_root_closure;
 
 
-template<bool is_adjust_phase>
+template<bool mark_ref>
 class WeakCLDScanner : public CLDClosure, public OopClosure {
   bool _is_alive;
  public:
   WeakCLDScanner() {}
 
   void do_cld(ClassLoaderData* cld) {
-    oop holder = cld->holder_no_keepalive();
-    _is_alive = holder != NULL && holder->is_gc_marked();
-    if (is_adjust_phase && !_is_alive) {
-      rtgc_log(true, "cld removed!! %p\n", cld);
-    } { // else {
-      // rtgc_log(true, "scan cld %d, %p\n", is_adjust_phase, cld);
-      cld->oops_do(this, ClassLoaderData::_claim_none);
+    if (mark_ref) {
+      oop holder = cld->holder_no_keepalive();
+      if (holder == NULL) return;
+      if (!holder->is_gc_marked()) {
+        !rtHeap::is_alive(holder);
+        return;
+      }
+      rtHeap::is_alive(holder);
     }
+    cld->oops_do(this, ClassLoaderData::_claim_none);
   }
 
   virtual void do_oop(oop* o) { do_oop_work(o); }
@@ -263,28 +265,14 @@ class WeakCLDScanner : public CLDClosure, public OopClosure {
   void do_oop_work(oop* o) {
     oop obj = *o;
     if (obj == NULL) return;
-    if (!is_adjust_phase) {
-      // rtgc_log(true, "release cld handle %p\n", (void*)obj);
-      rtHeap::release_jni_handle(obj);
-      return;
-    } 
 
-    if (_is_alive) {
+    if (!mark_ref) {
+      rtHeap::release_jni_handle(obj);
+    } else {
       precond(obj->is_gc_marked());
+      precond(rtHeap::is_alive(obj));
       rtHeap::lock_jni_handle(obj);
     }
-    return;
-    if (!obj->is_gc_marked()) return;
-
-    if (rtHeap::is_alive(obj)) {
-      // rtgc_log(true, "alive cld handle %p\n", (void*)obj);
-      precond(obj->is_gc_marked());
-    } else if (rtHeap::is_trackable(obj)) {
-      rtgc_log(true, "resurrect cld handle %p\n", (void*)obj);
-      rtHeap::mark_survivor_reachable(obj);
-    }
-    rtHeap::lock_jni_handle(obj);
-    // MarkSweep::adjust_pointer(o);
   }
 };
 static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
