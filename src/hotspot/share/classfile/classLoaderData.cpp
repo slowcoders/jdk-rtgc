@@ -242,12 +242,12 @@ int ClassLoaderData::ChunkedHandleList::count() const {
 inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chunk* c, const juint size) {
   for (juint i = 0; i < size; i++) {
     if (c->_data[i] != NULL) {
-#if INCLUDE_RTGC      
-      if (!(!EnableRTGC || rtHeap::is_alive(c->_data[i]))) {
-        c->_data[i]->print_on(tty);
-      }
-      precond(!EnableRTGC || rtHeap::is_alive(c->_data[i]));
-#endif
+// #if INCLUDE_RTGC      
+//       if (!(!EnableRTGC || rtHeap::is_alive(c->_data[i]))) {
+//         c->_data[i]->print_on(tty);
+//       }
+//       precond(!EnableRTGC || rtHeap::is_alive(c->_data[i]));
+// #endif
       f->do_oop(&c->_data[i]);
     }
   }
@@ -938,7 +938,7 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
 OopHandle ClassLoaderData::add_handle(Handle h) {
   MutexLocker ml(metaspace_lock(),  Mutex::_no_safepoint_check_flag);
   record_modified_oops();
-  return _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? _holder.peek() : NULL) h());
+  return _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? holder_no_keepalive() : NULL) h());
 }
 
 void ClassLoaderData::remove_handle(OopHandle h) {
@@ -958,7 +958,7 @@ void ClassLoaderData::init_handle_locked(OopHandle& dest, Handle h) {
     return;
   } else {
     record_modified_oops();
-    dest = _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? _holder.peek() : NULL) h());
+    dest = _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? holder_no_keepalive() : NULL) h());
   }
 }
 
