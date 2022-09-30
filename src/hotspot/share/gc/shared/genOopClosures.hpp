@@ -144,7 +144,7 @@ public:
   }
 
   void trackable_barrier(void* p, oop obj) {
-    precond(rtHeap::is_alive(obj));
+    assert(rtHeap::is_alive(obj), "must not a garbage %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
   }
 };
 #endif

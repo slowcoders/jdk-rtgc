@@ -106,6 +106,8 @@ public:
 
 	static void onEraseRootVariable_internal(GCObject* assigned);
 
+	static void detectUnsafeObject(GCObject* erased);
+
 private:
 	#if GC_DEBUG
 	static int getCircuitCount();
@@ -114,8 +116,6 @@ private:
 	#endif
 
 	static void reclaimGarbage(GCObject* garbage, GCObject* garbageNode);
-
-	static void detectUnsafeObject(GCObject* erased);
 
 };	
 
