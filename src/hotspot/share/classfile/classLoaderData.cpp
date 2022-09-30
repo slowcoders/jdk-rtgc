@@ -152,7 +152,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _class_loader_klass(NULL), _name(NULL), _name_and_id(NULL) {
 
   if (!h_class_loader.is_null()) {
-    _class_loader = _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h_class_loader());
+    _class_loader = _handles.add(RTGC_ONLY_ARG(NULL) h_class_loader());
     _class_loader_klass = h_class_loader->klass();
     initialize_name(h_class_loader);
   }
@@ -189,8 +189,9 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
   }
 }
 
-OopHandle ClassLoaderData::ChunkedHandleList::add(RTGC_ONLY_ARG(bool scan_incremental) oop o) {
+OopHandle ClassLoaderData::ChunkedHandleList::add(RTGC_ONLY_ARG(oop holder) oop o) {
   Chunk* c;
+  bool scan_incremental = holder == NULL;
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   if (EnableRTGC && scan_incremental) { // RTGC_OPT_CLD_SCAN
     c = Atomic::load_acquire(&_tail);
@@ -216,6 +217,7 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(RTGC_ONLY_ARG(bool scan_increm
   oop* handle = &c->_data[c->_size];
 #if INCLUDE_RTGC  
   if (EnableRTGC && !scan_incremental) { 
+    rtHeap::add_trackable_link(holder, o);
     NativeAccess<AS_NO_KEEPALIVE>::oop_store(handle, o);
   } else 
 #endif
@@ -240,6 +242,12 @@ int ClassLoaderData::ChunkedHandleList::count() const {
 inline void ClassLoaderData::ChunkedHandleList::oops_do_chunk(OopClosure* f, Chunk* c, const juint size) {
   for (juint i = 0; i < size; i++) {
     if (c->_data[i] != NULL) {
+#if INCLUDE_RTGC      
+      if (!(!EnableRTGC || rtHeap::is_alive(c->_data[i]))) {
+        c->_data[i]->print_on(tty);
+      }
+      precond(!EnableRTGC || rtHeap::is_alive(c->_data[i]));
+#endif
       f->do_oop(&c->_data[i]);
     }
   }
@@ -280,6 +288,7 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
       if (c->_data[idx] != NULL) {
         oop* p = &c->_data[idx];
         oop old = *p;
+        precond(rtHeap::is_alive(old));
         f->do_oop(p);
         debug_only(cnt_handle ++;)
         debug_only(cnt_promoted += rtHeap::is_trackable(old) ? 1 : 0;) 
@@ -587,10 +596,34 @@ void ClassLoaderData::add_class(Klass* k, bool publicize /* true */) {
   }
 }
 
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+class HandleRetainClosure : public OopClosure {
+  oop _holder;
+public:
+  HandleRetainClosure(oop holder) : _holder(holder) {}
+
+  void do_oop(oop* p) {
+    oop obj = *p;
+    if (obj != NULL) rtHeap::add_trackable_link(_holder, obj);
+  }
+
+  void do_oop(narrowOop* p) {
+    // The ChunkedHandleList should not contain any narrowOop
+    ShouldNotReachHere();
+  }  
+};
+#endif
+
 void ClassLoaderData::initialize_holder(Handle loader_or_mirror) {
   if (loader_or_mirror() != NULL) {
     assert(_holder.is_null(), "never replace holders");
     _holder = WeakHandle(Universe::vm_weak(), loader_or_mirror);
+#if INCLUDE_RTGC
+    if (_has_class_mirror_holder) {
+      HandleRetainClosure retainClosure(_holder.peek()); 
+      _handles.oops_do(&retainClosure);      
+    }
+#endif    
   }
 }
 
@@ -905,7 +938,7 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
 OopHandle ClassLoaderData::add_handle(Handle h) {
   MutexLocker ml(metaspace_lock(),  Mutex::_no_safepoint_check_flag);
   record_modified_oops();
-  return _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h());
+  return _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? _holder.peek() : NULL) h());
 }
 
 void ClassLoaderData::remove_handle(OopHandle h) {
@@ -925,7 +958,7 @@ void ClassLoaderData::init_handle_locked(OopHandle& dest, Handle h) {
     return;
   } else {
     record_modified_oops();
-    dest = _handles.add(RTGC_ONLY_ARG(!_has_class_mirror_holder) h());
+    dest = _handles.add(RTGC_ONLY_ARG(_has_class_mirror_holder ? _holder.peek() : NULL) h());
   }
 }
 

@@ -357,7 +357,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
     resurrect_young_root(node);
   }
 
-  precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
+  // precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
   RTGC::add_referrer_ex(link, anchor, false);
 }
 

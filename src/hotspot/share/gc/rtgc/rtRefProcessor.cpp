@@ -521,11 +521,10 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
   complete_gc->do_void();
   RefList::flush_penging_list();
-  rtHeap__clear_garbage_young_roots(is_full_gc);
 #if DO_CROSS_CHECK_REF  
   rtHeap::DoCrossCheck = 1;
 #endif
-
+  rtHeap__clear_garbage_young_roots(is_full_gc);
 }
 
 void rtHeapEx::clear_finalizer_reachables() {
@@ -536,10 +535,15 @@ void rtHeapEx::clear_finalizer_reachables() {
 }
 
 void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy) {
-  // const char* ref_type$ = reference_type_to_string(clear_ref);
-  // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
+  rtgc_log(UnlockExperimentalVMOptions, "old heap start %p\n", GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtHeapEx::_soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
+
+  // for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
+  //   GCObject* old_referent = to_obj(iter.referent());
+  //   precond(!old_referent->isUnsafeTrackable() || old_referent->isUnstableMarked());
+  //   //GCRuntime::detectUnsafeObject(old_referent);
+  // }
 
   if (policy != NULL) {
     precond(rtHeap::in_full_gc);
@@ -557,13 +561,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
           iter.break_weak_soft_link();
         }
       }
-      // else if (rtHeap::DoCrossCheck || !to_obj(iter.referent())->isTrackable()) {
-      //   if (UseCompressedOops) {
-      //     keep_alive->do_oop((narrowOop*)iter.referent_addr());
-      //   } else {
-      //     keep_alive->do_oop((oop*)iter.referent_addr());
-      //   }
-      // }
     }
     
     for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
@@ -637,7 +634,12 @@ void __process_final_phantom_references() {
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     oopDesc* old_referent = iter.referent();
     precond(old_referent != NULL);
-    bool is_alive = rtHeap::is_alive(old_referent);
+    // assert(!to_obj(old_referent)->isUnsafeTrackable() || to_obj(old_referent)->isUnstableMarked(),
+    //     "unsafe not scanned %p(%s)\n", (void*)old_referent, RTGC::getClassName(to_obj(old_referent)));
+    bool is_alive = //rtHeap::is_alive(old_referent);
+        to_obj(old_referent)->isTrackable()
+        ? !_rtgc.g_pGarbageProcessor->detectGarbage(to_obj(old_referent), false)
+        : old_referent->is_gc_marked();
     bool is_new_ref = !is_full_gc && iter.adjust_ref_pointer();
     precond(is_full_gc || is_new_ref);
     if (!is_alive) {
@@ -650,6 +652,7 @@ void __process_final_phantom_references() {
   } 
 
   RefList::flush_penging_list();
+  rtHeap__clear_garbage_young_roots(is_full_gc);
 }
 
 void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
