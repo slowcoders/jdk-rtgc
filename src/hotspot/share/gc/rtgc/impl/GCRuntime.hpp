@@ -38,7 +38,7 @@ public:
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
-
+	bool hasUnsafeObjects();
 private:
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;

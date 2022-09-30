@@ -773,6 +773,10 @@ void rtHeapEx::validate_trackable_refs() {
   __validate_trackable_refs(&g_weakList._refs);
 }
 
+void rtHeap__assertNoUnsafeObjects() {
+  precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
+}
+
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   precond(RtNoDiscoverPhantom);
   precond(referent_p != NULL);

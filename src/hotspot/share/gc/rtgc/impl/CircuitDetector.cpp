@@ -185,6 +185,10 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
     }
 }
 
+bool GarbageProcessor::hasUnsafeObjects() {
+    return _unsafeObjects.size() + _visitedNodes.size() > 0;
+}
+
 void GarbageProcessor::constructShortcut() {
     const int MAX_SHORTCUT_LEN = 256;
     AnchorIterator* ait = _trackers.adr_at(0);
