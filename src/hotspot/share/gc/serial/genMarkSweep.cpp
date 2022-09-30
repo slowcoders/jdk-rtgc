@@ -239,6 +239,56 @@ public:
 };
 static TenuredYoungRootClosure young_root_closure;
 
+
+template<bool is_adjust_phase>
+class WeakCLDScanner : public CLDClosure, public OopClosure {
+  bool _is_alive;
+ public:
+  WeakCLDScanner() {}
+
+  void do_cld(ClassLoaderData* cld) {
+    oop holder = cld->holder_no_keepalive();
+    _is_alive = holder != NULL && holder->is_gc_marked();
+    if (is_adjust_phase && !_is_alive) {
+      rtgc_log(true, "cld removed!! %p\n", cld);
+    } { // else {
+      // rtgc_log(true, "scan cld %d, %p\n", is_adjust_phase, cld);
+      cld->oops_do(this, ClassLoaderData::_claim_none);
+    }
+  }
+
+  virtual void do_oop(oop* o) { do_oop_work(o); }
+  virtual void do_oop(narrowOop* o) { fatal("cld handle not compressed"); }
+
+  void do_oop_work(oop* o) {
+    oop obj = *o;
+    if (obj == NULL) return;
+    if (!is_adjust_phase) {
+      // rtgc_log(true, "release cld handle %p\n", (void*)obj);
+      rtHeap::release_jni_handle(obj);
+      return;
+    } 
+
+    if (_is_alive) {
+      precond(obj->is_gc_marked());
+      rtHeap::lock_jni_handle(obj);
+    }
+    return;
+    if (!obj->is_gc_marked()) return;
+
+    if (rtHeap::is_alive(obj)) {
+      // rtgc_log(true, "alive cld handle %p\n", (void*)obj);
+      precond(obj->is_gc_marked());
+    } else if (rtHeap::is_trackable(obj)) {
+      rtgc_log(true, "resurrect cld handle %p\n", (void*)obj);
+      rtHeap::mark_survivor_reachable(obj);
+    }
+    rtHeap::lock_jni_handle(obj);
+    // MarkSweep::adjust_pointer(o);
+  }
+};
+static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
+static WeakCLDScanner<true>  remark_weak_cld_rtgc_ref;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
@@ -255,7 +305,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     gch->full_process_roots(false, // not the adjust phase
                             GenCollectedHeap::SO_None,
-                            ClassUnloading, // only strong roots if ClassUnloading
+                            ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
                                             // is enabled
                             &follow_root_closure,
                             &follow_cld_closure);
@@ -269,6 +319,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
+    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
   }
 #endif
   // Process reference objects found during marking
@@ -367,7 +418,7 @@ void GenMarkSweep::mark_sweep_phase3() {
 
     gch->full_process_roots(true,  // this is the adjust phase
                             GenCollectedHeap::SO_AllCodeCache,
-                            false, // all roots
+                            RTGC_ONLY(&adjust_cld_closure) NOT_RTGC(false), // all roots
                             &adjust_pointer_closure,
                             &adjust_cld_closure);
   }

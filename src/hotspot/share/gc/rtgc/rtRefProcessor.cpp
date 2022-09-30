@@ -645,7 +645,7 @@ void __process_final_phantom_references() {
     } else if (is_new_ref) {
       iter.adjust_referent_pointer();
     }
-    rtgc_log(UnlockExperimentalVMOptions || LOG_OPT(3), 
+    rtgc_log(UnlockExperimentalVMOptions, 
       "check phantom ref) %p(alive=%d) of %p -> %p\n", iter.ref(), is_alive, old_referent, iter.referent());
   } 
 
@@ -737,7 +737,7 @@ void __adjust_ref_q_pointers() {
       oopDesc* old_p = iter.referent();
       iter.adjust_ref_pointer();
       iter.adjust_referent_pointer();
-      rtgc_log(UnlockExperimentalVMOptions || LOG_OPT(3), 
+      rtgc_log(UnlockExperimentalVMOptions, 
         "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
     } 
   }

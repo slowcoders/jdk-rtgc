@@ -100,6 +100,7 @@ void ClassLoaderData::init_null_class_loader_data() {
   }
 }
 
+static const bool RTGC_WEAK_HOLDER = false;
 // Obtain and set the class loader's name within the ClassLoaderData so
 // it will be available for error messages, logging, JFR, etc.  The name
 // and klass are available after the class_loader oop is no longer alive,
@@ -192,6 +193,7 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
 OopHandle ClassLoaderData::ChunkedHandleList::add(RTGC_ONLY_ARG(bool scan_incremental) oop o) {
   Chunk* c;
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
+  scan_incremental |= !RTGC_WEAK_HOLDER;
   if (EnableRTGC && scan_incremental) { // RTGC_OPT_CLD_SCAN
     c = Atomic::load_acquire(&_tail);
     if (c == NULL || c->_size == Chunk::CAPACITY) {
@@ -402,7 +404,7 @@ void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
     clear_modified_oops();
   }
 
-  if (_has_class_mirror_holder) {
+  if (RTGC_WEAK_HOLDER && _has_class_mirror_holder) {
     _handles.oops_do(f);
     record_modified_oops();
   } else if (_handles.incremental_oops_do(f)) {
@@ -665,7 +667,8 @@ void ClassLoaderData::unload() {
   ClassLoaderDataGraph::adjust_saved_class(this);
 
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-  if (EnableRTGC && !_has_class_mirror_holder) {
+  if (false && EnableRTGC && (!RTGC_WEAK_HOLDER || !_has_class_mirror_holder)) {
+    rtgc_log(true, "release cld handles!!")
     HandleReleaseClosure handleRelease; 
     _handles.oops_do(&handleRelease);
   }

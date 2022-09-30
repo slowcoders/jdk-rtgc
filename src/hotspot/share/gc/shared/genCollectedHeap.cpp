@@ -845,68 +845,18 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   DEBUG_ONLY(ScavengableNMethods::asserted_non_scavengable_nmethods_do(&assert_code_is_non_scavengable));
 }
 
-#if INCLUDE_RTGC
-template<bool is_adjust_phase>
-class WeakCLDScanner : public CLDClosure, public OopClosure {
- public:
-  WeakCLDScanner() {}
-
-  void do_cld(ClassLoaderData* cld) {
-    cld->oops_do(this, ClassLoaderData::_claim_strong);
-  }
-
-  virtual void do_oop(oop* o) { do_oop_work(o); }
-  virtual void do_oop(narrowOop* o) { fatal("cld handle not compressed"); }
-
-  static void do_oop_work(oop* o) {
-    oop obj = *o;
-    if (obj == NULL) return;
-    if (!is_adjust_phase) {
-      rtHeap::release_jni_handle(obj);
-    } else if (rtHeap::is_alive(obj)) {
-      precond(obj->is_gc_marked());
-      rtHeap::lock_jni_handle(obj);
-      MarkSweep::adjust_pointer(o);
-    } else {
-      // assert(!obj->is_gc_marked(), "handle %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
-      oop new_obj = cast_to_oop(obj->mark().decode_pointer());
-      precond(new_obj == NULL);
-
-      assert(new_obj != NULL ||                      // is forwarding ptr?
-            obj->mark() == markWord::prototype() || // not gc marked?
-            RTGC_ONLY(RtLateClearGcMark ||)
-            (UseBiasedLocking && obj->mark().has_bias_pattern()),
-            // not gc marked?
-            "should be forwarded");
-    }
-  }
-};
-static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
-static WeakCLDScanner<true>  remark_weak_cld_rtgc_ref;
-#endif
 
 void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
                                           ScanningOption so,
-                                          bool only_strong_roots,
+                                          RTGC_ONLY(CLDClosure* weak_cld_closure) NOT_RTGC(bool only_strong_roots),
                                           OopClosure* root_closure,
                                           CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
-  CLDClosure* weak_cld_closure;
-#if INCLUDE_RTGC
-  if (false && EnableRTGC && ClassUnloading) {
-    if (is_adjust_phase) {
-      precond(!only_strong_roots);
-      weak_cld_closure = &remark_weak_cld_rtgc_ref;
-    } else if (only_strong_roots) {
-      weak_cld_closure = &release_weak_cld_rtgc_ref;
-    } else {
-      weak_cld_closure = cld_closure;    
-    }
-  } else
-#endif  
-  weak_cld_closure = only_strong_roots ? NULL : cld_closure;
-
+#if !INCLUDE_RTGC
+  CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
+#else 
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
+#endif  
 }
 
 #if INCLUDE_RTGC

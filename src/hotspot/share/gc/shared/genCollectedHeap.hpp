@@ -353,7 +353,7 @@ public:
  public:
   void full_process_roots(bool is_adjust_phase,
                           ScanningOption so,
-                          bool only_strong_roots,
+                          RTGC_ONLY(CLDClosure* weak_cld_closure) NOT_RTGC(bool only_strong_roots),
                           OopClosure* root_closure,
                           CLDClosure* cld_closure);
 
