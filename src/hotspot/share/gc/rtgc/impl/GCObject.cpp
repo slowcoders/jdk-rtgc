@@ -11,12 +11,19 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_GCNODE, function);
 }
 
+static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
+    assert(link != anchor ||
+        (rtHeap::in_full_gc && link->is_gc_marked() && 
+         link->forwardee() != NULL && (void*)link->forwardee() != anchor), 
+            "recursive link %p\n", link);
+}
+
 void GCObject::addReferrer(GCObject* referrer) {
     /**
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
-    precond(referrer != this);
+    assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
     if (!hasReferrer()) {
         precond(!hasMultiRef());
         this->_refs = _pointer2offset(referrer);

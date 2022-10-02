@@ -285,7 +285,6 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   }
 
   if (!is_full_gc) {
-    rtHeapEx::adjust_ref_q_pointers(is_full_gc);
     rtHeap__clearStack<false>();
   }
   rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d\n", 

@@ -522,6 +522,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   complete_gc->do_void();
   RefList::flush_penging_list();
   rtHeap__clear_garbage_young_roots(is_full_gc);
+  if (!is_full_gc) {
+    rtHeapEx::adjust_ref_q_pointers(false);
+  }
 #if DO_CROSS_CHECK_REF  
   rtHeap::DoCrossCheck = 1;
 #endif
@@ -705,20 +708,20 @@ void __adjust_ref_q_pointers() {
 #endif  
   SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef_NoReferentCheck : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
-  GCObject* old_ref;
-  for (RefIterator<is_full_gc> iter(g_softList); (old_ref = iter.next_ref(soft_weak_policy)) != NULL; ) {
+  for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
     // bool ref_alive = iter.ref()->is_gc_marked();
     // bool referent_alive = iter.referent()->is_gc_marked();
     iter.adjust_ref_pointer();
-    iter.adjust_referent_pointer();
-    // rtgc_log(LOG_OPT(3), "active soft ref %p->%p(%d) ==> %p->%p(%d)\n", 
-    //     old_ref, (void*)iter.ref(), ref_alive, 
-    //     (void*)iter.referent(), (void*)iter.referent()->forwardee(), referent_alive);
+    if (!is_full_gc) {
+      iter.adjust_referent_pointer();
+    }
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
     iter.adjust_ref_pointer();
-    iter.adjust_referent_pointer();
+    if (!is_full_gc) {
+      iter.adjust_referent_pointer();
+    }
   } 
 
   for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(NoGarbageCheck) != NULL; ) {
@@ -805,11 +808,13 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
           refType == REF_WEAK, (void*)ref, referent_p, ref->age());
       #if DO_CROSS_CHECK_REF
         HeapAccess<>::oop_store_at(ref, referent_offset, referent_p);
+        RTGC::lock_heap();
         if (refType == REF_WEAK) {
           g_weakList._refs->push_back(ref);
         } else {
           g_softList._refs->push_back(ref);
         }
+        RTGC::unlock_heap(true);
         return;
       #endif
       break;

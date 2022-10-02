@@ -97,7 +97,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  precond (p != base && p != debug_base);// return;
+  precond (p != debug_base);
 
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
