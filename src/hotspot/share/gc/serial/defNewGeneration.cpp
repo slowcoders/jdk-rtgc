@@ -583,11 +583,11 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::prepare_rtgc(false);
-    // zeedh "old heap 을 모두 trackable 로 등록한다. mark_survivor_reachable 없이!"
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-  } else 
+
+    rtHeap::prepare_rtgc(false);
+  } else
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
@@ -606,9 +606,8 @@ void DefNewGeneration::collect(bool   full,
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   YoungRootClosure        young_root_closure(this, &evacuate_followers);
   if (EnableRTGC) {
-    PromotedTrackableClosure* mark_old_trackable_closure =
-        reinterpret_cast<PromotedTrackableClosure*>(&younger_gen_closure);
-    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(mark_old_trackable_closure);
+    OldTrackableClosure old_closure(this, _old_gen);
+    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
   } else 
@@ -741,7 +740,7 @@ void DefNewGeneration::restore_preserved_marks() {
 void DefNewGeneration::handle_promotion_failure(oop old) {
   log_debug(gc, promotion)("Promotion failure size = %d) ", old->size());
 
-  rtgc_log(true, "Promotion failure size = %d\n", old->size());
+  assert(!RTGC::debugOptions[0], "Promotion failure size = %d\n", old->size());
   _promotion_failed = true;
   _promotion_failed_info.register_copy_failure(old->size());
   _preserved_marks_set.get()->push_if_necessary(old, old->mark());
@@ -778,7 +777,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
     }
 #ifdef INCLUDE_RTGC
     precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
-    rtHeap::mark_trackable(obj);
+    rtHeap::mark_promoted_trackable(obj);
 #endif
   } else {
     // Prefetch beyond obj

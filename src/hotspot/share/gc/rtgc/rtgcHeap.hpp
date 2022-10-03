@@ -39,8 +39,8 @@ public:
   static void finish_rtgc();
 
   // for younger object collection
-  static void add_promoted_trackable(oopDesc* new_p);
-  static void mark_trackable(oopDesc* new_p);
+  static void mark_promoted_trackable(oopDesc* new_p);
+  static void mark_tenured_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
   static void mark_survivor_reachable(oopDesc* tenured_p);
 

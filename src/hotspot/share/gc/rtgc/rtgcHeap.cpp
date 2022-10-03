@@ -178,16 +178,18 @@ bool rtHeap::ensure_weak_reachable(oopDesc* p) {
 }
 
 
-/**
- * @brief YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
- */
-void rtHeap::mark_trackable(oopDesc* new_p) {
-  // YG GC 수행 중, old-g로 옮겨진 객체들에 대하여 호출된다.
-  // 이미 객체가 복사된 상태이다.
-  precond (!to_obj(new_p)->isTrackable());
+void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
+  // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
+  precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
 }
 
+void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
+  // YG GC 수행 전에, old-heap 에 allocate 된 객체들을 marking 한다.
+  precond (!to_obj(new_p)->isTrackable());
+  to_obj(new_p)->markTrackable();
+  GCRuntime::detectUnsafeObject(to_obj(new_p));
+}
 
 static void resurrect_young_root(GCObject* node) {
   precond(node->isGarbageMarked());
@@ -209,6 +211,10 @@ static void resurrect_young_root(GCObject* node) {
   } else if (!node->isYoungRoot()) {
     rtHeap::add_young_root(cast_to_oop(node), cast_to_oop(node));
   }
+}
+
+void rtHeap__addRootStack_unsafe(GCObject* node) {
+  g_stack_roots.append(node);
 }
 
 void rtHeap__addResurrectedObject(GCObject* node) {
@@ -568,7 +574,7 @@ void GCNode::markGarbage(const char* reason)  {
 
 #ifdef ASSERT
 bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
-  if (node->isUnreachable() || node->getRootRefCount() > 1) return true;
+  if (!rtHeap::is_alive(cast_to_oop(node))) return true;
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
   while (ai.hasNext()) {

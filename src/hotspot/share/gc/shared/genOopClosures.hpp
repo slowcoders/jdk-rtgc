@@ -82,7 +82,7 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool do_mark_trackable> 
+template <bool do_mark_trackable, bool is_promoted=true> 
 class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<do_mark_trackable>> {
 private:
   Generation*  _old_gen;
@@ -113,7 +113,12 @@ class PromotedTrackableClosure : public ScanTrackableClosure<true> {
 public:  
   PromotedTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
+};
 
+class OldTrackableClosure : public ScanTrackableClosure<true, false> {
+public:  
+  OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true, false>(young_gen, old_gen) {}
 };
 
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {

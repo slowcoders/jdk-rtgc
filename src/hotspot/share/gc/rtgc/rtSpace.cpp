@@ -135,12 +135,10 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     // if (cntGarbage > 0) {
       heap = (HeapWord*)g_freeMemStore.recycle(word_size);
       if (heap != NULL) {
-      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
-          word_size, heap);
+        rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
+            word_size, heap);
         rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }
-      // RTGC::debug_obj2 = heap;
-    // }
   }
   else {
     RTGC::debug_obj2 = NULL;

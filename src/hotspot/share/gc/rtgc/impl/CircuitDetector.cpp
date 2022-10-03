@@ -186,6 +186,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
 }
 
 bool GarbageProcessor::hasUnsafeObjects() {
+    // rtgc_log(true, "unsafe %d, garbage %d\n", _unsafeObjects.size(), _visitedNodes.size());
     return _unsafeObjects.size() + _visitedNodes.size() > 0;
 }
 
@@ -289,7 +290,10 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 }
 
 
+bool g_lock_unsafe_buff = false;
+
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
+    precond(!g_lock_unsafe_buff);
     _unsafeObjects.push_back(obj);
 }
 
@@ -303,7 +307,7 @@ void GarbageProcessor::addUnstable(GCObject* obj) {
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());
     obj->markUnstable();
-    _unsafeObjects.push_back(obj);
+    addUnstable_ex(obj);
 }
 
 void GarbageProcessor::collectGarbage(bool isTenured) {
