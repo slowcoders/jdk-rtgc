@@ -81,19 +81,11 @@ template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
-  if (RtNoDiscoverPhantom && (!rtHeap::DoCrossCheck || type >= REF_FINAL)) {
-    T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
-    T heap_oop = RawAccess<>::oop_load(referent_addr);
-    if (!CompressedOops::is_null(heap_oop)) {
-      if (type < REF_FINAL) {
-        precond(!rtHeap::in_full_gc);
-        do_referent<T>(obj, closure, contains);
-        return;
-      } else if (type == REF_PHANTOM || 
-          rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
-        return;
-      }
-    }
+  if (RtNoDiscoverPhantom && !rtHeap::has_valid_discovered_reference(obj, type)) {
+    if (type < REF_FINAL) {
+      do_referent<T>(obj, closure, contains);
+    } 
+    return;
   } else
 #endif      
   if (try_discover<T>(obj, type, closure)) {
@@ -141,24 +133,11 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
       {
         ReferenceType type = reference_type();
-        if (EnableRTGC && (!rtHeap::DoCrossCheck || type >= REF_FINAL)) {
-          T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
-          T heap_oop = RawAccess<>::oop_load(referent_addr);
-          if (!CompressedOops::is_null(heap_oop)) {
-            if (type < REF_FINAL) {
-              do_referent<T>(obj, closure, contains);
-              break;
-            } 
-            else if (type == REF_PHANTOM || 
-                rtHeap::is_active_finalizer_reachable(CompressedOops::decode_not_null(heap_oop))) {
-              break;
-            }
-          }
-        } else {
-          precond(!EnableRTGC ||
-              NULL == java_lang_ref_Reference::unknown_referent_no_keepalive(obj) ||
-              rtHeap::is_alive(java_lang_ref_Reference::unknown_referent_no_keepalive(obj)) ||
-              !rtHeap::is_alive(obj));
+        if (RtNoDiscoverPhantom && !rtHeap::has_valid_discovered_reference(obj, type)) {
+          if (type < REF_FINAL) {
+            do_referent<T>(obj, closure, contains);
+          } 
+          break;
         }
       }
 #endif      

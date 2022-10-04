@@ -85,7 +85,8 @@ public class SymmetricRangeTests {
 
     private static void testOverflowInMakePositive() {
         System.out.println("Testing overflow in BigInteger.makePositive");
-        byte[] ba = new byte[Integer.MAX_VALUE - 2];
+        final boolean RTGC_TEST_PATCH = true;
+        byte[] ba = new byte[Integer.MAX_VALUE - (RTGC_TEST_PATCH ? 12 : 2)];
         ba[0] = (byte) 0x80;
         try {
             BigInteger actual = new BigInteger(ba);

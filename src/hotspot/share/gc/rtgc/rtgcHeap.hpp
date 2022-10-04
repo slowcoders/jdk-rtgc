@@ -57,14 +57,14 @@ public:
   // for jni
   static void lock_jni_handle(oopDesc* p);
   static void release_jni_handle(oopDesc* p);
-  static void mark_weak_reachable(oopDesc* new_p);
-  static void clear_weak_reachable(oopDesc* new_p);
-  static bool ensure_weak_reachable(oopDesc* new_p);
+  static void mark_weak_reachable(oopDesc* p);
+  static void clear_weak_reachable(oopDesc* p);
+  static bool ensure_weak_reachable(oopDesc* p);
 
   // for reference management
-  static void init_java_reference(oopDesc* ref_oop, oopDesc* referent);
-  static void link_discovered_pending_reference(oopDesc* ref_oop, oopDesc* discovered);
-  static bool is_active_finalizer_reachable(oopDesc* final_referent);
+  static bool has_valid_discovered_reference(oopDesc* ref, ReferenceType ref_type);
+  static void init_java_reference(oopDesc* ref, oopDesc* referent);
+  static void link_discovered_pending_reference(oopDesc* ref, oopDesc* discovered);
   static void process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy);
   static void process_final_phantom_references(bool is_tenure_gc);
 
