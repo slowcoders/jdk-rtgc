@@ -21,6 +21,21 @@
 # jdk/internal/reflect/CallerSensitive/CheckCSMs
 # jdk/java/math/BigInteger/largeMemory/SymmetricRangeTests
 
+# runtime/ErrorHandling/TestHeapDumpPath
+#  assert(Universe::is_in_heap(result)) failed: object not in heap 0x00000007fffffff8
+
+# runtime/HiddenClasses/GCHiddenClass
+#  assert(UseG1GC) failed: Only possible with a concurrent marking collector
+
+# runtime/modules/ClassLoaderNoUnnamedModuleTest
+#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
+
+# runtime/logging/RedefineClasses
+#  assert(Universe::is_in_heap(result)) failed: object not in heap 0x00000007fffffff8
+
+# gc/TestSoftReferencesBehaviorOnOOME
+#  assert(Universe::is_in_heap(result)) failed: object not in heap 0x00000007f8000000
+
 
 pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_math_BigInteger_largeMemory_SymmetricRangeTests_java/scratch/0 && \
 HOME=/Users/zeedh \

@@ -318,6 +318,17 @@ DefNewGeneration::collect() ...
 
 
 ==============================
+Test summary 2022 10/05
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1571    29    10 <<
+>> jtreg:test/jdk:tier1                               2062  2044     6    12 <<
+>> jtreg:test/langtools:tier1                         4215  4124     5    86 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+==============================
 Test summary 2022 07/20
 ==============================
 >> jtreg:test/hotspot/jtreg:tier1                     1610  1586    21     3 <<

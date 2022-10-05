@@ -1,0 +1,148 @@
+<!DOCTYPE HTML>
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+
+<title>JT Harness : Tests that failed</title>
+<link rel=stylesheet href="report.css" type="text/css">
+</head>
+<body>
+<h1>JT Harness : Tests that failed</h1>Tests are grouped by their final status message.
+<h4>Execution failed: `main' threw exception: java.lang.AssertionError: gtest execution failed; exit code = 2. the failed tests: [ObjectMonitor::sanity_vm, ObjectMonitor::sanity_vm, SynchronizerTest::sanity_vm, SynchronizerTest::sanity_vm, SynchronizerTest::sanity_vm]</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gtest/GTestWrapper.jtr">gtest/GTestWrapper.java</a>: a jtreg wrapper for gtest tests
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.Error: RunFinalizationTest failed</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/dcmd/gc/RunFinalizationTest.jtr">serviceability/dcmd/gc/RunFinalizationTest.java</a>: Test of diagnostic command GC.run_finalization
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.NumberFormatException: For input string: "34326183936[0.268s][info][gc] Cancelling GC: Stopping VM "</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id3.jtr">gc/arguments/TestUseCompressedOopsErgo.java#id3</a>:  
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: 'Concurrent String Deduplication' missing from stdout/stderr</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationAgeThreshold.jtr">gc/stringdedup/TestStringDeduplicationAgeThreshold.java</a>: Test string deduplication age threshold
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationFullGC.jtr">gc/stringdedup/TestStringDeduplicationFullGC.java</a>: Test string deduplication during full GC
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationTableResize.jtr">gc/stringdedup/TestStringDeduplicationTableResize.java</a>: Test string deduplication table resize
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationYoungGC.jtr">gc/stringdedup/TestStringDeduplicationYoungGC.java</a>: Test string deduplication during young GC
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: 'Skipping Remembered Set Rebuild.' missing from stdout/stderr</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/g1/TestSkipRebuildRemsetPhase.jtr">gc/g1/TestSkipRebuildRemsetPhase.java</a>: Skip Rebuild Remset Phase if the Remark pause does not identify any rebuild candidates.
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: 'fatal error: Synchronizing on object' missing from stdout/stderr</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Monitor/SyncOnValueBasedClassTest.jtr">runtime/Monitor/SyncOnValueBasedClassTest.java</a>: Exercise DiagnoseSyncOnValueBasedClasses diagnostic flag
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: Expected to get exit value of [0]</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/logging/TestPrintReferences.jtr">gc/logging/TestPrintReferences.java</a>: Validate the reference processing logging
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationInterned.jtr">gc/stringdedup/TestStringDeduplicationInterned.java</a>: Test string deduplication of interned strings
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/stringdedup/TestStringDeduplicationPrintOptions.jtr">gc/stringdedup/TestStringDeduplicationPrintOptions.java</a>: Test string deduplication print options
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Safepoint/TestAbortOnVMOperationTimeout.jtr">runtime/Safepoint/TestAbortOnVMOperationTimeout.java</a>: Check abort on VM timeout is working
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: Misplaced long field: expected 32 to equal 16</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/runtime/FieldLayout/OldLayoutCheck_id0.jtr">runtime/FieldLayout/OldLayoutCheck.java#id0</a>: -XX:-UseEmptySlotsInSupers sometime fails to reproduce the layout of the old code
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: No code cache segmentation.</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/codecache/CheckSegmentedCodeCache.jtr">compiler/codecache/CheckSegmentedCodeCache.java</a>: Checks VM options related to the segmented code cache
+</ul>
+
+<h4>Execution failed: `main' threw exception: java.lang.RuntimeException: Regions selected for rebuild. G1MixedGCLiveThresholdPercent=25 no regions should be selected: expected true to equal false</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/g1/TestMixedGCLiveThreshold.jtr">gc/g1/TestMixedGCLiveThreshold.java</a>: Test G1MixedGCLiveThresholdPercent.
+</ul>
+
+<h4>Unexpected exit from test [exit code: 134]</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestMetaspacePerfCounters_id0.jtr">gc/metaspace/TestMetaspacePerfCounters.java#id0</a>: Tests that performance counters for metaspace and compressed class space exists and works.
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/runtime/logging/RedefineClasses.jtr">runtime/logging/RedefineClasses.java</a>: Redefine classes with enabling logging to verify Klass:external_name() during GC.
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/dcmd/gc/HeapDumpCompressedTest_id0.jtr">serviceability/dcmd/gc/HeapDumpCompressedTest.java#id0</a>: Test of diagnostic command GC.heap_dump with gzipped output (Serial GC)
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/jvmti/RedefineClasses/RedefineDoubleDelete.jtr">serviceability/jvmti/RedefineClasses/RedefineDoubleDelete.java</a>: Redefine class with CFLH twice to test deleting the cached_class_file
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/jvmti/RedefineClasses/RedefineInterfaceMethods.jtr">serviceability/jvmti/RedefineClasses/RedefineInterfaceMethods.java</a>: Redefine private and default interface methods
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/jvmti/RedefineClasses/TestMultipleClasses.jtr">serviceability/jvmti/RedefineClasses/TestMultipleClasses.java</a>: Scalability problem with redefinition - multiple code cache walks
+</ul>
+
+<h4>Unexpected exit from test [exit code: 1]</h4>
+
+<ul>
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/arraycopy/TestCloneAccess.jtr">compiler/arraycopy/TestCloneAccess.java</a>: Test cloning with more than 8 (=ArrayCopyLoadStoreMaxElem) where loads are wrongly replaced by zero.
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/arraycopy/TestCloneAccessStressGCM.jtr">compiler/arraycopy/TestCloneAccessStressGCM.java</a>: Test cloning with more than 8 (=ArrayCopyLoadStoreMaxElem) fields with StressGCM
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/c2/TestJumpTable.jtr">compiler/c2/TestJumpTable.java</a>: Test jump table with key value that gets out of bounds after loop unrolling.
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/c2/TestReplaceEquivPhis.jtr">compiler/c2/TestReplaceEquivPhis.java</a>: Unexpected test result caused by C2 MergeMemNode::Ideal
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/c2/TestShiftRightAndAccumulate.jtr">compiler/c2/TestShiftRightAndAccumulate.java</a>: AArch64: Wrong code generated for shifting right and accumulating four unsigned short integers.
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/codegen/ClearArrayTest.jtr">compiler/codegen/ClearArrayTest.java</a>: Test for correct code generation by the JIT
+
+<li>
+<a href="../../../test-support/jtreg_test_hotspot_jtreg_tier1/compiler/codegen/TestCharVect2.jtr">compiler/codegen/TestCharVect2.java</a>: incorrect results of char vectors right shift operation
+</ul>
+<hr>
+<small>Report generated on Oct 5, 2022 3:02:25 PM
+<br>Using JT Harness 6.0 b14; built on January 22, 2022 at 12:00:00 AM KST with openjdk version "14.0.2" 2020-07-14</small></body></html>
