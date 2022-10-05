@@ -77,7 +77,7 @@ namespace RTGC {
       }
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, _referent_off, referent_p);
       if (!_enable_cross_check) {
-        *(int32_t*)((address)ref + _discovered_off) = -1;
+        //*(int32_t*)((address)ref + _discovered_off) = -1;
       }
     }
 
@@ -547,6 +547,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         // rtgc_log(LOG_OPT(3), "yg-reachable final referent %p\n", referent);
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
       }
+      ref->unmarkActiveFinalizer();
       iter.enqueue_curr_ref(false);
     } else {
       rtgc_log(LOG_OPT(3), "active final ref %p of %p(%s)\n", ref, referent, getClassName(referent));
@@ -560,8 +561,8 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     }
   }
   rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
-  complete_gc->do_void();
   RefList::flush_penging_list();
+  complete_gc->do_void();
   rtHeap__clear_garbage_young_roots(is_full_gc);
   if (!is_full_gc) {
     rtHeapEx::adjust_ref_q_pointers(false);
@@ -821,13 +822,25 @@ void rtHeap__assertNoUnsafeObjects() {
   precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
 }
 
-bool rtHeap::has_valid_discovered_reference(oopDesc* ref, ReferenceType type) {
+bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer* refDiscoverer) {
   precond(EnableRTGC);
-  if (type >= REF_FINAL) {
-    bool is_valid = *(int32_t*)((address)ref + RefList::_discovered_off) != -1;
-    return is_valid;
+  switch (type) {
+    case REF_PHANTOM: 
+      return true;
+    case REF_FINAL: 
+      return to_obj(ref)->isActiveFinalizer();
+    default:
+      if (refDiscoverer != NULL) {
+        oop referent = RefereceProcessor::load_referent(obj, type);
+        if (referent != NULL) {
+          if (!referent->is_gc_marked()) {
+            // Only try to discover if not yet marked.
+            return rd->discover_reference(obj, type);
+          }
+        }
+      }
+      return false;
   }
-  return true;
 }
 
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
@@ -841,6 +854,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       break;
 
     case REF_FINAL:
+      to_obj(ref)->markActiveFinalizer();
       to_obj(referent_p)->markActiveFinalizerReachable();
       g_finalList.register_ref(ref, referent_p);
       break;
