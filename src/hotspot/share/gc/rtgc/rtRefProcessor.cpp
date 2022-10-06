@@ -6,6 +6,7 @@
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "gc/serial/serialGcRefProcProxyTask.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
+#include "oops/instanceRefKlass.inline.hpp"
 
 using namespace rtHeapUtil;
 using namespace RTGC;
@@ -754,14 +755,14 @@ void __adjust_ref_q_pointers() {
     // bool referent_alive = iter.referent()->is_gc_marked();
     iter.adjust_ref_pointer();
     if (!is_full_gc) {
-      iter.adjust_referent_pointer();
+      // iter.adjust_referent_pointer();
     }
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
     iter.adjust_ref_pointer();
     if (!is_full_gc) {
-      iter.adjust_referent_pointer();
+      // iter.adjust_referent_pointer();
     }
   } 
 
@@ -771,18 +772,18 @@ void __adjust_ref_q_pointers() {
 
   if (is_full_gc) {
     rtgc_log(LOG_OPT(3), "g_finalList 2 %p\n", g_finalList._ref_q);
-    for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
+    for (RefIterator<is_full_gc> iter(g_finalList); iter.next_ref(NoReferentCheck) != NULL; ) {
       iter.adjust_ref_pointer();
-      iter.adjust_referent_pointer();
+      // iter.adjust_referent_pointer();
     } 
 
     rtgc_log(LOG_OPT(3), "g_phantomList 2 %p\n", g_phantomList._ref_q);
-    for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipNone) != NULL; ) {
-      oopDesc* old_p = iter.referent();
+    for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(NoReferentCheck) != NULL; ) {
+      // oopDesc* old_p = iter.referent();
       iter.adjust_ref_pointer();
-      iter.adjust_referent_pointer();
-      rtgc_log(LOG_OPT(5), 
-        "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
+      // iter.adjust_referent_pointer();
+      // rtgc_log(LOG_OPT(5), 
+      //   "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
     } 
   }
 }
@@ -831,11 +832,11 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
       return to_obj(ref)->isActiveFinalizer();
     default:
       if (refDiscoverer != NULL) {
-        oop referent = RefereceProcessor::load_referent(obj, type);
+        oop referent = load_referent(ref, type);
         if (referent != NULL) {
           if (!referent->is_gc_marked()) {
             // Only try to discover if not yet marked.
-            return rd->discover_reference(obj, type);
+            return refDiscoverer->discover_reference(ref, type);
           }
         }
       }

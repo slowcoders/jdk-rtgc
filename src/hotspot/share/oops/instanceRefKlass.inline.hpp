@@ -82,15 +82,16 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
   // Try to discover reference and return if it succeeds.
 #if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
   if (RtNoDiscoverPhantom && rtHeap::try_discover(obj, type, closure->ref_discoverer())) {
-    if (type < REF_FINAL) {
-      do_referent<T>(obj, closure, contains);
-    } 
+    // if (type < REF_FINAL) {
+    //   do_referent<T>(obj, closure, contains);
+    // } 
     return;
-  } else
-#endif      
+  }
+#else
   if (try_discover<T>(obj, type, closure)) {
     return;
   }
+#endif      
 
   // Treat referent and discovered as normal oops.
   do_referent<T>(obj, closure, contains);
