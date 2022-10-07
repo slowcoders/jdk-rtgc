@@ -64,7 +64,7 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool checkBrokenLink) {
     }
     if (hasSurvivalPath) {
         if (_visitedNodes.size() != trace_top) {
-            rtgc_log(LOG_OPT(14), "hasSurvivalPath %d\n", _visitedNodes.size());
+            // rtgc_log(LOG_OPT(14), "hasSurvivalPath %d\n", _visitedNodes.size());
             for (int i = _visitedNodes.size(); --i >= trace_top; ) {
                 GCObject* obj = (GCObject*)_visitedNodes.at(i);
                 obj->unmarkGarbage();
@@ -269,9 +269,6 @@ void GarbageProcessor::constructShortcut() {
             SafeShortcut::create(root, tail, cntNode);
             debug_only(cntShortcut++;)
         }
-    }
-    if (cntShortcut > 0) {
-        rtgc_log(LOG_OPT(14), "creat shortcur %d\n", cntShortcut);
     }
     // last anchor may not have safe-anchor
 }
