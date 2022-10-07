@@ -9,31 +9,51 @@
 </head>
 <body>
 <h1>JT Harness : Tests that failed</h1>Tests are grouped by their final status message.
-<h4>Execution failed: `main' threw exception: com.sun.jdi.VMDisconnectedException</h4>
-
-<ul>
-<li>
-<a href="../../../test-support/jtreg_test_jdk_tier1/com/sun/jdi/ReferrersTest.jtr">com/sun/jdi/ReferrersTest.java</a>: Add support for backtracking reference graph.
-</ul>
-
 <h4>Unexpected exit from test [exit code: 134]</h4>
 
 <ul>
 <li>
-<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/invoke/defineHiddenClass/BasicTest.jtr">java/lang/invoke/defineHiddenClass/BasicTest.java</a>:  
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/foreign/TestDowncall.jtr">java/foreign/TestDowncall.java</a>:  
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/foreign/TestResourceScope.jtr">java/foreign/TestResourceScope.java</a>:  
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/foreign/TestSegments.jtr">java/foreign/TestSegments.java</a>:  
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/ClassLoader/nativeLibrary/NativeLibraryTest.jtr">java/lang/ClassLoader/nativeLibrary/NativeLibraryTest.java</a>: verify if the native library is unloaded when the class loader is GC'ed
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/invoke/defineHiddenClass/UnloadingTest.jtr">java/lang/invoke/defineHiddenClass/UnloadingTest.java</a>: verify if the hidden class is unloaded when the class loader is GC'ed
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/ref/CleanerTest.jtr">java/lang/ref/CleanerTest.java</a>:  
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/ref/PhantomReferentClearing.jtr">java/lang/ref/PhantomReferentClearing.java</a>: Test that PhantomReferences are cleared when notified.
 
 <li>
 <a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/ref/ReachabilityFenceTest.jtr">java/lang/ref/ReachabilityFenceTest.java</a>: Tests if reachabilityFence is working
 
 <li>
-<a href="../../../test-support/jtreg_test_jdk_tier1/java/util/concurrent/Executors/AutoShutdown.jtr">java/util/concurrent/Executors/AutoShutdown.java</a>: Check for auto-shutdown and gc of singleThreadExecutors
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/lang/reflect/callerCache/ReflectionCallerCacheTest.jtr">java/lang/reflect/callerCache/ReflectionCallerCacheTest.java</a>: Test the caller class loader is not kept strongly reachable by reflection API
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/nio/Buffer/DirectBufferAllocTest.jtr">java/nio/Buffer/DirectBufferAllocTest.java</a>: DirectByteBuffer garbage creation can outpace reclamation
 
 <li>
 <a href="../../../test-support/jtreg_test_jdk_tier1/java/util/concurrent/tck/JSR166TestCase.jtr">java/util/concurrent/tck/JSR166TestCase.java</a>: JSR-166 tck tests, in a number of variations.
 
 <li>
-<a href="../../../test-support/jtreg_test_jdk_tier1/java/util/jar/JarFile/mrjar/MultiReleaseJarHttpProperties.jtr">java/util/jar/JarFile/mrjar/MultiReleaseJarHttpProperties.java</a>: Test the System properties for JarFile that support multi-release jar files
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/util/logging/Logger/bundleLeak/BundleTest.jtr">java/util/logging/Logger/bundleLeak/BundleTest.java</a>: This test verifies that the Logger cache does not keep a strong reference on dynamically loaded resource bundles
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/java/util/logging/TestLoggerBundleSync.jtr">java/util/logging/TestLoggerBundleSync.java</a>: Attempts to detect synchronization issues with getResourceBundle() and getResourceBundleName().
+
+<li>
+<a href="../../../test-support/jtreg_test_jdk_tier1/jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.jtr">jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java</a>:  
 </ul>
 <hr>
-<small>Report generated on Oct 5, 2022 4:41:18 PM
+<small>Report generated on Oct 7, 2022 4:26:45 PM
 <br>Using JT Harness 6.0 b14; built on January 22, 2022 at 12:00:00 AM KST with openjdk version "14.0.2" 2020-07-14</small></body></html>
