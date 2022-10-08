@@ -6,6 +6,7 @@
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "gc/serial/serialGcRefProcProxyTask.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
+#include "oops/instanceRefKlass.inline.hpp"
 
 using namespace rtHeapUtil;
 using namespace RTGC;
@@ -77,7 +78,7 @@ namespace RTGC {
       }
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, _referent_off, referent_p);
       if (!_enable_cross_check) {
-        *(int32_t*)((address)ref + _discovered_off) = -1;
+        //*(int32_t*)((address)ref + _discovered_off) = -1;
       }
     }
 
@@ -375,6 +376,10 @@ namespace RTGC {
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         referent->removeBrokenAnchors();
         enqueue_curr_ref(true);
+      } else if (is_full_gc || !referent->isTrackable()) {
+        assert(_referent_p->is_gc_marked(),
+            "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
+            referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
       }
     }
 
@@ -547,6 +552,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         // rtgc_log(LOG_OPT(3), "yg-reachable final referent %p\n", referent);
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
       }
+      ref->unmarkActiveFinalizer();
       iter.enqueue_curr_ref(false);
     } else {
       rtgc_log(LOG_OPT(3), "active final ref %p of %p(%s)\n", ref, referent, getClassName(referent));
@@ -559,12 +565,16 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       assert(referent->isActiveFinalizerReachable(), "must be ActiveFinalizerReachable %p\n", referent);
     }
   }
-  rtgc_log(LOG_OPT(3), "final q %p\n", g_finalList._ref_q);
-  complete_gc->do_void();
+  rtgc_log(LOG_OPT(2), "final q %p\n", g_finalList._ref_q);
   RefList::flush_penging_list();
+  rtgc_log(LOG_OPT(2), "final -2 %p\n", g_finalList._ref_q);
+  complete_gc->do_void();
+  rtgc_log(LOG_OPT(2), "final -3 %p\n", g_finalList._ref_q);
   rtHeap__clear_garbage_young_roots(is_full_gc);
+  rtgc_log(LOG_OPT(2), "final -4 %p\n", g_finalList._ref_q);
   if (!is_full_gc) {
     rtHeapEx::adjust_ref_q_pointers(false);
+    rtgc_log(LOG_OPT(2), "final -5 %p\n", g_finalList._ref_q);
   }
 #if DO_CROSS_CHECK_REF  
   rtHeap::DoCrossCheck = 1;
@@ -753,14 +763,14 @@ void __adjust_ref_q_pointers() {
     // bool referent_alive = iter.referent()->is_gc_marked();
     iter.adjust_ref_pointer();
     if (!is_full_gc) {
-      iter.adjust_referent_pointer();
+      // iter.adjust_referent_pointer();
     }
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
     iter.adjust_ref_pointer();
     if (!is_full_gc) {
-      iter.adjust_referent_pointer();
+      // iter.adjust_referent_pointer();
     }
   } 
 
@@ -777,11 +787,11 @@ void __adjust_ref_q_pointers() {
 
     rtgc_log(LOG_OPT(3), "g_phantomList 2 %p\n", g_phantomList._ref_q);
     for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipNone) != NULL; ) {
-      oopDesc* old_p = iter.referent();
+      // oopDesc* old_p = iter.referent();
       iter.adjust_ref_pointer();
       iter.adjust_referent_pointer();
-      rtgc_log(LOG_OPT(5), 
-        "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
+      // rtgc_log(LOG_OPT(5), 
+      //   "active phantom ref) %p of %p -> %p\n", iter.ref(), old_p, iter.referent());
     } 
   }
 }
@@ -821,13 +831,36 @@ void rtHeap__assertNoUnsafeObjects() {
   precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
 }
 
-bool rtHeap::has_valid_discovered_reference(oopDesc* ref, ReferenceType type) {
-  precond(EnableRTGC);
-  if (type >= REF_FINAL) {
-    bool is_valid = *(int32_t*)((address)ref + RefList::_discovered_off) != -1;
-    return is_valid;
+bool rtHeap::is_referent_reachable(oopDesc* ref, ReferenceType type) {
+  switch (type) {
+    case REF_PHANTOM: 
+      return false;
+    case REF_FINAL: 
+      return !to_obj(ref)->isActiveFinalizer();
+    default:
+      return true;
   }
-  return true;
+}
+
+bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer* refDiscoverer) {
+  precond(EnableRTGC);
+  switch (type) {
+    case REF_PHANTOM: 
+      return true;
+    case REF_FINAL: 
+      return to_obj(ref)->isActiveFinalizer();
+    default:
+      if (refDiscoverer != NULL) {
+        oop referent = load_referent(ref, type);
+        if (referent != NULL) {
+          if (!referent->is_gc_marked()) {
+            // Only try to discover if not yet marked.
+            return refDiscoverer->discover_reference(ref, type);
+          }
+        }
+      }
+      return false;
+  }
 }
 
 void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
@@ -841,6 +874,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       break;
 
     case REF_FINAL:
+      to_obj(ref)->markActiveFinalizer();
       to_obj(referent_p)->markActiveFinalizerReachable();
       g_finalList.register_ref(ref, referent_p);
       break;

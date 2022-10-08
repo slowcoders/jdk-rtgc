@@ -318,7 +318,7 @@ void RTGC::initialize() {
 
   if (UnlockExperimentalVMOptions) {
     // debugClassNames[0] = "java/util/HashMap$Node";
-    enableLog(LOG_SCANNER, 0);
+    enableLog(LOG_SCANNER, 14);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

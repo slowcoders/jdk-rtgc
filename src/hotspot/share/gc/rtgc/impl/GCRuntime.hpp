@@ -19,11 +19,8 @@ public:
 };
 
 class GarbageProcessor {
-	SimpleVector<LinkIterator> _traceStack;
-	GCObject* delete_q;
-
 public:
-	GarbageProcessor() : _traceStack(255) {
+	GarbageProcessor() {
 		delete_q = nullptr;
 	}
 
@@ -40,6 +37,8 @@ public:
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:
+	HugeArray<LinkIterator> _traceStack;
+	GCObject* delete_q;
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;
     HugeArray<AnchorIterator> _trackers;

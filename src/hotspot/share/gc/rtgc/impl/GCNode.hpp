@@ -94,6 +94,20 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
+	bool isActiveFinalizer() {
+		return _flags.rootRefCount & (1 << 23);
+	}
+
+	void unmarkActiveFinalizer() {
+		precond(isActiveFinalizer());
+		_flags.rootRefCount &= ~(1 << 23);
+	}
+
+	void markActiveFinalizer() {
+		precond(!isActiveFinalizer());
+		_flags.rootRefCount |= (1 << 23);
+	}
+
 	bool isActiveFinalizerReachable() {
 		return _flags.rootRefCount & 0x01;
 	}

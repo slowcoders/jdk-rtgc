@@ -1147,7 +1147,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       // Check assumption that an object is not potentially
       // discovered twice except by concurrent collectors that potentially
       // trace the same Reference object twice.
-      assert(UseG1GC, "Only possible with a concurrent marking collector");
+      assert(UseG1GC, "Only possible with a concurrent marking collector %p rt=%d\n", (void*)obj, rt);
       return true;
     }
   }
