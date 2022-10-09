@@ -405,6 +405,26 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
     return false;
 }
 
+bool GarbageProcessor::isStrongReachable(GCObject* node) {
+    if (node->isGarbageMarked()) {
+        // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
+        //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
+        return false;
+    }
+    precond(node->isTrackable());
+    node->unmarkUnstable();
+    if (node->getRootRefCount() > 1) {
+        return true;
+    }
+
+    scanSurvivalPath(node, true);
+    if (node->isGarbageMarked()) {
+        rtgc_debug_log(node, "garbage marked on %p\n", node);
+        return false;
+    }
+    return true;
+}
+
 bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
     GCObject* node = tail;
     if (node->isGarbageMarked()) {

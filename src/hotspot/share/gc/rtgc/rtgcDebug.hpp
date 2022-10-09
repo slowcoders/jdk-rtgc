@@ -3,7 +3,11 @@
 
 #include <stdio.h>
 
-#define RTGC_DEBUG true
+#ifdef ASSERT
+  extern bool RTGC_DEBUG;
+#else 
+  #define RTGC_DEBUG false
+#endif
 
 
 namespace RTGC {

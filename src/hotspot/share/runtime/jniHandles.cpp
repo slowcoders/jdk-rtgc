@@ -440,7 +440,7 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
     if ( freelist != NULL ) {
       while ( block->_next != NULL ) {
         block = block->_next;
-        RTGC_ONLY(precond(!EnableRTGC || thread == block->local_thread());)
+        //RTGC_ONLY(precond(!EnableRTGC || thread == block->local_thread());)
       }
       block->_next = freelist;
     }

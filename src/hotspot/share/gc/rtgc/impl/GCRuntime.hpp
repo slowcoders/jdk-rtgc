@@ -32,6 +32,7 @@ public:
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
 	bool detectGarbage(GCObject* node, bool checkBrokenLink);
+	bool isStrongReachable(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }

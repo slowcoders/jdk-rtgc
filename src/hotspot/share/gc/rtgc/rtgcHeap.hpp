@@ -14,7 +14,7 @@ class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
 class ReferencePolicy;
-class PromotedTrackableClosure;
+class RecycledTrackableClosure;
 class ReferenceDiscoverer;
 
 class RtYoungRootClosure {
@@ -46,7 +46,7 @@ public:
   static void mark_survivor_reachable(oopDesc* tenured_p);
 
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
-  static void oop_recycled_iterate(PromotedTrackableClosure* closure);
+  static void oop_recycled_iterate(RecycledTrackableClosure* closure);
 
   // for full gc
   static void mark_forwarded(oopDesc* p);

@@ -130,18 +130,17 @@ void ScanTrackableClosure<do_mark_trackable, is_promoted>::trackable_barrier(T* 
 
 template <bool do_mark_trackable, bool is_promoted> 
 void ScanTrackableClosure<do_mark_trackable, is_promoted>::do_iterate(oop obj) {
-  _trackable_anchor = obj;
-  _is_young_root = false;
   if (do_mark_trackable) {
-    precond(!rtHeap::is_trackable(obj));
     if (is_promoted) {
       rtHeap::mark_promoted_trackable(obj);
-    } else {
+    } else if (!rtHeap::is_trackable(obj)) {
       rtHeap::mark_tenured_trackable(obj);
     }
   } else {
     precond(rtHeap::is_trackable(obj));
-  }
+  }  
+  _trackable_anchor = obj;
+  _is_young_root = false;
   obj->oop_iterate(this);
   if (_is_young_root) {
     rtHeap::add_young_root(obj, obj);

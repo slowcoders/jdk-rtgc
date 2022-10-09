@@ -111,7 +111,7 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
-    rtHeap::oop_recycled_iterate(reinterpret_cast<PromotedTrackableClosure*>(&_scan_older));
+    rtHeap::oop_recycled_iterate(reinterpret_cast<RecycledTrackableClosure*>(&_scan_older));
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -606,15 +606,15 @@ void DefNewGeneration::collect(bool   full,
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   YoungRootClosure        young_root_closure(this, &evacuate_followers);
   if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
+        "save marks have not been newly set.");
     OldTrackableClosure old_closure(this, _old_gen);
     static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
-    assert(this->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
   } else 
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+        "save marks have not been newly set.");
   }
 
   {
@@ -740,7 +740,6 @@ void DefNewGeneration::restore_preserved_marks() {
 void DefNewGeneration::handle_promotion_failure(oop old) {
   log_debug(gc, promotion)("Promotion failure size = %d) ", old->size());
 
-  assert(!RTGC::debugOptions[0], "Promotion failure size = %d\n", old->size());
   _promotion_failed = true;
   _promotion_failed_info.register_copy_failure(old->size());
   _preserved_marks_set.get()->push_if_necessary(old, old->mark());

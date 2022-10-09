@@ -298,8 +298,8 @@ namespace RTGC {
           // 객체 복사가 되지 않은 상태.
         }
       } else if (!is_full_gc) {
-        precond(!RTGC::debugOptions[0] || to_obj(_curr_ref)->isTrackable());
-        return to_obj(_curr_ref)->isTrackable();
+        //precond(to_obj(_curr_ref)->isTrackable());
+        return true;//to_obj(_curr_ref)->isTrackable();
       } else {
         postcond(is_full_gc || to_obj(_curr_ref)->isTrackable());
       }

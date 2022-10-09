@@ -36,18 +36,17 @@
 # sh exec_test.sh gc/TestSoftReferencesBehaviorOnOOME
 #  assert(Universe::is_in_heap(result)) failed: object not in heap 0x00000007f8000000
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/gc/TestSoftReferencesBehaviorOnOOME.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
        -XX:+UnlockExperimentalVMOptions \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/tmp' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
@@ -55,18 +54,13 @@ CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/
         -Dtest.timeout.factor=4.0 \
         -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
         -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=gc/TestSoftReferencesBehaviorOnOOME.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/TestSoftReferencesBehaviorOnOOME.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/gc/TestSoftReferencesBehaviorOnOOME.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/gc/TestSoftReferencesBehaviorOnOOME.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/test/lib \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/gc/TestSoftReferencesBehaviorOnOOME.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/classes/0/test/lib \
-        -Dtest.modules=java.base/jdk.internal.misc \
-        --add-modules java.base \
-        --add-exports java.base/jdk.internal.misc=ALL-UNNAMED \
-        -XX:MaxRAMPercentage=6.25 \
-        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/tmp \
-        -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
-        -Xmx128m \
-        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_TestSoftReferencesBehaviorOnOOME_java/gc/TestSoftReferencesBehaviorOnOOME.d/main.0.jta 512 2k
+        -Dtest.name=runtime/Safepoint/TestAbortOnVMOperationTimeout.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint/TestAbortOnVMOperationTimeout.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib \
+        -Dtest.modules='java.base/jdk.internal.misc java.management' \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        TestAbortOnVMOperationTimeout

@@ -38,7 +38,7 @@ namespace RTGC {
     virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
     bool is_in_young(void* p) { return p < _old_gen_start; }
-    void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_java_reference) { 
+    void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p) { 
       _old_anchor_p = old_anchor_p; 
       _new_anchor_p = new_anchor_p; 
       _has_young_ref = false; 
@@ -507,16 +507,15 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 #endif
 
   oopDesc* new_anchor_p = NULL;
-  bool is_java_ref = false;
   if (!to_obj(old_p)->isTrackable()) {
-    oopDesc* p = old_p->forwardee();
-    if (p == NULL) p = old_p;
-    if (!g_adjust_pointer_closure.is_in_young(p)) {
+    oopDesc* new_p = old_p->forwardee();
+    if (new_p == NULL) new_p = old_p;
+    if (!g_adjust_pointer_closure.is_in_young(new_p)) {
       to_obj(old_p)->markTrackable();
       if (to_obj(old_p)->isUnreachable()) {
         mark_survivor_reachable(old_p);
       }
-      new_anchor_p = p;
+      new_anchor_p = new_p;
     }
   } else {
     assert(!to_obj(old_p)->isUnreachable(), "unreachable trackable %p(%s)\n", 
@@ -524,7 +523,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
 
   rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
-  g_adjust_pointer_closure.init(old_p, new_anchor_p, is_java_ref);
+  g_adjust_pointer_closure.init(old_p, new_anchor_p);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
   bool is_young_root = g_adjust_pointer_closure._has_young_ref && to_obj(old_p)->isTrackable();
@@ -724,7 +723,7 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
 //   return left_size - right_size;
 // }
 
-void rtHeap::oop_recycled_iterate(PromotedTrackableClosure* closure) {
+void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
   for (int idx = g_resurrected_top; idx < g_stack_roots.length(); idx++) {
     GCObject* node = g_stack_roots.at(idx);
     if (!node->isTrackable()) {

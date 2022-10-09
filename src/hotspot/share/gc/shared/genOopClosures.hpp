@@ -109,9 +109,9 @@ public:
     : ScanTrackableClosure<false>(young_gen, old_gen) {}
 };
 
-class PromotedTrackableClosure : public ScanTrackableClosure<true> {
+class RecycledTrackableClosure : public ScanTrackableClosure<true> {
 public:  
-  PromotedTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+  RecycledTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 

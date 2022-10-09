@@ -199,19 +199,19 @@ void GenMarkSweep::deallocate_stacks() {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
-  bool _is_young_ref;
+  bool _is_young_root;
 public:
   
   bool iterate_tenured_young_root_oop(oop obj) {
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;
     }
-    _is_young_ref = false;
+    _is_young_root = false;
     oop old_anchor = _current_anchor;
     _current_anchor = obj;
     obj->oop_iterate(this);
     _current_anchor = old_anchor;
-    return _is_young_ref;
+    return _is_young_root;
   }
 
   void do_complete() {
@@ -224,7 +224,7 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {
-        _is_young_ref = true;
+        _is_young_root = true;
       } else if (!rtHeap::DoCrossCheck) {
         return;
       }

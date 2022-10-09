@@ -286,13 +286,16 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   
   if (RTGC::debug_obj == old_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_obj moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
   }
   else if (is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
   } 
 }
 
+#ifdef ASSERT
+bool RTGC_DEBUG = false;
+#endif
 
 void RTGC::initialize() {
 #ifdef _LP64
@@ -303,6 +306,9 @@ void RTGC::initialize() {
 
   RTGC::_rtgc.initialize();
   RTGC::debug_obj = (void*)-1;
+#ifdef ASSERT
+  RTGC_DEBUG |= UnlockExperimentalVMOptions;
+#endif
   RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
   // UnlockExperimentalVMOptions = true;
