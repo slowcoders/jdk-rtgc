@@ -40,7 +40,7 @@
 
 extern int cnt_rtgc_referent_mark;
 inline int __break__(oop obj) {
-  rtgc_log(true, "referent marked %p tr=%d\n", (void*)obj, rtHeap::is_trackable(obj));
+  rtgc_log(1, "referent marked %p tr=%d\n", (void*)obj, rtHeap::is_trackable(obj));
   fatal("__break__");
   return 0;
 }

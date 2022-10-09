@@ -668,7 +668,7 @@ void ClassLoaderData::unload() {
 
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   if (false && EnableRTGC && (!RTGC_WEAK_HOLDER || !_has_class_mirror_holder)) {
-    rtgc_log(true, "release cld handles!!")
+    rtgc_log(1, "release cld handles!!")
     HandleReleaseClosure handleRelease; 
     _handles.oops_do(&handleRelease);
   }
