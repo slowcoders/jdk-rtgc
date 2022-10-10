@@ -120,7 +120,7 @@ namespace RTGC {
       }
       link_pending_reference(g_pending_tail, enqueued_top_np);
   #ifdef ASSERT
-      for (oop ref_p = g_pending_head; ref_p != enqueued_top_np; ref_p = RawAccess<>::oop_load_at(ref_p, RefList::_discovered_off)) {
+      for (oop ref_p = g_pending_head; ref_p != NULL; ref_p = RawAccess<>::oop_load_at(ref_p, RefList::_discovered_off)) {
         oop r = RawAccess<>::oop_load_at(ref_p, RefList::_referent_off);
         // rtgc_log(LOG_OPT(3), "ref %p(%s) %p", (void*)ref_p, getClassName(to_obj(ref_p)), (void*)r);
         assert(r == NULL || InstanceKlass::cast(ref_p->klass())->reference_type() == REF_FINAL, "ref %p(%s)", (void*)ref_p, getClassName(to_obj(ref_p)));
@@ -332,6 +332,7 @@ namespace RTGC {
         g_enqued_referents.push_back(ref_p);
         return;
       }
+      rtgc_log(LOG_OPT(3), "enqueue_pending_ref %p %d\n", (void*)ref_p, _refList.ref_type());
       RefList::enqueue_pending_ref(ref_p);
     }
 
@@ -845,13 +846,19 @@ bool rtHeap::is_referent_reachable(oopDesc* ref, ReferenceType type) {
 bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer* refDiscoverer) {
   precond(EnableRTGC);
   switch (type) {
-    case REF_PHANTOM: 
-      return true;
+    case REF_PHANTOM: {
+      // GC 두 번 이상 수행한 이후에 Reference.getAndClearReferencePendingList() 가 호출되는 경우가 있다.
+      // 이 때, Universe::reference_pending_list 에 대한 marking 및 pointer adjust 처리를 위해
+      // referent 에 대한 검사가 필요하다.
+      oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
+      return referent != NULL;
+    }
     case REF_FINAL: 
       return to_obj(ref)->isActiveFinalizer();
     default:
       if (refDiscoverer != NULL) {
-        oop referent = load_referent(ref, type);
+        oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
+
         if (referent != NULL) {
           if (!referent->is_gc_marked()) {
             // Only try to discover if not yet marked.
