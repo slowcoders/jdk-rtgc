@@ -78,8 +78,10 @@ namespace RTGC {
           if (head == Atomic::cmpxchg(&_ref_q, head, ref)) break;
         }
       }
-      precond ((oop)referent_p == RawAccess<>::oop_load_at(ref, _referent_off));
-      precond (!to_obj(ref)->isTrackable());
+      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, _referent_off, referent_p);
+      if (!_enable_cross_check) {
+        //*(int32_t*)((address)ref + _discovered_off) = -1;
+      }
     }
 
     static bool link_pending_reference(oop anchor, oop link) {
