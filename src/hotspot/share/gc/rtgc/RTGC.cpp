@@ -252,6 +252,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
+  if (ptr == debug_obj2) return true;
   // if (ptr < (void*)0x203990310) return true;
   // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
 
@@ -288,9 +289,16 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
   }
+  else if (RTGC::debug_obj2 == old_p) {
+    RTGC::debug_obj2 = new_p;
+    rtgc_log(1, "debug_obj2 moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
+  }
   else if (is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
   } 
+  else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
+    rtgc_log(1, "debug_ref moved %p -> %p\n", old_p, new_p);
+  }
 }
 
 #ifdef ASSERT
@@ -305,25 +313,24 @@ void RTGC::initialize() {
 #endif
 
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)-1;
-#ifdef ASSERT
-  RTGC_DEBUG |= UnlockExperimentalVMOptions;
-#endif
-  RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  // UnlockExperimentalVMOptions = true;
-  if (UnlockExperimentalVMOptions) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+
+  // ??? 삭제할 것.
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
   logOptions[0] = -1;
-  debugOptions[0] = UnlockExperimentalVMOptions;
 
   // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
-  debugClassNames[0] = AbortVMOnExceptionMessage;
+#ifdef ASSERT
+  RTGC_DEBUG |= UnlockExperimentalVMOptions;
+#endif
 
-  if (UnlockExperimentalVMOptions) {
-    // debugClassNames[0] = "java/util/HashMap$Node";
+  if (RTGC_DEBUG) {
+    LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+    debugClassNames[0] = AbortVMOnExceptionMessage;
+    debugOptions[0] = 1;
+
     enableLog(LOG_SCANNER, 14);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

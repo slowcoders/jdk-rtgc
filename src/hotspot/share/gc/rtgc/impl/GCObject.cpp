@@ -48,8 +48,8 @@ void GCObject::addReferrer(GCObject* referrer) {
     }
 }
 
-
-int GCObject::removeReferrer(GCObject* referrer) {
+template <bool reallocReferrerList>
+int GCObject::removeReferrer_impl(GCObject* referrer) {
     precond(referrer != this);
     assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
@@ -83,7 +83,7 @@ int GCObject::removeReferrer(GCObject* referrer) {
         }
 #endif        
         precond(idx >= 0);
-        if (referrers->size() == 2) {
+        if (reallocReferrerList && referrers->size() == 2) {
             GCObject* remained = referrers->at(1 - idx);
             _rtgc.gRefListPool.delete_(referrers);
             this->_refs = _pointer2offset(remained);
@@ -105,6 +105,14 @@ int GCObject::removeReferrer(GCObject* referrer) {
     }
 
     return 0;
+}
+
+int GCObject::removeReferrer(GCObject* referrer) {
+    return removeReferrer_impl<true>(referrer);
+}
+
+int GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
+    return removeReferrer_impl<false>(referrer);
 }
 
 int GCObject::tryRemoveReferrer(GCObject* referrer) {
@@ -162,12 +170,26 @@ bool GCObject::containsReferrer(GCObject* referrer) {
 void GCObject::clearAnchorList() {
     rtgc_debug_log(this, "all anchor removed from %p isMulti=%d tr=%d rc=%d\n",
         this, hasMultiRef(), isTrackable(), getRootRefCount());
+    precond(!this->hasShortcut());
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
         _rtgc.gRefListPool.delete_(referrers);
         setHasMultiRef(false);
     }    
     this->_refs = 0;
+}
+
+bool GCObject::clearEmptyAnchorList() {
+    if (hasMultiRef()) {
+        ReferrerList* referrers = getReferrerList();
+        if (referrers->size() == 0) {
+            precond(!this->hasShortcut());
+            _rtgc.gRefListPool.delete_(referrers);
+            setHasMultiRef(false);
+            this->_refs = 0;
+        }
+    }    
+    return this->_refs == 0;
 }
 
 void GCObject::removeAllAnchors() {

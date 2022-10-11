@@ -90,9 +90,13 @@ public:
 
 	int removeReferrer(GCObject* referrer);
 
+	int removeReferrerWithoutReallocaton(GCObject* referrer);
+
 	int tryRemoveReferrer(GCObject* referrer);
 
 	void clearAnchorList();
+
+	bool clearEmptyAnchorList();
 
 	void removeAllAnchors();
 
@@ -100,6 +104,9 @@ public:
 
 	void removeBrokenAnchors();
 
+private:
+	template <bool reallocReferrerList> 
+	int removeReferrer_impl(GCObject* referrer);
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;

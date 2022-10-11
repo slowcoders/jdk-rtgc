@@ -28,6 +28,8 @@ static int g_cntGarbageRef = 0;
 static int g_cntCleanRef = 0;
 static HugeArray<oop> g_enqued_referents;
 static const bool USE_REF_ARRAY = true;
+static const bool REMOVE_REF_TEMPORARY = true;
+static const bool CLEAR_FINALIZE_REF = false;
 #endif
 
 namespace RTGC {
@@ -76,10 +78,8 @@ namespace RTGC {
           if (head == Atomic::cmpxchg(&_ref_q, head, ref)) break;
         }
       }
-      HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref, _referent_off, referent_p);
-      if (!_enable_cross_check) {
-        //*(int32_t*)((address)ref + _discovered_off) = -1;
-      }
+      precond ((oop)referent_p == RawAccess<>::oop_load_at(ref, _referent_off));
+      precond (!to_obj(ref)->isTrackable());
     }
 
     static bool link_pending_reference(oop anchor, oop link) {
@@ -340,9 +340,9 @@ namespace RTGC {
       if (do_clear_discovered) {
         clear_discovered();
       }
+      rtgc_log(_refList.ref_type() == REF_SOFT, "remove ref %d %p\n", _refList.ref_type(), (void*)_curr_ref);
       if (USE_REF_ARRAY) {
         _refList._refs.removeFast(_idx);
-        rtgc_log(false, "remove ref %p %d/%d\n", (void*)_curr_ref, _idx, _refList._refs.size());
       } else {
         if (_prev_ref_op == NULL) {
           _refList._ref_q = _next_ref;
@@ -357,30 +357,54 @@ namespace RTGC {
     void break_weak_soft_link() {
       GCObject* ref = to_obj(_curr_ref);
       GCObject* referent = to_obj(this->_referent_p);
-      if (referent->hasShortcut() && referent->getSafeAnchor() == ref) {
+      if (REMOVE_REF_TEMPORARY) {
+        if (ref->isTrackable()) {
+          referent->removeReferrerWithoutReallocaton(ref);
+        }
+      } else if (referent->hasShortcut() && referent->getSafeAnchor() == ref) {
         referent->getShortcut()->split(ref, referent);
       }
     } 
 
     void clear_weak_soft_garbage_referent() {
       GCObject* referent = to_obj(_referent_p);
+      bool is_alive;
       if (referent->isTrackable()) {
-        _rtgc.g_pGarbageProcessor->detectGarbage(referent, true);
+        is_alive = referent->isStrongRootReachable();
+        if (!is_alive) {
+          if (referent->isActiveFinalizerReachable()) {
+            is_alive = !referent->clearEmptyAnchorList();
+          } else {
+            is_alive = !_rtgc.g_pGarbageProcessor->detectGarbage(referent, !REMOVE_REF_TEMPORARY);
+          }
+        }
+      } else {
+        is_alive = _referent_p->is_gc_marked();
+        if (!is_alive) referent->clearAnchorList();
       }
-      rtgc_log(LOG_OPT(3),
-          "referent<%d> %p(%s) alive=%d, tr=%d gm=%d refT=%d multi=%d\n", 
-          _refList.ref_type(), referent, RTGC::getClassName(referent), rtHeap::is_alive(_referent_p),
+
+      rtgc_log(true || LOG_OPT(3),
+          "ref %p of <%d> %p(%s) alive=%d, tr=%d gm=%d refT=%d multi=%d\n", 
+          (void*)_curr_ref, _refList.ref_type(), referent, RTGC::getClassName(referent), is_alive,
           referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
-      if (!rtHeap::is_alive(_referent_p)) {
+
+      if (!is_alive) {
         assert(!_referent_p->is_gc_marked(),
             "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
-        referent->removeBrokenAnchors();
         enqueue_curr_ref(true);
-      } else if (is_full_gc || !referent->isTrackable()) {
-        assert(_referent_p->is_gc_marked(),
-            "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
-            referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
+      } else {
+        if (is_full_gc || !referent->isTrackable()) {
+          assert(_referent_p->is_gc_marked(),
+              "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
+              referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
+        }
+        if (REMOVE_REF_TEMPORARY) {
+          GCObject* ref = to_obj(_curr_ref);
+          if (ref->isTrackable()) {
+            referent->addReferrer(ref);
+          }
+        }
       }
     }
 
@@ -495,7 +519,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     GCObject* referent = to_obj(iter.referent());
     bool is_new_ref = true;
     if (is_full_gc) {
-      if (referent->isTrackable()) {
+      if (CLEAR_FINALIZE_REF && referent->isTrackable()) {
         _rtgc.g_pGarbageProcessor->detectGarbage(referent, false);
       }
     } else {
@@ -507,7 +531,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     bool is_gc_marked;
     if (rtHeap::DoCrossCheck && is_full_gc) { 
       is_gc_marked = cast_to_oop(referent)->is_gc_marked();
-      assert(!referent->isTrackable() || is_gc_marked == (!referent->isGarbageMarked() && referent->isStrongReachable()), 
+      precond(CLEAR_FINALIZE_REF || !referent->isGarbageMarked());
+      assert(!referent->isTrackable() || 
+            is_gc_marked == (!referent->isGarbageMarked() && referent->isStrongReachable()), 
           "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d hasReferer=%d garbage=%d ghost=%d\n", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
           referent->isUnstableMarked(), 
@@ -521,13 +547,17 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         if (is_full_gc && rtHeap::DoCrossCheck) {
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
         }
-        referent->unmarkGarbage();
-        referent->unmarkDirtyReferrerPoints();
-        keep_alive->do_oop((T*)iter.referent_addr());
+        if (!referent->isTrackable() || (rtHeap::DoCrossCheck && is_full_gc)) {
+          referent->unmarkDirtyReferrerPoints();
+          keep_alive->do_oop((T*)iter.referent_addr());
+        }
       }
       GCObject* old_referent = referent;
       if (is_full_gc) {
         postcond(referent == (void*)iter.get_raw_referent());
+        if (!CLEAR_FINALIZE_REF) {
+          referent->unmarkActiveFinalizerReachable();
+        }
       } else {
         referent = to_obj(iter.get_raw_referent());
         referent->unmarkActiveFinalizerReachable();
@@ -559,7 +589,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       rtgc_log(LOG_OPT(3), "active final ref %p of %p(%s)\n", ref, referent, getClassName(referent));
       if (is_full_gc) {
         // remark!
-        referent->markActiveFinalizerReachable();
+        if (CLEAR_FINALIZE_REF) referent->markActiveFinalizerReachable();
       } else if (is_new_ref) {
         iter.adjust_referent_pointer();
       }
@@ -584,6 +614,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
 }
 
 void rtHeapEx::clear_finalizer_reachables() {
+  if (!CLEAR_FINALIZE_REF) return;
   GCObject* ref;
   for (RefIterator<true> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     to_obj(iter.referent())->unmarkActiveFinalizerReachable();
@@ -758,14 +789,16 @@ void __adjust_ref_q_pointers() {
   // __check_garbage_referents();
 #endif  
   SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef_NoReferentCheck : SkipInvalidRef;
-  rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
+  rtgc_log(true || LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
-    // bool ref_alive = iter.ref()->is_gc_marked();
+    oopDesc* old_p = iter.ref();
     // bool referent_alive = iter.referent()->is_gc_marked();
     iter.adjust_ref_pointer();
     if (!is_full_gc) {
       // iter.adjust_referent_pointer();
     }
+    rtgc_log(LOG_OPT(5), 
+       "active soft ref) %p -> %p\n", old_p, iter.ref());
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
@@ -878,13 +911,13 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   switch (refType) {
     case REF_PHANTOM:
       g_phantomList.register_ref(ref, referent_p);
-      break;
+      return;
 
     case REF_FINAL:
       to_obj(ref)->markActiveFinalizer();
       to_obj(referent_p)->markActiveFinalizerReachable();
       g_finalList.register_ref(ref, referent_p);
-      break;
+      return;
 
     case REF_WEAK:
       ref->set_mark(ref->mark().set_age(markWord::max_age));
@@ -893,6 +926,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     
     case REF_SOFT:
       // TODO -> age 변경 시점을 늦춘다(?).
+      // rtgc_log(true, "soft ref created %p\n", ref);
       ref->set_mark(ref->mark().set_age(markWord::max_age));
       g_softList.register_ref(ref, referent_p);
       break;
@@ -901,7 +935,18 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       fatal("should not reach here.");
   }
 
-  // 참고) 생성 도중 full-gc 가 발생한 경우, ref 가 trackble 상태일 수 있다.
+  GCObject* ref_node = to_obj(ref);
+  if (ref_node->isTrackable()) {
+    // 참고) JNI 함수 호출 도중에 GC가 발생한 경우, ref 가 trackble 상태일 수 있다.
+    rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
+    RTGC::debug_obj = ref;
+    RTGC::debug_obj2 = referent_p;
+    RTGC::lock_heap();
+    RTGC::add_referrer_ex(referent_p, ref, true);
+    RTGC::unlock_heap(true);
+    // to_obj(referent_p)->addReferrer(ref_node);
+  }
+
   return;
 }
 

@@ -379,6 +379,7 @@ void GarbageProcessor::validateGarbageList() {
 
 
 bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
+    checkBrokenLink = false;
     if (node->isGarbageMarked()) {
         // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
         //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));

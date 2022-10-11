@@ -576,6 +576,9 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
   if (!rtHeap::is_alive(cast_to_oop(node))) return true;
   const int discovered_off = java_lang_ref_Reference::discovered_offset();
   AnchorIterator ai(node);
+  if (!ai.hasNext()) {
+    rtgc_log(1, "no anchors for %p\n", node);
+  }
   while (ai.hasNext()) {
     if (node->hasSafeAnchor()) {
       GCObject* anchor = node->getSafeAnchor();

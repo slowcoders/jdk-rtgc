@@ -140,9 +140,6 @@ HeapWord* RtSpace::allocate(size_t word_size) {
         rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }
   }
-  else {
-    RTGC::debug_obj2 = NULL;
-  }
   return heap;
 }
 
