@@ -31,8 +31,8 @@ public:
 	template <bool scanUnstableOnly>
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
-	bool detectGarbage(GCObject* node, bool checkBrokenLink);
-	bool isStrongReachable(GCObject* node);
+	bool detectGarbage(GCObject* node);
+	bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
@@ -45,9 +45,9 @@ private:
     HugeArray<AnchorIterator> _trackers;
     SafeShortcut* reachableShortcurQ;
 
-	template<bool checkBrokenLink>
+	template<bool scanStrongPathOnly>
     bool findSurvivalPath(ShortOOP& tail);
-    bool scanSurvivalPath(GCObject* tail, bool checkBrokenLink);
+    bool scanSurvivalPath(GCObject* tail, bool scanStrongPathOnly);
     void constructShortcut();
     void clearReachableShortcutMarks();
 

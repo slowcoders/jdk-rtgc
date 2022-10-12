@@ -51,13 +51,13 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 #endif
 }
 
-bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool checkBrokenLink) {
+bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly) {
     ShortOOP tail = node;
     precond(EnableRTGC);
     precond(node->isTrackable());
     int trace_top = _visitedNodes.size();
     bool hasSurvivalPath;
-    if (checkBrokenLink) {
+    if (scanStrongPathOnly) {
       hasSurvivalPath = findSurvivalPath<true>(tail);
     } else {
       hasSurvivalPath = findSurvivalPath<false>(tail);
@@ -95,7 +95,7 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool checkBrokenLink) {
     return hasSurvivalPath;
 }
 
-template<bool checkBrokenLink>
+template<bool scanStrongPathOnly>
 bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
     AnchorIterator* it = _trackers.push_empty();
     it->initSingleIterator(&tail);
@@ -108,7 +108,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             GCObject* top = it->peekPrev();
             rtgc_log(LOG_OPT(7), "SurvivalPath pop %p[%d]\n", 
                 top, _trackers.size());
-            if (!top->isGarbageMarked()) {//} && (checkBrokenLink || !top->isDirtyReferrerPoints())) {
+            if (!top->isGarbageMarked()) {//} && (scanStrongPathOnly || !top->isDirtyReferrerPoints())) {
                 /** 
                  * L:SHRINK_ANCHOR 에 의해서 top 이 속한 부분이 shortcut 에서 제외된 경우,
                  * 1) top 역시 garbage marking 되거나, 
@@ -141,16 +141,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             continue;
         }
 
-        if (checkBrokenLink && R->isDirtyReferrerPoints() && _trackers.size() >= 2) {
-            // -1 이 현재, -2가 referent 의 위치.
-            GCObject* referent = _trackers.at(_trackers.size() - 2).peekPrev();
-            if (RuntimeHeap::is_broken_link(R, referent)) {
-                rtgc_log(LOG_OPT(7), "pass Broken Link %p[%d] -> %p\n", R, _trackers.size(), referent);
-                continue;
-            }
-        }
-
-        if (R->getRootRefCount() > ZERO_ROOT_REF) {
+        if (R->getRootRefCount() > (scanStrongPathOnly ? 1 : 0)) {
             rtgc_log(LOG_OPT(7), "SurvivalPath found %p[%d]\n", R, _trackers.size());
             return true;
         }
@@ -328,7 +319,7 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
         for (; ppNode < end; ppNode ++) {
             GCObject* node = *ppNode;
             if (!node->hasSafeAnchor()) {
-                bool isGarbage = detectGarbage(node, false);
+                bool isGarbage = detectGarbage(node);
             } else {
                 node->unmarkUnstable();
             }
@@ -378,27 +369,24 @@ void GarbageProcessor::validateGarbageList() {
 }
 
 
-bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
-    checkBrokenLink = false;
+bool GarbageProcessor::detectGarbage(GCObject* node) {
     if (node->isGarbageMarked()) {
         // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
         //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
         return true;
     }
     precond(node->isTrackable());
-    if (!checkBrokenLink) {
-        if (node->isUnreachable()) {
-            node->markGarbage("collectGarbage");
-            _visitedNodes.push_back(node);
-            return true;
-        }
+    if (node->isUnreachable()) {
+        node->markGarbage("collectGarbage");
+        _visitedNodes.push_back(node);
+        return true;
     }
     node->unmarkUnstable();
     if (node->getRootRefCount() > 0) {
         return false;
     }
 
-    scanSurvivalPath(node, checkBrokenLink);
+    scanSurvivalPath(node, false);
     if (node->isGarbageMarked()) {
         rtgc_debug_log(node, "garbage marked on %p\n", node);
         return true;
@@ -406,7 +394,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node, bool checkBrokenLink) {
     return false;
 }
 
-bool GarbageProcessor::isStrongReachable(GCObject* node) {
+bool GarbageProcessor::resolveStrongSurvivalPath(GCObject* node) {
     if (node->isGarbageMarked()) {
         // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
         //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
@@ -414,13 +402,19 @@ bool GarbageProcessor::isStrongReachable(GCObject* node) {
     }
     precond(node->isTrackable());
     node->unmarkUnstable();
-    if (node->getRootRefCount() > 1) {
+    if (node->isStrongRootReachable()) {
         return true;
     }
 
-    scanSurvivalPath(node, true);
-    if (node->isGarbageMarked()) {
-        rtgc_debug_log(node, "garbage marked on %p\n", node);
+    int trace_top = _visitedNodes.size();
+    if (!scanSurvivalPath(node, true)) {
+        if (_visitedNodes.size() != trace_top) {
+            for (int i = _visitedNodes.size(); --i >= trace_top; ) {
+                GCObject* obj = (GCObject*)_visitedNodes.at(i);
+                obj->unmarkGarbage();
+            }
+            _visitedNodes.resize(trace_top);
+        }
         return false;
     }
     return true;

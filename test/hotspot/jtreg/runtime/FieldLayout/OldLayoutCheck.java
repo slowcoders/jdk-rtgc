@@ -56,10 +56,11 @@ public class OldLayoutCheck {
         public int i;
     }
 
+    static final int RTGC_64_DELTA = 16;
     // 32-bit VMs: @0:  8 byte header,  @8: long field, @16:  int field
     // 64-bit VMs: @0: 12 byte header, @12:  int field, @16: long field
-    static final long INT_OFFSET  = Platform.is64bit() ? 12L : 16L;
-    static final long LONG_OFFSET = Platform.is64bit() ? 16L :  8L;
+    static final long INT_OFFSET  = Platform.is64bit() ? (12L + RTGC_64_DELTA) : 16L;
+    static final long LONG_OFFSET = Platform.is64bit() ? (16L + RTGC_64_DELTA) :  8L;
 
     static public void main(String[] args) {
         Unsafe unsafe = Unsafe.getUnsafe();

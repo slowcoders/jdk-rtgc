@@ -327,7 +327,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     precond(is_full_gc || !node->isGarbageMarked());
     assert(node->isYoungRoot(), "invalid young root %p\n", node);
     if (is_full_gc) {
-      if (_rtgc.g_pGarbageProcessor->detectGarbage(node, true)) continue;
+      if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
     } else if (node->isUnreachable()) {
       node->markGarbage("unreachable young root");
       // -> FieldIterator 에서 yg-root garbage 의 field 가 forwarded 값인 가를 확인하기 위하여 사용한다.
