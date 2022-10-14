@@ -57,7 +57,6 @@ public:
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
   void trackable_barrier(void* p, oop obj) { fatal("not implemented"); }
-  static bool is_keep_alive_scan() { return false; }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -128,8 +127,6 @@ public:
   YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
    : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
   
-  static bool is_keep_alive_scan() { return true; }
-
   bool iterate_tenured_young_root_oop(oop obj) {
     _has_young_ref = false;
     oop old_anchor = _current_anchor;

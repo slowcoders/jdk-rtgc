@@ -47,7 +47,6 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly)
     }
     if (hasSurvivalPath) {
         if (_visitedNodes.size() != trace_top) {
-            // rtgc_log(LOG_OPT(14), "hasSurvivalPath %d\n", _visitedNodes.size());
             for (int i = _visitedNodes.size(); --i >= trace_top; ) {
                 GCObject* obj = (GCObject*)_visitedNodes.at(i);
                 obj->unmarkGarbage();
@@ -91,7 +90,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
             GCObject* top = it->peekPrev();
             rtgc_log(LOG_OPT(7), "SurvivalPath pop %p[%d]\n", 
                 top, _trackers.size());
-            if (!top->isGarbageMarked()) {//} && (scanStrongPathOnly || !top->isDirtyReferrerPoints())) {
+            if (!top->isGarbageMarked()) {
                 /** 
                  * L:SHRINK_ANCHOR 에 의해서 top 이 속한 부분이 shortcut 에서 제외된 경우,
                  * 1) top 역시 garbage marking 되거나, 
@@ -176,7 +175,6 @@ void GarbageProcessor::constructShortcut() {
     GCObject* link = NULL;
     SafeShortcut* lastShortcut = NULL;
     int cntNode = 0;
-    int cntShortcut = 0;
     for (; ait < end; ait++) {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
@@ -194,7 +192,6 @@ void GarbageProcessor::constructShortcut() {
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
                 lastShortcut = SafeShortcut::create(obj, tail, cntNode);
-                debug_only(cntShortcut++;)
                 rtgc_log(LOG_OPT(10), "SafeShortcut::create max len [%d]\n", lastShortcut->getIndex());
                 cntNode = 1;
             }
@@ -227,8 +224,6 @@ void GarbageProcessor::constructShortcut() {
         }
     }
     
-    rtgc_log(LOG_OPT(7), "SafeShortcut created 0\n")
-
     GCObject* root = ait->peekPrev();        
     precond(root == NULL || root->getRootRefCount() > ZERO_ROOT_REF);
     if (link != NULL) {
@@ -241,7 +236,6 @@ void GarbageProcessor::constructShortcut() {
         } else {
             rtgc_log(LOG_OPT(10), "SafeShortcut::create 3\n")
             SafeShortcut::create(root, tail, cntNode);
-            debug_only(cntShortcut++;)
         }
     }
     // last anchor may not have safe-anchor

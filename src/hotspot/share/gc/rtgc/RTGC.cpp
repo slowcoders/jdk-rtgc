@@ -327,7 +327,7 @@ void RTGC::initialize() {
   rtHeapEx::initializeRefProcessor();
 
   // ??? 삭제할 것.
-  ScavengeBeforeFullGC = true;
+  // ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
 

@@ -615,8 +615,6 @@ void GenCollectedHeap::do_collection(bool           full,
       MemoryService::track_memory_usage();
 
       gc_epilogue(complete);
-    } else {
-      // rtgc_log(true, "do_full_collection after young-gc\n");
     }
 
     print_heap_after_gc();
@@ -682,7 +680,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
-
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
@@ -839,7 +836,6 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   DEBUG_ONLY(CodeBlobToOopClosure assert_code_is_non_scavengable(&assert_is_non_scavengable_closure, !CodeBlobToOopClosure::FixRelocations));
   DEBUG_ONLY(ScavengableNMethods::asserted_non_scavengable_nmethods_do(&assert_code_is_non_scavengable));
 }
-
 
 void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
                                           ScanningOption so,

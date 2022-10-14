@@ -36,14 +36,7 @@
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/impl/GCNode.hpp"
 
-extern int cnt_rtgc_referent_mark;
-inline int __break__(oop obj) {
-  rtgc_log(1, "referent marked %p tr=%d\n", (void*)obj, rtHeap::is_trackable(obj));
-  fatal("__break__");
-  return 0;
-}
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
@@ -52,7 +45,6 @@ inline void MarkSweep::mark_object(oop obj) {
 #if INCLUDE_RTGC
   if (EnableRTGC && rtHeap::DoCrossCheck) {
     precond(rtHeap::is_alive(obj));
-    precond(!rtHeap::is_trackable(obj) || !RTGC::to_node(obj)->isUnreachable());
   }
 #endif
   // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));

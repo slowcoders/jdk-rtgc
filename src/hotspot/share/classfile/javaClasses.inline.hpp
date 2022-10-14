@@ -149,7 +149,6 @@ void java_lang_ref_Reference::clear_referent(oop ref) {
   } else
 #endif
   {
-    rtgc_log(refType == REF_FINAL, "final ref cleared %p, %p\n", (void*)ref, (void*)unknown_referent_no_keepalive(ref));
     ref->obj_field_put(_referent_offset, nullptr);
   }
 }
