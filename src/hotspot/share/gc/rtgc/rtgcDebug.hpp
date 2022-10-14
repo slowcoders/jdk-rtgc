@@ -3,7 +3,11 @@
 
 #include <stdio.h>
 
-#define RTGC_DEBUG true
+#ifdef ASSERT
+  extern bool RTGC_DEBUG;
+#else 
+  #define RTGC_DEBUG false
+#endif
 
 
 namespace RTGC {
@@ -38,7 +42,7 @@ namespace RTGC {
   bool is_young_root(void* obj);
   void print_anchor_list(void* obj);
   bool is_debug_pointer(void* obj);
-  void adjust_debug_pointer(void* old_p, void* new_p);
+  void adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node);
 };
 
 

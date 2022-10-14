@@ -42,10 +42,31 @@ inline void MarkSweep::mark_object(oop obj) {
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
-  RTGC_ONLY(precond(!EnableRTGC || rtHeap::is_alive(obj, true));)
-
+#if INCLUDE_RTGC
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    precond(rtHeap::is_alive(obj));
+  }
+#endif
+  // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
+  }
+}
+
+inline void MarkSweep::mark_and_push_internal(oop obj) {
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    if (rtHeap::is_trackable(obj)) {
+      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
+        rtHeap::mark_survivor_reachable(obj);
+      }
+      if (!rtHeap::DoCrossCheck) return;
+    }
+  } 
+#endif
+  if (!obj->mark().is_marked()) {
+    mark_object(obj);
+    _marking_stack.push(obj);
   }
 }
 
@@ -53,18 +74,7 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-#if INCLUDE_RTGC
-    if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
-      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
-        rtHeap::mark_survivor_reachable(obj);
-      }
-      if (!rtHeap::DoCrossCheck) return;
-    } 
-#endif
-    if (!obj->mark().is_marked()) {
-      mark_object(obj);
-      _marking_stack.push(obj);
-    }
+    mark_and_push_internal(obj);
   }
 }
 
@@ -103,7 +113,7 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
            "should be forwarded");
 
     if (new_obj != NULL) {
-      assert(is_object_aligned(new_obj), "oop must be aligned");
+      assert(is_object_aligned(new_obj), "oop must be aligned %p\n", (void*)new_obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
 #if INCLUDE_RTGC
       if (new_oop != NULL) {

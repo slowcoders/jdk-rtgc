@@ -111,7 +111,7 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
-    rtHeap::oop_recycled_iterate(_scan_older);
+    rtHeap::oop_recycled_iterate(reinterpret_cast<RecycledTrackableClosure*>(&_scan_older));
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -583,10 +583,11 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::prepare_rtgc(false);
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-  } else 
+
+    rtHeap::prepare_rtgc(false);
+  } else
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
@@ -594,9 +595,6 @@ void DefNewGeneration::collect(bool   full,
   }
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS  
-  YoungRootClosure        young_root_closure(this);
-#endif
 
   CLDScanClosure cld_scan_closure(&scan_closure);
 
@@ -606,27 +604,36 @@ void DefNewGeneration::collect(bool   full,
                                                   &younger_gen_closure);
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
+  YoungRootClosure        young_root_closure(this, &evacuate_followers);
   if (EnableRTGC) {
     assert(this->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+        "save marks have not been newly set.");
+    OldTrackableClosure old_closure(this, _old_gen);
+    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
   } else 
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+        "save marks have not been newly set.");
   }
 
   {
     StrongRootsScope srs(0);
 
     heap->young_process_roots(&scan_closure,
-                              RTGC_ONLY(RtNoDirtyCardMarking ? (OopIterateClosure*)&young_root_closure : (OopIterateClosure*)&younger_gen_closure)
+                              RTGC_ONLY(RtNoDirtyCardMarking ? NULL : (OopIterateClosure*)&younger_gen_closure)
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
-
   // "evacuate followers".
   evacuate_followers.do_void();
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (RtNoDirtyCardMarking) {
+    rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
+  }
+#endif
+
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
@@ -645,17 +652,21 @@ void DefNewGeneration::collect(bool   full,
 
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(&evacuate_followers, false);
-    rtHeap::finish_adjust_pointers(false);
+    rtHeap::process_final_phantom_references(false);
   }
 #endif
-  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::finish_rtgc();
+  }
+#endif
 
   if (!_promotion_failed) {
     // Swap the survivor spaces.
@@ -768,6 +779,10 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
+#ifdef INCLUDE_RTGC
+    precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
+    rtHeap::mark_promoted_trackable(obj);
+#endif
   } else {
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;
@@ -787,7 +802,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 #ifdef INCLUDE_RTGC
 #ifdef ASSERT
   if (EnableRTGC) {
-    RTGC::adjust_debug_pointer(old, obj);
+    RTGC::adjust_debug_pointer(old, obj, true);
   }
 #endif
 #endif

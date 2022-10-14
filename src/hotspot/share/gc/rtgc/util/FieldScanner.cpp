@@ -17,6 +17,8 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
 }
 
+extern bool g_lock_unsafe_buff;
+
 template <class T, bool isTenured>
 class FieldIterator : public BasicOopIterateClosure {
   GCObject* _base;
@@ -62,6 +64,7 @@ public:
     }
     // precond(p != NULL);
     if (_fn(link, _base)) {
+      precond(!g_lock_unsafe_buff);
       _stack->push_back(link);
     }
   }

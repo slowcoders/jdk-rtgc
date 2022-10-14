@@ -43,6 +43,12 @@ public:
     assert(worker_id < _max_workers, "sanity");
     _rp_task->rp_work(worker_id, &_is_alive, &_keep_alive, &_complete_gc);
   }
+
+#if INCLUDE_RTGC
+  OopClosure*  keep_alive_closure()  { return &_keep_alive; }
+  VoidClosure* complete_gc_closure() { return &_complete_gc; }
+#endif
+
 };
 
 #endif /* SHARE_GC_SERIAL_SERIALGCREFPROCPROXYTASK_HPP */

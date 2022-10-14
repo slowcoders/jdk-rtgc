@@ -55,16 +55,29 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
   // Should we copy the obj?
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
+#if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
     if (cast_from_oop<HeapWord*>(obj) < _young_gen_end) {
       assert(!_young_gen->to()->is_in_reserved(obj), "Scanning field twice?");
       oop new_obj = obj->is_forwarded() ? obj->forwardee()
                                         : _young_gen->copy_to_survivor_space(obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-
       static_cast<Derived*>(this)->barrier(p, new_obj);
     }
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#else
+    if (cast_from_oop<HeapWord*>(obj) < _young_gen_end) {
+      assert(!_young_gen->to()->is_in_reserved(obj), "Scanning field twice?");
+      oop new_obj = obj->is_forwarded() ? obj->forwardee()
+                                        : _young_gen->copy_to_survivor_space(obj);
+      RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
+      if (rtHeap::is_trackable(new_obj)) {
+        static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+      } else {
+        static_cast<Derived*>(this)->barrier(p, new_obj);
+      }
+    }
     else if (EnableRTGC) {
+      assert(rtHeap::is_trackable(obj), "must trackable %p(%s)\n",
+          (void*)obj, obj->klass()->name()->bytes());
       static_cast<Derived*>(this)->trackable_barrier(p, obj);
     }
 #endif
@@ -72,10 +85,11 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
 }
 
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(oop* p)       { do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(oop* p)       { Derived::do_oop_work(p); }
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { Derived::do_oop_work(p); }
 
+#if !INCLUDE_RTGC
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :
     FastScanClosure<DefNewYoungerGenClosure>(young_gen),
     _old_gen(old_gen),
@@ -85,38 +99,48 @@ inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_
 template <typename T>
 void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    _is_young_root |= cast_from_oop<HeapWord*>(new_obj) < _old_gen_start;
-    add_promoted_link(p, new_obj, false);
-  }
-#endif
-  RTGC_ONLY(if (RtNoDirtyCardMarking) return;)
-
-    // If p points to a younger generation, mark the card.
+  // If p points to a younger generation, mark the card.
   if (cast_from_oop<HeapWord*>(new_obj) < _old_gen_start) {
     _rs->inline_write_ref_field_gc(p);
   }
 }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#else // RTGC_OPT_YOUNG_ROOTS
 
+template <bool do_mark_trackable, bool is_promoted> 
 template <typename T>
-void DefNewYoungerGenClosure::add_promoted_link(T* p, oop obj, bool young_ref_reahcable) {
-#ifdef ASSERT
-  if (_trackable_anchor == NULL && !RtNoDirtyCardMarking) {
-    return;
-  }
-#endif
-  precond(_trackable_anchor != NULL);
-  rtHeap::add_promoted_link(_trackable_anchor, obj, young_ref_reahcable);
+void ScanTrackableClosure<do_mark_trackable, is_promoted>::barrier(T* p, oop new_obj) {
+  assert(_old_gen->is_in_reserved(p), "expected ref in generation");
+  _is_young_root = true;
+  rtHeap::add_trackable_link(_trackable_anchor, new_obj);
 }
 
+template <bool do_mark_trackable, bool is_promoted> 
 template <typename T>
-void DefNewYoungerGenClosure::trackable_barrier(T* p, oop obj) {
+void ScanTrackableClosure<do_mark_trackable, is_promoted>::trackable_barrier(T* p, oop obj) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
-  add_promoted_link(p, obj, true);
+  rtHeap::add_trackable_link(_trackable_anchor, obj);
+}
+
+template <bool do_mark_trackable, bool is_promoted> 
+void ScanTrackableClosure<do_mark_trackable, is_promoted>::do_iterate(oop obj) {
+  if (do_mark_trackable) {
+    if (is_promoted) {
+      rtHeap::mark_promoted_trackable(obj);
+    } else if (!rtHeap::is_trackable(obj)) {
+      rtHeap::mark_tenured_trackable(obj);
+    }
+  } else {
+    precond(rtHeap::is_trackable(obj));
+  }  
+  _trackable_anchor = obj;
+  _is_young_root = false;
+  obj->oop_iterate(this);
+  if (_is_young_root) {
+    rtHeap::add_young_root(obj, obj);
+  }
+  debug_only(_trackable_anchor = NULL;)
 }
 
 #endif

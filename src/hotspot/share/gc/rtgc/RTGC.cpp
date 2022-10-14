@@ -32,10 +32,12 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  assert((obj2 == NULL || !obj2->isGarbageMarked()) && (obj1 == NULL || !obj1->isGarbageMarked()), 
-      "incorrect garbage mark %p(g=%d:%d) anchor=%p(g=%d:%d)\n", 
-      obj1, obj1 == NULL ? 0 : obj1->isGarbageMarked(), obj1 == NULL ? 0 : obj1->getRootRefCount(),   
-      obj2, obj2 == NULL ? 0 : obj2->isGarbageMarked(), obj2 == NULL ? 0 : obj2->getRootRefCount());
+  assert(obj2 == NULL || !obj2->isGarbageMarked(),
+      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
+      obj2, RTGC::getClassName(obj2), obj2->isGarbageMarked(), obj2->getRootRefCount());
+  assert(obj1 == NULL || !obj1->isGarbageMarked(),
+      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
+      obj1, RTGC::getClassName(obj1), obj1->isGarbageMarked(), obj1->getRootRefCount());
 }
 
 int GCNode::_cntTrackable = 0;
@@ -97,7 +99,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  precond (p != base && p != debug_base);// return;
+  precond (p != debug_base);
 
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
@@ -107,6 +109,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
+
 
 void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
   add_referrer_unsafe(p, base, base);
@@ -223,9 +226,13 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 
 const char* debugClassNames[] = {
-  //  "java/lang/invoke/LambdaForm$MH+0x0000000800150400",
-  // "java/nio/DirectByteBuffer$Deallocator",
-  // "java/lang/Module",
+  0, // reserved for -XX:AbortVMOnExceptionMessage=''
+  // "java/util/zip/ZipOutputStream",
+  // "[Ljava/lang/Object;",
+  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "java/lang/ref/Finalizer",
+    // "jdk/nio/zipfs/ZipFileSystem",
+  //  "java/lang/invoke/LambdaFormEditor$Transform",
     // "java/lang/invoke/MethodTypeForm",
     // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
     // "java/lang/invoke/MethodType",
@@ -247,9 +254,13 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj) return true;
 
+  if (ptr == debug_obj2) return true;
+  // if (ptr < (void*)0x203990310) return true;
+  // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
+
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     Klass* klass = obj->klass();
-    if (true) {
+    if (false) {
       if (vmClasses::Class_klass() != klass) return false;
       klass = java_lang_Class::as_Klass(cast_to_oop(obj));
       if (klass == NULL) return false;
@@ -257,7 +268,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
       if (className != NULL && strstr((char*)klass->name()->bytes(), className)
-          /*&& obj->klass()->name()->utf8_length() == (int)strlen(className)*/) {
+          && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
         return true;
@@ -269,19 +280,34 @@ bool RTGC::is_debug_pointer(void* ptr) {
   return false;
 }
 
-void RTGC::adjust_debug_pointer(void* old_p, void* new_p) {
+void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
+  if (destroy_old_node) {
+    to_node(old_p)->invalidateAnchorList_unsafe();
+  }
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
   
   if (RTGC::debug_obj == old_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_obj moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
+  }
+  else if (RTGC::debug_obj2 == old_p) {
+    RTGC::debug_obj2 = new_p;
+    rtgc_log(1, "debug_obj2 moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
   }
   else if (is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
   } 
+  else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
+    rtgc_log(1, "debug_ref moved %p -> %p\n", old_p, new_p);
+  }
 }
 
+#ifdef ASSERT
+bool RTGC_DEBUG = false;
+#endif
+void rtHeap__initialize();
+void rtSpace__initialize();
 
 void RTGC::initialize() {
 #ifdef _LP64
@@ -290,20 +316,29 @@ void RTGC::initialize() {
   is_narrow_oop_mode = false;
 #endif
 
+#ifdef ASSERT
+  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  logOptions[0] = -1;
+#endif
+
+  rtHeap__initialize();
+  rtSpace__initialize();
   RTGC::_rtgc.initialize();
-  RTGC::debug_obj = (void*)-1;
-  RTGC::debug_obj2 = NULL;
   rtHeapEx::initializeRefProcessor();
-  if (0) LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+
+  // ??? 삭제할 것.
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
-  logOptions[0] = -1;
-  debugOptions[0] = UnlockExperimentalVMOptions;
-  // enableLog(LOG_REF, 3);
 
-  if (UnlockExperimentalVMOptions) {
-    // debugClassNames[0] = "java/util/HashMap$Node";
+  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  if (RTGC_DEBUG) {
+    LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+    // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
+    debugClassNames[0] = AbortVMOnExceptionMessage;
+    debugOptions[0] = 1;
+
+    enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

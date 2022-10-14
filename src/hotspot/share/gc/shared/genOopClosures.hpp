@@ -66,63 +66,87 @@ public:
 // Closure for scanning DefNewGeneration when iterating over the old generation.
 //
 // This closure performs barrier store calls on pointers into the DefNewGeneration.
+#if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class DefNewYoungerGenClosure : public FastScanClosure<DefNewYoungerGenClosure> {
 private:
   Generation*  _old_gen;
   HeapWord*    _old_gen_start;
   CardTableRS* _rs;
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  oopDesc* _trackable_anchor;
-  bool _is_young_root;
-#endif
 
 public:
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen);
 
   template <typename T>
   void barrier(T* p, oop forwardee);
+};
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#else // RTGC_OPT_YOUNG_ROOTS
+template <bool do_mark_trackable, bool is_promoted=true> 
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<do_mark_trackable>> {
+private:
+  Generation*  _old_gen;
+  oopDesc* _trackable_anchor;
+  bool _is_young_root;
+
+public:
+  ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
+    : FastScanClosure<ScanTrackableClosure<do_mark_trackable>>(young_gen), 
+    _old_gen(old_gen) {}
+
   template <typename T>
-  void add_promoted_link(T* p, oop obj, bool root_reahchable);
+  void barrier(T* p, oop forwardee);
 
   template <typename T>
   void trackable_barrier(T* p, oop obj);
 
-  void do_iterate(oop obj) {
-    _trackable_anchor = obj;
-    _is_young_root = false;
-    rtHeap::mark_promoted_trackable(obj);
-    obj->oop_iterate(this);
-    if (_is_young_root) {
-      rtHeap::add_young_root(obj, obj);
-    }
-    debug_only(_trackable_anchor = NULL;)
-  }
-#endif
+  void do_iterate(oop obj);
 };
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public BoolObjectClosure {
-  int _cnt_young_ref;
-  debug_only(oop _anchor;)
+class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
+public:  
+  DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<false>(young_gen, old_gen) {}
+};
+
+class RecycledTrackableClosure : public ScanTrackableClosure<true> {
+public:  
+  RecycledTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true>(young_gen, old_gen) {}
+};
+
+class OldTrackableClosure : public ScanTrackableClosure<true, false> {
+public:  
+  OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true, false>(young_gen, old_gen) {}
+};
+
+class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
+  bool _has_young_ref;
+  VoidClosure* _complete_closure;
 public:
-  YoungRootClosure(DefNewGeneration* young_gen) : FastScanClosure(young_gen) {}
+  YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
+   : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
   
-  bool do_object_b(oop obj) {
-    _cnt_young_ref = 0;
-    debug_only(_anchor = obj;)
+  bool iterate_tenured_young_root_oop(oop obj) {
+    _has_young_ref = false;
+    oop old_anchor = _current_anchor;
+    _current_anchor = obj;
     obj->oop_iterate(this);
-    return _cnt_young_ref > 0;
+    _current_anchor = old_anchor;
+    return _has_young_ref;
+  }
+
+  void do_complete() {
+      _complete_closure->do_void();
   }
 
   template <typename T>
   void barrier(T* p, oop new_obj) {
-    if (!rtHeap::is_trackable(new_obj)) _cnt_young_ref ++;
+    _has_young_ref = true;
   }
 
   void trackable_barrier(void* p, oop obj) {
-    rtHeap::keep_alive_trackable(obj);
+    assert(rtHeap::is_alive(obj), "must not a garbage %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
   }
 };
 #endif
@@ -146,11 +170,7 @@ public:
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   void trackable_barrier(void* p, oop obj) { 
-    if (rtHeap::is_trackable(obj)) {
-      rtHeap::mark_survivor_reachable(obj);
-    } else {
-      // it is allocated in tenured_space in just before YG-gc;
-    }
+    rtHeap::mark_survivor_reachable(obj);
   }
 
   void do_iterate(oop obj) {

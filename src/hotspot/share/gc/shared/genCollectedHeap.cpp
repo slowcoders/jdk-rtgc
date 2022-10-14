@@ -680,12 +680,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
-#if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::finish_rtgc();
-  }
-#endif
-
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
@@ -845,13 +839,15 @@ void GenCollectedHeap::process_roots(ScanningOption so,
 
 void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
                                           ScanningOption so,
-                                          bool only_strong_roots,
+                                          RTGC_ONLY(CLDClosure* weak_cld_closure) NOT_RTGC(bool only_strong_roots),
                                           OopClosure* root_closure,
                                           CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
+#if !INCLUDE_RTGC
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
-
+#else 
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
+#endif  
 }
 
 #if INCLUDE_RTGC

@@ -84,20 +84,29 @@ public:
 
 	bool visitLinks(LinkVisitor visitor, void* callbackParam);
 
+	bool containsReferrer(GCObject* node);
+
 	void addReferrer(GCObject* referrer);
 
 	int removeReferrer(GCObject* referrer);
+
+	int removeReferrerWithoutReallocaton(GCObject* referrer);
 
 	int tryRemoveReferrer(GCObject* referrer);
 
 	void clearAnchorList();
 
+	bool clearEmptyAnchorList();
+
 	void removeAllAnchors();
 
 	bool removeMatchedReferrers(GCObject* referrer);
 
-	void clearGarbageAnchors();
+	void removeBrokenAnchors();
 
+private:
+	template <bool reallocReferrerList> 
+	int removeReferrer_impl(GCObject* referrer);
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
@@ -209,7 +218,7 @@ public:
 
 
 
-class AnchorIterator : public RefIterator<ShortOOP> {
+class AnchorIterator : public NodeIterator<ShortOOP> {
 public:
 	AnchorIterator() {}
 

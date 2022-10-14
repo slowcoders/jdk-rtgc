@@ -16,11 +16,11 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
   return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
 }
 
-void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p) {
+void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
   assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "invalid pointer %p(%s) isClass=%d isTr=%d\n", 
+        "invalid pointer %p(%s) isClass=%d isTr=%d anchor=%p(%s)\n", 
         old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass(),
-        to_obj(old_p)->isTrackable());
+        to_obj(old_p)->isTrackable(), anchor, anchor==NULL?"":RTGC::getClassName(to_obj(anchor)));
 }
 
 static size_t obj_size_in_word(oopDesc* obj) { 
@@ -120,9 +120,11 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   obj->markDestroyed();
 }
 
-bool rtHeap::is_destroyed(oopDesc* p) {
-  return to_obj(p)->isDestroyed();
+bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
+  return cast_to_oop(link) == 
+      java_lang_ref_Reference::unknown_referent_no_keepalive(cast_to_oop(anchor));
 }
+
 
 void rtHeap__addResurrectedObject(GCObject* node);
 
@@ -133,15 +135,10 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     // if (cntGarbage > 0) {
       heap = (HeapWord*)g_freeMemStore.recycle(word_size);
       if (heap != NULL) {
-      rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
-          word_size, heap);
+        rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
+            word_size, heap);
         rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }
-      // RTGC::debug_obj2 = heap;
-    // }
-  }
-  else {
-    RTGC::debug_obj2 = NULL;
   }
   return heap;
 }
@@ -151,3 +148,6 @@ HeapWord* RtSpace::par_allocate(size_t word_size) {
   return heap;
 }
 
+void rtSpace__initialize() {
+  g_freeMemStore.initialize();
+}

@@ -1,3 +1,6 @@
+#ifndef SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP
+#define SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP
+
 #include "GCObject.hpp" 
 #include "gc/rtgc/rtgcDebug.hpp"
 
@@ -11,18 +14,14 @@ typedef SimpleVector<GCObject*> NodeList;
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
+	static bool is_broken_link(GCObject* anchor, GCObject* link);
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
+
 class GarbageProcessor {
-	SimpleVector<LinkIterator> _traceStack;
-	GCObject* delete_q;
-
 public:
-	GarbageProcessor() : _traceStack(255) {
-		delete_q = nullptr;
-	}
-
+	void initialize();
 	void addUnstable(GCObject* node);
 	void addUnstable_ex(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
@@ -31,18 +30,22 @@ public:
 	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
 
 	bool detectGarbage(GCObject* node);
+	bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
-
+	bool hasUnsafeObjects();
 private:
+	HugeArray<LinkIterator> _traceStack;
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;
     HugeArray<AnchorIterator> _trackers;
+	GCObject* delete_q;
     SafeShortcut* reachableShortcurQ;
 
+	template<bool scanStrongPathOnly>
     bool findSurvivalPath(ShortOOP& tail);
-    bool scanSurvivalPath(GCObject* tail);
+    bool scanSurvivalPath(GCObject* tail, bool scanStrongPathOnly);
     void constructShortcut();
     void clearReachableShortcutMarks();
 
@@ -67,6 +70,7 @@ public:
 		gRefListPool.initialize();
 		SafeShortcut::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
+		g_pGarbageProcessor->initialize();
 	}
 
 	static void NO_INLINE onReplaceRootVariable(GCObject* assigned, GCObject* erased);
@@ -101,6 +105,8 @@ public:
 
 	static void onEraseRootVariable_internal(GCObject* assigned);
 
+	static void detectUnsafeObject(GCObject* erased);
+
 private:
 	#if GC_DEBUG
 	static int getCircuitCount();
@@ -110,11 +116,10 @@ private:
 
 	static void reclaimGarbage(GCObject* garbage, GCObject* garbageNode);
 
-	static void detectUnsafeObject(GCObject* erased);
-
 };	
 
 extern GCRuntime _rtgc;
 }
 
 
+#endif // SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP

@@ -94,15 +94,31 @@ public:
 		return _flags.isGarbage && !_flags.isTrackable;
 	}
 
+	bool isActiveFinalizer() {
+		return _flags.rootRefCount & (1 << 23);
+	}
+
+	void unmarkActiveFinalizer() {
+		precond(isActiveFinalizer());
+		_flags.rootRefCount &= ~(1 << 23);
+	}
+
+	void markActiveFinalizer() {
+		precond(!isActiveFinalizer());
+		_flags.rootRefCount |= (1 << 23);
+	}
+
 	bool isActiveFinalizerReachable() {
 		return _flags.rootRefCount & 0x01;
 	}
 
-	void unmarkActiveFinalizereReachable() {
+	void unmarkActiveFinalizerReachable() {
+		precond(isActiveFinalizerReachable());
 		_flags.rootRefCount &= ~0x01;
 	}
 
-	void markActiveFinalizereReachable() {
+	void markActiveFinalizerReachable() {
+		precond(!isActiveFinalizerReachable());
 		_flags.rootRefCount |= 0x01;
 	}
 
@@ -120,9 +136,11 @@ public:
 
 	void markGarbage(const char* reason = NULL);
 
-	void unmarkGarbage() {
+	void unmarkGarbage(bool resurrected=true) {
+		// rtgc_log(resurrected, "resurrected %p\n", this);
 		_flags.isGarbage = false;
-		_flags.isUnstable = false;
+		// _flags.isUnstable = false;
+		// _flags.dirtyReferrerPoints = false;
 	}
 
 
@@ -140,6 +158,15 @@ public:
 
 	bool isStrongRootReachable() {
 		return _flags.rootRefCount > 1;
+	}
+
+	bool isStrongReachable() {
+		return isStrongRootReachable() || hasReferrer();
+	}
+
+	void invalidateAnchorList_unsafe() {
+		_flags.hasMultiRef = 0;
+		this->_refs = 0;
 	}
 
 	int getRootRefCount() {
@@ -165,11 +192,27 @@ public:
 	}
 
 	bool isUnsafeTrackable() {
-		return isTrackable() &&  _flags.rootRefCount <= ZERO_ROOT_REF && this->_shortcutId == NO_SAFE_ANCHOR;
+		return isTrackable() &&  _flags.rootRefCount <= 1 && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {
 		return _flags.isPublished;
+	}
+
+	void markPublished() {
+		_flags.isPublished = true;
+	}
+
+	bool getContextFlag() {
+		return _flags.contextFlag;
+	}
+
+	void markContextFlag() {
+		_flags.contextFlag = true;
+	}
+
+	void unmarkContextFlag() {
+		_flags.contextFlag = false;
 	}
 };
 

@@ -13,12 +13,6 @@ static const int GC_VERBOSE_LOG = false;
 
 using namespace RTGC;
 
-
-// RTGC::MemoryPool<int, 4096, 0, -1> _memPool;
-// template<>
-// RTGC::MemoryPool<int, 4096, 0, -1>* RTGC::MemoryPool<int, 4096, 0, -1>::HugeAllocator::memPool = &_memPool;
-// RTGC::MemoryPool<int, 4096, 0, -1>::HugeArray hugeIntArray(0);
-
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SHORTCUT, function);
 }

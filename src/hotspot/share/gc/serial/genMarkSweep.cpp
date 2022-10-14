@@ -49,6 +49,7 @@
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "memory/universe.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -108,16 +109,27 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
+    rtHeap::prepare_adjust_pointers(old_gen_heap_start);
+  }
+#endif
+
   mark_sweep_phase3();
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::finish_adjust_pointers(true);
-    // rtHeap::finish_rtgc();
+    rtHeap::finish_adjust_pointers();
   }
 #endif
 
   mark_sweep_phase4();
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::finish_rtgc();
+  }
+#endif
 
   restore_marks();
 
@@ -190,6 +202,88 @@ void GenMarkSweep::deallocate_stacks() {
   _objarray_stack.clear(true);
 }
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
+  bool _is_young_root;
+public:
+  
+  bool iterate_tenured_young_root_oop(oop obj) {
+    if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
+      return true;
+    }
+    _is_young_root = false;
+    oop old_anchor = _current_anchor;
+    _current_anchor = obj;
+    obj->oop_iterate(this);
+    _current_anchor = old_anchor;
+    return _is_young_root;
+  }
+
+  void do_complete() {
+    MarkSweep::follow_stack();
+  }
+
+  template <typename T>
+  void do_oop_work(T* p) {
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop obj = CompressedOops::decode_not_null(heap_oop);
+      if (!rtHeap::is_trackable(obj)) {
+        _is_young_root = true;
+      } else if (!rtHeap::DoCrossCheck) {
+        return;
+      }
+      MarkSweep::_is_rt_anchor_trackable = true;
+      MarkSweep::mark_and_push_internal(obj);
+    }
+  }
+
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
+};
+static TenuredYoungRootClosure young_root_closure;
+
+
+template<bool mark_ref>
+class WeakCLDScanner : public CLDClosure, public OopClosure {
+  bool _is_alive;
+ public:
+  WeakCLDScanner() {}
+
+  void do_cld(ClassLoaderData* cld) {
+    if (mark_ref) {
+      oop holder = cld->holder_no_keepalive();
+      if (holder == NULL) return;
+      if (!holder->is_gc_marked()) {
+        !rtHeap::is_alive(holder);
+        return;
+      }
+      rtHeap::is_alive(holder);
+    }
+    cld->oops_do(this, ClassLoaderData::_claim_none);
+  }
+
+  virtual void do_oop(oop* o) { do_oop_work(o); }
+  virtual void do_oop(narrowOop* o) { fatal("cld handle not compressed"); }
+
+  void do_oop_work(oop* o) {
+    oop obj = *o;
+    if (obj == NULL) return;
+
+    if (!mark_ref) {
+      rtHeap::release_jni_handle(obj);
+    } else {
+      precond(obj->is_gc_marked());
+      precond(rtHeap::is_alive(obj));
+      rtHeap::lock_jni_handle(obj);
+    }
+  }
+};
+static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
+static WeakCLDScanner<true>  remark_weak_cld_rtgc_ref;
+#endif
+
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   // Recursively traverse all live objects and mark them
   GCTraceTime(Info, gc, phases) tm("Phase 1: Mark live objects", _gc_timer);
@@ -204,7 +298,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     gch->full_process_roots(false, // not the adjust phase
                             GenCollectedHeap::SO_None,
-                            ClassUnloading, // only strong roots if ClassUnloading
+                            ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
                                             // is enabled
                             &follow_root_closure,
                             &follow_cld_closure);
@@ -212,13 +306,13 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    // YoungRootClosure2 closure;
-    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
-    if (!rtHeap::DoCrossCheck) {
-      rtHeap::iterate_young_roots(NULL/*&closure*/, true);
+    if (true || !rtHeap::DoCrossCheck) {
+      young_root_closure.set_ref_discoverer(_ref_processor);
+      rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
     }
     ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
+    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
   }
 #endif
   // Process reference objects found during marking
@@ -235,9 +329,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    ReferenceType clear_type = clear_all_softrefs ? REF_SOFT : REF_WEAK;
-//    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, clear_type);
-    rtHeap::process_final_phantom_references(&follow_stack_closure, true);
+    rtHeap::process_final_phantom_references(true);
   }
 #endif
 
@@ -263,6 +355,15 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     // Clean JVMCI metadata handles.
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
+
+#if INCLUDE_RTGC
+#ifdef ASSERT
+    {
+      void rtHeap__assertNoUnsafeObjects();
+      rtHeap__assertNoUnsafeObjects();
+    }
+#endif
+#endif    
   }
 
   gc_tracer()->report_object_count_after_gc(&is_alive);
@@ -311,7 +412,7 @@ void GenMarkSweep::mark_sweep_phase3() {
 
     gch->full_process_roots(true,  // this is the adjust phase
                             GenCollectedHeap::SO_AllCodeCache,
-                            false, // all roots
+                            RTGC_ONLY(&adjust_cld_closure) NOT_RTGC(false), // all roots
                             &adjust_pointer_closure,
                             &adjust_cld_closure);
   }

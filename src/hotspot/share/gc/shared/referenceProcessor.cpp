@@ -41,6 +41,7 @@
 #include "runtime/java.hpp"
 #include "runtime/nonJavaThread.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtRefProcessor.hpp"
 
 ReferencePolicy* ReferenceProcessor::_always_clear_soft_ref_policy = NULL;
 ReferencePolicy* ReferenceProcessor::_default_soft_ref_policy      = NULL;
@@ -89,6 +90,12 @@ void ReferenceProcessor::enable_discovery(bool check_no_refs) {
   // field in ReferenceProcessor here so that we use the new
   // value during reference discovery.
 
+#if INCLUDE_RTGC
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    extern jlong __get_soft_ref_timestamp_clock(bool reset);
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(true);
+  } else
+#endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
   _discovering_refs = true;
 }
@@ -213,9 +220,9 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
   // discovered soft refs.
 
 #if INCLUDE_RTGC
-  if (rtHeap::DoCrossCheck) {
-    extern jlong __get_soft_ref_timestamp_clock();
-    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock();
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    extern jlong __get_soft_ref_timestamp_clock(bool reset);
+    _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(false);
   } else
 #endif
   _soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
@@ -237,6 +244,11 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
     process_soft_weak_final_refs(proxy_task, phase_times);
   }
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    RTGC::rtHeapEx::keep_alive_final_referents(&proxy_task);
+  } else
+#endif
   {
     RefProcTotalPhaseTimesTracker tt(RefPhase3, &phase_times);
     process_final_keep_alive(proxy_task, phase_times);
@@ -261,6 +273,12 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
   _referent = java_lang_ref_Reference::unknown_referent_no_keepalive(_current_discovered);
   assert(Universe::heap()->is_in_or_null(_referent),
          "Wrong oop found in java.lang.Reference object");
+#if INCLUDE_RTGC
+  if (EnableRTGC && rtHeap::DoCrossCheck) {
+    precond(rtHeap::is_alive(_current_discovered));
+    precond(!_referent->is_gc_marked() || rtHeap::is_alive(_referent));
+  }
+#endif
   assert(allow_null_referent ?
              oopDesc::is_oop_or_null(_referent)
            : oopDesc::is_oop(_referent),
@@ -377,6 +395,10 @@ size_t ReferenceProcessor::process_soft_ref_reconsider_work(DiscoveredList&    r
   return iter.removed();
 }
 
+#if INCLUDE_RTGC
+void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
+#endif
+
 size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    refs_list,
                                                              BoolObjectClosure* is_alive,
                                                              OopClosure*        keep_alive,
@@ -384,9 +406,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
   DiscoveredListIterator iter(refs_list, keep_alive, is_alive);
   while (iter.has_next()) {
     iter.load_ptrs(DEBUG_ONLY(!discovery_is_atomic() /* allow_null_referent */));
-    if (EnableRTGC && rtHeap::DoCrossCheck) {
-      precond(rtHeap::is_alive(iter.obj()));
-    }
     if (iter.referent() == NULL) {
       // Reference has been cleared since discovery; only possible if
       // discovery is not atomic (checked by load_ptrs).  Remove
@@ -405,7 +424,6 @@ size_t ReferenceProcessor::process_soft_weak_final_refs_work(DiscoveredList&    
       iter.make_referent_alive();
       iter.move_to_next();
     } else {
-      void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
       if (do_enqueue_and_clear) {
         if (EnableRTGC && rtHeap::DoCrossCheck) {
           rtHeap__ensure_garbage_referent(iter.obj(), iter.referent(), _current_soft_ref_policy != _default_soft_ref_policy);
@@ -438,11 +456,17 @@ size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_li
     iter.load_ptrs(DEBUG_ONLY(false /* allow_null_referent */));
     // keep the referent and followers around
     iter.make_referent_alive();
+#if INCLUDE_RTGC
+    if (EnableRTGC && rtHeap::DoCrossCheck) {
+      // iter.referent() 는 이미 forwarded 객체로 변경된 상태임;
+      rtHeap__ensure_garbage_referent(iter.obj(), java_lang_ref_Reference::unknown_referent_no_keepalive(iter.obj()), 
+          _current_soft_ref_policy != _default_soft_ref_policy);
+    }
+#endif    
 
     // Self-loop next, to mark the FinalReference not active.
     assert(java_lang_ref_Reference::next(iter.obj()) == NULL, "enqueued FinalReference");
     java_lang_ref_Reference::set_next_raw(iter.obj(), iter.obj());
-
     iter.enqueue();
     log_enqueued_ref(iter, "Final");
     iter.next();
@@ -1123,7 +1147,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       // Check assumption that an object is not potentially
       // discovered twice except by concurrent collectors that potentially
       // trace the same Reference object twice.
-      assert(UseG1GC, "Only possible with a concurrent marking collector");
+      assert(UseG1GC, "Only possible with a concurrent marking collector %p rt=%d\n", (void*)obj, rt);
       return true;
     }
   }
@@ -1281,11 +1305,6 @@ bool ReferenceProcessor::preclean_discovered_reflist(DiscoveredList&    refs_lis
       log_develop_trace(gc, ref)("Precleaning Reference (" INTPTR_FORMAT ": %s)",
                                  p2i(iter.obj()), iter.obj()->klass()->internal_name());
       // Remove Reference object from list
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-      if (EnableRTGC) {
-          fatal("gotcha!");
-      }
-#endif      
       iter.remove();
       // Keep alive its cohort.
       iter.make_referent_alive();

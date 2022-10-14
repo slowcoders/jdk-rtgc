@@ -83,6 +83,7 @@ inline void MarkSweep::follow_array(objArrayOop array) {
 }
 
 #if INCLUDE_RTGC
+int cnt_rtgc_referent_mark = 0;
 bool MarkSweep::_is_rt_anchor_trackable = false;
 #endif
 inline void MarkSweep::follow_object(oop obj) {

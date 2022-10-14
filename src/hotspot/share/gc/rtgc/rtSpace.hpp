@@ -8,7 +8,7 @@ namespace rtHeapUtil {
 
   bool is_dead_space(oopDesc* obj);
 
-  void ensure_alive_or_deadsapce(oopDesc* old_p);
+  void ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor=NULL);
 }
 
 namespace RTGC {
@@ -27,6 +27,7 @@ namespace RTGC {
 
   class FreeMemStore {
   public:
+    void initialize() { freeMemQList.initialize(); }
     void reclaimMemory(GCObject* garbage); 
     void* recycle(size_t word_size);
     static void clearStore();

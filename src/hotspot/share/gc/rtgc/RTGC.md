@@ -44,6 +44,10 @@ bash configure --with-jvm-variants=client \
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/jdk:tier1`
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/langtools:tier1`
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/hotspot/jtreg:tier1`
+
 ## 5. Test tips
 - test codedump 파일 자동삭제 방지<br>
   RunTests.gmk 파일을 아래와 같이 수정. <br>
@@ -51,91 +55,33 @@ bash configure --with-jvm-variants=client \
    -> JTREG_RETAIN ?= fail,error,hs_err_pid*
 ```
 
-- precompiled file 삭제
-```sh 
-   rm -rf ./build/macosx-x86_64-client-fastdebug/hotspot/variant-client/libjvm/objs/precompiled 
-```
-
-- coredump file 찾기.
-  find build -name "hs_err_pid*"
-
-- coredump file 삭제.<br>
-  find build -name "hs_err_pid*" | xargs rm 
-
-
 - logTrigger
 ```
    new java.util.concurrent.atomic.AtomicLong().compareAndExchange(
       0x876543DB876543DBL, 0x123456DB00000000L + (category << 24) + functions));` 
 ```
 
-## 5. Tests
-- full test
-   `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
-
-- oom 발생 (serial 도 마찬가지)
-   sh exec_test.sh jdk/internal/shellsupport/doc/JavadocHelperTest
-
 - module jdk.compiler does not export com.sun.tools.javac.xxx to unnamed module 오류 해결 방법
+```
       --add-opens=jdk.compiler/com.sun.tools.javac.xxx=ALL-UNNAMED \
-
-- 
-   make test CONF=macosx LOG_LEVEL=info TEST="jtreg:serviceability/logging/TestBasicLogOutput.java" 
-
-- serial gc
-   make test CONF="macosx" TEST="gc/serial"
-
-- new RTGC error
-```
-   make test CONF="macosx" TEST="jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java"  
-   make test CONF="macosx" TEST="runtime/Monitor/SyncOnValueBasedClassTest.java"
 ```
 
-- narrowOop shift test (0,1,2,3,4)
+- retest.sh 실행 시 WhiteBox jni link error 발생 시, 아래 스크립트를 먼저 실행.
 ```
-   make test CONF="macosx" TEST="gc/arguments/TestUseCompressedOopsErgo.java"
-```
-   
-
-- implicit null check exception.
-```
-   make test CONF="macosx" TEST="compiler/c1/Test7103261.java"
+   rerun: ... 
+      jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
 ```
 
-- unsafeAccess
+- retest.sh 실행 시 log 가 출력되지 않으면, inheritIO() 추가.
 ```
-   make test CONF="macosx" TEST=" \
-      compiler/unsafe/SunMiscUnsafeAccessTestObject.java \
-      compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject.java "
-```
-
-- Huge object (size > 256K)
-```
-   make test CONF="macosx" TEST="gc/g1/plab/TestPLABPromotion.java"
-   make test CONF="macosx" TEST="gc/g1/plab/TestPLABResize.java"
-```
-
-- Single stack check
-```
-   make test CONF="macosx" TEST="compiler/c2/Test6910605_1.java"
+   ProcessBuiler.inheritIO().start();
 ```
 
 6. Test file build
    javac test/rtgc/Main.java
 
 7. Custom Test 실행
-export CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/jdk/jfr/event/gc/collection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_jdk_jfr_event_gc_collection_TestGCGarbageCollectionEvent_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar
-
-- macosx
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -Xmx128m -Xmn100m -XX:+UseSerialGC -cp ./build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_serial/classes/0/gc/serial/HeapChangeLogging.d gc.serial/HeapFiller 
- 
-   
    ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
-- linux
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -Xlog:gc=trace -cp test/rtgc Main 200 100000
-   
-   // enable c1_LIRGenerator 
-   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseRTGC -cp test/rtgc Main 2 1000 
 
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
@@ -374,6 +320,27 @@ DefNewGeneration::collect() ...
                      list->add(dicovered reference 등록)
                         -> Reference->discovered field 이용.
 
+==============================
+Test summary 2022 10/14
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1585    20     5 <<
+>> jtreg:test/jdk:tier1                               2062  2058     0     4 <<
+>> jtreg:test/langtools:tier1                         4215  3976    23   216 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+==============================
+Test summary 2022 10/09
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1582    25     3 <<
+>> jtreg:test/jdk:tier1                               2062  2058     0     4 <<
+>> jtreg:test/langtools:tier1                         4215  4200     0    15 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
 
 ==============================
 Test summary 2022 07/20
