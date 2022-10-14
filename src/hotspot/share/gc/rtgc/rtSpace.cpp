@@ -148,3 +148,6 @@ HeapWord* RtSpace::par_allocate(size_t word_size) {
   return heap;
 }
 
+void rtSpace__initialize() {
+  g_freeMemStore.initialize();
+}

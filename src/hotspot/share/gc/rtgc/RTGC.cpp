@@ -32,10 +32,12 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  assert((obj2 == NULL || !obj2->isGarbageMarked()) && (obj1 == NULL || !obj1->isGarbageMarked()), 
-      "incorrect garbage mark %p(g=%d:%d) anchor=%p(g=%d:%d)\n", 
-      obj1, obj1 == NULL ? 0 : obj1->isGarbageMarked(), obj1 == NULL ? 0 : obj1->getRootRefCount(),   
-      obj2, obj2 == NULL ? 0 : obj2->isGarbageMarked(), obj2 == NULL ? 0 : obj2->getRootRefCount());
+  assert(obj2 == NULL || !obj2->isGarbageMarked(),
+      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
+      obj2, RTGC::getClassName(obj2), obj2->isGarbageMarked(), obj2->getRootRefCount());
+  assert(obj1 == NULL || !obj1->isGarbageMarked(),
+      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
+      obj1, RTGC::getClassName(obj1), obj1->isGarbageMarked(), obj1->getRootRefCount());
 }
 
 int GCNode::_cntTrackable = 0;
@@ -304,6 +306,8 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
 #ifdef ASSERT
 bool RTGC_DEBUG = false;
 #endif
+void rtHeap__initialize();
+void rtSpace__initialize();
 
 void RTGC::initialize() {
 #ifdef _LP64
@@ -312,6 +316,13 @@ void RTGC::initialize() {
   is_narrow_oop_mode = false;
 #endif
 
+#ifdef ASSERT
+  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  logOptions[0] = -1;
+#endif
+
+  rtHeap__initialize();
+  rtSpace__initialize();
   RTGC::_rtgc.initialize();
   rtHeapEx::initializeRefProcessor();
 
@@ -319,19 +330,16 @@ void RTGC::initialize() {
   ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
-  logOptions[0] = -1;
 
-  // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
-#ifdef ASSERT
-  RTGC_DEBUG |= UnlockExperimentalVMOptions;
-#endif
-
+  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   if (RTGC_DEBUG) {
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+    // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
 
-    enableLog(LOG_SCANNER, 14);
+    enableLog(LOG_REF, 0);
+    enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
   }

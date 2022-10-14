@@ -27,6 +27,7 @@ namespace RTGC {
 
   class FreeMemStore {
   public:
+    void initialize() { freeMemQList.initialize(); }
     void reclaimMemory(GCObject* garbage); 
     void* recycle(size_t word_size);
     static void clearStore();

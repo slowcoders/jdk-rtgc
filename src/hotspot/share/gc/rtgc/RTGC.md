@@ -44,6 +44,10 @@ bash configure --with-jvm-variants=client \
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/jdk:tier1`
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/langtools:tier1`
+   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/hotspot/jtreg:tier1`
+
 ## 5. Test tips
 - test codedump 파일 자동삭제 방지<br>
   RunTests.gmk 파일을 아래와 같이 수정. <br>
@@ -316,6 +320,16 @@ DefNewGeneration::collect() ...
                      list->add(dicovered reference 등록)
                         -> Reference->discovered field 이용.
 
+==============================
+Test summary 2022 10/14
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1585    20     5 <<
+>> jtreg:test/jdk:tier1                               2062  2058     0     4 <<
+>> jtreg:test/langtools:tier1                         4215  3976    23   216 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
 
 ==============================
 Test summary 2022 10/09

@@ -125,6 +125,11 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #endif
 
   mark_sweep_phase4();
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::finish_rtgc();
+  }
+#endif
 
   restore_marks();
 

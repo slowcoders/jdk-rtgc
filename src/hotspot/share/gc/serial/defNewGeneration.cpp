@@ -662,6 +662,11 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) { // }::DoCrossCheck) {
+    rtHeap::finish_rtgc();
+  }
+#endif
 
   if (!_promotion_failed) {
     // Swap the survivor spaces.

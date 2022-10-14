@@ -202,6 +202,18 @@ public:
 	void markPublished() {
 		_flags.isPublished = true;
 	}
+
+	bool getContextFlag() {
+		return _flags.contextFlag;
+	}
+
+	void markContextFlag() {
+		_flags.contextFlag = true;
+	}
+
+	void unmarkContextFlag() {
+		_flags.contextFlag = false;
+	}
 };
 
 };

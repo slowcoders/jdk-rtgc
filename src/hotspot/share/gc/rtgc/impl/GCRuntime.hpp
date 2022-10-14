@@ -18,12 +18,10 @@ public:
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
+
 class GarbageProcessor {
 public:
-	GarbageProcessor() {
-		delete_q = nullptr;
-	}
-
+	void initialize();
 	void addUnstable(GCObject* node);
 	void addUnstable_ex(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
@@ -39,10 +37,10 @@ public:
 	bool hasUnsafeObjects();
 private:
 	HugeArray<LinkIterator> _traceStack;
-	GCObject* delete_q;
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;
     HugeArray<AnchorIterator> _trackers;
+	GCObject* delete_q;
     SafeShortcut* reachableShortcurQ;
 
 	template<bool scanStrongPathOnly>
@@ -72,6 +70,7 @@ public:
 		gRefListPool.initialize();
 		SafeShortcut::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
+		g_pGarbageProcessor->initialize();
 	}
 
 	static void NO_INLINE onReplaceRootVariable(GCObject* assigned, GCObject* erased);

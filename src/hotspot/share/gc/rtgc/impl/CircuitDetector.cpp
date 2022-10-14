@@ -14,34 +14,17 @@ static const int GC_VERBOSE_LOG = false;
 using namespace RTGC;
 
 
-// RTGC::MemoryPool<int, 4096, 0, -1> _memPool;
-// template<>
-// RTGC::MemoryPool<int, 4096, 0, -1>* RTGC::MemoryPool<int, 4096, 0, -1>::HugeAllocator::memPool = &_memPool;
-// RTGC::MemoryPool<int, 4096, 0, -1>::HugeArray hugeIntArray(0);
-
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SCANNER, function);
 }
 
-// class GarbageProcessor {
-// public:    
-//     SimpleVector<GCObject*> _unsafeObjects;
-//     HugeArray<GCObject*>& _visitedNodes;
-//     SimpleVector<AnchorIterator> _trackers;
-//     SafeShortcut* reachableShortcurQ;
-
-//     bool findSurvivalPath(ShortOOP& tail);
-
-// public:
-//     GarbageProcessor(HugeArray<GCObject*>& visitedNodes)
-//       : _visitedNodes(visitedNodes), reachableShortcurQ(NULL) {}
-
-//     ~GarbageProcessor() { clearReachableShortcutMarks(); }
-
-//     bool scanSurvivalPath(GCObject* tail);
-//     void constructShortcut();
-//     void clearReachableShortcutMarks();
-// };
+void GarbageProcessor::initialize() {
+    this->delete_q = NULL;
+	_traceStack.initialize();
+    _unsafeObjects.initialize();
+    _visitedNodes.initialize();
+    _trackers.initialize();
+}
 
 void GarbageProcessor::clearReachableShortcutMarks() {
 #if ENABLE_REACHBLE_SHORTCUT_CACHE    
@@ -395,11 +378,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
 }
 
 bool GarbageProcessor::resolveStrongSurvivalPath(GCObject* node) {
-    if (node->isGarbageMarked()) {
-        // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
-        //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
-        return false;
-    }
+    precond(!node->isGarbageMarked());
     precond(node->isTrackable());
     node->unmarkUnstable();
     if (node->isStrongRootReachable()) {

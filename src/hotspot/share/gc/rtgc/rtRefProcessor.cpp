@@ -59,6 +59,10 @@ namespace RTGC {
       _enable_cross_check = enable_cross_check;
     }
 
+    void initialize() {
+      _refs.initialize();
+    }
+
     ReferenceType ref_type() {
       return _ref_type;
     }
@@ -140,8 +144,11 @@ namespace RTGC {
     NoGarbageCheck = 4,
     NoReferentCheck = 8,
     DetectGarbageRef = 16,
+    ClearAnchorList = 32,
+
     SkipClearedRef_NoGarbageCheck = SkipClearedRef | NoGarbageCheck,
     SkipGarbageRef_NoReferentCheck = SkipGarbageRef | NoReferentCheck,
+    DetectGarbageRef_ClearAnchorList = DetectGarbageRef | ClearAnchorList,
   };
 
   template <bool is_full_gc>
@@ -202,10 +209,6 @@ namespace RTGC {
       } 
       
       bool is_garbage = _rtgc.g_pGarbageProcessor->detectGarbage(node);
-      if (is_garbage) {
-        // precond(node->isDirtyReferrerPoints());
-        node->unmarkDirtyReferrerPoints();
-      }
       return is_garbage;
     }
 
@@ -233,6 +236,13 @@ namespace RTGC {
         if (!(policy & (SkipGarbageRef | DetectGarbageRef))) {
           precond((policy & NoGarbageCheck) || rtHeap::is_alive(_curr_ref));
         } else if (is_garbage_ref(policy)) {
+          if (policy & ClearAnchorList) {
+            GCObject* referent = to_obj(get_raw_referent());
+            if (!referent->isGarbageMarked() && referent->clearEmptyAnchorList()) {
+              // emptyAnchorList를 명시적으로 clear 한다.
+              GCRuntime::detectUnsafeObject(referent);
+            }
+          }
           rtgc_log(false && _refList.ref_type() == REF_SOFT, 
               "garbage soft ref %p\n", (void*)_curr_ref);
           assert(!do_cross_test || !_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
@@ -437,6 +447,13 @@ static RefList g_phantomList(REF_PHANTOM, false);
 void rtHeapEx::initializeRefProcessor() {
   RefList::_referent_off = java_lang_ref_Reference::referent_offset();
   RefList::_discovered_off = java_lang_ref_Reference::discovered_offset();
+  g_softList.initialize();
+  g_weakList.initialize();
+  g_finalList.initialize();
+  g_phantomList.initialize();
+#ifdef ASSERT  
+  g_enqued_referents.initialize();
+#endif
   postcond(RefList::_referent_off != 0);
   postcond(RefList::_discovered_off != 0);
 }
@@ -517,24 +534,21 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     GCObject* referent = to_obj(iter.referent());
     bool is_alive;
-    if (is_full_gc) {
-      if (referent->isTrackable()) {
-        if (CLEAR_FINALIZE_REF) {
-          is_alive = !_rtgc.g_pGarbageProcessor->detectGarbage(referent);
-        } else {
-          is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
-        }
+    if (referent->isTrackable()) {
+      if (CLEAR_FINALIZE_REF) {
+        is_alive = !_rtgc.g_pGarbageProcessor->detectGarbage(referent);
       } else {
-        is_alive = cast_to_oop(referent)->is_gc_marked();
+        is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
       }
     } else {
       is_alive = cast_to_oop(referent)->is_gc_marked();
+    }
+
+    if (!is_full_gc) {
       iter.adjust_ref_pointer();
       ref = to_obj(iter.ref());
       postcond((void*)referent == iter.get_raw_referent());
-    }
-
-    if (rtHeap::DoCrossCheck && referent->isTrackable()) {
+    } else if (rtHeap::DoCrossCheck && referent->isTrackable()) {
       bool is_gc_marked = cast_to_oop(referent)->is_gc_marked();
       precond(CLEAR_FINALIZE_REF || !referent->isGarbageMarked());
       assert(is_gc_marked == is_alive, 
@@ -551,7 +565,6 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
         }
         if (!referent->isTrackable() || (rtHeap::DoCrossCheck && is_full_gc)) {
-          referent->unmarkDirtyReferrerPoints();
           keep_alive->do_oop((T*)iter.referent_addr());
         }
       }
@@ -567,9 +580,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       }
       /* referent 가 순환 가비지의 일부이면, referrerList.size()가 0보다 크다 */
       postcond(!referent->isGarbageMarked());
-      postcond(!referent->hasSafeAnchor());
+      postcond(!referent->hasSafeAnchor() || (!CLEAR_FINALIZE_REF && referent->getSafeAnchor() != ref));
       postcond(!referent->hasShortcut());
-      postcond(referent->getRootRefCount() == 0);
+      assert(!referent->isTrackable() || referent->getRootRefCount() == 0, "rc = %d\n", referent->getRootRefCount());
       postcond(!rtHeap::DoCrossCheck || cast_to_oop(old_referent)->is_gc_marked() ||
           (!is_full_gc && old_referent->isTrackable()));
       postcond(!referent->isActiveFinalizerReachable());
@@ -577,7 +590,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           (void*)ref, old_referent, referent, RTGC::getClassName(old_referent));
       if (ref->isTrackable()) {
         RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
-        if (referent->isTrackable()) {
+        if (referent->isTrackable() && !referent->hasSafeAnchor()) {
           referent->setSafeAnchor(ref);
           referent->setShortcutId_unsafe(INVALID_SHORTCUT);
         }
@@ -630,6 +643,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   rtHeapEx::_soft_ref_timestamp_clock = java_lang_ref_SoftReference::clock();
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
 
+  jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
   if (policy != NULL) {
     precond(rtHeap::in_full_gc);
     
@@ -639,8 +653,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
 
     rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
     for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
-      if (policy->should_clear_reference(iter.ref(), rtHeapEx::_soft_ref_timestamp_clock)) {
-        ref->markDirtyReferrerPoints();
+      if (policy->should_clear_reference(iter.ref(), soft_ref_timestamp)) {
         rtgc_log(LOG_OPT(3), "dirty soft %p tr=%d\n", ref, ref->isTrackable());
         if (ref->isTrackable()) {
           iter.break_weak_soft_link();
@@ -656,7 +669,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     }
     
     for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
-      ref->markDirtyReferrerPoints();
       if (ref->isTrackable()) {
         iter.break_weak_soft_link();
       }
@@ -669,29 +681,15 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     complete_gc->do_void();
 
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
-    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; ) {
-      if (ref->isDirtyReferrerPoints()) {
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef_ClearAnchorList)) != NULL; ) {
+      if (policy->should_clear_reference(iter.ref(), soft_ref_timestamp)) {
         rtgc_log(LOG_OPT(3), "clear dirty soft %p tr=%d\n", ref, ref->isTrackable());
         iter.clear_weak_soft_garbage_referent();
       }
     }
 
-    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; ) {
-      precond(ref->isDirtyReferrerPoints());
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef_ClearAnchorList)) != NULL; ) {
       iter.clear_weak_soft_garbage_referent();
-    }
-
-    if (true) {
-      for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
-        if (ref->isDirtyReferrerPoints()) {
-          ref->unmarkDirtyReferrerPoints();
-        }
-      }
-
-      for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
-        precond(ref->isDirtyReferrerPoints());
-        ref->unmarkDirtyReferrerPoints();
-      }
     }
   }
   if (!rtHeap::DoCrossCheck) {

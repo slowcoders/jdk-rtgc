@@ -113,6 +113,7 @@ void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
 #endif
 #endif
     assert(addr != NULL, "reserve mem fail");
+    rtgc_log(false, "reserve_memory %p %dk\n", addr, (int)(bytes/1024));
     return addr;
 }
 
@@ -126,7 +127,7 @@ void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) 
     if (addr != 0) return;
 #elif _USE_MMAP
     int res = mprotect(bucket, bytes, PROT_READ|PROT_WRITE);
-    rtgc_log(0, "commit_memory mprotect %p\n", addr);
+    rtgc_log(false, "commit_memory mprotect %p:%p %d res=%d\n", addr, bucket, (int)(bytes/1024), res);
     if (res == 0) return;
 #elif _ULIMIT    
     void* mem = ::realloc(addr, offset + bytes);
@@ -135,3 +136,20 @@ void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) 
     assert(0, "OutOfMemoryError:E009");
 }
 
+void RTGC::VirtualMemory::free(void* addr, size_t bytes) {
+    precond(bytes % MEM_BUCKET_SIZE == 0);
+#if _USE_JVM
+    fatal(1, "free_memory\n");
+    return;
+#elif defined(_MSC_VER)
+    addr = VirtualFree(addr, bytes, MEM_RELEASE);
+    if (addr != 0) return;
+#elif _USE_MMAP
+    int res = munmap(addr, bytes);
+    if (res == 0) return;
+#else    
+    ::free(addr);
+    return;
+#endif
+    assert(0, "Invalid Address:E00A");
+}

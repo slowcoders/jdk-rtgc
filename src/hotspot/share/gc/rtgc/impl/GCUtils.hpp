@@ -32,6 +32,7 @@ static const int MEM_BUCKET_SIZE = 64 * 1024;
 struct VirtualMemory {
     static void* reserve_memory(size_t bytes);
     static void  commit_memory(void* mem, void* bucket, size_t bytes);
+    static void  free(void* mem, size_t bytes);
 };
 
 struct DefaultAllocator {
@@ -42,13 +43,13 @@ struct DefaultAllocator {
 
 template <class T, class Allocator = DefaultAllocator>
 struct DynamicAllocator {
-    static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
-        return Allocator::alloc(capacity * item_size + offset);
+    static void* alloc(uint32_t& capacity, size_t item_size, size_t header_size) {
+        return Allocator::alloc(capacity * item_size + header_size);
     }
 
-    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t offset) {
+    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t header_size) {
         capacity = ((capacity * 2 + 7) & ~7) - 1;
-        return Allocator::realloc(mem, capacity * item_size + offset);
+        return Allocator::realloc(mem, capacity * item_size + header_size);
     }
 
     static void free(void* mem) {
@@ -59,25 +60,26 @@ struct DynamicAllocator {
 template <int max_bucket>
 struct FixedAllocator {
 
-    static void* alloc(uint32_t& capacity, size_t item_size, size_t offset) {
-        capacity = (MEM_BUCKET_SIZE - offset) / item_size;
-        rtgc_log(true, "fixed_alloc cap=%d, off=%d\n", capacity, offset);
+    static void* alloc(uint32_t& capacity, size_t item_size, size_t header_size) {
+        capacity = (MEM_BUCKET_SIZE - header_size) / item_size;
+        rtgc_log(false, "fixed_alloc cap=%d, off=%d\n", capacity, (int)header_size);
         void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_SIZE);
-        VirtualMemory::commit_memory(mem, 0, MEM_BUCKET_SIZE);
+        VirtualMemory::commit_memory(mem, mem, MEM_BUCKET_SIZE);
+        return mem;
     }
 
-    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t offset) {
+    static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t header_size) {
         int idx_bucket = (capacity * item_size + MEM_BUCKET_SIZE - 1) / MEM_BUCKET_SIZE;
         precond(idx_bucket < max_bucket);
         int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
         VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
-        capacity = (mem_offset + MEM_BUCKET_SIZE - offset) / item_size;
-        rtgc_log(true, "fixed_realloc cap=%d, off=%d\n", capacity, offset);
+        capacity = (mem_offset + MEM_BUCKET_SIZE - header_size) / item_size;
+        rtgc_log(false, "fixed_realloc cap=%d, off=%d\n", capacity, (int)header_size);
         return mem; 
     }
 
     static void free(void* mem) { 
-        fatal("something wrong."); 
+        VirtualMemory::free(mem, max_bucket * MEM_BUCKET_SIZE); 
     }
 };
 
@@ -455,11 +457,11 @@ public:
     // }
 };
 
-template <class T>
-class HugeArray : public SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> {
-    typedef SimpleVector<T, DynamicAllocator<FixedAllocator<2048>>> _SUPER;
+template <class T, int max_bucket=1024>
+class HugeArray : public SimpleVector<T, FixedAllocator<max_bucket>> {
+    typedef SimpleVector<T, FixedAllocator<max_bucket>> _SUPER;
 public:    
-    HugeArray() : _SUPER(1024) {}
+    HugeArray() : _SUPER(DoNotInitialize::Flag) {}
 };
 
 template <class T, size_t MAX_BUCKET, int indexOffset, int clearOffset>

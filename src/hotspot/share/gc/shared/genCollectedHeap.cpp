@@ -682,11 +682,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
-#if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::finish_rtgc();
-  }
-#endif
 
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
