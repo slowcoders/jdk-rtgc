@@ -79,6 +79,10 @@ static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
         (rt == (ReferenceType)-1 || ((InstanceRefKlass*)obj->klass())->reference_type() == rt);
 }
 
+static oopDesc* __get_discovered(oop obj) {
+  return obj->klass()->id() != InstanceRefKlassID ? NULL
+    : java_lang_ref_Reference::discovered(obj);
+}
 
 // static bool is_java_reference(oopDesc* obj) {
 //   return (obj->klass()->id() == InstanceRefKlassID);
@@ -546,7 +550,8 @@ void GCNode::markGarbage(const char* reason)  {
   assert(!this->isGarbageMarked(),
       "already marked garbage %p(%s)\n", this, getClassName(this));
   assert(!cast_to_oop(this)->is_gc_marked() || reason == NULL,
-      "invalid garbage marking on %p(%s)\n", this, getClassName(this));
+      "invalid garbage marking on %p(%s) rc=%d discovered=%p ghost=%d\n", this, getClassName(this), this->getRootRefCount(),
+      __get_discovered(cast_to_oop(this)), rtHeapEx::print_ghost_anchors((GCObject*)this));
   _flags.isGarbage = true;
   _flags.isPublished = true;
 }
@@ -653,6 +658,10 @@ void rtHeap::finish_adjust_pointers() {
   g_adjust_pointer_closure._old_gen_start = NULL;
   rtHeapEx::adjust_ref_q_pointers(true);
   GCRuntime::adjustShortcutPoints();
+  /**
+   * adjust_pointers 수행 중에, mark_survivor_reachable() 이 호출된다.
+   * 이에, rtHeap__clearStack() 이 adjust_pointers 종료 후에 호출되어야 한다.
+   */
   rtHeap__clearStack<true>();
 }
 
@@ -669,6 +678,7 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc(bool is_full_gc) {
+  precond(g_stack_roots.size() == 0);
   if (is_full_gc) {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
@@ -681,7 +691,12 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
   }
 }
 
-void rtHeap::finish_rtgc() {
+void rtHeap::finish_rtgc(bool is_full_gc) {
+  if (!is_full_gc) {
+    // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
+    rtHeap__clearStack<false>();
+  }
+  postcond(g_stack_roots.size() == 0);
   in_full_gc = false;
 }
 

@@ -664,7 +664,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC
   if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::finish_rtgc();
+    rtHeap::finish_rtgc(false);
   }
 #endif
 
