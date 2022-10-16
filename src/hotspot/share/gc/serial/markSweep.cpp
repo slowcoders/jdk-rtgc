@@ -148,7 +148,7 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 #if INCLUDE_RTGC
-    if (RtNoDiscoverPhantom && rtHeap::is_trackable(obj)) {
+    if (EnableRTGC && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
     } 
 #endif

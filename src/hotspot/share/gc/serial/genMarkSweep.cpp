@@ -360,15 +360,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     // Clean JVMCI metadata handles.
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
-
-#if INCLUDE_RTGC
-#ifdef ASSERT
-    {
-      void rtHeap__assertNoUnsafeObjects();
-      rtHeap__assertNoUnsafeObjects();
-    }
-#endif
-#endif    
   }
 
   gc_tracer()->report_object_count_after_gc(&is_alive);

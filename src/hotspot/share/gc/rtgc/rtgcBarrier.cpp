@@ -33,7 +33,7 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   ptrdiff_t offset = (address)addr - (address)base;
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
-  if (RtNoDiscoverPhantom) {
+  if (RtNoDiscoverPhantom || !RtLazyClearWeakHandle) {
     return (ds & ON_PHANTOM_OOP_REF) == 0;
   }
   return true;
