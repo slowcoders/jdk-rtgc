@@ -230,10 +230,15 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {
         _is_young_root = true;
-      } else if (!rtHeap::DoCrossCheck) {
-        return;
+      } else {
+        if (!rtHeap::is_alive(obj)) {
+          rtHeap::mark_survivor_reachable(obj);
+        } 
+        if (!rtHeap::DoCrossCheck) return;
       }
-      MarkSweep::_is_rt_anchor_trackable = true;
+      if (rtHeap::DoCrossCheck) {
+        MarkSweep::_is_rt_anchor_trackable = true;
+      }
       MarkSweep::mark_and_push_internal(obj);
     }
   }

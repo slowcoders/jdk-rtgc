@@ -321,12 +321,12 @@ DefNewGeneration::collect() ...
                         -> Reference->discovered field 이용.
 
 ==============================
-Test summary 2022 10/14
+Test summary 2022 10/15
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/hotspot/jtreg:tier1                     1610  1585    20     5 <<
->> jtreg:test/jdk:tier1                               2062  2058     0     4 <<
->> jtreg:test/langtools:tier1                         4215  3976    23   216 <<
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1587    20     3 <<
+>> jtreg:test/jdk:tier1                               2062  2059     0     3 <<
+>> jtreg:test/langtools:tier1                         4215  4200     0    15 <<
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
 ==============================
