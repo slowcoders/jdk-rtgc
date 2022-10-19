@@ -110,29 +110,30 @@ namespace RTGC {
       g_pending_head = ref_p;
     }
 
-    static void lock_pending_q() {
-      if (g_pending_head != NULL) {
-        // GarbageMarking 되지 않도록 한다.
-        to_obj(g_pending_head)->incrementRootRefCount();
+    static void hold_object_while_gc(GCObject* obj) {
+      if (obj != NULL) {
+        obj->incrementRootRefCount();
+        rtHeap__addRootStack_unsafe(obj);
       }
     }
 
-    static void unlock_pending_q() {
-      if (g_pending_head != NULL) {
-        // GarbageMarking 되지 않도록 한다.
-        to_obj(g_pending_head)->decrementRootRefCount();
-      }
+    static void hold_pending_q() {
+      // GarbageMarking 되지 않도록 한다. (UnsafeList 등록과 무관)
+      hold_object_while_gc(to_obj(g_pending_head));
     }
 
-    static void flush_penging_list() {
+    static void flush_penging_list(bool is_full_gc) {
       if (g_pending_head == NULL) return;
 
       oop enqueued_top_np = Universe::reference_pending_list();
       link_pending_reference(g_pending_tail, enqueued_top_np);
-      /* swap_reference_pending_list() 함수에 의해 enqueued_top_np 가
-         unsafeList 에 등록될 수 있다. 
-         이에, flush_penging_list 는 rtHeap__clear_garbage_young_roots() 수행 후에 호출되어야 한다 
-      */
+      if (is_full_gc) {
+        /* garbageCollection() 종료 후, unsafeList 에 객체가 등록되는 것을 방지한다.
+          (swap_reference_pending_list() 함수에 의해 enqueued_top_np 가 unsafe 상태가 될 수 있다.)
+          아니면, unsafeList 에 대한 adjust_pointers 를 별도로 실행하여야 한다.
+        */
+        hold_object_while_gc(to_obj(enqueued_top_np));
+      }
       oop old = Universe::swap_reference_pending_list(g_pending_head);
       postcond(enqueued_top_np == old);
   #ifdef ASSERT
@@ -625,9 +626,8 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     }
   }
   complete_gc->do_void();
-  RefList::lock_pending_q();
+  RefList::hold_pending_q();
   rtHeap__clear_garbage_young_roots(is_full_gc);
-  RefList::unlock_pending_q();
   if (!is_full_gc) {
     rtHeapEx::adjust_ref_q_pointers(false);
   }
@@ -728,7 +728,8 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
 
 template <bool is_full_gc>
 void __process_final_phantom_references() {
-  // rtgc_log(LOG_OPT(3), "g_phantomList %p\n", g_phantomList._ref_q);
+  precond(!is_full_gc || !_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
+
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     oopDesc* old_referent = iter.referent();
     precond(old_referent != NULL);
@@ -747,7 +748,9 @@ void __process_final_phantom_references() {
       "check phantom ref) %p(alive=%d) of %p -> %p\n", iter.ref(), is_alive, old_referent, iter.referent());
   } 
 
-  RefList::flush_penging_list();
+  RefList::flush_penging_list(is_full_gc);
+
+  postcond(!is_full_gc || !_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
 }
 
 void rtHeap::process_final_phantom_references(bool is_tenure_gc) {

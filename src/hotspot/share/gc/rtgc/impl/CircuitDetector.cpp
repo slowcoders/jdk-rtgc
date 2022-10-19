@@ -368,6 +368,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
     return false;
 }
 
+
 bool GarbageProcessor::resolveStrongSurvivalPath(GCObject* node) {
     precond(!node->isGarbageMarked());
     precond(node->isTrackable());

@@ -500,9 +500,11 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       new_anchor_p = new_p;
     }
   } else {
-    assert(!to_obj(old_p)->isUnreachable(), "unreachable trackable %p(%s)\n", 
+    assert(!to_obj(old_p)->isUnreachable() || to_obj(old_p)->isUnstableMarked(), 
+      "unreachable trackable %p(%s)\n", 
       old_p, getClassName(to_obj(old_p)));
   }
+  postcond(rtHeap::is_alive(old_p));
 
   rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
   g_adjust_pointer_closure.init(old_p, new_anchor_p);
@@ -518,8 +520,6 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   __adjust_anchor_pointers(old_p); 
 
   to_obj(old_p)->unmarkDirtyReferrerPoints();
-  postcond(rtHeap::is_alive(old_p));
-  postcond(!to_obj(old_p)->isTrackable() || !to_obj(old_p)->isUnreachable());
   return size; 
 }
 
