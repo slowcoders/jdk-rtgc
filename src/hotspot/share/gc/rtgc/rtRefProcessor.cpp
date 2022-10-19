@@ -450,7 +450,7 @@ int RefList::_discovered_off;
 
 
 static RefList g_softList(REF_SOFT, true);
-static RefList g_weakList(REF_WEAK, true);
+static RefList g_weakList(REF_WEAK, false);
 static RefList g_finalList(REF_FINAL, false);
 static RefList g_phantomList(REF_PHANTOM, false);
 
@@ -882,6 +882,15 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
     }
     case REF_FINAL: 
       return to_obj(ref)->isActiveFinalizer();
+
+    case REF_WEAK:
+      if (!rtHeap::in_full_gc) {
+        return false;
+      } else {
+        oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
+        return referent != NULL;
+      }
+
     default:
       if (refDiscoverer != NULL) {
         oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
