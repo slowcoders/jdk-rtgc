@@ -35,7 +35,7 @@ public:
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p);
 
-  static void prepare_rtgc(bool is_full_gc);
+  static void prepare_rtgc(ReferencePolicy* policy);
   static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc(bool is_full_gc);
 

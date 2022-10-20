@@ -79,7 +79,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   assert(ref_processor() == NULL, "no stomping");
   assert(rp != NULL, "should be non-NULL");
   set_ref_processor(rp);
-  rp->setup_policy(clear_all_softrefs);
+  ReferencePolicy* ref_policy = rp->setup_policy(clear_all_softrefs);
 
   gch->trace_heap_before_gc(_gc_tracer);
 
@@ -95,7 +95,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::prepare_rtgc(true);
+    rtHeap::prepare_rtgc(ref_policy);
   }
 #endif
 

@@ -677,17 +677,17 @@ class ClearWeakHandleRef: public OopClosure {
   virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
 } clear_weak_handle_ref;
 
-void rtHeap::prepare_rtgc(bool is_full_gc) {
+void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   precond(g_stack_roots.size() == 0);
-  if (is_full_gc) {
+  if (policy != NULL) {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
     if (RtLazyClearWeakHandle) {
       WeakProcessor::oops_do(&clear_weak_handle_ref);
     }
-    // rtHeapEx::clear_finalizer_reachables();
     in_full_gc = true;
+    rtHeapEx::break_reference_links(policy);
   } else {
     g_saved_young_root_count = g_young_roots.size();
   }
