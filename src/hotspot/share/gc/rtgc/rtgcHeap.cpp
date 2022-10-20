@@ -500,7 +500,8 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       new_anchor_p = new_p;
     }
   } else {
-    assert(!to_obj(old_p)->isUnreachable() || to_obj(old_p)->isUnstableMarked(), 
+    // ensure UnsafeList is empty.
+    assert(!to_obj(old_p)->isUnreachable(), 
       "unreachable trackable %p(%s)\n", 
       old_p, getClassName(to_obj(old_p)));
   }
