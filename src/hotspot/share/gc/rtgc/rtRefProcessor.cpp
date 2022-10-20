@@ -113,7 +113,7 @@ namespace RTGC {
     }
 
     static void hold_object_while_gc(GCObject* obj) {
-      if (obj != NULL) {
+      if (obj != NULL && obj->isTrackable()) {
         obj->incrementRootRefCount();
         rtHeap__addRootStack_unsafe(obj);
       }
