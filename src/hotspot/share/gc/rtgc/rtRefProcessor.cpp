@@ -23,14 +23,14 @@ static const int LOG_OPT(int function) {
 extern void rtHeap__addRootStack_unsafe(GCObject* node);
 extern void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
+static const bool USE_REF_ARRAY = true;
+static const bool REMOVE_REF_TEMPORARY = true;
+static const bool CLEAR_FINALIZE_REF = false;
 #if DO_CROSS_CHECK_REF
 static int g_cntMisRef = 0;
 static int g_cntGarbageRef = 0;
 static int g_cntCleanRef = 0;
 static HugeArray<oop> g_enqued_referents;
-static const bool USE_REF_ARRAY = true;
-static const bool REMOVE_REF_TEMPORARY = true;
-static const bool CLEAR_FINALIZE_REF = false;
 #endif
 
 namespace RTGC {
@@ -43,9 +43,9 @@ namespace RTGC {
   public:
     oopDesc* _ref_q;
     ReferenceType _ref_type;
-  #if DO_CROSS_CHECK_REF
     HugeArray<oop> _refs;
     int _refs_lock;
+  #if DO_CROSS_CHECK_REF
     bool _enable_cross_check;
   #endif
     static int _referent_off;
@@ -191,10 +191,6 @@ namespace RTGC {
       _idx = refProcessor._refs.size();
     }
 
-    bool in_cross_test_mode() {
-      return do_cross_test;
-    }
-
     oopDesc* ref() {
       return _curr_ref;
     }
@@ -258,7 +254,7 @@ namespace RTGC {
           }
           rtgc_log(false && _refList.ref_type() == REF_SOFT, 
               "garbage soft ref %p\n", (void*)_curr_ref);
-          assert(!do_cross_test || !_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
+          assert(!_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
               "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d hasReferrer=%d ghost=%d\n", 
               (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)), policy, 
               GenCollectedHeap::heap()->old_gen()->reserved().start(),
@@ -277,9 +273,9 @@ namespace RTGC {
         _referent_p = get_raw_referent();
 
         if (!(policy & SkipClearedRef)) {
-          postcond(_referent_p != (USE_REF_ARRAY || do_cross_test ? oop(NULL) : _curr_ref));
+          postcond(_referent_p != NULL);
         }
-        else if (_referent_p == (USE_REF_ARRAY || do_cross_test ? oop(NULL) : _curr_ref)) {
+        else if (_referent_p == NULL) {
           rtgc_log(LOG_OPT(3), "remove cleared ref %p\n", (void*)_curr_ref);
           if (!is_full_gc) {
             adjust_ref_pointer();
@@ -305,7 +301,9 @@ namespace RTGC {
     }
 
     void adjust_ref_pointer() {
-      precond(!rtHeap::DoCrossCheck || _curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
+      if (rtHeap::DoCrossCheck) {
+        precond(_curr_ref->is_gc_marked() || (!rtHeap::in_full_gc && to_obj(_curr_ref)->isTrackable()));
+      }
       oop new_p = get_valid_forwardee(_curr_ref);
       if (new_p != _curr_ref) {
         if (USE_REF_ARRAY) {
@@ -437,7 +435,7 @@ namespace RTGC {
     }
 
     void clear_referent() {
-      if (do_cross_test/* && !to_obj(_referent_p)->isTrackable()*/) return;
+      if (do_cross_test) return;
       // rtgc_log(LOG_OPT(3), "clear referent ref %p\n", (void*)_curr_ref);
       RawAccess<>::oop_store_at(_curr_ref, _referent_off, oop(NULL));
     }
@@ -660,8 +658,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       postcond(!referent->hasSafeAnchor() || (!CLEAR_FINALIZE_REF && referent->getSafeAnchor() != ref));
       postcond(!referent->hasShortcut());
       assert(!referent->isTrackable() || referent->getRootRefCount() == 0, "rc = %d\n", referent->getRootRefCount());
-      postcond(!rtHeap::DoCrossCheck || cast_to_oop(old_referent)->is_gc_marked() ||
-          (!is_full_gc && old_referent->isTrackable()));
+      if (rtHeap::DoCrossCheck) {
+        postcond(cast_to_oop(old_referent)->is_gc_marked() || (!is_full_gc && old_referent->isTrackable()));
+      }
       postcond(!referent->isActiveFinalizerReachable());
       rtgc_log(LOG_OPT(3), "final ref cleared 1 %p -> %p(%p)(%s)\n", 
           (void*)ref, old_referent, referent, RTGC::getClassName(old_referent));
