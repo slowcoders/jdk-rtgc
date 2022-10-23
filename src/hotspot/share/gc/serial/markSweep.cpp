@@ -231,7 +231,9 @@ void MarkSweep::restore_marks() {
 
 MarkSweep::IsAliveClosure   MarkSweep::is_alive;
 
-bool MarkSweep::IsAliveClosure::do_object_b(oop p) { return p->is_gc_marked(); }
+bool MarkSweep::IsAliveClosure::do_object_b(oop p) { 
+  return rtHeap::DoCrossCheck ? p->is_gc_marked() : rtHeap::is_alive(p); 
+}
 
 MarkSweep::KeepAliveClosure MarkSweep::keep_alive;
 

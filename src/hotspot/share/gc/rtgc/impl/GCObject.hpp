@@ -43,6 +43,8 @@ public:
 
 	ReferrerList* getReferrerList();
 
+	int getReferrerCount();
+
 	SafeShortcut* getShortcut();
 
 	GCObject* getSafeAnchor();

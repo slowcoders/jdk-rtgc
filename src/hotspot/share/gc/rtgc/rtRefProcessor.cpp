@@ -14,7 +14,7 @@ using namespace RTGC;
 #define DO_CROSS_CHECK_REF 1
 #define PARTIAL_COLLECTION false
 
-int rtHeap::DoCrossCheck = DO_CROSS_CHECK_REF;
+int rtHeap::DoCrossCheck = 0;//DO_CROSS_CHECK_REF;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_REF, function);
@@ -114,7 +114,7 @@ namespace RTGC {
 
     static void hold_object_while_gc(GCObject* obj) {
       if (obj != NULL && obj->isTrackable()) {
-        obj->incrementRootRefCount();
+        GCRuntime::onAssignRootVariable_internal(obj);
         rtHeap__addRootStack_unsafe(obj);
       }
     }
@@ -414,7 +414,7 @@ namespace RTGC {
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         enqueue_curr_ref(true);
       } else {
-        if (is_full_gc || !referent->isTrackable()) {
+        if ((rtHeap::DoCrossCheck && is_full_gc) || !referent->isTrackable()) {
           assert(_referent_p->is_gc_marked(),
               "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
               referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
@@ -454,6 +454,9 @@ static RefList g_softList(REF_SOFT, false);
 static RefList g_weakList(REF_WEAK, false);
 static RefList g_finalList(REF_FINAL, false);
 static RefList g_phantomList(REF_PHANTOM, false);
+
+bool rtHeapEx::g_lock_unsafe_list = false;
+bool rtHeapEx::g_lock_garbage_list = false;
 
 void rtHeapEx::initializeRefProcessor() {
   RefList::_referent_off = java_lang_ref_Reference::referent_offset();
@@ -501,7 +504,7 @@ void rtHeapEx::update_soft_ref_master_clock() {
   // os::javaTimeMillis() does not guarantee monotonicity.
   jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
   jlong soft_ref_clock = java_lang_ref_SoftReference::clock();
-  assert(soft_ref_clock == _soft_ref_timestamp_clock, "soft ref clocks out of sync");
+  // assert(soft_ref_clock == _soft_ref_timestamp_clock, "soft ref clocks out of sync");
 
   NOT_PRODUCT(
   if (now < _soft_ref_timestamp_clock) {
@@ -567,18 +570,16 @@ void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
 }
 
 
-void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy) {
+void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc) {
   // const char* ref_type$ = reference_type_to_string(clear_ref);
   // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
 
   jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
-  if (policy != NULL) {
+  if (is_full_gc) {
+    ReferencePolicy* policy = RefList::g_ref_policy;
     precond(rtHeap::in_full_gc);
     
-#if DO_CROSS_CHECK_REF  
-    rtHeap::DoCrossCheck = -1;
-#endif
     rtHeap::iterate_younger_gen_roots(NULL, true);
     complete_gc->do_void();
 
@@ -691,12 +692,12 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   complete_gc->do_void();
   RefList::hold_pending_q();
   rtHeap__clear_garbage_young_roots(is_full_gc);
-  if (!is_full_gc) {
+  if (is_full_gc) {
+    precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
+    rtHeapEx::g_lock_unsafe_list = true;
+  } else {
     rtHeapEx::adjust_ref_q_pointers(false);
   }
-#if DO_CROSS_CHECK_REF  
-  rtHeap::DoCrossCheck = 1;
-#endif
 }
 
 
@@ -720,6 +721,7 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
   }  
 }
 
+
 template <bool is_full_gc>
 void __process_final_phantom_references() {
   precond(!is_full_gc || !_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
@@ -735,7 +737,7 @@ void __process_final_phantom_references() {
     if (!is_alive) {
       precond(!to_obj(old_referent)->isTrackable() || to_obj(old_referent)->isDestroyed());
       iter.enqueue_curr_ref(true);
-    } else {
+    } else if (!is_full_gc) {
       iter.adjust_referent_pointer();
     }
     rtgc_log(LOG_OPT(5), 
@@ -747,7 +749,23 @@ void __process_final_phantom_references() {
   postcond(!is_full_gc || !_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
 }
 
-void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
+void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc) {
+  if (!rtHeap::DoCrossCheck) {
+    if (rtHeap::in_full_gc) {
+      if (UseCompressedOops) {
+        __keep_alive_final_referents<narrowOop, true>(keep_alive, complete_gc);
+      } else {
+        __keep_alive_final_referents<oop, true>(keep_alive, complete_gc);
+      }
+    } else {
+      if (UseCompressedOops) {
+        __keep_alive_final_referents<narrowOop, false>(keep_alive, complete_gc);
+      } else {
+        __keep_alive_final_referents<oop, false>(keep_alive, complete_gc);
+      }
+    }      
+  }
+
   if (is_tenure_gc) {
     __process_final_phantom_references<true>();
   } else {
@@ -789,9 +807,6 @@ void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
 
 template<bool is_full_gc>
 void __adjust_ref_q_pointers() {
-#if DO_CROSS_CHECK_REF
-  // __check_garbage_referents();
-#endif  
   SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef_NoReferentCheck : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {

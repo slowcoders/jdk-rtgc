@@ -409,6 +409,7 @@ void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oop
     return;
   }
 
+  // rtgc_log(true, "cld oops_do %p\n", (void*)holder_no_keepalive());
   // Only clear modified_oops after the ClassLoaderData is claimed.
   if (clear_mod_oops) {
     clear_modified_oops();
@@ -617,19 +618,6 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
-#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-class HandleReleaseClosure : public OopClosure {
-  void do_oop(oop* p) {
-    oop obj = *p;
-    if (obj != NULL) rtHeap::release_jni_handle(obj);
-  }
-
-  void do_oop(narrowOop* p) {
-    // The ChunkedHandleList should not contain any narrowOop
-    ShouldNotReachHere();
-  }  
-};
-#endif
 
 void ClassLoaderData::unload() {
   _unloading = true;

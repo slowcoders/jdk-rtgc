@@ -581,8 +581,8 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) { // }::DoCrossCheck) {
+#if INCLUDE_RTGC  
+  if (EnableRTGC) { 
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
 
@@ -635,27 +635,29 @@ void DefNewGeneration::collect(bool   full,
 #endif
 
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
-  }
-#endif
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
   rp->setup_policy(clear_all_soft_refs);
   ReferenceProcessorPhaseTimes pt(_gc_timer, rp->max_num_queues());
-  SerialGCRefProcProxyTask task(is_alive, keep_alive, evacuate_followers);
-  const ReferenceProcessorStats& stats = rp->process_discovered_references(task, pt);
-  gc_tracer.report_gc_reference_stats(stats);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, false);
+  }
+  if (!EnableRTGC || rtHeap::DoCrossCheck)
+#endif
+  {
+    SerialGCRefProcProxyTask task(is_alive, keep_alive, evacuate_followers);
+    const ReferenceProcessorStats& stats = rp->process_discovered_references(task, pt);
+    gc_tracer.report_gc_reference_stats(stats);
+  }
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
   pt.print_all_references();
-
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
   WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(false);
+    rtHeap::process_final_phantom_references(&keep_alive, &evacuate_followers, false);
   }
 #endif
 
@@ -663,7 +665,7 @@ void DefNewGeneration::collect(bool   full,
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
 #if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
+  if (EnableRTGC) { 
     rtHeap::finish_rtgc(false);
   }
 #endif

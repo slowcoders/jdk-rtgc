@@ -93,8 +93,8 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) { // }::DoCrossCheck) {
+#if INCLUDE_RTGC 
+  if (EnableRTGC) {
     rtHeap::prepare_rtgc(ref_policy);
   }
 #endif
@@ -125,8 +125,9 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #endif
 
   mark_sweep_phase4();
+
 #if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
+  if (EnableRTGC) { 
     rtHeap::finish_rtgc(true);
   }
 #endif
@@ -260,11 +261,13 @@ class WeakCLDScanner : public CLDClosure, public OopClosure {
     if (mark_ref) {
       oop holder = cld->holder_no_keepalive();
       if (holder == NULL) return;
-      if (!holder->is_gc_marked()) {
-        !rtHeap::is_alive(holder);
+      if (rtHeap::DoCrossCheck ? !holder->is_gc_marked(): !rtHeap::is_alive(holder)) {
         return;
       }
-      rtHeap::is_alive(holder);
+      postcond(rtHeap::is_alive(holder));
+    } else {
+      void rtHeap_check_unsafe_cld_holder(ClassLoaderData* cld);
+      rtHeap_check_unsafe_cld_holder(cld);
     }
     cld->oops_do(this, ClassLoaderData::_claim_none);
   }
@@ -279,8 +282,8 @@ class WeakCLDScanner : public CLDClosure, public OopClosure {
     if (!mark_ref) {
       rtHeap::release_jni_handle(obj);
     } else {
-      precond(obj->is_gc_marked());
-      precond(rtHeap::is_alive(obj));
+      precond(!rtHeap::DoCrossCheck || obj->is_gc_marked());
+      assert(rtHeap::is_alive(obj), "must be alive %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
       rtHeap::lock_jni_handle(obj);
     }
   }
@@ -315,9 +318,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
       young_root_closure.set_ref_discoverer(_ref_processor);
       rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
     }
-    ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
-    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
-    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
   // Process reference objects found during marking
@@ -334,7 +335,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(true);
+    rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
 
@@ -344,7 +345,16 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   {
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+
+    void rtHeap__clear_garbage_young_roots(bool is_full_gc);
+    rtHeap__clear_garbage_young_roots(true);
   }
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
+  }
+#endif
 
   {
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", gc_timer());

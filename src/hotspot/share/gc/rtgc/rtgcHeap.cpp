@@ -173,7 +173,7 @@ static void resurrect_young_root(GCObject* node) {
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
   if (anchor != NULL) {
-    precond(!node->hasSafeAnchor());
+    // precond(!node->hasSafeAnchor() || to_obj(anchor) == node->getSafeAnchor());
     node->setSafeAnchor(to_obj(anchor));
     node->setShortcutId_unsafe(INVALID_SHORTCUT);
   }
@@ -220,12 +220,14 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
 
 template<bool is_full_gc>
 void rtHeap__clearStack() {
+  rtHeapEx::g_lock_unsafe_list = false;
   int cnt_root = g_stack_roots.size();
   if (cnt_root > 0) {
     GCObject** src = &g_stack_roots.at(0);
     GCObject** end = src + cnt_root;
     rtgc_log(LOG_OPT(8), "clear_stack_roots %d\n", 
         g_stack_roots.size());
+
     for (; src < end; src++) {
       GCObject* erased = src[0];
       precond(erased->isTrackable());
@@ -262,7 +264,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     GCObject* node = to_obj(g_young_roots.at(i));
     if (node->isGarbageMarked() || !node->isYoungRoot()) {
       g_young_roots.removeFast(i);
-    } else if (is_full_gc) {
+    } else if (is_full_gc && rtHeap::DoCrossCheck) {
       precond(cast_to_oop(node)->is_gc_marked());
     }
   }
@@ -270,8 +272,9 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   if (!is_full_gc) {
     rtHeap__clearStack<false>();
   }
-  rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d\n", 
-      old_cnt, g_young_roots.size());
+  rtHeapEx::g_lock_garbage_list = true;
+  rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbages=%d\n", 
+      old_cnt, g_young_roots.size(), _rtgc.g_pGarbageProcessor->getGarbageNodes()->size());
 }
 
 
@@ -288,6 +291,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     g_young_root_closure = closure;
   }
   int young_root_count = is_full_gc ? g_young_roots.size() : g_saved_young_root_count;
+  rtHeapEx::g_lock_garbage_list = false;
 
 #ifdef ASSERT
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
@@ -297,7 +301,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 #endif
 
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
-  precond(is_full_gc || garbages->size() == 0);
+  assert(is_full_gc || garbages->size() == 0, "garbages->size %d\n", garbages->size());
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     if (node->isGarbageMarked()) {
@@ -348,6 +352,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   RTGC::add_referrer_ex(link, anchor, false);
 }
 
+
 void rtHeap::mark_forwarded(oopDesc* p) {
   // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   GCObject* node = to_obj(p);
@@ -373,7 +378,6 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 #ifdef ASSERT
   ensure_alive_or_deadsapce(old_p, _old_anchor_p);
-  RTGC::adjust_debug_pointer(old_p, new_p, false);
 #endif   
 
   _has_young_ref |= is_in_young(new_p);
@@ -699,6 +703,7 @@ void rtHeap::finish_rtgc(bool is_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
+  rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
   in_full_gc = false;
 }
@@ -740,6 +745,33 @@ void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
   }
 }
 
+void rtHeap_check_unsafe_cld_holder(ClassLoaderData* cld) {
+  oop holder = cld->holder_no_keepalive();
+  GCObject* node = to_obj(holder);
+  if (node->isTrackable() && !node->isYoungRoot()) {
+    rtHeap::add_young_root(holder, holder);
+  }
+}
+
+
+void rtHeap_check_cld_holder(ClassLoaderData* cld, bool mark) {
+  oop holder = cld->holder_no_keepalive();
+  
+  GCObject* node = to_obj(holder);
+  if (node == NULL) {
+    rtgc_log(true, "cld %p cleared \n", cld);
+  } else {
+    // GCObject* anchor = (node->getSingleAnchor());
+    // if (anchor != NULL) {
+    //   node = anchor;
+    //   holder = cast_to_oop(anchor);
+    // }
+    // rtgc_log(true, "cld (%p) %p holder %p(%s) gc_mark=%d, rc=%d, unsafe=%d, anchorCount=%d mark=%d\n", 
+    //     anchor, cld, (void*)holder, getClassName(node), holder->is_gc_marked(), 
+    //     node->getRootRefCount(), node->isUnstableMarked(), node->getReferrerCount(), mark);
+    // rtHeapEx::print_ghost_anchors(node);
+  }
+}
 
 void rtHeap__initialize() {
   g_young_roots.initialize();

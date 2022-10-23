@@ -67,8 +67,8 @@ public:
   static bool is_referent_reachable(oopDesc* ref, ReferenceType type);
   static void init_java_reference(oopDesc* ref, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref, oopDesc* discovered);
-  static void process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy);
-  static void process_final_phantom_references(bool is_tenure_gc);
+  static void process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc);
+  static void process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

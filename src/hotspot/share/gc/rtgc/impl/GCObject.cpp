@@ -18,6 +18,13 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
             "recursive link %p\n", link);
 }
 
+int GCObject::getReferrerCount() {
+    if (!this->hasReferrer()) return 0;
+    if (!this->hasMultiRef()) return 1;
+    ReferrerList* referrers = getReferrerList();
+    return referrers->size();
+}
+
 void GCObject::addReferrer(GCObject* referrer) {
     /**
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
@@ -302,8 +309,8 @@ GCObject* GCObject::getSafeAnchor() {
 }
 
 void GCObject::setSafeAnchor(GCObject* anchor) {
-    assert(hasReferrer() && SafeShortcut::isValidIndex(this->getShortcutId()), 
-        "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
+    // assert(hasReferrer() && SafeShortcut::isValidIndex(this->getShortcutId()), 
+    //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
 
     if (hasMultiRef()) {

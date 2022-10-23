@@ -377,6 +377,13 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
     assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
+#ifdef INCLUDE_RTGC
+#ifdef ASSERT
+    if (EnableRTGC) {
+      RTGC::adjust_debug_pointer(q, cast_to_oop(compact_top), false);
+    }
+#endif
+#endif
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.

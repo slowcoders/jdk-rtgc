@@ -4,6 +4,7 @@
 #include "../RTGC.hpp"
 #include "../rtgcDebug.hpp"
 #include "../rtgcHeap.hpp"
+#include "../rtRefProcessor.hpp"
 
 #define USE_ITERATOR_STACK false
 #define USE_ANCHOR_VISIOR true
@@ -243,6 +244,7 @@ void GarbageProcessor::constructShortcut() {
 
 
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
+    precond(!rtHeapEx::g_lock_unsafe_list);
     precond(garbageAnchor->isTrackable());
     //rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (!link->removeMatchedReferrers(garbageAnchor)) {
@@ -263,6 +265,7 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
+    precond(!rtHeapEx::g_lock_unsafe_list);
     _unsafeObjects.push_back(obj);
 }
 
@@ -344,6 +347,7 @@ void GarbageProcessor::validateGarbageList() {
 
 
 bool GarbageProcessor::detectGarbage(GCObject* node) {
+    precond(!rtHeapEx::g_lock_garbage_list);
     if (node->isGarbageMarked()) {
         // assert(checkBrokenLink || node->isDestroyed() || _visitedNodes.contains(node), 
         //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
