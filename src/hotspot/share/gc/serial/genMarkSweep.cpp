@@ -206,8 +206,13 @@ void GenMarkSweep::deallocate_stacks() {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
   bool _is_young_root;
+  oop _cld_holder;
 public:
   
+  TenuredYoungRootClosure() {
+    _cld_holder = NULL;
+  }
+
   bool iterate_tenured_young_root_oop(oop obj) {
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;
@@ -218,6 +223,15 @@ public:
     obj->oop_iterate(this);
     _current_anchor = old_anchor;
     return _is_young_root;
+  }
+
+  void begin_cld_oop_iterate() {
+    _cld_holder = _current_anchor;
+    _current_anchor = NULL;
+  }
+
+  void end_cld_oop_iterate() {
+    _current_anchor = _cld_holder;
   }
 
   void do_complete() {
@@ -250,6 +264,13 @@ public:
 };
 static TenuredYoungRootClosure young_root_closure;
 
+void rtgc_begin_cld_oop_iterate() {
+  young_root_closure.begin_cld_oop_iterate();
+}
+
+void rtgc_end_cld_oop_iterate() {
+  young_root_closure.end_cld_oop_iterate();
+}
 
 template<bool mark_ref>
 class WeakCLDScanner : public CLDClosure, public OopClosure {

@@ -415,7 +415,12 @@ void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oop
     clear_modified_oops();
   }
 
+  // void rtgc_begin_cld_oop_iterate();
+  // void rtgc_end_cld_oop_iterate();
+
+  // rtgc_begin_cld_oop_iterate();
   _handles.oops_do(f);
+  // rtgc_end_cld_oop_iterate();
 }
 
 void ClassLoaderData::classes_do(KlassClosure* klass_closure) {

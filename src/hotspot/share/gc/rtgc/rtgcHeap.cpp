@@ -172,11 +172,12 @@ static void resurrect_young_root(GCObject* node) {
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
-  if (anchor != NULL) {
+  // if (anchor != NULL) {
     // precond(!node->hasSafeAnchor() || to_obj(anchor) == node->getSafeAnchor());
-    node->setSafeAnchor(to_obj(anchor));
-    node->setShortcutId_unsafe(INVALID_SHORTCUT);
-  }
+    // node->setSafeAnchor(to_obj(anchor));
+    // node->setShortcutId_unsafe(INVALID_SHORTCUT);
+    node->invalidateSafeAnchor();
+  // }
   rtgc_log(LOG_OPT(11), "resurrect obj %p -> %p  root=%d\n", 
       (void*)anchor, node, node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
