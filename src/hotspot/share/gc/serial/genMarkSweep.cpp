@@ -251,10 +251,7 @@ public:
         } 
         if (!rtHeap::DoCrossCheck) return;
       }
-      if (rtHeap::DoCrossCheck) {
-        MarkSweep::_is_rt_anchor_trackable = true;
-      }
-      MarkSweep::mark_and_push_internal(obj);
+      MarkSweep::mark_and_push_internal(obj, true);
     }
   }
 

@@ -53,11 +53,11 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
-inline void MarkSweep::mark_and_push_internal(oop obj) {
+inline void MarkSweep::mark_and_push_internal(oop obj, bool is_anchored) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (rtHeap::is_trackable(obj)) {
-      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
+      if (!is_anchored || !rtHeap::is_alive(obj)) {
         rtHeap::mark_survivor_reachable(obj);
       }
       if (!rtHeap::DoCrossCheck) return;
@@ -74,7 +74,7 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-    mark_and_push_internal(obj);
+    mark_and_push_internal(obj, _is_rt_anchor_trackable);
   }
 }
 
