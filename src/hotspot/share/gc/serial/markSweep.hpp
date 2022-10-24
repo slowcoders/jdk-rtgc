@@ -158,7 +158,7 @@ class MarkSweep : AllStatic {
   // Check mark and maybe push on marking stack
   template <class T> static void mark_and_push(T* p);
 
-  static inline void mark_and_push_internal(oop p);
+  static inline void mark_and_push_internal(oop p, bool is_anchored);
   
  private:
 

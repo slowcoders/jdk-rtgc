@@ -636,7 +636,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     if (!is_alive) {
       if (true) {
         rtgc_log(LOG_OPT(3), "resurrect final ref %p of %p\n", ref, referent);
-        if (is_full_gc && rtHeap::DoCrossCheck) {
+        if (is_full_gc) {
           MarkSweep::_is_rt_anchor_trackable = ref->isTrackable();
         }
         if (!referent->isTrackable() || (rtHeap::DoCrossCheck && is_full_gc)) {
@@ -931,14 +931,14 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       return;
 
     case REF_WEAK:
-      ref->set_mark(ref->mark().set_age(markWord::max_age));
+      // ref->set_mark(ref->mark().set_age(markWord::max_age));
       g_weakList.register_ref(ref, referent_p);
       break;
     
     case REF_SOFT:
       // TODO -> age 변경 시점을 늦춘다(?).
       // rtgc_log(true, "soft ref created %p\n", ref);
-      ref->set_mark(ref->mark().set_age(markWord::max_age));
+      // ref->set_mark(ref->mark().set_age(markWord::max_age));
       g_softList.register_ref(ref, referent_p);
       break;
 
