@@ -46,6 +46,10 @@ class GenMarkSweep : public MarkSweep {
   // Temporary data structures for traversal and storing/restoring marks
   static void allocate_stacks();
   static void deallocate_stacks();
+
+#if INCLUDE_RTGC
+  static void do_unload_classes();
+#endif
 };
 
 #endif // SHARE_GC_SERIAL_GENMARKSWEEP_HPP

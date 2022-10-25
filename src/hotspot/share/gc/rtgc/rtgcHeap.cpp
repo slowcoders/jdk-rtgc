@@ -157,7 +157,6 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
-  new_p->klass()->class_loader_data()->increase_tenured_count();
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
@@ -221,6 +220,21 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
 }
 
 
+void rtHeap__release_cld_handle(oopDesc* old_p) {
+  GCObject* node = to_obj(old_p);
+  precond(node->isTrackable());
+  if (node->decrementRootRefCount() <= ZERO_ROOT_REF) {
+    if (!node->hasReferrer() && !node->isUnstableMarked()) {
+      node->markUnstable();
+      oop new_p = cast_to_oop(node)->forwardee();
+      node = new_p == NULL ? node : to_obj(new_p);
+      _rtgc.g_pGarbageProcessor->addUnstable_ex(node);
+    }
+  }
+}
+
+
+
 template<bool is_full_gc>
 void rtHeap__clearStack() {
   rtHeapEx::g_lock_unsafe_list = false;
@@ -236,21 +250,12 @@ void rtHeap__clearStack() {
       precond(erased->isTrackable());
       if (!is_full_gc) {
         GCRuntime::onEraseRootVariable_internal(erased);
-      }
-      else if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
-        if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {
-          erased->markUnstable();
-          rtgc_debug_log(erased, "add unsafe=%p\n", erased);
-          if (is_full_gc) {
-            oop new_p = cast_to_oop(erased)->forwardee();
-            erased = new_p == NULL ? erased : to_obj(new_p);
-          }
-          _rtgc.g_pGarbageProcessor->addUnstable_ex(erased);
-        }
+      } else {
+        rtHeap__release_cld_handle(cast_to_oop(erased));
       }
     }
-    rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", 
-        g_stack_roots.size());
+
+    rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", g_stack_roots.size());
     g_stack_roots.resize(0);
   }
 }
@@ -372,6 +377,23 @@ void rtHeap::mark_forwarded(oopDesc* p) {
       node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
   // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
+  if (!rtHeap::DoCrossCheck) {
+    ClassLoaderData* cld = p->klass()->class_loader_data();
+    precond(g_young_root_closure->current_anchor() == NULL);
+    if (!cld->is_alive()) {
+      oop holder = cld->holder_no_keepalive();
+      if (holder != NULL && !holder->is_gc_marked()) { //to_obj(holder)->getRootRefCount() == 0) {
+        if (to_obj(holder)->isTrackable()) {
+          mark_survivor_reachable(holder);
+        } 
+        // if (!holder->is_gc_marked()) {
+          MarkSweep::mark_object(holder);
+        // }
+        //rtgc_log(true, "resurrect classloader!\n");
+        //cld->oops_do((OopClosure*)g_young_root_closure, ClassLoaderData::_claim_strong);
+      }
+    }
+  }
   node->markDirtyReferrerPoints();
 }
 
@@ -511,7 +533,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     }
   } else {
     // ensure UnsafeList is empty.
-    assert(!to_obj(old_p)->isUnreachable(), 
+    assert(!to_obj(old_p)->isUnreachable() || to_obj(old_p)->isUnstableMarked(), 
       "unreachable trackable %p(%s)\n", 
       old_p, getClassName(to_obj(old_p)));
   }
@@ -759,25 +781,6 @@ void rtHeap_check_unsafe_cld_holder(ClassLoaderData* cld) {
   }
 }
 
-
-void rtHeap_check_cld_holder(ClassLoaderData* cld, bool mark) {
-  oop holder = cld->holder_no_keepalive();
-  
-  GCObject* node = to_obj(holder);
-  if (node == NULL) {
-    rtgc_log(true, "cld %p cleared \n", cld);
-  } else {
-    // GCObject* anchor = (node->getSingleAnchor());
-    // if (anchor != NULL) {
-    //   node = anchor;
-    //   holder = cast_to_oop(anchor);
-    // }
-    // rtgc_log(true, "cld (%p) %p holder %p(%s) gc_mark=%d, rc=%d, unsafe=%d, anchorCount=%d mark=%d\n", 
-    //     anchor, cld, (void*)holder, getClassName(node), holder->is_gc_marked(), 
-    //     node->getRootRefCount(), node->isUnstableMarked(), node->getReferrerCount(), mark);
-    // rtHeapEx::print_ghost_anchors(node);
-  }
-}
 
 void rtHeap__initialize() {
   g_young_roots.initialize();

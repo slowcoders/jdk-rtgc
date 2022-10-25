@@ -178,8 +178,8 @@ public:
 	}
 
 	int decrementRootRefCount() {
-		assert(_flags.rootRefCount > ZERO_ROOT_REF + 1, "wrong ref-count %p(%d) garbage=%d\n", 
-			this, _flags.rootRefCount, isGarbageMarked());
+		assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount -= 2);
 	}
 

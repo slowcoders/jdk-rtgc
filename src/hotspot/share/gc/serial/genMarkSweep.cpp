@@ -65,6 +65,8 @@
 #include "jvmci/jvmci.hpp"
 #endif
 
+static void do_unload_classes();
+
 void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_softrefs) {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
 
@@ -111,6 +113,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC
   if (EnableRTGC) {
+    do_unload_classes();
     HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
     rtHeap::prepare_adjust_pointers(old_gen_heap_start);
   }
@@ -269,25 +272,25 @@ void rtgc_end_cld_oop_iterate() {
   young_root_closure.end_cld_oop_iterate();
 }
 
-template<bool mark_ref>
+template<bool clear_garbage>
 class WeakCLDScanner : public CLDClosure, public OopClosure {
-  bool _is_alive;
+  oop _holder;
  public:
   WeakCLDScanner() {}
 
   void do_cld(ClassLoaderData* cld) {
-    if (mark_ref) {
-      oop holder = cld->holder_no_keepalive();
-      if (holder == NULL) return;
-      if (rtHeap::DoCrossCheck ? !holder->is_gc_marked(): !rtHeap::is_alive(holder)) {
-        return;
-      }
-      postcond(rtHeap::is_alive(holder));
+    oop holder = cld->holder_no_keepalive();
+    assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
+    if (!clear_garbage) {
+      rtHeap::release_jni_handle(holder);
+    } else if (holder->is_gc_marked()) {
+      rtHeap::lock_jni_handle(holder);
     } else {
-      void rtHeap_check_unsafe_cld_holder(ClassLoaderData* cld);
-      rtHeap_check_unsafe_cld_holder(cld);
+      _holder = holder;
+      precond(!rtHeap::is_alive(holder));
+      // rtgc_log(true, "cleaning cld handles %p\n", cld);
+      cld->oops_do(this, ClassLoaderData::_claim_none);
     }
-    cld->oops_do(this, ClassLoaderData::_claim_none);
   }
 
   virtual void do_oop(oop* o) { do_oop_work(o); }
@@ -295,19 +298,19 @@ class WeakCLDScanner : public CLDClosure, public OopClosure {
 
   void do_oop_work(oop* o) {
     oop obj = *o;
-    if (obj == NULL) return;
+    if (obj == NULL || obj == _holder) return;
 
-    if (!mark_ref) {
-      rtHeap::release_jni_handle(obj);
+    if (rtHeap::is_trackable(obj)) {
+      // Unsafe 에 등록된 후, 다음 GC에서 release 된다.
+      void rtHeap__release_cld_handle(oopDesc* obj);
+      rtHeap__release_cld_handle(obj);
     } else {
-      precond(!rtHeap::DoCrossCheck || obj->is_gc_marked());
-      assert(rtHeap::is_alive(obj), "must be alive %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
-      rtHeap::lock_jni_handle(obj);
+      rtHeap::release_jni_handle(obj);
     }
   }
 };
 static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
-static WeakCLDScanner<true>  remark_weak_cld_rtgc_ref;
+static WeakCLDScanner<true>  weak_cld_cleaner;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
@@ -351,28 +354,26 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     gc_tracer()->report_gc_reference_stats(stats);
   }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
-  }
-#endif
-
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");
 
-  {
-    GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
-    WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
-
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
+    assert(_marking_stack.is_empty(), "Marking should have completed");
     void rtHeap__clear_garbage_young_roots(bool is_full_gc);
     rtHeap__clear_garbage_young_roots(true);
   }
-
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
-  }
+}
 #endif
+
+void GenMarkSweep::do_unload_classes() {
+  {
+    ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_cleaner);
+
+    GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
+    WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+  }
 
   {
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", gc_timer());

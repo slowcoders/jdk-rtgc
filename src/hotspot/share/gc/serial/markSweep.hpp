@@ -160,10 +160,16 @@ class MarkSweep : AllStatic {
 
   static inline void mark_and_push_internal(oop p, bool is_anchored);
   
+#if INCLUDE_RTGC
+ public:
+#else
  private:
-
+#endif
   // Call backs for marking
   static void mark_object(oop obj);
+
+ private:
+
   // Mark pointer and follow contents.  Empty marking stack afterwards.
   template <class T> static inline void follow_root(T* p);
 
