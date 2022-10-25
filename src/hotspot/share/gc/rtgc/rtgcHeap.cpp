@@ -157,6 +157,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
+  new_p->klass()->class_loader_data()->is_alive incree_trackable();
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
