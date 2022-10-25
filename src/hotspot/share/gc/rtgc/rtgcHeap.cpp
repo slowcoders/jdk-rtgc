@@ -157,13 +157,13 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
-  new_p->klass()->class_loader_data()->is_alive incree_trackable();
+  new_p->klass()->class_loader_data()->increase_tenured_count();
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
   // YG GC 수행 전에, old-heap 에 allocate 된 객체들을 marking 한다.
   precond (!to_obj(new_p)->isTrackable());
-  to_obj(new_p)->markTrackable();
+  mark_promoted_trackable(new_p);
   GCRuntime::detectUnsafeObject(to_obj(new_p));
 }
 
@@ -259,7 +259,10 @@ void rtHeap__clearStack() {
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   if (!is_full_gc) {
     _rtgc.g_pGarbageProcessor->validateGarbageList();
+  } else {
+    
   }
+
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
 
   int old_cnt = g_young_roots.size();
@@ -500,7 +503,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     oopDesc* new_p = old_p->forwardee();
     if (new_p == NULL) new_p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(new_p)) {
-      to_obj(old_p)->markTrackable();
+      mark_promoted_trackable(old_p);
       if (to_obj(old_p)->isUnreachable()) {
         mark_survivor_reachable(old_p);
       }
