@@ -159,7 +159,12 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
-  new_p->klass()->class_loader_data()->increase_tenured_count();
+  Klass* klass = new_p->klass();
+  if (klass == vmClasses::ClassLoader_klass()) {
+    java_lang_ClassLoader::loader_data_raw(new_p)->increase_tenured_count();
+  } else {
+    klass->class_loader_data()->increase_tenured_count();
+  }
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
@@ -289,7 +294,10 @@ class WeakCLDScanner : public CLDClosure {
   void do_cld(ClassLoaderData* cld) {
     oop holder = cld->holder_no_keepalive();
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
-    if (holder->is_gc_marked() || cld->tenured_count() > 0 || to_obj(holder)->getRootRefCount() > 2) return;
+    if (holder->is_gc_marked() || cld->tenured_count() > 0 || to_obj(holder)->getRootRefCount() > 2) {
+      rtgc_log(true, "skip cld scanner %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
+      return;
+    }
     
     if (clear_garbage) {
       CLDHandleClosure<false> cleaner;
@@ -298,11 +306,11 @@ class WeakCLDScanner : public CLDClosure {
     else if (!_rtgc.g_pGarbageProcessor->detectGarbage(to_obj(holder))) {
       // rtHeapEx::print_ghost_anchors(to_obj(holder));
       // fatal("gggg");
-      rtgc_log(true, "remark cld handles %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
+      // rtgc_log(true, "remark cld handles %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
       CLDHandleClosure<true> remarker;
       cld->oops_do(&remarker, ClassLoaderData::_claim_none);
     } else {
-      rtgc_log(true, "cleaning cld handles %p\n", cld);
+      // rtgc_log(true, "cleaning cld handles %p\n", cld);
     }
   }
 };

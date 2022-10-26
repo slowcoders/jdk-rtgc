@@ -114,7 +114,12 @@ void FreeMemStore::clearStore() {
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   precond(!cast_to_oop(obj)->is_gc_marked());
   precond(obj->isTrackable());
-  cast_to_oop(obj)->klass()->class_loader_data()->decrease_tenured_count();
+  Klass* klass = cast_to_oop(obj)->klass();
+  if (klass == vmClasses::ClassLoader_klass()) {
+    java_lang_ClassLoader::loader_data_raw(cast_to_oop(obj))->decrease_tenured_count();
+  } else {
+    klass->class_loader_data()->decrease_tenured_count();
+  }
   if (false && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);
   }
