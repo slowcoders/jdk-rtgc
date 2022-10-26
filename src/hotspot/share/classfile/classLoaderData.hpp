@@ -166,7 +166,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   ClassLoaderData* _next; /// Next loader_datas created
 
 #if INCLUDE_RTGC
-  int _tenured_cnt;
+  int _holder_ref_count;
 #endif
   Klass*  _class_loader_klass;
   Symbol* _name;
@@ -188,9 +188,10 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   bool has_modified_oops()               { return _modified_oops; }
 
 #if INCLUDE_RTGC
-  int  tenured_count()                  { return _tenured_cnt; }
-  void increase_tenured_count()         { _tenured_cnt ++; }
-  void decrease_tenured_count()         { precond(_tenured_cnt > 0); _tenured_cnt --; }
+  int  holder_ref_count()                { return _holder_ref_count; }
+  void reset_holder_ref_count()          { _holder_ref_count = 0; }
+  void increase_holder_ref_count()       { _holder_ref_count ++; }
+  void decrease_holder_ref_count()       { precond(_holder_ref_count > 0); _holder_ref_count --; }
 #endif
 
   oop holder_no_keepalive() const;

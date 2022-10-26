@@ -233,3 +233,4 @@ void ArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   arrayOop a = arrayOop(obj);
   guarantee(a->length() >= 0, "array with negative length?");
 }
+

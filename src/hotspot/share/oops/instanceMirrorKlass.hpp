@@ -64,6 +64,9 @@ class InstanceMirrorKlass: public InstanceKlass {
     return static_cast<const InstanceMirrorKlass*>(k);
   }
 
+#if INCLUDE_RTGC // class_loader_data
+  virtual ClassLoaderData* class_loader_data_of(oop obj);
+#endif
   // Returns the size of the instance including the extra static fields.
   virtual int oop_size(oop obj) const;
 

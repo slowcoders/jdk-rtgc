@@ -231,7 +231,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/BoundMethodHandle$Species_L",
-  "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
+  // "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -322,7 +322,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 1; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -347,21 +347,21 @@ void RTGC::initialize() {
 
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
     if (false) {
-      rtgc_log(true, "lock_mask %p\n", (void*)markWord::lock_mask);
-      rtgc_log(true, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);
-      rtgc_log(true, "biased_lock_mask %p\n", (void*)markWord::biased_lock_mask);
-      rtgc_log(true, "biased_lock_mask_in_place %p\n", (void*)markWord::biased_lock_mask_in_place);
-      rtgc_log(true, "biased_lock_bit_in_place %p\n", (void*)markWord::biased_lock_bit_in_place);
-      rtgc_log(true, "age_mask %p\n", (void*)markWord::age_mask);
-      rtgc_log(true, "age_mask_in_place %p\n", (void*)markWord::age_mask_in_place);
-      rtgc_log(true, "epoch_mask %p\n", (void*)markWord::epoch_mask);
-      rtgc_log(true, "epoch_mask_in_place %p\n", (void*)markWord::epoch_mask_in_place);
+      rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
+      rtgc_log(1, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);
+      rtgc_log(1, "biased_lock_mask %p\n", (void*)markWord::biased_lock_mask);
+      rtgc_log(1, "biased_lock_mask_in_place %p\n", (void*)markWord::biased_lock_mask_in_place);
+      rtgc_log(1, "biased_lock_bit_in_place %p\n", (void*)markWord::biased_lock_bit_in_place);
+      rtgc_log(1, "age_mask %p\n", (void*)markWord::age_mask);
+      rtgc_log(1, "age_mask_in_place %p\n", (void*)markWord::age_mask_in_place);
+      rtgc_log(1, "epoch_mask %p\n", (void*)markWord::epoch_mask);
+      rtgc_log(1, "epoch_mask_in_place %p\n", (void*)markWord::epoch_mask_in_place);
 
-      rtgc_log(true, "hash_mask %p\n", (void*)markWord::hash_mask);
-      rtgc_log(true, "hash_mask_in_place %p\n", (void*)markWord::hash_mask_in_place);
+      rtgc_log(1, "hash_mask %p\n", (void*)markWord::hash_mask);
+      rtgc_log(1, "hash_mask_in_place %p\n", (void*)markWord::hash_mask_in_place);
 
-      rtgc_log(true, "unused_gap_bits %p\n", (void*)markWord::unused_gap_bits);
-      rtgc_log(true, "unused_gap_bits_in_place %p\n", (void*)(markWord::unused_gap_bits << markWord::unused_gap_shift));
+      rtgc_log(1, "unused_gap_bits %p\n", (void*)markWord::unused_gap_bits);
+      rtgc_log(1, "unused_gap_bits_in_place %p\n", (void*)(markWord::unused_gap_bits << markWord::unused_gap_shift));
     }
     // unused_gap_bits
   }

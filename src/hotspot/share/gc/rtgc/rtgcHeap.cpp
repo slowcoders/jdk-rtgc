@@ -159,11 +159,9 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
-  Klass* klass = new_p->klass();
-  if (klass == vmClasses::ClassLoader_klass()) {
-    java_lang_ClassLoader::loader_data_raw(new_p)->increase_tenured_count();
-  } else {
-    klass->class_loader_data()->increase_tenured_count();
+  ClassLoaderData* cld = new_p->klass()->class_loader_data_of(new_p);
+  if (cld != NULL) {
+    cld->increase_holder_ref_count();
   }
 }
 
@@ -294,8 +292,8 @@ class WeakCLDScanner : public CLDClosure {
   void do_cld(ClassLoaderData* cld) {
     oop holder = cld->holder_no_keepalive();
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
-    if (holder->is_gc_marked() || cld->tenured_count() > 0 || to_obj(holder)->getRootRefCount() > 2) {
-      rtgc_log(true, "skip cld scanner %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
+    if (holder->is_gc_marked() || cld->holder_ref_count() > 0 || to_obj(holder)->getRootRefCount() > 2) {
+      //rtgc_log(true, "skip cld scanner %p rc=%d\n", cld, cld->holder_ref_count());
       return;
     }
     
@@ -304,13 +302,12 @@ class WeakCLDScanner : public CLDClosure {
       cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
     }
     else if (!_rtgc.g_pGarbageProcessor->detectGarbage(to_obj(holder))) {
-      // rtHeapEx::print_ghost_anchors(to_obj(holder));
-      // fatal("gggg");
-      // rtgc_log(true, "remark cld handles %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
+      fatal("remark cld handles");
+      //rtgc_log(true, "remark cld handles %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
       CLDHandleClosure<true> remarker;
       cld->oops_do(&remarker, ClassLoaderData::_claim_none);
     } else {
-      // rtgc_log(true, "cleaning cld handles %p\n", cld);
+      //rtgc_log(true, "cleaning cld handles %p\n", cld);
     }
   }
 };
@@ -823,8 +820,8 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
 void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   GCObject* obj = to_obj(start);
   if (obj->isTrackable()) {
-    cast_to_oop(obj)->klass()->class_loader_data()->decrease_tenured_count();
-    rtgc_log(true, "rtgc_fill_dead_space %p\n", obj);
+    cast_to_oop(obj)->klass()->class_loader_data()->decrease_holder_ref_count();
+    //rtgc_log(true, "rtgc_fill_dead_space %p\n", obj);
   }
 
   oopDesc::clear_rt_node(start);
@@ -845,8 +842,30 @@ void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
   }
 }
 
+ClassLoaderData* ArrayKlass::class_loader_data_of(oop obj) {
+  ClassLoaderData* cld = obj->klass()->class_loader_data();
+  precond(cld != NULL);
+  return cld;
+}
+
+ClassLoaderData* InstanceKlass::class_loader_data_of(oop obj) {
+  ClassLoaderData* cld = obj->klass()->class_loader_data();
+  precond(cld != NULL);
+  return cld;
+}
+
+ClassLoaderData* InstanceClassLoaderKlass::class_loader_data_of(oop obj) {
+  ClassLoaderData* cld = java_lang_ClassLoader::loader_data_raw(obj);
+  return cld;
+}
+
+ClassLoaderData* InstanceMirrorKlass::class_loader_data_of(oop obj) {
+  Klass* klass = java_lang_Class::as_Klass_raw(obj);
+  return klass == NULL ? NULL : klass->class_loader_data();
+}
 
 void rtHeap__initialize() {
   g_young_roots.initialize();
   g_stack_roots.initialize();
 }
+

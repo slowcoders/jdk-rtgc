@@ -964,7 +964,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   GCObject* ref_node = to_obj(ref);
   if (ref_node->isTrackable()) {
     // 참고) JNI 함수 호출 도중에 GC가 발생한 경우, ref 가 trackble 상태일 수 있다.
-    rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
+    // rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
     RTGC::debug_obj = ref;
     RTGC::debug_obj2 = referent_p;
     RTGC::lock_heap();
