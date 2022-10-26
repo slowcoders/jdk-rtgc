@@ -231,7 +231,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/BoundMethodHandle$Species_L",
-  // "[Ljava/lang/Object;",
+  "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -260,14 +260,16 @@ bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj2) return true;
   // if (ptr < (void*)0x203990310) return true;
   // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
+  // return (vmClasses::Class_klass() == obj->klass());
+
+  Klass* klass = obj->klass();
+  if (true) {
+    if (vmClasses::Class_klass() != klass) return false;
+    klass = java_lang_Class::as_Klass(cast_to_oop(obj));
+    if (klass == NULL) return false;
+  }
 
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
-    Klass* klass = obj->klass();
-    if (false) {
-      if (vmClasses::Class_klass() != klass) return false;
-      klass = java_lang_Class::as_Klass(cast_to_oop(obj));
-      if (klass == NULL) return false;
-    }
     if (debugKlass[i] == NULL) {
       const char* className = debugClassNames[i];
       if (className != NULL && strstr((char*)klass->name()->bytes(), className)
@@ -320,7 +322,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 1; //UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -336,7 +338,7 @@ void RTGC::initialize() {
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x7f00eea58;
+    // debug_obj = (void*)0x7f00eea58;
 
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);

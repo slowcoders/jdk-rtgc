@@ -3,6 +3,7 @@
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"
 #include "oops/oop.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -149,6 +150,7 @@ void rtHeap::clear_weak_reachable(oopDesc* p) {
 
 bool rtHeap::ensure_weak_reachable(oopDesc* p) {
   GCObject* obj = to_obj(p);
+  rtgc_debug_log(obj, "cld handle registered %p\n", obj);
   return obj->isStrongRootReachable();
 }
 
@@ -157,6 +159,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
+  new_p->klass()->class_loader_data()->increase_tenured_count();
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
@@ -261,14 +264,67 @@ void rtHeap__clearStack() {
 }
 
 
+template<bool mark>
+class CLDHandleClosure : public OopClosure {
+  virtual void do_oop(oop* o) { do_oop_work(o); }
+  virtual void do_oop(narrowOop* o) { fatal("cld handle not compressed"); }
+
+  void do_oop_work(oop* o) {
+    oop obj = *o;
+    if (obj != NULL) {
+      if (mark) {
+        rtHeap::lock_jni_handle(obj);
+      } else {
+        rtHeap::release_jni_handle(obj);
+      }
+    }
+  }
+};
+
+template<bool clear_garbage>
+class WeakCLDScanner : public CLDClosure {
+ public:
+  WeakCLDScanner() {}
+
+  void do_cld(ClassLoaderData* cld) {
+    oop holder = cld->holder_no_keepalive();
+    assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
+    if (holder->is_gc_marked() || cld->tenured_count() > 0 || to_obj(holder)->getRootRefCount() > 2) return;
+    
+    if (clear_garbage) {
+      CLDHandleClosure<false> cleaner;
+      cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
+    }
+    else if (!_rtgc.g_pGarbageProcessor->detectGarbage(to_obj(holder))) {
+      // rtHeapEx::print_ghost_anchors(to_obj(holder));
+      // fatal("gggg");
+      rtgc_log(true, "remark cld handles %p in_stack=%d\n", cld, g_stack_roots.contains(to_obj(holder)));
+      CLDHandleClosure<true> remarker;
+      cld->oops_do(&remarker, ClassLoaderData::_claim_none);
+    } else {
+      rtgc_log(true, "cleaning cld handles %p\n", cld);
+    }
+  }
+};
+static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
+static WeakCLDScanner<true>  weak_cld_cleaner;
+
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   if (!is_full_gc) {
     _rtgc.g_pGarbageProcessor->validateGarbageList();
-  } else {
-    
-  }
+  } 
 
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+
+  if (is_full_gc) {
+    ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_cleaner);
+    //void rtHeap__clear_garbage_young_roots(bool is_full_gc);
+    //rtHeap__clear_garbage_young_roots(true);
+#ifdef ASSERT    
+    ClassLoaderDataGraph::roots_cld_do(NULL, &release_weak_cld_rtgc_ref);
+#endif
+    _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+  }
 
   int old_cnt = g_young_roots.size();
   for (int i = old_cnt; --i >= 0; ) {
@@ -283,7 +339,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   if (!is_full_gc) {
     rtHeap__clearStack<false>();
   }
-  rtHeapEx::g_lock_garbage_list = true;
+  rtHeapEx::g_lock_garbage_list = !is_full_gc;
   rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbages=%d\n", 
       old_cnt, g_young_roots.size(), _rtgc.g_pGarbageProcessor->getGarbageNodes()->size());
 }
@@ -377,7 +433,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
       node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
   // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
-  if (!rtHeap::DoCrossCheck) {
+  if (false && !rtHeap::DoCrossCheck) {
     ClassLoaderData* cld = p->klass()->class_loader_data();
     precond(g_young_root_closure->current_anchor() == NULL);
     if (!cld->is_alive()) {
@@ -745,7 +801,7 @@ void rtHeap::lock_jni_handle(oopDesc* p) {
 
 void rtHeap::release_jni_handle(oopDesc* p) {
   if (!REF_LINK_ENABLED) return;
-  assert(to_obj(p)->isStrongRootReachable(), "wrong handle %p\n", p);
+  assert(to_obj(p)->isStrongRootReachable(), "wrong handle %p(%s) isClass=%d\n", p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
   rtgc_debug_log(p, "release_handle %p\n", p);
   GCRuntime::onEraseRootVariable_internal(to_obj(p));
 }
@@ -756,11 +812,19 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
       g_cntTrackable, g_young_roots.size(), full_gc); 
 }
 
-// int RecyclableGarbageArray::compare_obj_size(const void* left, const void* right) {
-//   int left_size = obj_size(cast_to_oop(*(void**)left));
-//   int right_size = obj_size(cast_to_oop(*(void**)right));
-//   return left_size - right_size;
-// }
+void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
+  GCObject* obj = to_obj(start);
+  if (obj->isTrackable()) {
+    cast_to_oop(obj)->klass()->class_loader_data()->decrease_tenured_count();
+    rtgc_log(true, "rtgc_fill_dead_space %p\n", obj);
+  }
+
+  oopDesc::clear_rt_node(start);
+  obj->markGarbage(NULL);
+  CollectedHeap::fill_with_object(start, end, zap);
+  postcond(!obj->isTrackable());
+}
+
 
 void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
   for (int idx = g_resurrected_top; idx < g_stack_roots.size(); idx++) {
@@ -770,14 +834,6 @@ void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
       closure->do_iterate(cast_to_oop(node));
     }
     g_resurrected_top = INT_MAX; 
-  }
-}
-
-void rtHeap_check_unsafe_cld_holder(ClassLoaderData* cld) {
-  oop holder = cld->holder_no_keepalive();
-  GCObject* node = to_obj(holder);
-  if (node->isTrackable() && !node->isYoungRoot()) {
-    rtHeap::add_young_root(holder, holder);
   }
 }
 

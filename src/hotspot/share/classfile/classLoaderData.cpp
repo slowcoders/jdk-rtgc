@@ -149,6 +149,9 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _jmethod_ids(NULL),
   _deallocate_list(NULL),
   _next(NULL),
+#if INCLUDE_RTGC  
+  _tenured_cnt(0),
+#endif  
   _class_loader_klass(NULL), _name(NULL), _name_and_id(NULL) {
 
   if (!h_class_loader.is_null()) {

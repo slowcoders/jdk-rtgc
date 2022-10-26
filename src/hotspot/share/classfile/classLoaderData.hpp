@@ -165,6 +165,9 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // Support for walking class loader data objects
   ClassLoaderData* _next; /// Next loader_datas created
 
+#if INCLUDE_RTGC
+  int _tenured_cnt;
+#endif
   Klass*  _class_loader_klass;
   Symbol* _name;
   Symbol* _name_and_id;
@@ -183,6 +186,12 @@ class ClassLoaderData : public CHeapObj<mtClass> {
  public:
   void record_modified_oops()            { _modified_oops = true; }
   bool has_modified_oops()               { return _modified_oops; }
+
+#if INCLUDE_RTGC
+  int  tenured_count()                  { return _tenured_cnt; }
+  void increase_tenured_count()         { _tenured_cnt ++; }
+  void decrease_tenured_count()         { precond(_tenured_cnt > 0); _tenured_cnt --; }
+#endif
 
   oop holder_no_keepalive() const;
   oop holder_phantom() const;
