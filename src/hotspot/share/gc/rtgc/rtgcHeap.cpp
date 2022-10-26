@@ -307,7 +307,7 @@ class WeakCLDScanner : public CLDClosure {
       CLDHandleClosure<true> remarker;
       cld->oops_do(&remarker, ClassLoaderData::_claim_none);
     } else {
-      //rtgc_log(true, "cleaning cld handles %p\n", cld);
+      rtgc_log(true, "cleaning cld handles %p\n", cld);
     }
   }
 };
@@ -856,12 +856,15 @@ ClassLoaderData* InstanceKlass::class_loader_data_of(oop obj) {
 
 ClassLoaderData* InstanceClassLoaderKlass::class_loader_data_of(oop obj) {
   ClassLoaderData* cld = java_lang_ClassLoader::loader_data_raw(obj);
-  return cld;
+  return (cld == NULL || cld->holder_no_keepalive() == obj) ? NULL : cld;
 }
 
 ClassLoaderData* InstanceMirrorKlass::class_loader_data_of(oop obj) {
   Klass* klass = java_lang_Class::as_Klass_raw(obj);
-  return klass == NULL ? NULL : klass->class_loader_data();
+  if (klass == NULL) return NULL;
+  ClassLoaderData* cld = klass->class_loader_data();
+  // rtgc_log(true, "cld %p\n", cld);
+  return (cld == NULL || cld->holder_no_keepalive() == obj) ? NULL : cld;
 }
 
 void rtHeap__initialize() {
