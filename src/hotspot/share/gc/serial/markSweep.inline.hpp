@@ -79,11 +79,23 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
 }
 
 inline void MarkSweep::follow_klass(Klass* klass) {
-  oop op = klass->class_loader_data()->holder_no_keepalive();
+  oop obj = klass->class_loader_data()->holder_no_keepalive();
 #if INCLUDE_RTGC
-  _is_rt_anchor_trackable = false;// rtHeap::is_trackable(op);
+  if (EnableRTGC) {
+    if (obj != NULL) {
+      if (!obj->mark().is_marked()) {
+        bool is_trackable = rtHeap::is_trackable(obj);
+        if (is_trackable) {
+          rtHeap::mark_survivor_reachable(obj);
+        } else {
+          _marking_stack.push(obj);
+        }
+        mark_object(obj);
+      }
+    } 
+  } else
 #endif
-  MarkSweep::mark_and_push(&op);
+  MarkSweep::mark_and_push(&obj);
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
