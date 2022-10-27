@@ -306,8 +306,10 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
       CLDHandleClosure<false> cleaner(holder);
       cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
       postcond(cleaner._holder == NULL);
+      return;
     }
-    else if (has_any_alive_klass(cld, holder)) {//} 
+    _holder = holder;
+    if (has_any_alive_klass(cld, holder)) {//} 
       rtgc_log(LOG_OPT(8), "remark cld handles %p cnt_handle=%d\n", cld, _cnt_handle);
       CLDHandleClosure<true> remarker(holder);
       cld->oops_do(&remarker, ClassLoaderData::_claim_none);
@@ -317,6 +319,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
       rtgc_log(true || LOG_OPT(8), "cleaning cld handles %p\n", cld);
       postcond(!rtHeap::is_alive(holder));
     }
+    postcond(_holder == NULL);
   }
 
   bool is_alive(oop obj) {
@@ -341,7 +344,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
   void do_klass(Klass* k) {
     debug_only(_cnt_handle ++;)
 #ifdef ASSERT
-    if (k->java_mirror_no_keepalive()) { _holder = NULL; }
+    if (k->java_mirror_no_keepalive() == _holder) { _holder = NULL; }
 #endif
     if (_is_alive) return;
     oop mirror = k->java_mirror_no_keepalive();
