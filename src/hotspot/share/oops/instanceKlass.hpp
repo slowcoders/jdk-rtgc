@@ -331,10 +331,6 @@ class InstanceKlass: public Klass {
   static bool _disable_method_binary_search;
 
  public:
-#if INCLUDE_RTGC // class_loader_data
-  virtual ClassLoaderData* class_loader_data_of(oop obj);
-#endif
-
   // The three BUILTIN class loader types
   bool is_shared_boot_class() const {
     return (_misc_flags & _misc_is_shared_boot_class) != 0;

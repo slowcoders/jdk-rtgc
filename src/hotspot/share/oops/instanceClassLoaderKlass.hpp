@@ -48,9 +48,6 @@ private:
 public:
   InstanceClassLoaderKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
-#if INCLUDE_RTGC // class_loader_data
-  virtual ClassLoaderData* class_loader_data_of(oop obj);
-#endif
   // Oop fields (and metadata) iterators
   //
   // The InstanceClassLoaderKlass iterators also visit the CLD pointer (or mirror of hidden klasses.)

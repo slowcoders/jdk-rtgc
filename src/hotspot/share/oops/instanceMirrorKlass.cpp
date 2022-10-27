@@ -72,4 +72,3 @@ void InstanceMirrorKlass::serialize_offsets(SerializeClosure* f) {
   f->do_u4((u4*)&_offset_of_static_fields);
 }
 #endif
-

@@ -322,7 +322,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 1; //UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -345,7 +345,7 @@ void RTGC::initialize() {
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
 
-    LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
       rtgc_log(1, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);
