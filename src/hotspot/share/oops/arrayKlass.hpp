@@ -52,10 +52,6 @@ class ArrayKlass: public Klass {
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
 
-#if INCLUDE_RTGC // class_loader_data
-  virtual ClassLoaderData* class_loader_data_of(oop obj);
-#endif
-
   // Instance variables
   int dimension() const                 { return _dimension;      }
   void set_dimension(int dimension)     { _dimension = dimension; }

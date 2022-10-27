@@ -113,8 +113,8 @@ namespace RTGC {
     }
 
     static void hold_object_while_gc(GCObject* obj) {
-      if (obj != NULL && obj->isTrackable()) {
-        GCRuntime::onAssignRootVariable_internal(obj);
+      if (obj != NULL && obj->isTrackable() && !obj->isSurvivorReachable()) {
+        obj->markSurvivorReachable();
         rtHeap__addRootStack_unsafe(obj);
       }
     }

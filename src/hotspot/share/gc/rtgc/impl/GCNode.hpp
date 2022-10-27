@@ -98,6 +98,22 @@ public:
 		return _flags.rootRefCount & (1 << 23);
 	}
 
+	int unmarkSurvivorReachable() {
+		precond(isSurvivorReachable());
+		_flags.rootRefCount &= ~(1 << 22);
+		return _flags.rootRefCount;
+	}
+
+	void markSurvivorReachable() {
+		precond(!isSurvivorReachable());
+		_flags.rootRefCount |= (1 << 22);
+	}
+
+	bool isSurvivorReachable() {
+		return _flags.rootRefCount & (1 << 22);
+	}
+
+
 	void unmarkActiveFinalizer() {
 		precond(isActiveFinalizer());
 		_flags.rootRefCount &= ~(1 << 23);

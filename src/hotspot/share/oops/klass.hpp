@@ -269,8 +269,6 @@ protected:
 
 #if INCLUDE_RTGC // clear_java_mirror_handle
   void clear_java_mirror_handle();
-
-  virtual ClassLoaderData* class_loader_data_of(oop obj) = 0;
 #else 
   // Set java mirror OopHandle to NULL for CDS
   // This leaves the OopHandle in the CLD, but that's ok, you can't release them.
