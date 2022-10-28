@@ -37,13 +37,16 @@
 #include "utilities/stack.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 
+extern int dbg_cnt_mark;
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
 #if INCLUDE_RTGC
-  if (EnableRTGC && rtHeap::DoCrossCheck) {
+  if (EnableRTGC) {
+    // rtgc_debug_log(obj, "mark_object %p %d\n", (void*)obj, ++dbg_cnt_mark);
+    // precond(!RTGC::is_debug_pointer(obj));
     precond(rtHeap::is_alive(obj));
   }
 #endif
@@ -57,8 +60,10 @@ inline void MarkSweep::mark_and_push_internal(oop obj, bool is_anchored) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (rtHeap::is_trackable(obj)) {
-      if (!is_anchored || !rtHeap::is_alive(obj)) {
+      if (!is_anchored) {
         rtHeap::mark_survivor_reachable(obj);
+      } else {
+        precond(rtHeap::is_alive(obj));
       }
       if (!rtHeap::DoCrossCheck) return;
     }
@@ -83,15 +88,7 @@ inline void MarkSweep::follow_klass(Klass* klass) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (obj != NULL) {
-      if (!obj->mark().is_marked()) {
-        bool is_trackable = rtHeap::is_trackable(obj);
-        if (is_trackable) {
-          rtHeap::mark_survivor_reachable(obj);
-        } else {
-          _marking_stack.push(obj);
-        }
-        mark_object(obj);
-      }
+      mark_and_push_internal(obj, false);
     } 
   } else
 #endif
@@ -99,6 +96,17 @@ inline void MarkSweep::follow_klass(Klass* klass) {
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
+#if INCLUDE_RTGC
+  if (rtHeap::DoCrossCheck) {
+    _is_rt_anchor_trackable = false;
+  } else if (EnableRTGC) {
+    oop holder = cld->holder_no_keepalive();
+    if (holder != NULL) {
+      mark_and_push_internal(holder, false);
+    } 
+    return;
+  }
+#endif
   MarkSweep::follow_cld_closure.do_cld(cld);
 }
 

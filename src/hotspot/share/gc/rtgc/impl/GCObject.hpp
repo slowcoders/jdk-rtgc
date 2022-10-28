@@ -68,6 +68,10 @@ public:
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}
 
+	bool isUnsafeTrackable() {
+		return isTrackable() && getRootRefCount() <= 1 && !hasSafeAnchor();
+	}
+
 	void invalidateShortcutId() {
 		precond(hasSafeAnchor());
 		// no-shortcut. but this has valid safe-anchor.

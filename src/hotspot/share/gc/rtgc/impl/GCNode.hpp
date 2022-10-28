@@ -207,10 +207,6 @@ public:
 		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
 	}
 
-	bool isUnsafeTrackable() {
-		return isTrackable() &&  _flags.rootRefCount <= 1 && this->_shortcutId == NO_SAFE_ANCHOR;
-	}
-
 	bool isPublished() {
 		return _flags.isPublished;
 	}

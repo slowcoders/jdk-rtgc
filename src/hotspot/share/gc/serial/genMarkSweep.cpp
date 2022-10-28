@@ -65,8 +65,6 @@
 #include "jvmci/jvmci.hpp"
 #endif
 
-static void do_unload_classes();
-
 void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_softrefs) {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
 
@@ -113,7 +111,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC
   if (EnableRTGC) {
-    // do_unload_classes();
     HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
     rtHeap::prepare_adjust_pointers(old_gen_heap_start);
   }
@@ -302,6 +299,11 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+    
+    if (rtHeap::DoCrossCheck) {
+      void rtHeap__remark_alive_weak_cld();
+      rtHeap__remark_alive_weak_cld();
+    }
   }
 #endif
 
