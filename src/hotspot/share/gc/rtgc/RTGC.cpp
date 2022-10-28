@@ -326,26 +326,27 @@ void RTGC::initialize() {
   logOptions[0] = -1;
 #endif
 
+  RTGC::_rtgc.initialize();
   rtHeap__initialize();
   rtSpace__initialize();
-  RTGC::_rtgc.initialize();
   rtHeapEx::initializeRefProcessor();
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
 
   // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   if (RTGC_DEBUG) {
+    LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+    // debug_obj = (void*)0x7f00eea58;
+    
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    // debug_obj = (void*)0x7f00eea58;
 
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
 
-    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
       rtgc_log(1, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);

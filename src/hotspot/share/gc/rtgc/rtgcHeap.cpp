@@ -26,11 +26,12 @@
 bool rtHeap::in_full_gc = false;
 
 using namespace rtHeapUtil;
-
 namespace RTGC {
   // bool yg_root_locked = false;
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
+  bool g_in_scan_young_root;
+
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
     template <typename T> void do_oop_work(T* p);
@@ -178,6 +179,7 @@ static void resurrect_young_root(GCObject* node) {
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
+  precond(rtHeap::in_full_gc || anchor == NULL);
   if (false && anchor != NULL) {
     precond(!node->hasSafeAnchor());
     node->setSafeAnchor(to_obj(anchor));
@@ -212,6 +214,7 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
   assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
+    precond(g_in_scan_young_root);
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
@@ -275,9 +278,6 @@ public:
     if (obj != NULL) {
       if (obj == _holder) _holder = NULL;
       if (mark) {
-        if (to_obj(obj)->isGarbageMarked()) {
-          resurrect_young_root(to_obj(obj));
-        }
         rtHeap::lock_jni_handle(obj);
       } else {
         rtHeap::release_jni_handle(obj);
@@ -291,33 +291,50 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
   bool _is_alive;
   int _cnt_handle;
   oop _holder;
+  HugeArray<GCObject*>* _garbages;
  public:
-  WeakCLDScanner() {}
+  void init() {
+    _garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes();
+  }
 
   void do_cld(ClassLoaderData* cld) {
+    return;
+
     oop holder = cld->holder_no_keepalive();
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
     if (holder->is_gc_marked() || cld->holder_ref_count() > 0 || to_obj(holder)->getRootRefCount() > 2) {
       rtgc_log(LOG_OPT(8), "skip cld scanner %p rc=%d\n", cld, cld->holder_ref_count());
+      postcond(rtHeap::is_alive(holder));
       return;
     }
     
     if (clear_garbage) {
-      CLDHandleClosure<false> cleaner(holder);
+      CLDHandleClosure<false> cleaner(cld->class_loader());
       cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
       postcond(cleaner._holder == NULL);
       return;
     }
-    _holder = holder;
+    _holder = cld->class_loader();
+    precond(_garbages->size() == 0);
     if (has_any_alive_klass(cld, holder)) {//} 
-      rtgc_log(LOG_OPT(8), "remark cld handles %p cnt_handle=%d\n", cld, _cnt_handle);
-      CLDHandleClosure<true> remarker(holder);
+      rtgc_log(true || LOG_OPT(8), "remark cld handles %p cnt_resurrect=%d\n", cld, _garbages->size());
+      GCObject** ppNode = _garbages->adr_at(0);
+      for (GCObject** end = ppNode + _garbages->size(); ppNode < end; ppNode++) {
+        GCObject* obj = *ppNode;
+        obj->unmarkGarbage();
+      }
+      _garbages->resize(0);
+
+      CLDHandleClosure<true> remarker(cld->class_loader());
       cld->oops_do(&remarker, ClassLoaderData::_claim_none);
       postcond(remarker._holder == NULL);
       postcond(rtHeap::is_alive(holder));
+      postcond(cld->class_loader() == NULL || rtHeap::is_alive(cld->class_loader()));
     } else {
       rtgc_log(true || LOG_OPT(8), "cleaning cld handles %p\n", cld);
       postcond(!rtHeap::is_alive(holder));
+      postcond(cld->class_loader() == NULL || !rtHeap::is_alive(cld->class_loader()));
+      _rtgc.g_pGarbageProcessor->collectGarbage(true);
     }
     postcond(_holder == NULL);
   }
@@ -362,6 +379,8 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
 
   if (is_full_gc) {
+    release_weak_cld_rtgc_ref.init();
+    weak_cld_cleaner.init();
     ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_cleaner);
     //void rtHeap__clear_garbage_young_roots(bool is_full_gc);
     //rtHeap__clear_garbage_young_roots(true);
@@ -415,6 +434,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   assert(is_full_gc || garbages->size() == 0, "garbages->size %d\n", garbages->size());
+  g_in_scan_young_root  = true;
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     if (node->isGarbageMarked()) {
@@ -423,7 +443,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       precond(is_full_gc || node->isDirtyReferrerPoints());
       continue;
     }
-    assert(node->isYoungRoot(), "invalid young root %p(%s)\n", node, RTGC::getClassName(node));
+    assert(node->isYoungRoot(), "invalid young root %p(%s) rc=%d\n", node, RTGC::getClassName(node), node->getRootRefCount());
     if (is_full_gc) {
       if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
     } else if (node->isUnreachable()) {
@@ -443,6 +463,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       g_young_roots.removeFast(idx_root);
     } 
   }
+  g_in_scan_young_root = false;
 }
 
 
@@ -751,40 +772,6 @@ void rtHeap::destroy_trackable(oopDesc* p) {
         rtHeapEx::print_ghost_anchors(to_obj(p)));
   precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrer());
   return;
-
-  fatal("should not be here!!");
-  rtgc_debug_log(p, "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
-  rtgc_log(LOG_OPT(4), "destroyed %p(ss)\n", node);//, RTGC::getClassName(node));
-  
-#ifdef ASSERT
-  if (ENABLE_GC) {  
-    assert(node->getRootRefCount() == 0, "wrong refCount(%x) on garbage %p(%s)\n", 
-        node->getRootRefCount(), node, RTGC::getClassName(node));
-    // print_ghost_anchors(node);
-  }
-#endif
-
-  rtgc_log(LOG_OPT(11), "trackable destroyed %p, yg-r=%d\n", node, node->isYoungRoot());
-
-  node->markGarbage("destroy_trackable");
-  node->removeAllAnchors();
-
-  rtgc_log(LOG_OPT(4), "destroyed done %p(%s)\n", node, RTGC::getClassName(node));
-
-  // rtgc_log(LOG_OPT(4), "destroyed done %p\n", node);
-  if (!node->isTrackable()) {
-    precond(!node->hasShortcut());
-    return;
-  }
-
-  if (node->hasShortcut()) {
-    SafeShortcut* ss = node->getShortcut();
-    if (ss->tail() == node) {
-      // rtgc_log(true, "garbage shortcut found [%d] %p\n", s_id, node);
-      // node 가 가비지면 생존경로가 존재하지 않는다.
-      delete ss;
-    }
-  }
 }
 
 void rtHeap::finish_adjust_pointers() {

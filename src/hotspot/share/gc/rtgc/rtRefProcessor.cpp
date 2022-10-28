@@ -14,7 +14,7 @@ using namespace RTGC;
 #define DO_CROSS_CHECK_REF 1
 #define PARTIAL_COLLECTION false
 
-int rtHeap::DoCrossCheck = 0;//DO_CROSS_CHECK_REF;
+int rtHeap::DoCrossCheck = 1;//DO_CROSS_CHECK_REF;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_REF, function);
@@ -914,17 +914,6 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
 
     default:
       fatal("should not reach here!");
-
-      if (refDiscoverer != NULL) {
-        oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
-
-        if (referent != NULL) {
-          if (!referent->is_gc_marked()) {
-            // Only try to discover if not yet marked.
-            return refDiscoverer->discover_reference(ref, type);
-          }
-        }
-      }
       return false;
   }
 }
