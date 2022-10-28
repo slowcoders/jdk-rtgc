@@ -750,13 +750,9 @@ void __process_final_phantom_references() {
   RefList::flush_penging_list();
 }
 
-extern bool g_lock_unsafe_buff;
 void rtHeap::process_final_phantom_references(bool is_tenure_gc) {
   if (is_tenure_gc) {
-    precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
-    g_lock_unsafe_buff = true;
     __process_final_phantom_references<true>();
-    precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
   } else {
     __process_final_phantom_references<false>();
   }
@@ -861,11 +857,6 @@ static void __validate_trackable_refs(HugeArray<oop>* _refs) {
 void rtHeapEx::validate_trackable_refs() {
   __validate_trackable_refs(&g_softList._refs);
   __validate_trackable_refs(&g_weakList._refs);
-}
-
-void rtHeap__assertNoUnsafeObjects() {
-  g_lock_unsafe_buff = false;
-  precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
 }
 
 bool rtHeap::is_referent_reachable(oopDesc* ref, ReferenceType type) {

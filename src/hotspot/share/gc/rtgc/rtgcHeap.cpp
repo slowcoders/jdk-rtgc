@@ -683,7 +683,9 @@ void rtHeap::prepare_rtgc(bool is_full_gc) {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
-    WeakProcessor::oops_do(&clear_weak_handle_ref);
+    if (RtLazyClearWeakHandle) {
+      WeakProcessor::oops_do(&clear_weak_handle_ref);
+    }
     // rtHeapEx::clear_finalizer_reachables();
     in_full_gc = true;
   } else {

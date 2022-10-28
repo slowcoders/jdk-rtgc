@@ -230,10 +230,15 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {
         _is_young_root = true;
-      } else if (!rtHeap::DoCrossCheck) {
-        return;
+      } else {
+        if (!rtHeap::is_alive(obj)) {
+          rtHeap::mark_survivor_reachable(obj);
+        } 
+        if (!rtHeap::DoCrossCheck) return;
       }
-      MarkSweep::_is_rt_anchor_trackable = true;
+      if (rtHeap::DoCrossCheck) {
+        MarkSweep::_is_rt_anchor_trackable = true;
+      }
       MarkSweep::mark_and_push_internal(obj);
     }
   }
@@ -355,15 +360,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     // Clean JVMCI metadata handles.
     JVMCI_ONLY(JVMCI::do_unloading(purged_class));
-
-#if INCLUDE_RTGC
-#ifdef ASSERT
-    {
-      void rtHeap__assertNoUnsafeObjects();
-      rtHeap__assertNoUnsafeObjects();
-    }
-#endif
-#endif    
   }
 
   gc_tracer()->report_object_count_after_gc(&is_alive);
