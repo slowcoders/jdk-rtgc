@@ -121,8 +121,9 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
-    assert(!erased->isGarbageMarked() && erased->isStrongRootReachable(), "wrong ref-count %p(%s) garbage=%d\n", 
-        erased, "ss"/*RTGC::getClassName(erased)*/, erased->isGarbageMarked());
+    assert(!erased->isGarbageMarked() && erased->isStrongRootReachable(), 
+        "wrong ref-count %p rc=%d garbage=%d\n", 
+        erased, erased->getRootRefCount(), erased->isGarbageMarked());
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }

@@ -105,6 +105,7 @@ public:
 	}
 
 	void markSurvivorReachable() {
+		precond(!isGarbageMarked());
 		precond(!isSurvivorReachable());
 		_flags.rootRefCount |= (1 << 22);
 	}
@@ -190,10 +191,14 @@ public:
 	}
 
 	int incrementRootRefCount() {
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount += 2);
 	}
 
 	int decrementRootRefCount() {
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
 		assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
 			this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount -= 2);

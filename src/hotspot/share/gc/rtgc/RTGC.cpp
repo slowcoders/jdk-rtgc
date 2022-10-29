@@ -342,6 +342,7 @@ void RTGC::initialize() {
     debugOptions[0] = 1;
     debug_obj = (void*)0x7f0260f58;
 
+    enableLog(LOG_HEAP, 2);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);

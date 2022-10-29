@@ -114,15 +114,6 @@ void FreeMemStore::clearStore() {
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   precond(obj->isTrackable());
   
-  oop op = cast_to_oop(obj);
-  Klass* klass = op->klass();
-  if (klass->id() == InstanceClassLoaderKlassID) {
-    ClassLoaderData* cld = java_lang_ClassLoader::loader_data_raw(op);
-    if (cld != NULL) cld->increase_holder_ref_count();
-  } else {
-    klass->class_loader_data()->decrease_holder_ref_count();
-  }
-
   if (false && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);
   }
