@@ -299,11 +299,6 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
     WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
-    
-    if (rtHeap::DoCrossCheck) {
-      void rtHeap__remark_alive_weak_cld();
-      rtHeap__remark_alive_weak_cld();
-    }
   }
 #endif
 

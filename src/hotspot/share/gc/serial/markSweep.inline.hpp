@@ -97,14 +97,17 @@ inline void MarkSweep::follow_klass(Klass* klass) {
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
 #if INCLUDE_RTGC
-  if (rtHeap::DoCrossCheck) {
+  if (EnableRTGC) {
     _is_rt_anchor_trackable = false;
-  } else if (EnableRTGC) {
-    oop holder = cld->holder_no_keepalive();
-    if (holder != NULL) {
-      mark_and_push_internal(holder, false);
-    } 
-    return;
+    if (!rtHeap::DoCrossCheck) {
+      // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
+      oop holder = cld->holder_no_keepalive();
+      if (holder != NULL) {
+        mark_and_push_internal(holder, false);
+      } 
+      cld->incremental_oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
+      return;
+    }
   }
 #endif
   MarkSweep::follow_cld_closure.do_cld(cld);

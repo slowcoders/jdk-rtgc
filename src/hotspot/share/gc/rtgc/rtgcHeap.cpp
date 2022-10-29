@@ -299,7 +299,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     if (rtHeap::DoCrossCheck) {
       if (mark_ref) {
         oop holder = cld->holder_no_keepalive();
-        if (holder == NULL) return;
+        precond(holder != NULL);
         if (!holder->is_gc_marked()) {
           precond(!rtHeap::is_alive(holder));
           return;
@@ -314,7 +314,8 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     oop holder = cld->holder_no_keepalive();
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
     if (cld->holder_ref_count() > 0 || holder->is_gc_marked() || to_obj(holder)->getRootRefCount() > 2) {
-      precond(!holder->is_gc_marked() || !to_obj(holder)->isTrackable());
+      //precond(!holder->is_gc_marked() || !to_obj(holder)->isTrackable());
+      postcond(rtHeap::is_alive(holder));
       rtgc_log(LOG_OPT(8), "skip cld scanner %p rc=%d\n", cld, cld->holder_ref_count());
       return;
     }
@@ -340,7 +341,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
       postcond(remarker._holder == NULL);
       postcond(rtHeap::is_alive(holder));
     } else {
-      rtgc_log(true || LOG_OPT(8), "cleaning cld handles %p\n", cld);
+      rtgc_log(LOG_OPT(8), "cleaning cld handles %p\n", cld);
       postcond(!rtHeap::is_alive(holder));
       _rtgc.g_pGarbageProcessor->collectGarbage(true);
     }
@@ -388,17 +389,18 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
 
   if (is_full_gc) {
-    if (false && !rtHeap::DoCrossCheck) {
+    if (!rtHeap::DoCrossCheck) {
       weak_cld_remarker.init();
       weak_cld_cleaner.init();
       ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_cleaner);
       //void rtHeap__clear_garbage_young_roots(bool is_full_gc);
       //rtHeap__clear_garbage_young_roots(true);
+    }
 #ifdef ASSERT    
       ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_remarker);
 #endif
-      _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-    }
+    _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+    
   }
   else {
     int old_cnt = g_young_roots.size();
