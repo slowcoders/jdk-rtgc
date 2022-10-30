@@ -23,8 +23,8 @@ namespace RTGC {
   Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
-  volatile void* debug_obj = (void*)-1;
-  volatile void* debug_obj2 = (void*)-1;
+  void* debug_obj = (void*)-1;
+  void* debug_obj2 = (void*)-1;
   bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
 }
@@ -102,7 +102,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   precond (p != debug_base);
 
   if (!REF_LINK_ENABLED) return;
-#ifdef ASSERT    
+#if 0 //def ASSERT    
   if (RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
   }
@@ -201,7 +201,8 @@ void RTGC::print_anchor_list(void* obj) {
   }
 }
 
-const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {
+const char* RTGC::getClassName(void* obj, bool showClassInfo) {
+    if (obj == NULL) return NULL;
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
       Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
@@ -230,7 +231,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/lang/invoke/BoundMethodHandle$Species_L",
+  "java/lang/invoke/ResolvedMethodName",
   // "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
@@ -263,7 +264,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
   // return (vmClasses::Class_klass() == obj->klass());
 
   Klass* klass = obj->klass();
-  if (true) {
+  if (false) {
     if (vmClasses::Class_klass() != klass) return false;
     klass = java_lang_Class::as_Klass(cast_to_oop(obj));
     if (klass == NULL) return false;
@@ -291,20 +292,25 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   }
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
+  return;
   
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
   else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
-    rtgc_log(1, "debug_obj2 moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
+    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
   else if (is_debug_pointer(old_p)) {
-    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
-    rtgc_log(1, "debug_ref moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
 }
 
@@ -322,7 +328,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 1; //UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -340,7 +346,9 @@ void RTGC::initialize() {
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x7f0260f58;
+    debug_obj = (void*)-1;//0x7f0260f58;
+
+    rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
     enableLog(LOG_HEAP, 2);
     enableLog(LOG_REF, 0);

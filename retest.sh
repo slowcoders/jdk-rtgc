@@ -73,7 +73,7 @@
 
 # sh exec_test.sh jdk/jshell/AnalyzeSnippetTest
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/scratch/1 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
@@ -81,20 +81,24 @@ LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-        -Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -ea -esa' \
-        -Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -J-ea -J-esa' \
+    -XX:+UnlockExperimentalVMOptions \
+        -XX:AbortVMOnExceptionMessage='java/lang/invoke/ResolvedMethodName' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dtest.timeout.factor=4.0 \
-        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
-        -Dtest.name=jdk/jshell/AnalyzeSnippetTest.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell/AnalyzeSnippetTest.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/2/jdk/jshell/AnalyzeSnippetTest.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/2/jdk/jshell/AnalyzeSnippetTest.d \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/2/jdk/jshell/AnalyzeSnippetTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/2/jdk/jshell/AnalyzeSnippetTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/testng.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jcommander.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/guice.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
-        com.sun.javatest.regtest.agent.TestNGRunner jdk/jshell/AnalyzeSnippetTest.java false AnalyzeSnippetTest
+        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.name=runtime/modules/ModulesSymLink.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules/ModulesSymLink.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib \
+        -Dtest.modules='java.management jdk.jlink' \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        ModulesSymLink

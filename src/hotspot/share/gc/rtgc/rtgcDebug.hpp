@@ -34,8 +34,8 @@ namespace RTGC {
 
   extern volatile int* logOptions;
   extern volatile int* debugOptions;
-  extern volatile void* debug_obj;
-  extern volatile void* debug_obj2;
+  extern void* debug_obj;
+  extern void* debug_obj2;
   extern bool REF_LINK_ENABLED;
 
   void mark_dead_space(void* obj);

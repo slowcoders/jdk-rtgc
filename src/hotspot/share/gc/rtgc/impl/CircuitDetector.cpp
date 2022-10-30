@@ -248,16 +248,16 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
     precond(garbageAnchor->isTrackable());
     //rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (!link->removeMatchedReferrers(garbageAnchor)) {
-        rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
+        // rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
     }
     if (link->isUnsafeTrackable()) {
         if (!link->isUnstableMarked()) {
             link->markUnstable();
-            rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
+            // rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
             return true;
         }  else {
-            rtgc_debug_log(link, "Already marked unsafe before clear_garbage_links %p\n", link);
+            // rtgc_debug_log(link, "Already marked unsafe before clear_garbage_links %p\n", link);
         }
     }
     return false;

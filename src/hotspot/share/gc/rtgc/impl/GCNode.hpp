@@ -8,6 +8,7 @@
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
+extern int cnt_debug_hit;
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
@@ -101,12 +102,19 @@ public:
 	int unmarkSurvivorReachable() {
 		precond(isSurvivorReachable());
 		_flags.rootRefCount &= ~(1 << 22);
+		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return _flags.rootRefCount;
 	}
 
 	void markSurvivorReachable() {
 		precond(!isGarbageMarked());
 		precond(!isSurvivorReachable());
+		rtgc_debug_log(this, "markSurvivorReachable %p(%s) -> %p rc=%d\n",    
+			RTGC::debug_obj2, RTGC::getClassName(RTGC::debug_obj2),
+			this, this->getRootRefCount());
+		// if (RTGC::is_debug_pointer(this)) {
+		// 	precond(++cnt_debug_hit < 30);
+		// }
 		_flags.rootRefCount |= (1 << 22);
 	}
 
