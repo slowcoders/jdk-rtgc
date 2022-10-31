@@ -680,8 +680,7 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
 
   oopDesc* new_obj = dst;
   assert(!RTGC::to_node(new_obj)->isTrackable(), " wrong obj %p\n", new_obj);
-  rtgc_log(RTGC::is_debug_pointer(new_obj), "clone_post_barrier %p\n", new_obj); 
-  // ((RTGC::GCNode*)RTGC::to_obj(new_obj))->clearFlags();
+  // rtgc_debug_log(new_obj, "clone_post_barrier %p\n", new_obj); 
   rtgc_log(RTGC::to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, RTGC::to_obj(new_obj)->getRootRefCount());
   if (false && RTGC::to_node(new_obj)->isTrackable()) {

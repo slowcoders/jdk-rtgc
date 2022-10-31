@@ -14,7 +14,7 @@ using namespace RTGC;
 #define DO_CROSS_CHECK_REF 1
 #define PARTIAL_COLLECTION false
 
-int rtHeap::DoCrossCheck = 1;//DO_CROSS_CHECK_REF;
+int rtHeap::DoCrossCheck = 0;//DO_CROSS_CHECK_REF;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_REF, function);

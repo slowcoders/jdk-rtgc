@@ -72,6 +72,7 @@
 #         -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_serviceability_jvmti_RedefineClasses_TestMultipleClasses_java/classes/0/test/lib /Users/zeedh/slowcoders/jdk-rtgc/test/lib/RedefineClassHelper.java
 
 # sh exec_test.sh jdk/jshell/AnalyzeSnippetTest
+# sh exec_test.sh runtime/modules/ModulesSymLink
 
 pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/scratch/0 && \
 HOME=/Users/zeedh \

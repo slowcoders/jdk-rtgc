@@ -93,7 +93,9 @@ namespace RTGC {
           rtHeap::lock_jni_handle(obj);
         }
 
-        if (!node->isTrackable() && !obj->is_gc_marked()) {
+        if (node->isTrackable()) {
+          postcond((node->getRootRefCount() & 0x3FF) != 0);
+        } else if (!obj->is_gc_marked()) {
           fatal("KKK");
           MarkSweep::mark_and_push_internal(obj, false);
         }
@@ -166,8 +168,10 @@ bool rtHeap::is_alive(oopDesc* p) {
 }
 
 void rtHeap__enure_trackable(oopDesc* obj) {
-  assert(rtHeap::is_trackable(obj), "must trackable %p(%s) is_garbage=%d\n",
-          (void*)obj, obj->klass()->name()->bytes(), to_obj(obj)->isGarbageMarked());
+  assert(rtHeap::is_trackable(obj), 
+      "must trackable %p(%s) -> %p(%s) tr=%d is_garbage=%d\n",
+          RTGC::debug_obj2, RTGC::getClassName(RTGC::debug_obj2), 
+          (void*)obj, RTGC::getClassName(obj), rtHeap::is_trackable(obj), to_obj(obj)->isGarbageMarked());
 }
 
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
@@ -272,7 +276,6 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
   assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
   if (node->isGarbageMarked()) {
-    precond(g_in_scan_young_root);
     assert(node->isTrackable(), "no y-root %p(%s)\n",
         node, RTGC::getClassName(node));
     resurrect_young_root(node);
@@ -357,7 +360,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     
     if (!mark_ref) {
       if (true || holder->is_gc_marked() || to_obj(holder)->getRootRefCount() > 2) {
-        rtgc_log(true || LOG_OPT(2), "skip cld scanner %p/%p rc=%d tr=%d\n", 
+        rtgc_log(LOG_OPT(2), "skip cld scanner %p/%p rc=%d tr=%d\n", 
             cld, holder, to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
         postcond(rtHeap::is_alive(holder));
         cld->increase_holder_ref_count();
@@ -432,12 +435,6 @@ static WeakCLDScanner<true>  weak_cld_remarker;
 static WeakCLDScanner<false> weak_cld_cleaner;
 
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
-  if (is_full_gc) {//} && !rtHeap::DoCrossCheck) {
-    g_do_resurrect_cld = true;
-    ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_remarker);
-    g_young_root_closure->do_complete();
-    g_do_resurrect_cld = false;
-  }
   _rtgc.g_pGarbageProcessor->validateGarbageList();
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
 
@@ -527,7 +524,14 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       g_young_roots.removeFast(idx_root);
     } 
   }
-  g_in_scan_young_root = false;
+
+  if (is_full_gc) {//} && !rtHeap::DoCrossCheck) {
+    g_do_resurrect_cld = true;
+    ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_remarker);
+    g_young_root_closure->do_complete();
+    g_do_resurrect_cld = false;
+  }
+
 }
 
 

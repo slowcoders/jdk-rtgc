@@ -57,6 +57,10 @@ public class ModulesSymLink {
             "-XX:+UnlockExperimentalVMOptions",
             "-XX:AbortVMOnExceptionMessage=java/lang/invoke/ResolvedMethodName",
             "-version");
+        System.out.println(test_jdk + File.separator + "bin" + File.separator + "java\n--\n" +
+            "-XX:+UnlockExperimentalVMOptions\n--\n" +
+            "-XX:AbortVMOnExceptionMessage=java/lang/invoke/ResolvedMethodName\n--\n" +
+            "-version");
         OutputAnalyzer out = new OutputAnalyzer(pb.inheritIO().start());
         out.shouldHaveExitValue(0);
     }

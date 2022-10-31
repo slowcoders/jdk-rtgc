@@ -202,7 +202,7 @@ void RTGC::print_anchor_list(void* obj) {
 }
 
 const char* RTGC::getClassName(void* obj, bool showClassInfo) {
-    if (obj == NULL) return NULL;
+    if (obj == NULL || obj == (void*)-1) return NULL;
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
       Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
@@ -231,6 +231,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
+  // "java/lang/invoke/MemberName",
   "java/lang/invoke/ResolvedMethodName",
   // "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -292,14 +293,15 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   }
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
-  return;
   
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
+    return;
   }
-  else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
+  return;
+  if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
@@ -350,7 +352,7 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 2);
+    enableLog(LOG_HEAP, 0);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
