@@ -1,5 +1,3 @@
-#include "precompiled.hpp"
-
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"
 #include "oops/oop.inline.hpp"
@@ -150,7 +148,7 @@ static oopDesc* __get_discovered(oop obj) {
 //   // }
 //   printf("[%d] %p(%s:%d ygR:%d):%d anchors:%d\n", 
 //     depth, node, RTGC::getClassName(node), node->isGarbageMarked(), 
-//     node->isYoungRoot(), node->getRootRefCount(), node->hasReferrer());
+//     node->isYoungRoot(), node->getRootRefCount(), node->hasReferrers());
 //   if (node->isStrongRootReachable()) return;
 //   node->incrementRootRefCount();
 
@@ -169,8 +167,8 @@ bool rtHeap::is_alive(oopDesc* p) {
 
 void rtHeap__enure_trackable(oopDesc* obj) {
   assert(rtHeap::is_trackable(obj), 
-      "must trackable %p(%s) -> %p(%s) tr=%d is_garbage=%d\n",
-          RTGC::debug_obj2, RTGC::getClassName(RTGC::debug_obj2), 
+      "must trackable obj2=%p -> %p(%s) tr=%d is_garbage=%d\n",
+          RTGC::debug_obj2, 
           (void*)obj, RTGC::getClassName(obj), rtHeap::is_trackable(obj), to_obj(obj)->isGarbageMarked());
 }
 
@@ -362,7 +360,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
       if (true || holder->is_gc_marked() || to_obj(holder)->getRootRefCount() > 2) {
         rtgc_log(LOG_OPT(2), "skip cld scanner %p/%p rc=%d tr=%d\n", 
             cld, holder, to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
-        postcond(rtHeap::is_alive(holder));
+        postcond(!to_obj(holder)->isTrackable() || rtHeap::is_alive(holder));
         cld->increase_holder_ref_count();
       } else {
         CLDHandleClosure<ClearHandle> cleaner(holder);
@@ -541,7 +539,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   // rtgc_debug_log(node, "add link %p -> %p\n", anchor, link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
   if (node->isGarbageMarked()) {
-    assert(node->hasReferrer() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
+    assert(node->hasReferrers() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
         "invalid link %p(%s) -> %p(%s)\n", 
         anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
 
@@ -560,7 +558,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   GCObject* node = to_obj(p);
   precond(!node->isGarbageMarked());
   assert(!node->isTrackable() || 
-    node->isStrongRootReachable() || node->hasReferrer() || node->isUnstableMarked(),
+    node->isStrongRootReachable() || node->hasReferrers() || node->isUnstableMarked(),
       " invalid node %p(%s) rc=%d, safeAnchor=%d unsafe=%d\n", 
       node, RTGC::getClassName(node),
       node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
@@ -623,7 +621,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   const bool CHECK_GARBAGE = RtLateClearGcMark;
   bool check_shortcut;
 
-  if (!obj->hasReferrer()) {
+  if (!obj->hasReferrers()) {
     check_shortcut = true;
   }
   else if (obj->hasMultiRef()) {
@@ -816,19 +814,19 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p) || (node->isTrackable() ? !node->isUnreachable() : node->hasReferrer())) {
+  if (is_alive(p) || (node->isTrackable() ? !node->isUnreachable() : node->hasReferrers())) {
     rtHeapEx::print_ghost_anchors(to_obj(p));
   }
 
   assert(!is_alive(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->hasReferrer(), node->isUnstableMarked());
-  assert(node->isTrackable() || !node->hasReferrer(),
+        node->isTrackable(), node->getRootRefCount(), node->hasReferrers(), node->isUnstableMarked());
+  assert(node->isTrackable() || !node->hasReferrers(),
       "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d ghost=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->hasReferrer(), node->isUnstableMarked(),
+        node->isTrackable(), node->getRootRefCount(), node->hasReferrers(), node->isUnstableMarked(),
         rtHeapEx::print_ghost_anchors(to_obj(p)));
-  precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrer());
+  precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrers());
   return;
 }
 
@@ -910,6 +908,15 @@ void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   obj->markGarbage(NULL);
   CollectedHeap::fill_with_object(start, end, zap);
   postcond(!obj->isTrackable());
+}
+
+void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
+  if (anchor == obj) {
+    rtgc_log(true, "link on self\n");
+    return;
+  }
+  assert(rtHeap::is_alive(obj), "must not a garbage %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());
+  precond(to_obj(obj)->hasReferrer(to_obj(anchor)));
 }
 
 

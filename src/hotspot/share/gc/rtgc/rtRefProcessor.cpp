@@ -258,7 +258,7 @@ namespace RTGC {
               "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d hasReferrer=%d ghost=%d\n", 
               (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)), policy, 
               GenCollectedHeap::heap()->old_gen()->reserved().start(),
-              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->hasReferrer(), 
+              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->hasReferrers(), 
               rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
           this->remove_curr_ref(true);
           continue;
@@ -642,7 +642,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d hasReferer=%d garbage=%d ghost=%d\n", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
           referent->isUnstableMarked(), 
-          referent->hasReferrer(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
+          referent->hasReferrers(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
     }
     
     if (!is_alive) {
@@ -812,7 +812,7 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
 //           reference_type_to_string(refType), ref_p, referent_node, 
 //           RTGC::getClassName(referent_node),
 //           referent_node->isTrackable(), referent_node->getRootRefCount(),
-//           referent_node->hasReferrer(), cast_to_oop(referent_node)->klass() == vmClasses::Class_klass());
+//           referent_node->hasReferrers(), cast_to_oop(referent_node)->klass() == vmClasses::Class_klass());
 //     }
 //   }
 //   g_enqued_referents.resize(0);
@@ -973,7 +973,6 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     // 참고) JNI 함수 호출 도중에 GC가 발생한 경우, ref 가 trackble 상태일 수 있다.
     // rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
     RTGC::debug_obj = ref;
-    RTGC::debug_obj2 = referent_p;
     RTGC::lock_heap();
     RTGC::add_referrer_ex(referent_p, ref, true);
     RTGC::unlock_heap(true);

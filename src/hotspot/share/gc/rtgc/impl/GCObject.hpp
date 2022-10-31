@@ -64,6 +64,8 @@ public:
 		setShortcutId_unsafe(NO_SAFE_ANCHOR);
 	}
 
+	bool hasReferrer(GCObject* referrer);
+
 	bool hasSafeAnchor() {
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}

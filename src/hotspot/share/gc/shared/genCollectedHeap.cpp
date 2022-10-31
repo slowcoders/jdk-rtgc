@@ -811,63 +811,63 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   // General roots.
   assert(code_roots != NULL, "code root closure should always be set");
 
-  dbg_complete_gc = NULL;
-  if (dbg_complete_gc != NULL) {
-    rtgc_log(true, "roots_cld_do start \n");
-  }
+  // dbg_complete_gc = NULL;
+  // if (dbg_complete_gc != NULL) {
+  //   rtgc_log(true, "roots_cld_do start \n");
+  // }
   ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
-  if (dbg_complete_gc != NULL) {
-    dbg_complete_gc->do_void();
-    rtgc_log(true, "roots_cld_do done \n");
-  }
+  // if (dbg_complete_gc != NULL) {
+  //   dbg_complete_gc->do_void();
+  //   rtgc_log(true, "roots_cld_do done \n");
+  // }
 
   // Only process code roots from thread stacks if we aren't visiting the entire CodeCache anyway
   CodeBlobToOopClosure* roots_from_code_p = (so & SO_AllCodeCache) ? NULL : code_roots;
 
-  if (dbg_complete_gc != NULL) {
-    rtgc_log(true, "strong_roots start \n");
-  }
+  // if (dbg_complete_gc != NULL) {
+  //   rtgc_log(true, "strong_roots start \n");
+  // }
   Threads::oops_do(strong_roots, roots_from_code_p);
-  if (dbg_complete_gc != NULL) {
-    dbg_complete_gc->do_void();
-    rtgc_log(true, "strong_roots done \n");
-  }
+  // if (dbg_complete_gc != NULL) {
+  //   dbg_complete_gc->do_void();
+  //   rtgc_log(true, "strong_roots done \n");
+  // }
 
-  if (dbg_complete_gc != NULL) {
-    rtgc_log(true, "strong_oops_do start \n");
-  }
+  // if (dbg_complete_gc != NULL) {
+  //   rtgc_log(true, "strong_oops_do start \n");
+  // }
   OopStorageSet::strong_oops_do(strong_roots);
-  if (dbg_complete_gc != NULL) {
-    dbg_complete_gc->do_void();
-    rtgc_log(true, "strong_oops_do done \n");
-  }
+  // if (dbg_complete_gc != NULL) {
+  //   dbg_complete_gc->do_void();
+  //   rtgc_log(true, "strong_oops_do done \n");
+  // }
 
   if (so & SO_ScavengeCodeCache) {
     assert(code_roots != NULL, "must supply closure for code cache");
 
     // We only visit parts of the CodeCache when scavenging.
-    if (dbg_complete_gc != NULL) {
-      rtgc_log(true, "nmethods_do start \n");
-    }
+    // if (dbg_complete_gc != NULL) {
+    //   rtgc_log(true, "nmethods_do start \n");
+    // }
     ScavengableNMethods::nmethods_do(code_roots);
-    if (dbg_complete_gc != NULL) {
-      dbg_complete_gc->do_void();
-      rtgc_log(true, "nmethods_do done \n");
-    }
+    // if (dbg_complete_gc != NULL) {
+    //   dbg_complete_gc->do_void();
+    //   rtgc_log(true, "nmethods_do done \n");
+    // }
   }
   if (so & SO_AllCodeCache) {
     assert(code_roots != NULL, "must supply closure for code cache");
 
     // CMSCollector uses this to do intermediate-strength collections.
     // We scan the entire code cache, since CodeCache::do_unloading is not called.
-    if (dbg_complete_gc != NULL) {
-      rtgc_log(true, "blobs_do start \n");
-    }
+    // if (dbg_complete_gc != NULL) {
+    //   rtgc_log(true, "blobs_do start \n");
+    // }
     CodeCache::blobs_do(code_roots);
-    if (dbg_complete_gc != NULL) {
-      dbg_complete_gc->do_void();
-      rtgc_log(true, "blobs_do done \n");
-    }
+    // if (dbg_complete_gc != NULL) {
+    //   dbg_complete_gc->do_void();
+    //   rtgc_log(true, "blobs_do done \n");
+    // }
   }
   // Verify that the code cache contents are not subject to
   // movement by a scavenging collection.

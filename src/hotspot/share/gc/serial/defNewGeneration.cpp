@@ -116,6 +116,8 @@ void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
 
+VoidClosure* dbg_complete_gc = NULL;
+
 void CLDScanClosure::do_cld(ClassLoaderData* cld) {
   NOT_PRODUCT(ResourceMark rm);
   log_develop_trace(gc, scavenge)("CLDScanClosure::do_cld " PTR_FORMAT ", %s, dirty: %s",
@@ -133,12 +135,15 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
 
 #if INCLUDE_RTGC  // RTGC_OPT_CLD_SCAN
     if (EnableRTGC) {
-      rtgc_debug_log(true, "do_cld %p\n", cld);
+      // RTGC::debug_obj2 = cld;
+      rtgc_log(RTGC::debug_obj == cld, "do_cld start %p\n", cld);
       DefNewGeneration* yg = _scavenge_closure->young_gen();
       int prev_threshold = yg->xchg_tenuring_threshold(0);
       cld->incremental_oops_do(_scavenge_closure, true);
       yg->xchg_tenuring_threshold(prev_threshold);
-      debug_only(evacuate_followers.do_void();)
+      // debug_only(dbg_complete_gc->do_void();)
+      rtgc_log(RTGC::debug_obj == cld, "do_cld done %p\n", cld);
+      RTGC::debug_obj2 = (void*)-1;
     } else 
 #endif    
     {
@@ -544,7 +549,6 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   age_table()->print_age_table(_tenuring_threshold);
 }
 
-VoidClosure* dbg_complete_gc = NULL;
 void DefNewGeneration::collect(bool   full,
                                bool   clear_all_soft_refs,
                                size_t size,

@@ -253,6 +253,11 @@ const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0])
 void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
 int cntDbgObj = 0;
+void RTGC::clearDebugClasses() {
+  for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    debugKlass[i] = NULL;
+  }
+}
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
@@ -321,6 +326,7 @@ bool RTGC_DEBUG = false;
 #endif
 void rtHeap__initialize();
 void rtSpace__initialize();
+
 
 void RTGC::initialize() {
 #ifdef _LP64
