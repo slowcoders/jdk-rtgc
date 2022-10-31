@@ -174,7 +174,9 @@ public:
   }
 
   void do_iterate(oop obj) {
+    debug_only(RTGC::debug_obj2 = (void*)obj;)
     obj->oop_iterate(this);
+    debug_only(RTGC::debug_obj2 = NULL;)
   }
 #endif
 };

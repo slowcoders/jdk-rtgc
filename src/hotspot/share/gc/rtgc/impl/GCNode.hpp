@@ -8,6 +8,7 @@
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
+extern int cnt_debug_hit;
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
@@ -101,11 +102,19 @@ public:
 	int unmarkSurvivorReachable() {
 		precond(isSurvivorReachable());
 		_flags.rootRefCount &= ~(1 << 22);
+		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return _flags.rootRefCount;
 	}
 
 	void markSurvivorReachable() {
+		precond(!isGarbageMarked());
 		precond(!isSurvivorReachable());
+		rtgc_debug_log(this, "markSurvivorReachable %p(%s) -> %p rc=%d\n",    
+			RTGC::debug_obj2, RTGC::getClassName(RTGC::debug_obj2),
+			this, this->getRootRefCount());
+		// if (RTGC::is_debug_pointer(this)) {
+		// 	precond(++cnt_debug_hit < 30);
+		// }
 		_flags.rootRefCount |= (1 << 22);
 	}
 
@@ -190,10 +199,14 @@ public:
 	}
 
 	int incrementRootRefCount() {
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount += 2);
 	}
 
 	int decrementRootRefCount() {
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
 		assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
 			this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount -= 2);
@@ -205,10 +218,6 @@ public:
 
 	bool isUnreachable() {
 		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
-	}
-
-	bool isUnsafeTrackable() {
-		return isTrackable() &&  _flags.rootRefCount <= 1 && this->_shortcutId == NO_SAFE_ANCHOR;
 	}
 
 	bool isPublished() {

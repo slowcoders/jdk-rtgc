@@ -76,8 +76,8 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
-      assert(rtHeap::is_trackable(obj), "must trackable %p(%s)\n",
-          (void*)obj, obj->klass()->name()->bytes());
+      void rtHeap__enure_trackable(oopDesc* obj);
+      rtHeap__enure_trackable(obj);
       static_cast<Derived*>(this)->trackable_barrier(p, obj);
     }
 #endif

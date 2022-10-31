@@ -574,6 +574,20 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   // const char* ref_type$ = reference_type_to_string(clear_ref);
   // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
+  if (!CLEAR_FINALIZE_REF) {
+    for (RefIterator<true> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
+      oopDesc* referent = iter.referent();
+      if (!to_obj(referent)->isTrackable()) {
+        if (!referent->is_gc_marked()) {
+          if (UseCompressedOops) {
+            keep_alive->do_oop((narrowOop*)iter.referent_addr());
+          } else {
+            keep_alive->do_oop((oop*)iter.referent_addr());
+          }
+        }
+      }
+    }
+  }
 
   jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
   if (is_full_gc) {
@@ -598,9 +612,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     }
   }
 
-  if (!rtHeap::DoCrossCheck) {
-    rtHeapEx::update_soft_ref_master_clock();
-  }
 }
 
 
@@ -642,6 +653,8 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         }
         if (!referent->isTrackable() || (rtHeap::DoCrossCheck && is_full_gc)) {
           keep_alive->do_oop((T*)iter.referent_addr());
+        } else {
+          postcond(!referent->isGarbageMarked());
         }
       }
       GCObject* old_referent = referent;
@@ -692,6 +705,10 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   complete_gc->do_void();
   RefList::hold_pending_q();
   rtHeap__clear_garbage_young_roots(is_full_gc);
+  if (!rtHeap::DoCrossCheck) {
+    rtHeapEx::update_soft_ref_master_clock();
+  }
+
   if (is_full_gc) {
     precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
     rtHeapEx::g_lock_unsafe_list = true;
@@ -922,6 +939,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   precond(RtNoDiscoverPhantom);
   precond(referent_p != NULL);
 
+  rtgc_debug_log(referent_p, "init_java_reference %p\n", referent_p);
   ReferenceType refType = InstanceKlass::cast(ref->klass())->reference_type();
   switch (refType) {
     case REF_PHANTOM:
