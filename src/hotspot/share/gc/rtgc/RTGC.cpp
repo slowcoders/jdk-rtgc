@@ -1,5 +1,3 @@
-#include "precompiled.hpp"
-
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
@@ -23,8 +21,8 @@ namespace RTGC {
   Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
-  void* debug_obj = (void*)-1;
-  void* debug_obj2 = (void*)-1;
+  void* debug_obj = NULL;
+  void* debug_obj2 = NULL;
   bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
 }
@@ -106,10 +104,10 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   if (RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
   }
-  if (RTGC::is_debug_pointer(p)) {//} || RTGC::is_debug_pointer(debug_base)) {
+#endif
+  if (RTGC::debug_obj == p) {//} || RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p added to %p(rc=%d)\n", base, p, to_obj(p)->getRootRefCount());
   }
-#endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
 
@@ -255,6 +253,7 @@ void* dbgObjs[16];
 int cntDbgObj = 0;
 void RTGC::clearDebugClasses() {
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    debugClassNames[i] = NULL;
     debugKlass[i] = NULL;
   }
 }
@@ -303,15 +302,15 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
-    return;
   }
-  return;
-  if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
+  else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
-  else if (is_debug_pointer(old_p)) {
+    return;
+//else 
+  if (is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
@@ -354,7 +353,7 @@ void RTGC::initialize() {
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    debug_obj = (void*)-1;//0x7f0260f58;
+    //debug_obj = 0x7f0260f58;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

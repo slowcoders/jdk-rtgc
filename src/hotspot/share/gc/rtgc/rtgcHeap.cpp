@@ -21,7 +21,7 @@
 
 #include "rtRefProcessor.hpp"
 
-bool rtHeap::in_full_gc = false;
+int rtHeap::in_full_gc = 0;
 
 using namespace rtHeapUtil;
 
@@ -148,7 +148,7 @@ static oopDesc* __get_discovered(oop obj) {
 //   // }
 //   printf("[%d] %p(%s:%d ygR:%d):%d anchors:%d\n", 
 //     depth, node, RTGC::getClassName(node), node->isGarbageMarked(), 
-//     node->isYoungRoot(), node->getRootRefCount(), node->hasReferrers());
+//     node->isYoungRoot(), node->getRootRefCount(), node->isAnchored());
 //   if (node->isStrongRootReachable()) return;
 //   node->incrementRootRefCount();
 
@@ -220,6 +220,9 @@ void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
 void RTGC::resurrect_young_root(GCObject* node) {
   precond(node->isGarbageMarked());
   precond(node->isTrackable());
+  if (!rtHeap::in_full_gc) {
+    precond(node->isYoungRoot() && node->isDirtyReferrerPoints());
+  }
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
@@ -539,7 +542,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   // rtgc_debug_log(node, "add link %p -> %p\n", anchor, link);
   assert(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)\n", anchor, anchor->klass()->name()->bytes());
   if (node->isGarbageMarked()) {
-    assert(node->hasReferrers() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
+    assert(node->isAnchored() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
         "invalid link %p(%s) -> %p(%s)\n", 
         anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
 
@@ -558,7 +561,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   GCObject* node = to_obj(p);
   precond(!node->isGarbageMarked());
   assert(!node->isTrackable() || 
-    node->isStrongRootReachable() || node->hasReferrers() || node->isUnstableMarked(),
+    node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked(),
       " invalid node %p(%s) rc=%d, safeAnchor=%d unsafe=%d\n", 
       node, RTGC::getClassName(node),
       node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
@@ -621,7 +624,7 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   const bool CHECK_GARBAGE = RtLateClearGcMark;
   bool check_shortcut;
 
-  if (!obj->hasReferrers()) {
+  if (!obj->isAnchored()) {
     check_shortcut = true;
   }
   else if (obj->hasMultiRef()) {
@@ -697,6 +700,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     if (!g_adjust_pointer_closure.is_in_young(new_p)) {
       mark_promoted_trackable(old_p);
       if (to_obj(old_p)->isUnreachable()) {
+        // GC 종료 후 UnsafeList 에 추가.
         mark_survivor_reachable(old_p);
       }
       new_anchor_p = new_p;
@@ -814,19 +818,19 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p) || (node->isTrackable() ? !node->isUnreachable() : node->hasReferrers())) {
+  if (is_alive(p) || (node->isTrackable() ? !node->isUnreachable() : node->isAnchored())) {
     rtHeapEx::print_ghost_anchors(to_obj(p));
   }
 
   assert(!is_alive(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->hasReferrers(), node->isUnstableMarked());
-  assert(node->isTrackable() || !node->hasReferrers(),
+        node->isTrackable(), node->getRootRefCount(), node->isAnchored(), node->isUnstableMarked());
+  assert(node->isTrackable() || !node->isAnchored(),
       "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d ghost=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->hasReferrers(), node->isUnstableMarked(),
+        node->isTrackable(), node->getRootRefCount(), node->isAnchored(), node->isUnstableMarked(),
         rtHeapEx::print_ghost_anchors(to_obj(p)));
-  precond(node->isTrackable() ? node->isUnreachable() : !node->hasReferrers());
+  precond(node->isTrackable() ? node->isUnreachable() : !node->isAnchored());
   return;
 }
 
@@ -856,6 +860,7 @@ class ClearWeakHandleRef: public OopClosure {
 int cnt_debug_hit = 0;
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   precond(g_stack_roots.size() == 0);
+
   cnt_debug_hit = 0;
   if (policy != NULL) {
     // yg_root_locked = true;
@@ -864,10 +869,16 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     if (RtLazyClearWeakHandle) {
       WeakProcessor::oops_do(&clear_weak_handle_ref);
     }
-    in_full_gc = true;
+    in_full_gc = 1;
     rtHeapEx::break_reference_links(policy);
   } else {
     g_saved_young_root_count = g_young_roots.size();
+  }
+  if (RTGC::debug_obj != NULL) {
+    GCObject* obj = to_obj(RTGC::debug_obj);
+    rtgc_log(1, "debug_obj state %p rc=%d hasReferrer=%d unsafe=%d YR=%d %d\n", 
+        obj, obj->getRootRefCount(), obj->isAnchored(), obj->isUnstableMarked(),
+        obj->isYoungRoot(), rtHeapEx::print_ghost_anchors(obj));
   }
 }
 
@@ -879,7 +890,14 @@ void rtHeap::finish_rtgc(bool is_full_gc) {
   }
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
-  in_full_gc = false;
+  in_full_gc = 0;
+  if (RTGC::debug_obj2 != NULL) {
+    GCObject* obj = to_obj(RTGC::debug_obj2);
+    rtgc_log(1, "debug_obj2 state %p(%s) rc=%d hasReferrer=%d unsafe=%d YR=%d gc_mark=%d\n", 
+        obj, RTGC::getClassName(obj), obj->getRootRefCount(), obj->isAnchored(), obj->isUnstableMarked(),
+        obj->isYoungRoot(), cast_to_oop(obj)->is_gc_marked());
+  }
+
 }
 
 
@@ -912,7 +930,7 @@ void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
 
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor == obj) {
-    rtgc_log(true, "link on self\n");
+    rtgc_log(true, "link on self %p\n", obj);
     return;
   }
   assert(rtHeap::is_alive(obj), "must not a garbage %p(%s)\n", (void*)obj, obj->klass()->name()->bytes());

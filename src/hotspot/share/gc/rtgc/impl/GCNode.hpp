@@ -102,7 +102,7 @@ public:
 	int unmarkSurvivorReachable() {
 		precond(isSurvivorReachable());
 		_flags.rootRefCount &= ~(1 << 22);
-		if (RTGC::debug_obj == RTGC::debug_obj2) {
+		if (RTGC::debug_obj != NULL) {
 			rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		}
 		return _flags.rootRefCount;
@@ -114,15 +114,14 @@ public:
 #ifdef ASSERT		
 		if (RTGC::is_debug_pointer(this)) {
 			if (++cnt_debug_hit == 38) {
-				RTGC::debug_obj = RTGC::debug_obj2;
+				RTGC::debug_obj = this;
+			}
+			rtgc_debug_log(this, "markSurvivorReachable[%d] %p rc=%d anchored=%d\n",    
+				cnt_debug_hit, this, this->getRootRefCount(), this->isAnchored());
+			if (cnt_debug_hit > 45) {
 				void clearDebugClasses();
 				clearDebugClasses();
 			}
-		}
-		if (RTGC::debug_obj == RTGC::debug_obj2) {
-			rtgc_debug_log(this, "markSurvivorReachable[%d] obj2=%p -> %p rc=%d\n",    
-				cnt_debug_hit, RTGC::debug_obj2,
-				this, this->getRootRefCount());
 		}
 #endif
 		_flags.rootRefCount |= (1 << 22);
@@ -179,7 +178,7 @@ public:
 	}
 
 
-	bool hasReferrers() {
+	bool isAnchored() {
 		return this->_refs != 0;
 	}
 
@@ -196,7 +195,7 @@ public:
 	}
 
 	bool isStrongReachable() {
-		return isStrongRootReachable() || hasReferrers();
+		return isStrongRootReachable() || isAnchored();
 	}
 
 	void invalidateAnchorList_unsafe() {
@@ -227,7 +226,7 @@ public:
 	}
 
 	bool isUnreachable() {
-		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrers();
+		return _flags.rootRefCount == ZERO_ROOT_REF && !this->isAnchored();
 	}
 
 	bool isPublished() {

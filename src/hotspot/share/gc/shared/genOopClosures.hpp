@@ -172,6 +172,10 @@ public:
   void trackable_barrier(oop old_p, oop new_p) { 
     precond(old_p != _anchor);
     rtHeap::mark_survivor_reachable(new_p);
+    if (new_p == RTGC::debug_obj) {
+      rtgc_debug_log(new_p, "DefNewScanClosure in adjust_pointers %p\n", (void*)_anchor);
+      RTGC::debug_obj2 = _anchor;
+    }
   }
 
   void do_iterate(oop obj) {

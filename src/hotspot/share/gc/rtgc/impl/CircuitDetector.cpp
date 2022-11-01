@@ -100,7 +100,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
 
                 SafeShortcut* shortcut = top->getShortcut();
                 precond(shortcut->inTracing());
-                precond(top->hasReferrers());
+                precond(top->isAnchored());
                 //postcond(!_visitedNodes.contains(top));
 
                 shortcut->unmarkInTracing();
@@ -132,7 +132,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         rtgc_log(LOG_OPT(7), "findSurvivalPath %p:%d[%d] vn=%d\n", 
             R, R->getShortcutId(), _trackers.size(), _visitedNodes.size());
 
-        if (R->hasReferrers()) {
+        if (R->isAnchored()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
                 debug_only(shortcut->vailidateShortcut();)
@@ -180,7 +180,7 @@ void GarbageProcessor::constructShortcut() {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
         if (link != NULL) {
-            assert(link->hasReferrers(),
+            assert(link->isAnchored(),
                 "link has no anchor %p:%d\n", obj, obj->getShortcutId());
             link->setSafeAnchor(obj);
         } else {
@@ -246,7 +246,7 @@ void GarbageProcessor::constructShortcut() {
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     precond(!rtHeapEx::g_lock_unsafe_list);
     precond(garbageAnchor->isTrackable());
-    //rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (!link->removeMatchedReferrers(garbageAnchor)) {
         // rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
         return false;
