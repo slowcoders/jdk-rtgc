@@ -24,6 +24,7 @@ extern void rtHeap__addRootStack_unsafe(GCObject* node);
 extern void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
 static const bool USE_REF_ARRAY = true;
+static const bool ENABLE_SOFT_WEAK_REF = false;
 static const bool REMOVE_REF_TEMPORARY = true;
 static const bool CLEAR_FINALIZE_REF = false;
 #if DO_CROSS_CHECK_REF
@@ -205,7 +206,8 @@ namespace RTGC {
 
     oopDesc* get_raw_referent() {
       oop p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
-      rtgc_log(p == RTGC::debug_obj2, "get_raw_referent of debug_obj2 from %p\n", (void*)_curr_ref);
+      rtgc_debug_log(p, "get_raw_referent of debug_obj2(%p) from %p(%s)\n", 
+          (void*)p, (void*)_curr_ref, RTGC::getClassName(_curr_ref));
       return p;
     }
 
@@ -358,6 +360,7 @@ namespace RTGC {
     }
 
     void remove_curr_ref(bool do_clear_discovered) {
+      debug_only(get_raw_referent();)
       if (do_clear_discovered) {
         clear_discovered();
       }
@@ -554,7 +557,7 @@ void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
   RefList::g_ref_policy = policy;
 
   for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
-    if (ref->isTrackable()) {
+    if (ENABLE_SOFT_WEAK_REF && ref->isTrackable()) {
       iter.break_weak_soft_link();
     }
   }
@@ -563,7 +566,7 @@ void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
   jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
   rtgc_log(LOG_OPT(3), "g_softList 1-1 %d\n", g_softList._refs.size());
   for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
-    if (policy->should_clear_reference(iter.ref(), soft_ref_timestamp)) {
+    if (ENABLE_SOFT_WEAK_REF && policy->should_clear_reference(iter.ref(), soft_ref_timestamp)) {
       rtgc_log(LOG_OPT(3), "dirty soft %p tr=%d\n", ref, ref->isTrackable());
       if (ref->isTrackable()) {
         iter.break_weak_soft_link();
@@ -625,7 +628,9 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     rtHeap::in_full_gc = -1;
 
     for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef_ClearAnchorList)) != NULL; ) {
-      iter.clear_weak_soft_garbage_referent();
+      if (ENABLE_SOFT_WEAK_REF) {
+        iter.clear_weak_soft_garbage_referent();
+      }
     }
   }
 
@@ -930,7 +935,7 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
       return to_obj(ref)->isActiveFinalizer();
 
     case REF_WEAK:
-      if (!rtHeap::in_full_gc) {
+      if (!rtHeap::in_full_gc || !ENABLE_SOFT_WEAK_REF) {
         return false;
       } else {
         oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
@@ -941,7 +946,7 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
       if (rtHeap::in_full_gc <= 0) {
         return false;
       } else {
-        return !to_obj(ref)->getContextFlag();
+        return ENABLE_SOFT_WEAK_REF && !to_obj(ref)->getContextFlag();
         // oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
         // return referent != NULL 
         //     && RefList::g_ref_policy->should_clear_reference(ref, rtHeapEx::_soft_ref_timestamp_clock);

@@ -252,10 +252,10 @@ void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
 int cntDbgObj = 0;
 void RTGC::clearDebugClasses() {
-  for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
-    debugClassNames[i] = NULL;
-    debugKlass[i] = NULL;
-  }
+  // for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+  //   debugClassNames[i] = NULL;
+  //   debugKlass[i] = NULL;
+  // }
 }
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
@@ -307,7 +307,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     RTGC::debug_obj2 = new_p;
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
-  }
+  } 
     return;
 //else 
   if (is_debug_pointer(old_p)) {
