@@ -660,12 +660,13 @@ void DefNewGeneration::collect(bool   full,
   pt.print_all_references();
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(&keep_alive, &evacuate_followers, false);
   }
 #endif
+
+  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");

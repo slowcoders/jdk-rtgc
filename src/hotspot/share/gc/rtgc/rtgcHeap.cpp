@@ -899,7 +899,7 @@ void rtHeap::finish_rtgc(bool is_full_gc) {
     GCObject* obj = to_obj(RTGC::debug_obj2);
     rtgc_log(1, "debug_obj2 state %p(%s) rc=%d hasReferrer=%d unsafe=%d YR=%d age=%d gc_mark=%d\n", 
         obj, RTGC::getClassName(obj), obj->getRootRefCount(), obj->isAnchored(), obj->isUnstableMarked(),
-        obj->isYoungRoot(), cast_to_oop(obj)->is_gc_marked(), cast_to_oop(obj)->age());
+        obj->isYoungRoot(), cast_to_oop(obj)->age(), cast_to_oop(obj)->is_gc_marked());
   }
 
 }

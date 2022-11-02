@@ -4019,8 +4019,6 @@ bool java_lang_invoke_MemberName::is_method(oop mname) {
 
 void java_lang_invoke_MemberName::set_method(oop mname, oop resolved_method) {
   assert(is_instance(mname), "wrong type");
-  precond(resolved_method != RTGC::debug_obj);
-  precond(mname != RTGC::debug_obj2);
   mname->obj_field_put(_method_offset, resolved_method);
 }
 
