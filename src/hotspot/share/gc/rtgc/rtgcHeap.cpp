@@ -113,7 +113,7 @@ namespace RTGC {
     }
   };  
 
-  bool g_do_resurrect_cld = false;
+  bool g_in_iterate_younger_gen_roots = false;
   HugeArray<oop> g_young_roots;
   HugeArray<GCObject*> g_stack_roots;
   int g_resurrected_top = INT_MAX;
@@ -222,6 +222,7 @@ void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
 }
 
 void RTGC::resurrect_young_root(GCObject* node) {
+  precond(g_in_iterate_younger_gen_roots);
   precond(node->isGarbageMarked());
   precond(node->isTrackable());
   if (!rtHeap::in_full_gc) {
@@ -247,20 +248,23 @@ void RTGC::resurrect_young_root(GCObject* node) {
   } else if (!node->isYoungRoot()) {
     rtHeap::add_young_root(cast_to_oop(node), cast_to_oop(node));
   }
-  if (g_do_resurrect_cld) {
+  if (rtHeap::in_full_gc) {
     ClassLoaderData* cld;
     Klass* klass = cast_to_oop(node)->klass();
     if (klass->id() == InstanceClassLoaderKlassID) {
       cld = java_lang_ClassLoader::loader_data_raw(cast_to_oop(node));
-      if (cld == NULL) return;
     } else {
       cld = klass->class_loader_data();
     }
+    if (cld == NULL) return;
     oopDesc* holder = cld->holder_no_keepalive();
-    if (node == to_obj(holder) || to_obj(holder)->isGarbageMarked()) {
-      CLDHandleClosure<RemarkHandle> resurrector;
-      rtgc_log(LOG_OPT(2), "resurrect cld %p/%p rc=%d\n", cld, holder, cld->holder_ref_count());
-      cld->oops_do(&resurrector, ClassLoaderData::_claim_none);      
+    if (holder != NULL) {
+      if (node == to_obj(holder) || to_obj(holder)->isGarbageMarked()) {
+        fatal("GGGGG");
+        CLDHandleClosure<RemarkHandle> resurrector;
+        rtgc_log(LOG_OPT(2), "resurrect cld %p/%p rc=%d\n", cld, holder, cld->holder_ref_count());
+        cld->oops_do(&resurrector, ClassLoaderData::_claim_none);      
+      }
     }
   }
 }
@@ -364,11 +368,12 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
     
     if (!mark_ref) {
-      if (holder->is_gc_marked() || to_obj(holder)->getRootRefCount() > 2) {
+      if (to_obj(holder)->isTrackable()? to_obj(holder)->getRootRefCount() > 2 : holder->is_gc_marked()) {
         rtgc_log(LOG_OPT(2), "skip cld scanner %p/%p rc=%d tr=%d\n", 
             cld, holder, to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
-        postcond(!to_obj(holder)->isTrackable() || rtHeap::is_alive(holder));
         cld->increase_holder_ref_count();
+        CLDHandleClosure<MarkUntrackable> marker;
+        cld->oops_do(&marker, ClassLoaderData::_claim_none);
       } else {
         CLDHandleClosure<ClearHandle> cleaner;
         cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
@@ -377,10 +382,8 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     }
 
     if (cld->holder_ref_count() > 0) {
-      cld->reset_holder_ref_count();
-      CLDHandleClosure<MarkUntrackable> marker;
-      cld->oops_do(&marker, ClassLoaderData::_claim_none);
       postcond(rtHeap::is_alive(holder));
+      cld->reset_holder_ref_count();
       return;
     }
 
@@ -475,11 +478,13 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   assert(garbages->size() == 0, "garbages->size %d\n", garbages->size());
 
+  g_in_iterate_younger_gen_roots = true;
   if (is_full_gc) {
     weak_cld_remarker.init();
     weak_cld_cleaner.init();
     debug_only(idx_cld = 0;)
     ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_cleaner);
+    closure->do_complete();
   }
 
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
@@ -518,12 +523,11 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   }
 
   if (is_full_gc) {//} && !rtHeap::DoCrossCheck) {
-    g_do_resurrect_cld = true;
     debug_only(idx_cld = 0;)
     ClassLoaderDataGraph::roots_cld_do(NULL, &weak_cld_remarker);
     g_young_root_closure->do_complete();
-    g_do_resurrect_cld = false;
   }
+  g_in_iterate_younger_gen_roots = false;
 
 }
 
