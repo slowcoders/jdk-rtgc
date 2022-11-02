@@ -88,7 +88,7 @@ namespace RTGC {
             RTGC::debug_obj = node;
           }
 #endif          
-          precond(rtHeap::is_alive(obj));
+          precond(!node->isTrackable() || rtHeap::is_alive(obj));
           rtHeap::release_jni_handle(obj);
           return;
         }
@@ -107,7 +107,6 @@ namespace RTGC {
         if (node->isTrackable()) {
           postcond((node->getRootRefCount() & 0x3FF) != 0);
         } else if (!obj->is_gc_marked()) {
-          fatal("KKK");
           MarkSweep::mark_and_push_internal(obj, false);
         }
       }
@@ -379,9 +378,9 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
 
     if (cld->holder_ref_count() > 0) {
       cld->reset_holder_ref_count();
-      precond(rtHeap::is_alive(holder));
       CLDHandleClosure<MarkUntrackable> marker;
       cld->oops_do(&marker, ClassLoaderData::_claim_none);
+      postcond(rtHeap::is_alive(holder));
       return;
     }
 

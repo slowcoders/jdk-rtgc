@@ -276,20 +276,19 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     for (; idx < size; idx++) {
       if (c->_data[idx] != NULL) {
         oop* p = &c->_data[idx];
-        oop old = *p;
         f->do_oop(p);
+        oop new_p = *p;
         debug_only(cnt_handle ++;)
-        debug_only(cnt_promoted += rtHeap::is_trackable(old) ? 1 : 0;) 
+        debug_only(cnt_promoted += rtHeap::is_trackable(new_p) ? 1 : 0;) 
 
         // check on old_p. new_p may not copyed yet;
-        if (!promotion_failed && !rtHeap::is_trackable(old)) {
+        if (!promotion_failed && !rtHeap::is_trackable(new_p)) {
           promotion_failed = true;
           Atomic::release_store(&_last_chunk, c);
           Atomic::release_store(&_last_idx, idx);
           postcond(_last_chunk != NULL);
           postcond(_last_idx == idx);
         }
-        rtgc_trace(10, "%p promoted -> %p\n", (void*)old, (void*)*p);
       }
     }
   }
@@ -298,8 +297,6 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     Atomic::release_store(&_last_idx, _tail->_size);
   }
 
-  rtgc_trace(10, "cld_oops_do has_fail=%d, count %d, promoted=%d, last %p:%d\n", 
-          promotion_failed, cnt_handle, cnt_promoted, _last_chunk, _last_idx);
   return !promotion_failed;
 }
 #endif
