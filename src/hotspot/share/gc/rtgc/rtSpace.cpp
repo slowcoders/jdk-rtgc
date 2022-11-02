@@ -113,6 +113,8 @@ void FreeMemStore::clearStore() {
 
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   precond(obj->isTrackable());
+  ClassLoaderData* cld = rtHeapUtil::getClassLoaderDataRef(cast_to_oop(obj));
+  if (cld != NULL) cld->decrease_holder_ref_count();
   
   if (false && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);

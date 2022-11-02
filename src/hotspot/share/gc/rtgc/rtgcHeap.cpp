@@ -212,6 +212,21 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
+  ClassLoaderData* cld = rtHeapUtil::getClassLoaderDataRef(new_p);
+  if (cld != NULL) cld->increase_holder_ref_count();
+}
+
+ClassLoaderData* rtHeapUtil::getClassLoaderDataRef(oop obj) {
+  Klass* klass = obj->klass();
+  switch (klass->id()) {
+    case InstanceKlassID:
+    case InstanceRefKlassID:
+    case ObjArrayKlassID:
+    // case InstanceMirrorKlassID:
+      return klass->class_loader_data();
+    default:
+      return NULL;
+  }
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
@@ -256,7 +271,7 @@ void RTGC::resurrect_young_root(GCObject* node) {
     } else {
       cld = klass->class_loader_data();
     }
-    if (cld == NULL) return;
+    if (cld == NULL || cld->holder_ref_count() > 0) return;
     oopDesc* holder = cld->holder_no_keepalive();
     if (holder != NULL) {
       if (node == to_obj(holder) || to_obj(holder)->isGarbageMarked()) {
@@ -368,7 +383,8 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
     assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
     
     if (!mark_ref) {
-      if (to_obj(holder)->isTrackable()? to_obj(holder)->getRootRefCount() > 2 : holder->is_gc_marked()) {
+      if (cld->holder_ref_count() > 0 || cld->class_loader() == NULL ||
+        to_obj(holder)->isTrackable()? to_obj(holder)->getRootRefCount() > 2 : holder->is_gc_marked()) {
         rtgc_log(LOG_OPT(2), "skip cld scanner %p/%p rc=%d tr=%d\n", 
             cld, holder, to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
         cld->increase_holder_ref_count();
@@ -383,7 +399,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
 
     if (cld->holder_ref_count() > 0) {
       postcond(rtHeap::is_alive(holder));
-      cld->reset_holder_ref_count();
+      cld->decrease_holder_ref_count();
       return;
     }
 
@@ -411,7 +427,7 @@ class WeakCLDScanner : public CLDClosure, public KlassClosure {
   }
   bool has_any_alive_klass(ClassLoaderData* cld, oop holder) {
     oop cl = cld->class_loader();
-    _is_alive = (cl != NULL) && is_alive(cl);
+    _is_alive = cl == NULL || is_alive(cl);
     if (!_is_alive) {
       cld->classes_do(this);
     }

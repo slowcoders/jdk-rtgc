@@ -4,7 +4,10 @@
 #include "gc/shared/space.inline.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 
+class ClassLoaderData;
+
 namespace rtHeapUtil {
+  ClassLoaderData* getClassLoaderDataRef(oop obj);
 
   bool is_dead_space(oopDesc* obj);
 
