@@ -24,7 +24,7 @@ extern void rtHeap__addRootStack_unsafe(GCObject* node);
 extern void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
 static const bool USE_REF_ARRAY = true;
-static const bool ENABLE_SOFT_WEAK_REF = false;
+static const bool ENABLE_SOFT_WEAK_REF = true;
 static const bool REMOVE_REF_TEMPORARY = true;
 static const bool CLEAR_FINALIZE_REF = false;
 #if DO_CROSS_CHECK_REF
@@ -708,7 +708,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         }
       } else if (referent->isTrackable()) {
         // gc 종료 후 Unsafe List 등록되도록 한다.
-        rtgc_log(true || LOG_OPT(3), "yg-reachable final referent %p\n", referent);
+        rtgc_log(LOG_OPT(3), "yg-reachable final referent %p\n", referent);
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
       }
       ref->unmarkActiveFinalizer();

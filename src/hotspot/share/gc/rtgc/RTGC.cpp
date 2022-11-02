@@ -100,14 +100,14 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   precond (p != debug_base);
 
   if (!REF_LINK_ENABLED) return;
-#if 0 //def ASSERT    
+#ifdef ASSERT    
   if (RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
   }
-#endif
-  if (RTGC::debug_obj == p) {//} || RTGC::is_debug_pointer(debug_base)) {
+  if (RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p added to %p(rc=%d)\n", base, p, to_obj(p)->getRootRefCount());
   }
+#endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
 }
 
@@ -154,13 +154,10 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  rtgc_log(false && LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
-      fn, addr, oldValue, newValue);
 
   if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
-  //rtgc_debug_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
 }
 
 
@@ -230,7 +227,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MemberName",
-  "java/lang/invoke/ResolvedMethodName",
+  // "java/lang/invoke/ResolvedMethodName",
   // "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
@@ -251,12 +248,12 @@ const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0])
 void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
 int cntDbgObj = 0;
-void RTGC::clearDebugClasses() {
-  // for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
-  //   debugClassNames[i] = NULL;
-  //   debugKlass[i] = NULL;
-  // }
-}
+// void RTGC::clearDebugClasses() {
+//   // for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+//   //   debugClassNames[i] = NULL;
+//   //   debugKlass[i] = NULL;
+//   // }
+// }
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;

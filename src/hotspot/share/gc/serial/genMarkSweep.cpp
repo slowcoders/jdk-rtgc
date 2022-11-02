@@ -298,12 +298,12 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
     assert(_marking_stack.is_empty(), "Marking should have completed");
-
-    GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
-    WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
   }
 #endif
 
+  GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
+  WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+  
   {
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", gc_timer());
 

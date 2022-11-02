@@ -102,28 +102,15 @@ public:
 	int unmarkSurvivorReachable() {
 		precond(isSurvivorReachable());
 		_flags.rootRefCount &= ~(1 << 22);
-		if (RTGC::debug_obj != NULL) {
-			rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
-		}
+		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return _flags.rootRefCount;
 	}
 
 	void markSurvivorReachable() {
 		precond(!isGarbageMarked());
 		precond(!isSurvivorReachable());
-#ifdef ASSERT		
-		if (RTGC::is_debug_pointer(this)) {
-			if (++cnt_debug_hit == 38) {
-				RTGC::debug_obj = this;
-			}
-			rtgc_debug_log(this, "markSurvivorReachable[%d] %p rc=%d anchored=%d\n",    
-				cnt_debug_hit, this, this->getRootRefCount(), this->isAnchored());
-			if (cnt_debug_hit > 45) {
-				void clearDebugClasses();
-				clearDebugClasses();
-			}
-		}
-#endif
+		rtgc_debug_log(this, "markSurvivorReachable[%d] %p rc=%d anchored=%d\n",    
+			cnt_debug_hit, this, this->getRootRefCount(), this->isAnchored());
 		_flags.rootRefCount |= (1 << 22);
 	}
 
