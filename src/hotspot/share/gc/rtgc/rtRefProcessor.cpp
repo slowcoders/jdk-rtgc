@@ -768,7 +768,7 @@ void __process_final_phantom_references() {
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     oopDesc* old_referent = iter.referent();
     precond(old_referent != NULL);
-    bool is_alive = rtHeap::is_alive(old_referent);
+    bool is_alive = rtHeap::is_alive(old_referent, false);
     if (!is_full_gc) {
       iter.adjust_ref_pointer();
     }

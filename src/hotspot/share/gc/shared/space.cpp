@@ -98,7 +98,7 @@ void DirtyCardToOopClosure::walk_mem_region(MemRegion mr,
         !_sp->obj_allocated_since_save_marks(cast_to_oop(bottom))) {
       RTGC_ONLY(precond(!RtNoDirtyCardMarking));
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-      if (EnableRTGC && !rtHeap::is_alive(cast_to_oop(bottom))) continue;
+      if (EnableRTGC && !rtHeap::is_alive(cast_to_oop(bottom), false)) continue;
 #endif          
       cast_to_oop(bottom)->oop_iterate(_cl, mr);
     }

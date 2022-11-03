@@ -73,7 +73,7 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-      return rtHeap::is_alive(p);
+      return rtHeap::is_alive(p, false);
     } else {
       return p->is_forwarded();
     }

@@ -166,7 +166,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   while (cur_obj < scan_limit) {
     if (space->scanned_block_is_obj(cur_obj) && 
-        ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj)))) {
+        ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
 #if INCLUDE_RTGC
@@ -192,7 +192,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
           if (rtHeap::DoCrossCheck) {
             rtHeap::destroy_trackable(cast_to_oop(cur_obj));
           } else {
-            precond(!rtHeap::is_alive(cast_to_oop(cur_obj)));
+            precond(!rtHeap::is_alive(cast_to_oop(cur_obj), false));
           }
         }
 
@@ -205,7 +205,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
             if (cast_to_oop(end)->is_gc_marked()) break;
             rtHeap::destroy_trackable(cast_to_oop(end));
           } else {
-            if (rtHeap::is_alive(cast_to_oop(end))) break;
+            if (rtHeap::is_alive(cast_to_oop(end), false)) break;
           }
         }
       }

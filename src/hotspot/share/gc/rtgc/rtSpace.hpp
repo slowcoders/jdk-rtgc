@@ -7,7 +7,7 @@
 class ClassLoaderData;
 
 namespace rtHeapUtil {
-  ClassLoaderData* getClassLoaderDataRef(oop obj);
+  void resurrect_young_root(RTGC::GCObject* node);
 
   bool is_dead_space(oopDesc* obj);
 

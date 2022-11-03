@@ -228,7 +228,7 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MemberName",
   // "java/lang/invoke/ResolvedMethodName",
-  // "java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
+  "&java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -266,16 +266,19 @@ bool RTGC::is_debug_pointer(void* ptr) {
   // return (vmClasses::Class_klass() == obj->klass());
 
   Klass* klass = obj->klass();
-  if (false) {
-    if (vmClasses::Class_klass() != klass) return false;
-    klass = java_lang_Class::as_Klass(cast_to_oop(obj));
-    if (klass == NULL) return false;
-  }
-
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+    const char* className = debugClassNames[i];
+    if (className == NULL) continue;
+
     if (debugKlass[i] == NULL) {
-      const char* className = debugClassNames[i];
-      if (className != NULL && strstr((char*)klass->name()->bytes(), className)
+      if (className[0] == '&') {
+        if (vmClasses::Class_klass() != klass) continue;
+        className = className + 1;
+
+        klass = java_lang_Class::as_Klass(cast_to_oop(obj));
+        if (klass == NULL) continue;
+      }
+      if (strstr((char*)klass->name()->bytes(), className)
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
@@ -332,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 0;// UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -354,7 +357,7 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 0);
+    enableLog(LOG_HEAP, 2);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
