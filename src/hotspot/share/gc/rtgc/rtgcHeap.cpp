@@ -272,6 +272,9 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     rtHeapEx::g_lock_garbage_list = true;
   } else {
     g_in_iterate_younger_gen_roots = true;
+    rtCLDCleaner::clear_cld_locks(g_young_root_closure);
+    rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
+    _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
     g_in_iterate_younger_gen_roots = false;    
   }
 }
@@ -339,8 +342,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   }
 
   if (is_full_gc) {
-    rtCLDCleaner::clear_cld_locks(g_young_root_closure);
-    rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
   }
   g_in_iterate_younger_gen_roots = false;
 
