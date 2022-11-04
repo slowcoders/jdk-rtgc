@@ -333,8 +333,21 @@ DefNewGeneration::collect() ...
                      list->add(dicovered reference 등록)
                         -> Reference->discovered field 이용.
 
+
 ==============================
-Test summary 2022 10/20
+Test summary 2022 11/04 No-Cross-Check
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1581    22     7 <<
+>> jtreg:test/jdk:tier1                               2062  2058     1     3 <<
+>> jtreg:test/langtools:tier1                         4215  4201     0    14 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+
+==============================
+Test summary 2022 10/20 Cross-Check
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
 >> jtreg:test/hotspot/jtreg:tier1                     1610  1587    19     4 <<
