@@ -256,7 +256,7 @@ void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
   tenuredScanner->do_complete();
 
   _rtgc.g_pGarbageProcessor->validateGarbageList();
-  _rtgc.g_pGarbageProcessor->collectGarbage(true);
+  // _rtgc.g_pGarbageProcessor->collectGarbage(true);
 }
 
 void rtCLDCleaner::initialize() {

@@ -415,7 +415,7 @@ namespace RTGC {
 
       if (!is_alive) {
         precond(!_referent_p->is_gc_marked());
-        rtgc_log(!referent->isTrackable(), //!_referent_p->is_gc_marked(),
+        rtgc_log(false && !referent->isTrackable(), //!_referent_p->is_gc_marked(),
             "referent %p(%s) is collected tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         enqueue_curr_ref(true);
@@ -745,7 +745,7 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
   OopClosure* keep_alive = task->keep_alive_closure();
   VoidClosure* complete_gc = task->complete_gc_closure();
 
-  if (rtHeap::in_full_gc) {
+  if (rtHeap::in_full_gc && rtHeap::DoCrossCheck) {
     if (UseCompressedOops) {
       __keep_alive_final_referents<narrowOop, true>(keep_alive, complete_gc);
     } else {
