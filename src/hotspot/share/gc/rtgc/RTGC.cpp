@@ -101,10 +101,10 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
 
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
-  if (RTGC::is_debug_pointer(debug_base)) {
+  if (false && RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
   }
-  if (RTGC::is_debug_pointer(debug_base)) {
+  if (RTGC::is_debug_pointer(p)) {
      rtgc_log(1, "referrer %p added to %p(rc=%d)\n", base, p, to_obj(p)->getRootRefCount());
   }
 #endif
@@ -269,15 +269,15 @@ bool RTGC::is_debug_pointer(void* ptr) {
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
     const char* className = debugClassNames[i];
     if (className == NULL) continue;
+    if (className[0] == '&') {
+      if (vmClasses::Class_klass() != klass) continue;
+      className = className + 1;
+
+      klass = java_lang_Class::as_Klass(cast_to_oop(obj));
+      if (klass == NULL) continue;
+    }
 
     if (debugKlass[i] == NULL) {
-      if (className[0] == '&') {
-        if (vmClasses::Class_klass() != klass) continue;
-        className = className + 1;
-
-        klass = java_lang_Class::as_Klass(cast_to_oop(obj));
-        if (klass == NULL) continue;
-      }
       if (strstr((char*)klass->name()->bytes(), className)
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());

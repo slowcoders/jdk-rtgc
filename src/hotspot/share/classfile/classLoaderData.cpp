@@ -150,6 +150,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _deallocate_list(NULL),
   _next(NULL),
 #if INCLUDE_RTGC  
+  _next_dirty(NULL),
   _holder_ref_count(0),
 #endif  
   _class_loader_klass(NULL), _name(NULL), _name_and_id(NULL) {
