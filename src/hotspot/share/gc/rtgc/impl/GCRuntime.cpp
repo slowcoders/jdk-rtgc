@@ -106,10 +106,11 @@ bool GCRuntime::tryDisconnectReferenceLink(
     return idx >= 0;
 }
 
+
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
-    // precond(!RTGC::is_debug_pointer(assigned) || assigned->getRootRefCount() == ZERO_ROOT_REF);
     assigned->incrementRootRefCount();
-    rtgc_debug_log(assigned, "root assigned %p(%d)\n", assigned, assigned->getRootRefCount());
+    rtgc_debug_log(assigned, "root assigned %p(%s) rc=%d\n", assigned, RTGC::getClassName(assigned), assigned->getRootRefCount());
+    // postcond(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
 }
 
 void GCRuntime::onAssignRootVariable(GCObject* assigned) {
@@ -120,15 +121,14 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
-    assert(!erased->isGarbageMarked() && erased->isStrongRootReachable(), "wrong ref-count %p(%s) garbage=%d\n", 
-        erased, "ss"/*RTGC::getClassName(erased)*/, erased->isGarbageMarked());
+    assert(!erased->isGarbageMarked() && erased->isStrongRootReachable(), 
+        "wrong ref-count %p rc=%d garbage=%d\n", 
+        erased, erased->getRootRefCount(), erased->isGarbageMarked());
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
-    // precond(!RTGC::is_debug_pointer(erased) || erased->getRootRefCount() != 2);
-    // precond(erased->isStrongRootReachable() || 
-    //     cast_to_oop(erased)->klass() != vmClasses::Class_klass());
-    rtgc_debug_log(erased, "root erased %p(%d)\n", erased, erased->getRootRefCount());
+    rtgc_debug_log(erased, "root erased %p(%s) rc=%d\n", erased, RTGC::getClassName(erased), erased->getRootRefCount());
+    // precond(!RTGC::is_debug_pointer(erased));// || erased->getRootRefCount() != 2);
 }
 
 void GCRuntime::onEraseRootVariable(GCObject* erased) {

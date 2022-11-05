@@ -70,15 +70,13 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
                                         : _young_gen->copy_to_survivor_space(obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
       if (rtHeap::is_trackable(new_obj)) {
-        static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+        static_cast<Derived*>(this)->trackable_barrier(obj, new_obj);
       } else {
         static_cast<Derived*>(this)->barrier(p, new_obj);
       }
     }
     else if (EnableRTGC) {
-      assert(rtHeap::is_trackable(obj), "must trackable %p(%s)\n",
-          (void*)obj, obj->klass()->name()->bytes());
-      static_cast<Derived*>(this)->trackable_barrier(p, obj);
+      static_cast<Derived*>(this)->trackable_barrier(obj, obj);
     }
 #endif
   }
@@ -116,11 +114,9 @@ void ScanTrackableClosure<do_mark_trackable, is_promoted>::barrier(T* p, oop new
 }
 
 template <bool do_mark_trackable, bool is_promoted> 
-template <typename T>
-void ScanTrackableClosure<do_mark_trackable, is_promoted>::trackable_barrier(T* p, oop obj) {
-  assert(_old_gen->is_in_reserved(p), "expected ref in generation");
-  assert(_old_gen->is_in_reserved(obj), "expected ref in generation");
-  rtHeap::add_trackable_link(_trackable_anchor, obj);
+void ScanTrackableClosure<do_mark_trackable, is_promoted>::trackable_barrier(oop old_p, oop new_p) {
+  assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
+  rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 
 template <bool do_mark_trackable, bool is_promoted> 

@@ -79,7 +79,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   assert(ref_processor() == NULL, "no stomping");
   assert(rp != NULL, "should be non-NULL");
   set_ref_processor(rp);
-  rp->setup_policy(clear_all_softrefs);
+  ReferencePolicy* ref_policy = rp->setup_policy(clear_all_softrefs);
 
   gch->trace_heap_before_gc(_gc_tracer);
 
@@ -93,9 +93,10 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) { // }::DoCrossCheck) {
-    rtHeap::prepare_rtgc(true);
+#if INCLUDE_RTGC 
+  if (EnableRTGC) {
+    precond(ref_policy != NULL);
+    rtHeap::prepare_rtgc(ref_policy);
   }
 #endif
 
@@ -125,8 +126,9 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #endif
 
   mark_sweep_phase4();
+
 #if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
+  if (EnableRTGC) { 
     rtHeap::finish_rtgc(true);
   }
 #endif
@@ -208,6 +210,7 @@ class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClo
 public:
   
   bool iterate_tenured_young_root_oop(oop obj) {
+    precond(rtHeap::is_trackable(obj));
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;
     }
@@ -236,10 +239,7 @@ public:
         } 
         if (!rtHeap::DoCrossCheck) return;
       }
-      if (rtHeap::DoCrossCheck) {
-        MarkSweep::_is_rt_anchor_trackable = true;
-      }
-      MarkSweep::mark_and_push_internal(obj);
+      MarkSweep::mark_and_push_internal(obj, true);
     }
   }
 
@@ -248,45 +248,6 @@ public:
 
 };
 static TenuredYoungRootClosure young_root_closure;
-
-
-template<bool mark_ref>
-class WeakCLDScanner : public CLDClosure, public OopClosure {
-  bool _is_alive;
- public:
-  WeakCLDScanner() {}
-
-  void do_cld(ClassLoaderData* cld) {
-    if (mark_ref) {
-      oop holder = cld->holder_no_keepalive();
-      if (holder == NULL) return;
-      if (!holder->is_gc_marked()) {
-        !rtHeap::is_alive(holder);
-        return;
-      }
-      rtHeap::is_alive(holder);
-    }
-    cld->oops_do(this, ClassLoaderData::_claim_none);
-  }
-
-  virtual void do_oop(oop* o) { do_oop_work(o); }
-  virtual void do_oop(narrowOop* o) { fatal("cld handle not compressed"); }
-
-  void do_oop_work(oop* o) {
-    oop obj = *o;
-    if (obj == NULL) return;
-
-    if (!mark_ref) {
-      rtHeap::release_jni_handle(obj);
-    } else {
-      precond(obj->is_gc_marked());
-      precond(rtHeap::is_alive(obj));
-      rtHeap::lock_jni_handle(obj);
-    }
-  }
-};
-static WeakCLDScanner<false> release_weak_cld_rtgc_ref;
-static WeakCLDScanner<true>  remark_weak_cld_rtgc_ref;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
@@ -303,7 +264,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     gch->full_process_roots(false, // not the adjust phase
                             GenCollectedHeap::SO_None,
-                            ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
+                            NULL, //ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
                                             // is enabled
                             &follow_root_closure,
                             &follow_cld_closure);
@@ -315,9 +276,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
       young_root_closure.set_ref_discoverer(_ref_processor);
       rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
     }
-    ReferencePolicy* policy = ref_processor()->setup_policy(clear_all_softrefs);
-    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, policy);
-    ClassLoaderDataGraph::roots_cld_do(NULL, &remark_weak_cld_rtgc_ref);
+    rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
   // Process reference objects found during marking
@@ -332,20 +291,19 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     gc_tracer()->report_gc_reference_stats(stats);
   }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(true);
-  }
-#endif
-
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");
 
-  {
-    GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
-    WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
+    assert(_marking_stack.is_empty(), "Marking should have completed");
   }
+#endif
 
+  GCTraceTime(Debug, gc, phases) tm_m("Weak Processing", gc_timer());
+  WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+  
   {
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", gc_timer());
 

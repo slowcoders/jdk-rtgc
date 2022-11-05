@@ -5,6 +5,7 @@
 #include "gc/rtgc/impl/GCObject.hpp"
 
 namespace rtHeapUtil {
+  void resurrect_young_root(RTGC::GCObject* node);
 
   bool is_dead_space(oopDesc* obj);
 

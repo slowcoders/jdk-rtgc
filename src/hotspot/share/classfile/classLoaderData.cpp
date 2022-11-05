@@ -149,6 +149,10 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _jmethod_ids(NULL),
   _deallocate_list(NULL),
   _next(NULL),
+#if INCLUDE_RTGC  
+  _next_dirty(NULL),
+  _holder_ref_count(0),
+#endif  
   _class_loader_klass(NULL), _name(NULL), _name_and_id(NULL) {
 
   if (!h_class_loader.is_null()) {
@@ -273,20 +277,19 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     for (; idx < size; idx++) {
       if (c->_data[idx] != NULL) {
         oop* p = &c->_data[idx];
-        oop old = *p;
         f->do_oop(p);
+        oop new_p = *p;
         debug_only(cnt_handle ++;)
-        debug_only(cnt_promoted += rtHeap::is_trackable(old) ? 1 : 0;) 
+        debug_only(cnt_promoted += rtHeap::is_trackable(new_p) ? 1 : 0;) 
 
         // check on old_p. new_p may not copyed yet;
-        if (!promotion_failed && !rtHeap::is_trackable(old)) {
+        if (!promotion_failed && !rtHeap::is_trackable(new_p)) {
           promotion_failed = true;
           Atomic::release_store(&_last_chunk, c);
           Atomic::release_store(&_last_idx, idx);
           postcond(_last_chunk != NULL);
           postcond(_last_idx == idx);
         }
-        rtgc_trace(10, "%p promoted -> %p\n", (void*)old, (void*)*p);
       }
     }
   }
@@ -295,8 +298,6 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
     Atomic::release_store(&_last_idx, _tail->_size);
   }
 
-  rtgc_trace(10, "cld_oops_do has_fail=%d, count %d, promoted=%d, last %p:%d\n", 
-          promotion_failed, cnt_handle, cnt_promoted, _last_chunk, _last_idx);
   return !promotion_failed;
 }
 #endif
@@ -617,19 +618,6 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
-#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
-class HandleReleaseClosure : public OopClosure {
-  void do_oop(oop* p) {
-    oop obj = *p;
-    if (obj != NULL) rtHeap::release_jni_handle(obj);
-  }
-
-  void do_oop(narrowOop* p) {
-    // The ChunkedHandleList should not contain any narrowOop
-    ShouldNotReachHere();
-  }  
-};
-#endif
 
 void ClassLoaderData::unload() {
   _unloading = true;

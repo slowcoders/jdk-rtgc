@@ -165,6 +165,10 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // Support for walking class loader data objects
   ClassLoaderData* _next; /// Next loader_datas created
 
+#if INCLUDE_RTGC
+  ClassLoaderData* _next_dirty; /// Next dirty loader_datas
+  int _holder_ref_count;
+#endif
   Klass*  _class_loader_klass;
   Symbol* _name;
   Symbol* _name_and_id;
@@ -183,6 +187,17 @@ class ClassLoaderData : public CHeapObj<mtClass> {
  public:
   void record_modified_oops()            { _modified_oops = true; }
   bool has_modified_oops()               { return _modified_oops; }
+
+#if INCLUDE_RTGC
+  void set_next_dirty(ClassLoaderData* next) { precond(_next_dirty == NULL); _next_dirty = next; }
+  void clear_next_dirty()                    { _next_dirty = NULL; }
+  ClassLoaderData* next_dirty() const        { return Atomic::load(&_next_dirty); }
+
+  int  holder_ref_count()                { return _holder_ref_count; }
+  void reset_holder_ref_count()          { _holder_ref_count = 0; }
+  void increase_holder_ref_count()       { _holder_ref_count ++; }
+  void decrease_holder_ref_count()       { precond(_holder_ref_count > 0); _holder_ref_count --; }
+#endif
 
   oop holder_no_keepalive() const;
   oop holder_phantom() const;

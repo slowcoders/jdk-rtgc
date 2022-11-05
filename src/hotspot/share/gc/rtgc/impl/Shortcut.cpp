@@ -96,11 +96,11 @@ void SafeShortcut::vailidateShortcut() {
     GCObject* tail = this->_tail;
     for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
         precond(obj->isTrackable());
-        rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
+        //rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
         assert(obj->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
             obj, RTGC::getClassName(obj), getIndex(this));
     }
-    rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
+    //rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
 }
 
 void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
@@ -168,7 +168,7 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
 bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     int len = MIN_SHORTCUT_LENGTH;
     for (GCObject* obj = tail; obj != anchor; obj = obj->getSafeAnchor()) {
-        precond(obj->hasReferrer());
+        precond(obj->isAnchored());
         if (--len < 0) return false;
     }
     for (GCObject* obj = tail; obj != anchor; obj = obj->getSafeAnchor()) {

@@ -31,11 +31,12 @@ public:
 class rtHeap : AllStatic {
 public:
   static int  DoCrossCheck;
-  static bool in_full_gc;
+  static int  in_full_gc;
   static bool is_trackable(oopDesc* p);
-  static bool is_alive(oopDesc* p);
+  static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
+  static bool is_destroyed(oopDesc* p);
 
-  static void prepare_rtgc(bool is_full_gc);
+  static void prepare_rtgc(ReferencePolicy* policy);
   static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc(bool is_full_gc);
 
@@ -67,8 +68,8 @@ public:
   static bool is_referent_reachable(oopDesc* ref, ReferenceType type);
   static void init_java_reference(oopDesc* ref, oopDesc* referent);
   static void link_discovered_pending_reference(oopDesc* ref, oopDesc* discovered);
-  static void process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, ReferencePolicy* policy);
-  static void process_final_phantom_references(bool is_tenure_gc);
+  static void process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc);
+  static void process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc);
 
   // just for debugging
   static void print_heap_after_gc(bool full_gc);

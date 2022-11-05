@@ -287,6 +287,19 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
   static const int hash_shift                     = unused_gap_shift(7) + unused_gap_bits(?1:0);
   static const int epoch_shift                    = hash_shift(7+1?);
 
+0x7f992c008a20] RTGC.cpp:346 lock_mask 0x3
+0x7f992c008a20] RTGC.cpp:347 lock_mask_in_place 0x3
+0x7f992c008a20] RTGC.cpp:348 biased_lock_mask 0x7
+0x7f992c008a20] RTGC.cpp:349 biased_lock_mask_in_place 0x7
+0x7f992c008a20] RTGC.cpp:350 biased_lock_bit_in_place 0x4
+0x7f992c008a20] RTGC.cpp:351 age_mask 0xf
+0x7f992c008a20] RTGC.cpp:352 age_mask_in_place 0x78
+0x7f992c008a20] RTGC.cpp:353 epoch_mask 0x3
+0x7f992c008a20] RTGC.cpp:354 epoch_mask_in_place 0x300
+0x7f992c008a20] RTGC.cpp:356 hash_mask 0x7fffffff
+0x7f992c008a20] RTGC.cpp:357 hash_mask_in_place 0x7fffffff00
+0x7f992c008a20] RTGC.cpp:359 unused_gap_bits 0x1
+0x7f992c008a20] RTGC.cpp:360 unused_gap_bits_in_place 0x80
 
 ## Reference 처리.
    !!! Referene 가 collect 되면, RefereceQueue 에 등록(enqueue)되지 않는다!
@@ -320,13 +333,26 @@ DefNewGeneration::collect() ...
                      list->add(dicovered reference 등록)
                         -> Reference->discovered field 이용.
 
+
 ==============================
-Test summary 2022 10/15
+Test summary 2022 11/04 No-Cross-Check
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1585    20     5 <<
+>> jtreg:test/jdk:tier1                               2062  2058     1     3 <<
+>> jtreg:test/langtools:tier1                         4215  4201     0    14 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+
+==============================
+Test summary 2022 10/20 Cross-Check
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
 >> jtreg:test/hotspot/jtreg:tier1                     1610  1587    19     4 <<
->> jtreg:test/jdk:tier1                               2062  2059     1     2 <<
->> jtreg:test/langtools:tier1                         4215  4200     0    15 <<
+>> jtreg:test/jdk:tier1                               2062  2059     0     3 <<
+>> jtreg:test/langtools:tier1                         4215  4201     0    14 <<
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
 ==============================

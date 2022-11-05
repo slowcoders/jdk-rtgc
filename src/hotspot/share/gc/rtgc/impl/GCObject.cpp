@@ -18,13 +18,20 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
             "recursive link %p\n", link);
 }
 
+int GCObject::getReferrerCount() {
+    if (!this->isAnchored()) return 0;
+    if (!this->hasMultiRef()) return 1;
+    ReferrerList* referrers = getReferrerList();
+    return referrers->size();
+}
+
 void GCObject::addReferrer(GCObject* referrer) {
     /**
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
-    if (!hasReferrer()) {
+    if (!isAnchored()) {
         precond(!hasMultiRef());
         this->_refs = _pointer2offset(referrer);
         postcond(referrer == _offset2Object(_refs));
@@ -48,10 +55,24 @@ void GCObject::addReferrer(GCObject* referrer) {
     }
 }
 
+bool GCObject::hasReferrer(GCObject* referrer) {
+    if (!isAnchored()) return false;
+
+    if (!hasMultiRef()) {
+        return _refs == _pointer2offset(referrer);
+    }
+    else {
+        ReferrerList* referrers = getReferrerList();
+        int idx = referrers->indexOf(referrer);
+        return idx >= 0;
+    }
+}
+
+
 template <bool reallocReferrerList>
 int GCObject::removeReferrer_impl(GCObject* referrer) {
     precond(referrer != this);
-    assert(hasReferrer(), "no referrer %p(%s) in empty %p(%s) \n", 
+    assert(isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
     rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from %p isMulti=%d tr=%d rc=%d\n", 
@@ -117,7 +138,7 @@ int GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
 
 int GCObject::tryRemoveReferrer(GCObject* referrer) {
     precond(referrer != this);
-    if (!hasReferrer()) return -1;
+    if (!isAnchored()) return -1;
 
     if (!hasMultiRef()) {
         if (_refs != _pointer2offset(referrer)) return -1;
@@ -155,7 +176,7 @@ int GCObject::tryRemoveReferrer(GCObject* referrer) {
 
 bool GCObject::containsReferrer(GCObject* referrer) {
     precond(referrer != this);
-    if (!hasReferrer()) return false;
+    if (!isAnchored()) return false;
 
     if (!hasMultiRef()) {
         return _refs == _pointer2offset(referrer);
@@ -282,14 +303,14 @@ void GCObject::removeBrokenAnchors() {
 }
 
 GCObject* GCObject::getSingleAnchor() {
-    precond(this->hasReferrer());
+    precond(this->isAnchored());
     if (this->hasMultiRef()) return NULL;
     GCObject* front = _offset2Object(_refs);
     return front;
 }
 
 GCObject* GCObject::getSafeAnchor() {
-    assert(hasReferrer(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
+    assert(isAnchored(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
     GCObject* front;
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
@@ -302,8 +323,8 @@ GCObject* GCObject::getSafeAnchor() {
 }
 
 void GCObject::setSafeAnchor(GCObject* anchor) {
-    assert(hasReferrer() && SafeShortcut::isValidIndex(this->getShortcutId()), 
-        "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
+    // assert(isAnchored() && SafeShortcut::isValidIndex(this->getShortcutId()), 
+    //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
 
     if (hasMultiRef()) {
@@ -350,7 +371,7 @@ bool GCObject::visitLinks(LinkVisitor visitor, void* callbackParam) {
 
 
 void GCObject::initIterator(AnchorIterator* iterator) {
-    if (!hasReferrer()) {
+    if (!isAnchored()) {
         iterator->_current = iterator->_end = nullptr;
     }
     else if (!hasMultiRef()) {

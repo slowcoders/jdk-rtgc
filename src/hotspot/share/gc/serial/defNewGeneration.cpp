@@ -73,7 +73,7 @@ bool DefNewGeneration::IsAliveClosure::do_object_b(oop p) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     if (cast_from_oop<HeapWord*>(p) >= _young_gen->reserved().end()) {
-      return rtHeap::is_alive(p);
+      return rtHeap::is_alive(p, false);
     } else {
       return p->is_forwarded();
     }
@@ -125,7 +125,7 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
 
   // If the cld has not been dirtied we know that there's
   // no references into  the young gen and we can skip it.
-  if (cld->has_modified_oops()) {
+  if (EnableRTGC || cld->has_modified_oops()) {
 
     // Tell the closure which CLD is being scanned so that it can be dirtied
     // if oops are left pointing into the young gen.
@@ -581,12 +581,12 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) { // }::DoCrossCheck) {
+#if INCLUDE_RTGC  
+  if (EnableRTGC) { 
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
 
-    rtHeap::prepare_rtgc(false);
+    rtHeap::prepare_rtgc(NULL);
   } else
 #endif
   {
@@ -635,35 +635,38 @@ void DefNewGeneration::collect(bool   full,
 #endif
 
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, NULL);
-  }
-#endif
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
   rp->setup_policy(clear_all_soft_refs);
   ReferenceProcessorPhaseTimes pt(_gc_timer, rp->max_num_queues());
-  SerialGCRefProcProxyTask task(is_alive, keep_alive, evacuate_followers);
-  const ReferenceProcessorStats& stats = rp->process_discovered_references(task, pt);
-  gc_tracer.report_gc_reference_stats(stats);
-  gc_tracer.report_tenuring_threshold(tenuring_threshold());
-  pt.print_all_references();
-
-  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
-
-  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_final_phantom_references(false);
+    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, false);
+  }
+  if (!EnableRTGC || rtHeap::DoCrossCheck)
+#endif
+  {
+    SerialGCRefProcProxyTask task(is_alive, keep_alive, evacuate_followers);
+    const ReferenceProcessorStats& stats = rp->process_discovered_references(task, pt);
+    gc_tracer.report_gc_reference_stats(stats);
+  }
+  gc_tracer.report_tenuring_threshold(tenuring_threshold());
+  pt.print_all_references();
+  assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
+
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    rtHeap::process_final_phantom_references(&keep_alive, &evacuate_followers, false);
   }
 #endif
+
+  WeakProcessor::weak_oops_do(&is_alive, &keep_alive);
 
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
 #if INCLUDE_RTGC
-  if (EnableRTGC) { // }::DoCrossCheck) {
+  if (EnableRTGC) { 
     rtHeap::finish_rtgc(false);
   }
 #endif
@@ -744,7 +747,8 @@ void DefNewGeneration::restore_preserved_marks() {
 
 void DefNewGeneration::handle_promotion_failure(oop old) {
   log_debug(gc, promotion)("Promotion failure size = %d) ", old->size());
-
+  rtgc_log(1, "Promotion failure %p size=%d\n", (void*)old, old->size());
+  
   _promotion_failed = true;
   _promotion_failed_info.register_copy_failure(old->size());
   _preserved_marks_set.get()->push_if_necessary(old, old->mark());

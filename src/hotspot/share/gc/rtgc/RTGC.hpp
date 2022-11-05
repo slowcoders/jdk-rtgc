@@ -54,7 +54,7 @@ namespace RTGC {
 
   void on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn);
 
-  const char* getClassName(GCNode* obj, bool showClassInfo = false);
+  const char* getClassName(void* obj, bool showClassInfo = false);
 };
 
 

@@ -3,6 +3,8 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
+#include "rtCLDCleaner.hpp"
+
 using namespace rtHeapUtil;
 using namespace RTGC;
 FreeMemStore g_freeMemStore;
@@ -22,6 +24,7 @@ void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
         old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass(),
         to_obj(old_p)->isTrackable(), anchor, anchor==NULL?"":RTGC::getClassName(to_obj(anchor)));
 }
+
 
 static size_t obj_size_in_word(oopDesc* obj) { 
   size_t size = obj->size_given_klass(obj->klass()); 
@@ -114,7 +117,11 @@ void FreeMemStore::clearStore() {
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   precond(!cast_to_oop(obj)->is_gc_marked());
   precond(obj->isTrackable());
-  if (!rtHeap::DoCrossCheck && !rtHeap::in_full_gc) {
+  rtCLDCleaner::unlock_cld(cast_to_oop(obj));
+  // ClassLoaderData* cld = rtHeapUtil::tenured_class_loader_data(cast_to_oop(obj));
+  // if (cld != NULL) cld->decrease_holder_ref_count();
+  
+  if (false && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);
   }
   obj->markDestroyed();

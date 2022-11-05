@@ -24,9 +24,12 @@ public:
 
   static void keep_alive_final_referents(RefProcProxyTask* proxy_task);
 
-  static void clear_finalizer_reachables();
+  static void break_reference_links(ReferencePolicy* policy);
 
   static jlong _soft_ref_timestamp_clock;
+
+  static bool g_lock_unsafe_list;
+  static bool g_lock_garbage_list;
 };
 
 };

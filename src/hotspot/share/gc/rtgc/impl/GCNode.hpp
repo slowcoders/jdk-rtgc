@@ -98,6 +98,26 @@ public:
 		return _flags.rootRefCount & (1 << 23);
 	}
 
+	int unmarkSurvivorReachable() {
+		precond(isSurvivorReachable());
+		_flags.rootRefCount &= ~(1 << 22);
+		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
+		return _flags.rootRefCount;
+	}
+
+	void markSurvivorReachable() {
+		precond(!isGarbageMarked());
+		precond(!isSurvivorReachable());
+		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d anchored=%d\n",    
+			this, this->getRootRefCount(), this->isAnchored());
+		_flags.rootRefCount |= (1 << 22);
+	}
+
+	bool isSurvivorReachable() {
+		return _flags.rootRefCount & (1 << 22);
+	}
+
+
 	void unmarkActiveFinalizer() {
 		precond(isActiveFinalizer());
 		_flags.rootRefCount &= ~(1 << 23);
@@ -144,7 +164,7 @@ public:
 	}
 
 
-	bool hasReferrer() {
+	bool isAnchored() {
 		return this->_refs != 0;
 	}
 
@@ -161,7 +181,7 @@ public:
 	}
 
 	bool isStrongReachable() {
-		return isStrongRootReachable() || hasReferrer();
+		return isStrongRootReachable() || isAnchored();
 	}
 
 	void invalidateAnchorList_unsafe() {
@@ -174,12 +194,16 @@ public:
 	}
 
 	int incrementRootRefCount() {
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount += 2);
 	}
 
 	int decrementRootRefCount() {
-		assert(_flags.rootRefCount > ZERO_ROOT_REF + 1, "wrong ref-count %p(%d) garbage=%d\n", 
-			this, _flags.rootRefCount, isGarbageMarked());
+		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
+		assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
+			this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
 		return (_flags.rootRefCount -= 2);
 	}
 
@@ -188,11 +212,7 @@ public:
 	}
 
 	bool isUnreachable() {
-		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasReferrer();
-	}
-
-	bool isUnsafeTrackable() {
-		return isTrackable() &&  _flags.rootRefCount <= 1 && this->_shortcutId == NO_SAFE_ANCHOR;
+		return _flags.rootRefCount == ZERO_ROOT_REF && !this->isAnchored();
 	}
 
 	bool isPublished() {

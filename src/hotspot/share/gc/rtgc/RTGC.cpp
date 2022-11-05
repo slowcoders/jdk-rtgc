@@ -1,5 +1,3 @@
-#include "precompiled.hpp"
-
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
@@ -23,8 +21,8 @@ namespace RTGC {
   Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
-  volatile void* debug_obj = (void*)-1;
-  volatile void* debug_obj2 = (void*)-1;
+  void* debug_obj = NULL;
+  void* debug_obj2 = NULL;
   bool REF_LINK_ENABLED = true;
   bool is_narrow_oop_mode;
 }
@@ -103,8 +101,11 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
 
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
-  if (RTGC::is_debug_pointer(p) || RTGC::is_debug_pointer(debug_base)) {
-     rtgc_log(1, "referrer %p added to %p\n", base, p);
+  if (false && RTGC::is_debug_pointer(debug_base)) {
+     rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
+  }
+  if (RTGC::is_debug_pointer(p)) {
+     rtgc_log(1, "referrer %p added to %p(rc=%d)\n", base, p, to_obj(p)->getRootRefCount());
   }
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
@@ -153,13 +154,10 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   assert(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  rtgc_log(false && LOG_OPT(1), "root_changed(%s) *[%p] : %p -> %p\n", 
-      fn, addr, oldValue, newValue);
 
   if (!REF_LINK_ENABLED) return;
   if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
   if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
-  //rtgc_debug_log(newValue, "debug obj assigned! %p(%d)\n", newValue, RTGC::debugOptions[1]);
 }
 
 
@@ -198,7 +196,8 @@ void RTGC::print_anchor_list(void* obj) {
   }
 }
 
-const char* RTGC::getClassName(GCNode* obj, bool showClassInfo) {
+const char* RTGC::getClassName(void* obj, bool showClassInfo) {
+    if (obj == NULL || obj == (void*)-1) return NULL;
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
       Klass* k2 = java_lang_Class::as_Klass(cast_to_oop(obj));
@@ -227,8 +226,9 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/util/zip/ZipOutputStream",
-  // "[Ljava/lang/Object;",
+  // "java/lang/invoke/MemberName",
+  // "java/lang/invoke/ResolvedMethodName",
+  "&java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -248,6 +248,12 @@ const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0])
 void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
 int cntDbgObj = 0;
+// void RTGC::clearDebugClasses() {
+//   // for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
+//   //   debugClassNames[i] = NULL;
+//   //   debugKlass[i] = NULL;
+//   // }
+// }
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (obj == NULL) return false;
@@ -257,17 +263,22 @@ bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj2) return true;
   // if (ptr < (void*)0x203990310) return true;
   // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
+  // return (vmClasses::Class_klass() == obj->klass());
 
+  Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
-    Klass* klass = obj->klass();
-    if (false) {
-      if (vmClasses::Class_klass() != klass) return false;
+    const char* className = debugClassNames[i];
+    if (className == NULL) continue;
+    if (className[0] == '&') {
+      if (vmClasses::Class_klass() != klass) continue;
+      className = className + 1;
+
       klass = java_lang_Class::as_Klass(cast_to_oop(obj));
-      if (klass == NULL) return false;
+      if (klass == NULL) continue;
     }
+
     if (debugKlass[i] == NULL) {
-      const char* className = debugClassNames[i];
-      if (className != NULL && strstr((char*)klass->name()->bytes(), className)
+      if (strstr((char*)klass->name()->bytes(), className)
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
@@ -287,19 +298,25 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
   
-  if (RTGC::debug_obj == old_p) {
+  if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
-  else if (RTGC::debug_obj2 == old_p) {
+  else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
-    rtgc_log(1, "debug_obj2 moved %p -> %p(%s)\n", old_p, new_p, getClassName(to_obj(old_p)));
-  }
-  else if (is_debug_pointer(old_p)) {
-    rtgc_log(1, "debug_obj moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  } 
+    return;
+//else 
+  if (is_debug_pointer(old_p)) {
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
-    rtgc_log(1, "debug_ref moved %p -> %p\n", old_p, new_p);
+    rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
 }
 
@@ -309,6 +326,7 @@ bool RTGC_DEBUG = false;
 void rtHeap__initialize();
 void rtSpace__initialize();
 
+
 void RTGC::initialize() {
 #ifdef _LP64
   is_narrow_oop_mode = UseCompressedOops;
@@ -317,30 +335,51 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0; //UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 0;// UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
+  RTGC::_rtgc.initialize();
   rtHeap__initialize();
   rtSpace__initialize();
-  RTGC::_rtgc.initialize();
   rtHeapEx::initializeRefProcessor();
-
-  // ??? 삭제할 것.
-  // ScavengeBeforeFullGC = true;
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
 
   // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   if (RTGC_DEBUG) {
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
+    //debug_obj = 0x7f0260f58;
 
+    rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
+
+    enableLog(LOG_HEAP, 2);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
+
+    if (false) {
+      rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
+      rtgc_log(1, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);
+      rtgc_log(1, "biased_lock_mask %p\n", (void*)markWord::biased_lock_mask);
+      rtgc_log(1, "biased_lock_mask_in_place %p\n", (void*)markWord::biased_lock_mask_in_place);
+      rtgc_log(1, "biased_lock_bit_in_place %p\n", (void*)markWord::biased_lock_bit_in_place);
+      rtgc_log(1, "age_mask %p\n", (void*)markWord::age_mask);
+      rtgc_log(1, "age_mask_in_place %p\n", (void*)markWord::age_mask_in_place);
+      rtgc_log(1, "epoch_mask %p\n", (void*)markWord::epoch_mask);
+      rtgc_log(1, "epoch_mask_in_place %p\n", (void*)markWord::epoch_mask_in_place);
+
+      rtgc_log(1, "hash_mask %p\n", (void*)markWord::hash_mask);
+      rtgc_log(1, "hash_mask_in_place %p\n", (void*)markWord::hash_mask_in_place);
+
+      rtgc_log(1, "unused_gap_bits %p\n", (void*)markWord::unused_gap_bits);
+      rtgc_log(1, "unused_gap_bits_in_place %p\n", (void*)(markWord::unused_gap_bits << markWord::unused_gap_shift));
+    }
+    // unused_gap_bits
   }
 }

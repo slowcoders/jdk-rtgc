@@ -94,9 +94,7 @@ inline void MarkSweep::follow_object(oop obj) {
     MarkSweep::follow_array((objArrayOop)obj);
   } else {
 #if INCLUDE_RTGC
-    if (rtHeap::DoCrossCheck) {
-      _is_rt_anchor_trackable = rtHeap::is_trackable(obj);
-    }
+    _is_rt_anchor_trackable = rtHeap::is_trackable(obj);
 #endif    
     obj->oop_iterate(&mark_and_push_closure);
   }
@@ -111,9 +109,7 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int end_index = beg_index + stride;
 
 #if INCLUDE_RTGC
-  if (rtHeap::DoCrossCheck) {
-    _is_rt_anchor_trackable = rtHeap::is_trackable(array);
-  }
+  _is_rt_anchor_trackable = rtHeap::is_trackable(array);
 #endif
   array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
 
@@ -231,7 +227,9 @@ void MarkSweep::restore_marks() {
 
 MarkSweep::IsAliveClosure   MarkSweep::is_alive;
 
-bool MarkSweep::IsAliveClosure::do_object_b(oop p) { return p->is_gc_marked(); }
+bool MarkSweep::IsAliveClosure::do_object_b(oop p) { 
+  return rtHeap::DoCrossCheck ? p->is_gc_marked() : rtHeap::is_alive(p, false); 
+}
 
 MarkSweep::KeepAliveClosure MarkSweep::keep_alive;
 

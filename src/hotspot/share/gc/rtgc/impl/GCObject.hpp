@@ -43,6 +43,8 @@ public:
 
 	ReferrerList* getReferrerList();
 
+	int getReferrerCount();
+
 	SafeShortcut* getShortcut();
 
 	GCObject* getSafeAnchor();
@@ -62,8 +64,14 @@ public:
 		setShortcutId_unsafe(NO_SAFE_ANCHOR);
 	}
 
+	bool hasReferrer(GCObject* referrer);
+
 	bool hasSafeAnchor() {
 		return getShortcutId() > NO_SAFE_ANCHOR;
+	}
+
+	bool isUnsafeTrackable() {
+		return isTrackable() && getRootRefCount() <= 1 && !hasSafeAnchor();
 	}
 
 	void invalidateShortcutId() {

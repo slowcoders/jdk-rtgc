@@ -43,7 +43,9 @@ inline void MarkSweep::mark_object(oop obj) {
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
 #if INCLUDE_RTGC
-  if (EnableRTGC && rtHeap::DoCrossCheck) {
+  if (EnableRTGC) {
+    // rtgc_debug_log(obj, "mark_object %p %d\n", (void*)obj, ++dbg_cnt_mark);
+    // precond(!RTGC::is_debug_pointer(obj));
     precond(rtHeap::is_alive(obj));
   }
 #endif
@@ -53,12 +55,14 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
-inline void MarkSweep::mark_and_push_internal(oop obj) {
+inline void MarkSweep::mark_and_push_internal(oop obj, bool is_anchored) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (rtHeap::is_trackable(obj)) {
-      if (!rtHeap::DoCrossCheck || !_is_rt_anchor_trackable) {
+      if (!is_anchored) {
         rtHeap::mark_survivor_reachable(obj);
+      } else {
+        precond(rtHeap::is_alive(obj));
       }
       if (!rtHeap::DoCrossCheck) return;
     }
@@ -74,19 +78,37 @@ template <class T> inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-    mark_and_push_internal(obj);
+    mark_and_push_internal(obj, _is_rt_anchor_trackable);
   }
 }
 
 inline void MarkSweep::follow_klass(Klass* klass) {
-  oop op = klass->class_loader_data()->holder_no_keepalive();
+  oop obj = klass->class_loader_data()->holder_no_keepalive();
 #if INCLUDE_RTGC
-  _is_rt_anchor_trackable = false;// rtHeap::is_trackable(op);
+  if (EnableRTGC) {
+    if (obj != NULL) {
+      mark_and_push_internal(obj, false);
+    } 
+  } else
 #endif
-  MarkSweep::mark_and_push(&op);
+  MarkSweep::mark_and_push(&obj);
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    _is_rt_anchor_trackable = false;
+    if (!rtHeap::DoCrossCheck) {
+      // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
+      oop holder = cld->holder_no_keepalive();
+      if (holder != NULL) {
+        mark_and_push_internal(holder, false);
+      } 
+      cld->incremental_oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
+      return;
+    }
+  }
+#endif
   MarkSweep::follow_cld_closure.do_cld(cld);
 }
 

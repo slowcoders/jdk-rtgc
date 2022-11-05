@@ -165,11 +165,16 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   HeapWord* scan_limit = space->scan_limit();
 
   while (cur_obj < scan_limit) {
-    if (space->scanned_block_is_obj(cur_obj) && cast_to_oop(cur_obj)->is_gc_marked()) {
+    if (space->scanned_block_is_obj(cur_obj) && 
+        ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
 #if INCLUDE_RTGC
       if (EnableRTGC) {
+        
+        if (!rtHeap::DoCrossCheck && !cast_to_oop(cur_obj)->is_gc_marked()) {
+          MarkSweep::mark_object(cast_to_oop(cur_obj));
+        }
         rtHeap::mark_forwarded(cast_to_oop(cur_obj));
       }
 #endif
@@ -184,7 +189,11 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       if (EnableRTGC) {
         if (space->scanned_block_is_obj(cur_obj)) {
           // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
-          rtHeap::destroy_trackable(cast_to_oop(cur_obj));
+          if (rtHeap::DoCrossCheck) {
+            rtHeap::destroy_trackable(cast_to_oop(cur_obj));
+          } else {
+            precond(!rtHeap::is_alive(cast_to_oop(cur_obj), false));
+          }
         }
 
         while (true) {
@@ -192,8 +201,12 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
           end += space->scanned_block_size(end);
           if (end >= scan_limit) break;
           if (!space->scanned_block_is_obj(end)) continue;
-          if (cast_to_oop(end)->is_gc_marked()) break;
-          rtHeap::destroy_trackable(cast_to_oop(end));
+          if (rtHeap::DoCrossCheck) {
+            if (cast_to_oop(end)->is_gc_marked()) break;
+            rtHeap::destroy_trackable(cast_to_oop(end));
+          } else {
+            if (rtHeap::is_alive(cast_to_oop(end), false)) break;
+          }
         }
       }
       else
