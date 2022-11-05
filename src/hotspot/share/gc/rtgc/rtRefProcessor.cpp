@@ -206,8 +206,6 @@ namespace RTGC {
 
     oopDesc* get_raw_referent() {
       oop p = RawAccess<>::oop_load_at(_curr_ref, _referent_off);
-      rtgc_debug_log(p, "get_raw_referent of debug_obj2(%p) from %p(%s)\n", 
-          (void*)p, (void*)_curr_ref, RTGC::getClassName(_curr_ref));
       return p;
     }
 
@@ -360,7 +358,6 @@ namespace RTGC {
     }
 
     void remove_curr_ref(bool do_clear_discovered) {
-      debug_only(get_raw_referent();)
       if (do_clear_discovered) {
         clear_discovered();
       }
@@ -392,7 +389,6 @@ namespace RTGC {
 
     void clear_weak_soft_garbage_referent() {
       GCObject* referent = to_obj(_referent_p);
-      precond(referent != RTGC::debug_obj2);
       bool is_alive;
       if (referent->isTrackable()) {
         is_alive = referent->isStrongRootReachable();
@@ -582,20 +578,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   // const char* ref_type$ = reference_type_to_string(clear_ref);
   // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
-  // if (!CLEAR_FINALIZE_REF) {
-  //   for (RefIterator<true> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
-  //     oopDesc* referent = iter.referent();
-  //     if (!to_obj(referent)->isTrackable()) {
-  //       if (!referent->is_gc_marked()) {
-  //         if (UseCompressedOops) {
-  //           keep_alive->do_oop((narrowOop*)iter.referent_addr());
-  //         } else {
-  //           keep_alive->do_oop((oop*)iter.referent_addr());
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
 
   jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
   if (is_full_gc) {
@@ -604,7 +586,25 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     
     rtHeap::iterate_younger_gen_roots(NULL, true);
     complete_gc->do_void();
+  }
 
+  if (false && !CLEAR_FINALIZE_REF) {
+    // final reachble 을 먼저 marking 함으로써, resurrection 수를 줄일 수 있다.
+    for (RefIterator<true> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
+      oopDesc* referent = iter.referent();
+      if (!to_obj(referent)->isTrackable()) {
+        if (!referent->is_gc_marked()) {
+          if (UseCompressedOops) {
+            keep_alive->do_oop((narrowOop*)iter.referent_addr());
+          } else {
+            keep_alive->do_oop((oop*)iter.referent_addr());
+          }
+        }
+      }
+    }
+  }
+
+  if (is_full_gc) {
     jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
     GCObject* ref;
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
@@ -633,7 +633,10 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
       }
     }
   }
-
+  
+  if (!rtHeap::DoCrossCheck) {
+    rtHeapEx::update_soft_ref_master_clock();
+  }
 }
 
 
@@ -727,10 +730,6 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
   complete_gc->do_void();
   RefList::hold_pending_q();
   rtHeap__clear_garbage_young_roots(is_full_gc);
-  if (!rtHeap::DoCrossCheck) {
-    rtHeapEx::update_soft_ref_master_clock();
-  }
-
   if (is_full_gc) {
     precond(!_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
     rtHeapEx::g_lock_unsafe_list = true;

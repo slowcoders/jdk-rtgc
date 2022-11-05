@@ -215,7 +215,6 @@ void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
 }
 
 
-
 template<bool is_full_gc>
 void rtHeap__clearStack() {
   rtHeapEx::g_lock_unsafe_list = false;
@@ -230,7 +229,7 @@ void rtHeap__clearStack() {
       GCObject* erased = src[0];
       precond(erased->isTrackable());
       assert(erased->isSurvivorReachable(), "%p rc=%x\n", erased, erased->getRootRefCount());
-      if (erased->unmarkSurvivorReachable() <= 1) {
+      if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->hasSafeAnchor() && !erased->isUnstableMarked()) {
           erased->markUnstable();
           if (is_full_gc) {
@@ -564,17 +563,11 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   }
 }
 
-int dbg_cnt_mark = 0;
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
     precond(this->isTrackable());
     rtgc_debug_log(this, "garbage marking on %p(%s) %s\n", this, getClassName(this), reason);
-    if (RTGC::is_debug_pointer(this)) {
-      rtHeapEx::print_ghost_anchors((GCObject*)this);
     }
-  }
-  // rtgc_log(!this->isTrackable(), "mark garbage on untrackable %p\n", this);
-
   assert(!this->isGarbageMarked(),
       "already marked garbage %p(%s)\n", this, getClassName(this));
   assert(this->getRootRefCount() <= (reason != NULL ? ZERO_ROOT_REF : ZERO_ROOT_REF + 1),
@@ -669,11 +662,8 @@ class ClearWeakHandleRef: public OopClosure {
   virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
 } clear_weak_handle_ref;
 
-int cnt_debug_hit = 0;
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   precond(g_stack_roots.size() == 0);
-
-  cnt_debug_hit = 0;
   if (policy != NULL) {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();

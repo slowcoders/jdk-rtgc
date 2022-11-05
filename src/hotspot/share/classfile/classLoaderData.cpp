@@ -410,18 +410,12 @@ void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oop
     return;
   }
 
-  // rtgc_log(true, "cld oops_do %p\n", (void*)holder_no_keepalive());
   // Only clear modified_oops after the ClassLoaderData is claimed.
   if (clear_mod_oops) {
     clear_modified_oops();
   }
 
-  // void rtgc_begin_cld_oop_iterate();
-  // void rtgc_end_cld_oop_iterate();
-
-  // rtgc_begin_cld_oop_iterate();
   _handles.oops_do(f);
-  // rtgc_end_cld_oop_iterate();
 }
 
 void ClassLoaderData::classes_do(KlassClosure* klass_closure) {

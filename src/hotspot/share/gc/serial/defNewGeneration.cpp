@@ -116,8 +116,6 @@ void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
 
-VoidClosure* dbg_complete_gc = NULL;
-
 void CLDScanClosure::do_cld(ClassLoaderData* cld) {
   NOT_PRODUCT(ResourceMark rm);
   log_develop_trace(gc, scavenge)("CLDScanClosure::do_cld " PTR_FORMAT ", %s, dirty: %s",
@@ -139,7 +137,6 @@ void CLDScanClosure::do_cld(ClassLoaderData* cld) {
       int prev_threshold = yg->xchg_tenuring_threshold(0);
       cld->incremental_oops_do(_scavenge_closure, true);
       yg->xchg_tenuring_threshold(prev_threshold);
-      // debug_only(dbg_complete_gc->do_void();)
     } else 
 #endif    
     {
@@ -605,6 +602,7 @@ void DefNewGeneration::collect(bool   full,
   FastEvacuateFollowersClosure evacuate_followers(heap,
                                                   &scan_closure,
                                                   &younger_gen_closure);
+
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   YoungRootClosure        young_root_closure(this, &evacuate_followers);
   if (EnableRTGC) {
@@ -622,14 +620,10 @@ void DefNewGeneration::collect(bool   full,
   {
     StrongRootsScope srs(0);
 
-  dbg_complete_gc = &evacuate_followers;
-
     heap->young_process_roots(&scan_closure,
                               RTGC_ONLY(RtNoDirtyCardMarking ? NULL : (OopIterateClosure*)&younger_gen_closure)
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
-  dbg_complete_gc = NULL;
-
   }
   // "evacuate followers".
   evacuate_followers.do_void();
