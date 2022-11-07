@@ -166,7 +166,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   ClassLoaderData* _next; /// Next loader_datas created
 
 #if INCLUDE_RTGC
-  ClassLoaderData* _next_dirty; /// Next dirty loader_datas
+  int _holder_state; /// Next dirty loader_datas
   int _holder_ref_count;
 #endif
   Klass*  _class_loader_klass;
@@ -189,12 +189,10 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   bool has_modified_oops()               { return _modified_oops; }
 
 #if INCLUDE_RTGC
-  void set_next_dirty(ClassLoaderData* next) { precond(_next_dirty == NULL); _next_dirty = next; }
-  void clear_next_dirty()                    { _next_dirty = NULL; }
-  ClassLoaderData* next_dirty() const        { return Atomic::load(&_next_dirty); }
+  void set_holder_state(int state)       { _holder_state = state; }
+  int  holder_state() const              { return _holder_state; }
 
   int  holder_ref_count()                { return _holder_ref_count; }
-  void reset_holder_ref_count()          { _holder_ref_count = 0; }
   void increase_holder_ref_count()       { _holder_ref_count ++; }
   void decrease_holder_ref_count()       { precond(_holder_ref_count > 0); _holder_ref_count --; }
 #endif

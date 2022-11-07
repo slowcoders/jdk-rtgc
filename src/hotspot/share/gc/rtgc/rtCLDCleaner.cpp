@@ -29,6 +29,11 @@ static const int LOG_OPT(int function) {
 using namespace RTGC;
 
 namespace rtCLDCleaner {
+  static const int CLD_ALIVE    = 0;
+  static const int CLD_DIRTY    = 1;
+  static const int CLD_RELEASED = 2;
+  static const int CLD_GARBAGE  = 3;
+
   debug_only(static int idx_cld = 0;)
 
   enum CldHandleAction {
@@ -89,8 +94,9 @@ namespace rtCLDCleaner {
           if (node->getRootRefCount() == 2) {
             ClassLoaderData* cld = tenured_class_loader_data(obj, false, true);
             if (cld != NULL && obj == cld->holder_no_keepalive()) {
+              precond(cld->holder_state() == CLD_ALIVE);
               rtgc_log(LOG_OPT(2), "dirty cld holder %p/%p\n", cld, node);
-              cld->set_next_dirty(g_dirty_cld_q);
+              cld->set_holder_state(CLD_DIRTY);
               g_dirty_cld_q = cld;
             }
           }
@@ -116,7 +122,7 @@ namespace rtCLDCleaner {
     }
   }; 
 
-  template<bool mark_ref>
+  template<int cld_state>
   class WeakCLDScanner : public CLDClosure, public KlassClosure {
     bool _is_alive;
     int _cnt_handle;
@@ -129,6 +135,7 @@ namespace rtCLDCleaner {
     void do_cld(ClassLoaderData* cld) {
       debug_only(idx_cld ++;)
       if (rtHeap::DoCrossCheck) {
+        const bool mark_ref = cld_state == CLD_RELEASED;
         if (mark_ref) {
           oopDesc* holder = cld->holder_no_keepalive();
           precond(holder != NULL);
@@ -147,16 +154,17 @@ namespace rtCLDCleaner {
         return;
       }
 
+      if (cld_state != cld->holder_state()) return;
+
       oopDesc* holder = cld->holder_no_keepalive();
       assert(holder != NULL, "WeakCLDScanner must be called befor weak-handle cleaning.");
       
-      if (!mark_ref) {
+      if (cld_state != CLD_RELEASED) {
         if (cld->holder_ref_count() > 0 || cld->class_loader() == NULL ||
           (to_obj(holder)->isTrackable() ? to_obj(holder)->getRootRefCount() > 2 : holder->is_gc_marked())) {
           rtgc_log(false && LOG_OPT(2), "skip cld scanner %p/%p(%s) cld_rc=%d, rc=%d tr=%d\n", 
               cld, holder, RTGC::getClassName(holder), cld->holder_ref_count(), 
               to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
-          cld->increase_holder_ref_count();
           CLDHandleClosure<MarkUntrackable> marker(cld);
           cld->oops_do(&marker, ClassLoaderData::_claim_none);
         } else {
@@ -164,24 +172,21 @@ namespace rtCLDCleaner {
               cld, holder, cld->holder_ref_count(), to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
           CLDHandleClosure<ClearHandle> cleaner(cld);
           cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
+          cld->set_holder_state(CLD_RELEASED);
         }
-        return;
-      }
-
-      if (cld->holder_ref_count() > 0) {
-        postcond(rtHeap::is_alive(holder));
-        cld->decrease_holder_ref_count();
         return;
       }
 
       int top = _garbages->size();
       if (has_any_alive_klass(cld, holder)) {
+        cld->set_holder_state(CLD_ALIVE);
         rtgc_log(LOG_OPT(2), "remark cld handles %p/%p garbages=%d\n", cld, holder, _garbages->size());
         CLDHandleClosure<RemarkHandle> remarker(cld);
         cld->oops_do(&remarker, ClassLoaderData::_claim_none);
         postcond(rtHeap::is_alive(holder));
         postcond(cld->class_loader() == NULL || rtHeap::is_alive(cld->class_loader()));
       } else {
+        cld->set_holder_state(CLD_GARBAGE);
         rtgc_log(LOG_OPT(2), "destroyed cld handles %p/%p\n", cld, holder);
         postcond(!rtHeap::is_alive(holder));
         postcond(cld->class_loader() == NULL || !rtHeap::is_alive(cld->class_loader()));
@@ -215,8 +220,9 @@ namespace rtCLDCleaner {
     }
   };
 
-  static WeakCLDScanner<true>  unload_cld_holder;
-  static WeakCLDScanner<false> release_cld_holder;  
+  static WeakCLDScanner<CLD_ALIVE>    release_cld_holder;  
+  static WeakCLDScanner<CLD_DIRTY>    release_dirty_cld_holder;  
+  static WeakCLDScanner<CLD_RELEASED> unload_cld_holder;
 }
 
 
@@ -259,20 +265,10 @@ void rtCLDCleaner::clear_cld_locks(RtYoungRootClosure* tenuredScanner) {
 void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
   debug_only(idx_cld = 0;)
   ClassLoaderDataGraph::roots_cld_do(NULL, &unload_cld_holder);
-  ClassLoaderData* dirty_cld = g_dirty_cld_q;
-  while (dirty_cld != NULL) {
+  while (g_dirty_cld_q != NULL) {
     g_dirty_cld_q = NULL;
-    ClassLoaderData* cld;
-    for (cld = dirty_cld; cld != NULL; cld = cld->next_dirty()) {
-      release_cld_holder.do_cld(cld);
-    }
-    ClassLoaderData* next;
-    for (cld = dirty_cld; cld != NULL; cld = next) {
-      next = cld->next_dirty();
-      cld->clear_next_dirty();
-      unload_cld_holder.do_cld(cld);
-    }
-    dirty_cld = g_dirty_cld_q;
+    ClassLoaderDataGraph::roots_cld_do(NULL, &release_dirty_cld_holder);
+    ClassLoaderDataGraph::roots_cld_do(NULL, &unload_cld_holder);
   }
 
   tenuredScanner->do_complete();
