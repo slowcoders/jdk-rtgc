@@ -94,7 +94,9 @@ namespace rtCLDCleaner {
           if (node->getRootRefCount() == 2) {
             ClassLoaderData* cld = tenured_class_loader_data(obj, false, true);
             if (cld != NULL && obj == cld->holder_no_keepalive()) {
-              precond(cld->holder_state() == CLD_ALIVE);
+              assert(cld->holder_state() == CLD_ALIVE, 
+                  "invalid holder state current cld=%p, holder cld=%p %d\n", 
+                  _cld, cld, cld->holder_state());
               rtgc_log(LOG_OPT(2), "dirty cld holder %p/%p\n", cld, node);
               cld->set_holder_state(CLD_DIRTY);
               g_dirty_cld_q = cld;
@@ -167,6 +169,9 @@ namespace rtCLDCleaner {
               to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
           CLDHandleClosure<MarkUntrackable> marker(cld);
           cld->oops_do(&marker, ClassLoaderData::_claim_none);
+          if (cld_state != CLD_ALIVE) {
+            cld->set_holder_state(CLD_ALIVE);
+          }
         } else {
           rtgc_log(LOG_OPT(2), "cleaning cld %p/%p cld_rc=%d, rc=%d tr=%d\n", 
               cld, holder, cld->holder_ref_count(), to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
@@ -250,6 +255,7 @@ void rtCLDCleaner::resurrect_cld(oopDesc* obj) {
     if (obj == holder || to_obj(holder)->isGarbageMarked()) {
       CLDHandleClosure<RemarkHandle> resurrector(cld);
       rtgc_log(LOG_OPT(2), "resurrect cld %p/%p rc=%d\n", cld, holder, cld->holder_ref_count());
+      cld->set_holder_state(CLD_ALIVE);
       cld->oops_do(&resurrector, ClassLoaderData::_claim_none);      
     }
   }
