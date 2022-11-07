@@ -7,10 +7,6 @@
 namespace RTGC {
 
 
-typedef SimpleVector<GCObject*> NodeList;
-
-
-
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
@@ -36,7 +32,6 @@ public:
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:
-	HugeArray<LinkIterator> _traceStack;
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;
     HugeArray<AnchorIterator> _trackers;

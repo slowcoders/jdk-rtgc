@@ -21,7 +21,6 @@ static const int LOG_OPT(int function) {
 
 void GarbageProcessor::initialize() {
     this->delete_q = NULL;
-	_traceStack.initialize();
     _unsafeObjects.initialize();
     _visitedNodes.initialize();
     _trackers.initialize();

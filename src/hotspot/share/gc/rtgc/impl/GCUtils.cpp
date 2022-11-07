@@ -25,60 +25,6 @@ namespace RTGC {
 }
 
 
-LinkIterator::LinkIterator(GCObject* obj) {
-    this->_anchor = obj;
-    assert(0, "not impl");
-    #if 0
-    const uint16_t* off = obj->getFieldOffsets();
-    if (off == GCArray::_array_offsets) {
-        this->_idxField = _array->length();
-    }
-    else {
-        this->_offsets = off;
-    }
-    #endif
-}
-
-GCObject* LinkIterator::next() {
-    union {
-        const uint16_t* offsets;
-        intptr_t idxField;
-    };
-    offsets = this->_offsets;
-    assert(0, "not impl");
-#if 0
-    if (offsets < (void*)(intptr_t)0xFFFFFFFF) {
-        while (--idxField >= 0) {
-            GCObject* ref = _array->getItemPointer(idxField)->getPointer();//     *pItem++;
-            if (ref != nullptr) {
-                this->_idxField = idxField;
-                return ref;
-            }
-        }
-    }
-    else {
-        while (true) {
-            int offset = *offsets ++;
-            if (offset == 0) break;
-            OffsetPointer<GCObject>* field = 
-                (OffsetPointer<GCObject>*)((uintptr_t)_anchor + offset);
-            GCObject* ref = field->getPointer();
-            if (ref != nullptr) {
-                this->_offsets = offsets;
-                return ref;
-            }
-        }
-    }
-
-#endif
-    return nullptr;
-}
-
-
-
-
-
-
 
 
 #ifdef _MSC_VER

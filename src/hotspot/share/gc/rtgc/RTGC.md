@@ -93,9 +93,9 @@ bash configure --with-jvm-variants=client \
 Test summary 2022 11/04 No-Cross-Check
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/hotspot/jtreg:tier1                     1610  1584    20     6 <<
->> jtreg:test/jdk:tier1                               2062  2057     1     4 <<
->> jtreg:test/langtools:tier1                         4215  4196     0    19 <<
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1583    19     8 <<
+>> jtreg:test/jdk:tier1                               2062  2058     1     3 <<
+>> jtreg:test/langtools:tier1                         4215  4202     0    13 <<
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
 ==============================

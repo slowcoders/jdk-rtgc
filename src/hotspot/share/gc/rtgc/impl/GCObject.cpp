@@ -355,17 +355,6 @@ SafeShortcut* GCObject::getShortcut() {
 
 bool GCObject::visitLinks(LinkVisitor visitor, void* callbackParam) {
     assert(0, "not impl");
-    /*
-    int offset;
-    for (uint16_t* offsets = this->getFieldOffsets(); (offset = *offsets) != 0; offsets ++) {
-        OffsetPointer<GCObject>* field = 
-            (OffsetPointer<GCObject>*)((uintptr_t)this + offset);
-        GCObject* ref = field->getPointer();
-        if (ref != nullptr && ref != this) {
-            if (!visitor(this, ref, callbackParam)) return false;
-        }
-    }
-    */
     return true;
 }
 
@@ -404,40 +393,13 @@ void GCObject::invaliateSurvivalPath(GCObject* newTail) {
 
 #if 0
 bool GCArray::visitLinks(LinkVisitor visitor, void* callbackParam) {
-    OffsetPointer<GCObject>* field = (OffsetPointer<GCObject>*)(this + 1);
-    for (int idx = this->_cntItem; --idx >= 0; field++) {
-        GCObject* ref = field->getPointer();
-        if (ref != nullptr && ref != this) {
-            if (!visitor(this, ref, callbackParam)) return false;
-        }
-    }
+    fatal("not impl");
     return true;
 }
 
 
 GCObject* GCObject::getLinkInside(SafeShortcut* container) {
-    int sibling_id = SafeShortcut::getIndex(container);
-    uint16_t* offsets = this->getFieldOffsets();
-    if (offsets == GCArray::_array_offsets) {
-        GCArray* array = (GCArray*)this;
-        OffsetPointer<GCObject>* field = (OffsetPointer<GCObject>*)(array + 1);
-        for (int idx = array->length(); --idx >= 0; field++) {
-            GCObject* ref = field->getPointer();
-            if (ref != nullptr && ref->getShortcutId() == sibling_id) {
-                return ref;
-            }
-        }
-    }
-    else {
-        for (int offset; (offset = *offsets) != 0; offsets ++) {
-            OffsetPointer<GCObject>* field = 
-                (OffsetPointer<GCObject>*)((uintptr_t)this + offset);
-            GCObject* ref = field->getPointer();
-            if (ref != nullptr && ref->getShortcutId() == sibling_id) {
-                return ref;
-            }
-        }
-    }
+    fatal("not impl");
     return nullptr;
 }
 #endif

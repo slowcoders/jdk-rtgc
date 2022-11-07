@@ -165,9 +165,10 @@ void GCRuntime::onReplaceRootVariable(
     onEraseRootVariable(erased);
 }
 
+#if 0
 void GCRuntime::replaceMemberVariable(
     GCObject* owner, 
-    OffsetPointer<GCObject>* pField,
+    // not impl // OffsetPointer<GCObject>* pField,
     GCObject* assigned
 ) {
     precond(owner != nullptr);
@@ -187,29 +188,7 @@ void GCRuntime::replaceMemberVariable(
     }
     RTGC::unlock_heap(true);
 }
-
-#if 0
-void GCRuntime::publishInstance(GCObject* obj) {
-    if (!obj->markPublished()) return;
-
-    // TODO Thread 로컬로 변경
-    SimpleVector<LinkIterator> _traceStack;
-    _traceStack.push_back(obj);    
-    LinkIterator* it = &_traceStack.back();
-    while (true) {
-        GCObject* link = it->next();
-        if (link == nullptr) {
-            _traceStack.pop_back();
-            if (_traceStack.empty()) break;
-            it = &_traceStack.back();
-        }
-        else if (link->markPublished()) {
-            _traceStack.push_back(link);
-            it = &_traceStack.back();
-        }
-    }    
-}
-#endif
+#endif 
 
 #if GC_DEBUG
 int GCRuntime::getCircuitCount() {

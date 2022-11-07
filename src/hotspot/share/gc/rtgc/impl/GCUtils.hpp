@@ -440,21 +440,6 @@ public:
     void* getRawData() {
         return SUPER::_data;
     }
-
-    // void initIterator(AnchorIterator* iterator) {
-    //     if (SUPER::_slot == 0) {
-    //         iterator->_current = iterator->_end = nullptr;
-    //     }
-    //     else if (SUPER::_slot < 0) {
-    //         iterator->_temp = first();
-    //         iterator->_current = &iterator->_temp;
-    //         iterator->_end = iterator->_current + 1;
-    //     }
-    //     else {
-    //         iterator->_current = &SUPER::at(0);
-    //         iterator->_end = iterator->_current + SUPER::size();
-    //     }
-    // }
 };
 
 template <class T, int max_bucket=1024>

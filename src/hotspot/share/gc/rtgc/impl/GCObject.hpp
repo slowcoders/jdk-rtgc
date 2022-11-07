@@ -19,8 +19,6 @@ class GCObject;
 class SafeShortcut;
 class AnchorIterator;
 
-typedef SimpleVector<GCObject*> ScanVector;
-
 class ReferrerList : public SimpleVector<ShortOOP> {
 public:    
 	void init(int initialSize);
@@ -36,8 +34,6 @@ public:
 		// *((int64_t*)this) = 0;
 		// _nodeType = (int)type;
 	} 
-
-	// virtual ~GCObject();
 
 	void initIterator(AnchorIterator* iterator);
 
@@ -232,26 +228,6 @@ public:
 
 	AnchorIterator(GCObject* const node) {
 		node->initIterator(this);
-	}
-};
-
-class LinkIterator {
-	union {
-		GCObject* _anchor;
-		GCObjectArray<GCObject>* _array;
-	};
-	union {
-		const uint16_t* _offsets;
-		intptr_t _idxField;
-	};
-
-public:
-	LinkIterator(GCObject* obj);
-
-	GCObject* next();
-
-	GCObject* getContainerObject() { 
-		return _anchor;
 	}
 };
 
