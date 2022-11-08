@@ -1,7 +1,12 @@
 #ifndef __GCOBJECT_HPP
 #define __GCOBJECT_HPP
 
+#define GC_UTILS_ORG 1
+#if GC_UTILS_ORG
 #include "GCUtils.hpp"
+#else 
+#include "GCUtils2.hpp"
+#endif
 #include "GCPointer.hpp"
 #include "runtime/atomic.hpp"
 #include "oops/oop.hpp"

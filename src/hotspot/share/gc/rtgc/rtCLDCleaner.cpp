@@ -82,7 +82,6 @@ namespace rtCLDCleaner {
 
     void do_oop_work(oop* o) {
       oop obj = *o;
-      debug_only(_cld ++;)
       if (obj != NULL) {
         GCObject* node = to_obj(obj);
         if (action == ClearHandle) {
@@ -93,7 +92,7 @@ namespace rtCLDCleaner {
 
           if (node->getRootRefCount() == 2) {
             ClassLoaderData* cld = tenured_class_loader_data(obj, false, true);
-            if (cld != NULL && obj == cld->holder_no_keepalive()) {
+            if (cld != NULL && cld != _cld && obj == cld->holder_no_keepalive()) {
               assert(cld->holder_state() == CLD_ALIVE, 
                   "invalid holder state current cld=%p, holder cld=%p %d\n", 
                   _cld, cld, cld->holder_state());
@@ -173,8 +172,9 @@ namespace rtCLDCleaner {
             cld->set_holder_state(CLD_ALIVE);
           }
         } else {
-          rtgc_log(LOG_OPT(2), "cleaning cld %p/%p cld_rc=%d, rc=%d tr=%d\n", 
-              cld, holder, cld->holder_ref_count(), to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
+          rtgc_log(LOG_OPT(2), "cleaning cld %p/%p(%s) cld_rc=%d, rc=%d tr=%d\n", 
+              cld, holder, RTGC::getClassName(holder), cld->holder_ref_count(), 
+              to_obj(holder)->getRootRefCount(), to_obj(holder)->isTrackable());
           CLDHandleClosure<ClearHandle> cleaner(cld);
           cld->oops_do(&cleaner, ClassLoaderData::_claim_none);
           cld->set_holder_state(CLD_RELEASED);
@@ -194,7 +194,6 @@ namespace rtCLDCleaner {
         cld->set_holder_state(CLD_GARBAGE);
         rtgc_log(LOG_OPT(2), "destroyed cld handles %p/%p\n", cld, holder);
         postcond(!rtHeap::is_alive(holder));
-        postcond(cld->class_loader() == NULL || !rtHeap::is_alive(cld->class_loader()));
       }
     }
 
@@ -210,7 +209,7 @@ namespace rtCLDCleaner {
     bool has_any_alive_klass(ClassLoaderData* cld, oop holder) {
       oop cl = cld->class_loader();
       precond(cl != NULL);
-      _is_alive = cl != NULL && is_alive(cl);
+      _is_alive = cl != NULL && !cld->has_class_mirror_holder() && is_alive(cl);
       if (!_is_alive) {
         cld->classes_do(this);
       }
@@ -221,7 +220,7 @@ namespace rtCLDCleaner {
       debug_only(_cnt_handle ++;)
       if (_is_alive) return;
       oop mirror = k->java_mirror_no_keepalive();
-      _is_alive = is_alive(mirror);
+      _is_alive = mirror != NULL && is_alive(mirror);
     }
   };
 

@@ -360,6 +360,7 @@ bool GCObject::visitLinks(LinkVisitor visitor, void* callbackParam) {
 
 
 void GCObject::initIterator(AnchorIterator* iterator) {
+#if GC_UTILS_ORG
     if (!isAnchored()) {
         iterator->_current = iterator->_end = nullptr;
     }
@@ -372,6 +373,18 @@ void GCObject::initIterator(AnchorIterator* iterator) {
         iterator->_current = &referrers->at(0);
         iterator->_end = iterator->_current + referrers->size();
     }
+#else 
+    if (!isAnchored()) {
+        iterator->initEmpty();
+    }
+    else if (!hasMultiRef()) {
+        initSingleIterator((ShortOOP*)(void*)&_refs);
+    }
+    else {
+        ReferrerList* referrers = getReferrerList();
+        initVectorIterator(referrers);
+    }
+#endif
 }
 
 
