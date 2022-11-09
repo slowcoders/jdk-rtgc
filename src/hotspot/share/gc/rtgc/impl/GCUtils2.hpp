@@ -12,7 +12,7 @@ class ReferrerList {
     static const int MAX_COUNT_IN_CHUNK = 7;
     struct Chunk {
         ShortOOP _items[MAX_COUNT_IN_CHUNK];
-        int32_t _next_offset;
+        int32_t _last_item_offset;
     };
     static const int CHUNK_MASK = (sizeof(Chunk) - 1);
 
@@ -20,13 +20,13 @@ class ReferrerList {
 
 public:
     void init() {
-        _head._next_offset = -MAX_COUNT_IN_CHUNK;
+        _head._last_item_offset = -MAX_COUNT_IN_CHUNK;
     }
 
     void init(ShortOOP first, GCObject* second) {
         _head._items[0] = first;
         _head._items[1] = second;
-        _head._next_offset = -(MAX_COUNT_IN_CHUNK - 1);
+        _head._last_item_offset = -(MAX_COUNT_IN_CHUNK - 1);
     }
 
     ShortOOP* firstItemPtr() {
@@ -34,24 +34,24 @@ public:
     }
 
     ShortOOP* lastItemPtr() {
-        return &_head._items[MAX_COUNT_IN_CHUNK] + _head._next_offset;
+        return &_head._items[MAX_COUNT_IN_CHUNK] + _head._last_item_offset;
     }
 
     bool empty() {
-        return _head._next_offset == -(MAX_COUNT_IN_CHUNK+1);
+        return _head._last_item_offset == -(MAX_COUNT_IN_CHUNK+1);
     }
 
     bool hasSingleItem() {
-        return _head._next_offset == -(MAX_COUNT_IN_CHUNK);
+        return _head._last_item_offset == -(MAX_COUNT_IN_CHUNK);
     }
 
-    bool hasMoreThan2Items() {
-        int offset = _head._next_offset;
-        return offset > -(MAX_COUNT_IN_CHUNK-1) || offset < -(MAX_COUNT_IN_CHUNK+1);
+    bool isTooSmall() {
+        uint32_t offset = (uint32_t)_head._last_item_offset + MAX_COUNT_IN_CHUNK + 1;
+        return offset < 2;
     }
 
     bool hasMultiChunk() {
-        return (uint32_t)_head._next_offset < (uint32_t)(-MAX_COUNT_IN_CHUNK);
+        return (uint32_t)_head._last_item_offset < (uint32_t)(-MAX_COUNT_IN_CHUNK);
     }
 
     ShortOOP front() {
@@ -73,7 +73,7 @@ public:
     // returns removed item pointer (the memory may not accessable);
     const void* remove(ShortOOP item);
 
-    int removeMatchedItems(ShortOOP item);
+    const void* removeMatchedItems(ShortOOP item);
 
     ShortOOP* getItemPtr(ShortOOP item);
 
@@ -120,16 +120,16 @@ public:
     }
 
 private:
-    typedef MemoryPool<Chunk, 64*1024*1024, 0, -1> ChunkPool;
+    typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
     
     static  ChunkPool g_chunkPool;
 
-    static ShortOOP* extend_tail(Chunk* last_chunk);
+    ShortOOP* extend_tail(Chunk* last_chunk);
 
-    static Chunk* dealloc_chunk(Chunk* chunk);
+    Chunk* dealloc_chunk(Chunk* chunk);
 
     void set_last_item_ptr(ShortOOP* pLast) {
-        _head._next_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
+        _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
     }
 
     void cut_tail_end(ShortOOP* copy_to);
@@ -202,6 +202,7 @@ class ReverseIterator : public NodeIterator<true> {
 public:     
     ReverseIterator(ReferrerList* list) {
         _list = list;
+        initIterator(list);
     }
 
     void removePrev() {

@@ -5,8 +5,8 @@
 #include "oops/oopHandle.inline.hpp"
 
 using namespace RTGC;
-namespace RTGC {
 
+namespace RTGC {
     static const int OBJ_ALIGN = 8;
     ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
@@ -28,13 +28,14 @@ namespace RTGC {
 ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
     Chunk* tail = g_chunkPool.allocate();
     precond(((uintptr_t)tail & CHUNK_MASK) == 0);
-    tail->_next_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
+    tail->_last_item_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
     return &tail->_items[MAX_COUNT_IN_CHUNK-1];
 }
 
 
 ReferrerList::Chunk* ReferrerList::dealloc_chunk(Chunk* chunk) {
-    Chunk* prev = (Chunk*)(&chunk->_items[MAX_COUNT_IN_CHUNK] + chunk->_next_offset);
+    //rtgc_log(true, "dealloc_chunk %p\n", this);
+    Chunk* prev = (Chunk*)(&chunk->_items[MAX_COUNT_IN_CHUNK] + chunk->_last_item_offset);
     precond(((uintptr_t)prev & CHUNK_MASK) == 0);
     g_chunkPool.delete_(chunk);
     return prev;
@@ -48,16 +49,16 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
     }
     Chunk* last_chunk = (Chunk*)((uintptr_t)pLast & ~CHUNK_MASK);
     if (last_chunk == &_head) {
-        _head._next_offset --;
+        _head._last_item_offset --;
     } else if (pLast - last_chunk->_items == MAX_COUNT_IN_CHUNK - 1) {
         last_chunk = dealloc_chunk(last_chunk);
         if (last_chunk == &_head) {
-            _head._next_offset = -1;
+            _head._last_item_offset = -1;
         } else {
             set_last_item_ptr(&last_chunk->_items[0]);
         }
     } else {
-        _head._next_offset ++;
+        _head._last_item_offset ++;
     }
 }
 
@@ -70,7 +71,7 @@ void ReferrerList::add(ShortOOP item) {
             set_last_item_ptr(pLast);
         } else {
             pLast++;
-            _head._next_offset ++;
+            _head._last_item_offset ++;
         }
     } else {
         if (((uintptr_t)pLast % sizeof(Chunk)) == 0) {
@@ -78,7 +79,7 @@ void ReferrerList::add(ShortOOP item) {
             set_last_item_ptr(pLast);
         } else {
             pLast --;
-            _head._next_offset --;
+            _head._last_item_offset --;
         }
     }
     *pLast = item;
@@ -119,16 +120,16 @@ const void* ReferrerList::remove(ShortOOP item) {
     return NULL;
 }
 
-int ReferrerList::removeMatchedItems(ShortOOP item) {
+const void* ReferrerList::removeMatchedItems(ShortOOP item) {
     ReverseIterator iter(this);
-    int cnt_removed = 0;
+    const void* last_removed = NULL;
     while (true) {
         ShortOOP* pItem = __getItemPtr(iter, item);
         if (pItem == NULL) break;
         cut_tail_end(pItem);
-        cnt_removed ++;
+        last_removed = pItem;
     }
-    return cnt_removed;
+    return last_removed;
 }
 
 AnchorIterator::AnchorIterator(GCObject* obj) {

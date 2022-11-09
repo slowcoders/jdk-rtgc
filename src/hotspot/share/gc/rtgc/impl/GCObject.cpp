@@ -99,7 +99,7 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         ReferrerList* referrers = getReferrerList();
         const void* removed;
         if (remove_mutiple_items) {
-            removed = (const void*)(intptr_t)referrers->removeMatchedItems(referrer);
+            removed = referrers->removeMatchedItems(referrer);
         } else {
             removed = referrers->remove(referrer);
         }
@@ -117,11 +117,18 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
             referrer, RTGC::getClassName(referrer),
             this, RTGC::getClassName(this));
 
-        bool first_item_removed = !remove_mutiple_items && removed == referrers->firstItemPtr();
-        if (reallocReferrerList && referrers->hasSingleItem()) {
-            GCObject* remained = referrers->front();
+        bool first_item_removed = removed == referrers->firstItemPtr();
+        if (reallocReferrerList && referrers->isTooSmall()) {
+            if (referrers->empty()) {
+                precond(!referrers->hasSingleItem());
+                this->_refs = 0;
+            }
+            else {
+                precond(referrers->hasSingleItem());
+                GCObject* remained = referrers->front();
+                this->_refs = _pointer2offset(remained);
+            }
             ReferrerList::delete_(referrers);
-            this->_refs = _pointer2offset(remained);
             setHasMultiRef(false);
         } else {
             postcond(!reallocReferrerList || !referrers->empty());

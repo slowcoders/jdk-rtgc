@@ -228,7 +228,7 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MemberName",
   // "java/lang/invoke/ResolvedMethodName",
-  "&java/lang/invoke/LambdaForm$DMH+0x00000008000a9800",
+  "java/util/ServiceLoader$3",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -335,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0;// UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 1;// UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 

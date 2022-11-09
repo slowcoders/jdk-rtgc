@@ -451,16 +451,18 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
       }
     }
 
-    if (referrers->empty()) {
+    if (referrers->isTooSmall()) {
+      if (referrers->empty()) {
+        precond(!referrers->hasSingleItem());
+        obj->_refs = 0;
+        rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
+      }
+      else {
+        precond(referrers->hasSingleItem());
+        GCObject* remained = referrers->front();
+        obj->_refs = _pointer2offset(remained);
+      }
       obj->setHasMultiRef(false);
-      obj->_refs = 0;
-      rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
-      ReferrerList::delete_(referrers);
-    }
-    else if (referrers->hasSingleItem()) {
-      obj->setHasMultiRef(false);
-      GCObject* remained = referrers->front();
-      obj->_refs = _pointer2offset(remained);
       ReferrerList::delete_(referrers);
     }
   }
@@ -561,7 +563,7 @@ void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
     precond(this->isTrackable());
     rtgc_debug_log(this, "garbage marking on %p(%s) %s\n", this, getClassName(this), reason);
-    }
+  }
   assert(!this->isGarbageMarked(),
       "already marked garbage %p(%s)\n", this, getClassName(this));
   assert(this->getRootRefCount() <= (reason != NULL ? ZERO_ROOT_REF : ZERO_ROOT_REF + 1),
