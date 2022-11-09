@@ -274,6 +274,7 @@ public:
 class GCObject;
 typedef bool (*LinkVisitor)(GCObject* anchor, GCObject* link, void* param);
 
+#if !NEW_GC_UTILS
 template <class T>
 class NodeIterator {
 public:
@@ -441,6 +442,7 @@ public:
         return SUPER::_data;
     }
 };
+#endif 
 
 template <class T, int max_bucket=1024>
 class HugeArray : public SimpleVector<T, FixedAllocator<max_bucket>> {

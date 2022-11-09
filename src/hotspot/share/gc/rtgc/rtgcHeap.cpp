@@ -443,31 +443,25 @@ static void __adjust_anchor_pointers(oopDesc* old_p) {
   }
   else if (obj->hasMultiRef()) {
     ReferrerList* referrers = obj->getReferrerList();
-    ShortOOP* ppAnchor = referrers->adr_at(0);
-    int cntAnchor = referrers->size();
-    check_shortcut = ppAnchor[0]->isGarbageMarked();
-    for (int idx = 0; idx < cntAnchor; ) {
-      if (adjust_anchor_pointer(ppAnchor, obj) || !CHECK_GARBAGE) {
-        ppAnchor++; idx++;
-      } else {
-        ppAnchor[0] = referrers->at(--cntAnchor);
+    check_shortcut = referrers->front()->isGarbageMarked();
+    for (ReverseIterator it(referrers); it.hasNext(); ) {
+      ShortOOP& ptr = it.next();
+      if (!adjust_anchor_pointer(&ptr, obj)) {
+        it.removePrev();
       }
     }
 
-    if (CHECK_GARBAGE && cntAnchor < 2) {
+    if (referrers->empty()) {
       obj->setHasMultiRef(false);
-      if (cntAnchor == 0) {
-        obj->_refs = 0;
-        rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
-      }
-      else {
-        GCObject* remained = referrers->at(0);
-        obj->_refs = _pointer2offset(remained);
-      }
-      _rtgc.gRefListPool.delete_(referrers);
+      obj->_refs = 0;
+      rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
+      ReferrerList::delete_(referrers);
     }
-    else if (cntAnchor != referrers->size()) {
-      referrers->resize(cntAnchor);
+    else if (referrers->hasSingleItem()) {
+      obj->setHasMultiRef(false);
+      GCObject* remained = referrers->front();
+      obj->_refs = _pointer2offset(remained);
+      ReferrerList::delete_(referrers);
     }
   }
   else {

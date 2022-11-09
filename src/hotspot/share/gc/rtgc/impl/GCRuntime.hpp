@@ -48,21 +48,25 @@ private:
 };
 
 typedef MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> ShortcutPool;
-typedef MemoryPool<ReferrerList, 64*1024*1024, 1, 0> ReferrerListPool;
-typedef MemoryPool<TinyChunk, 64*1024*1024, 1, -1> TinyMemPool;
+// typedef MemoryPool<ReferrerList, 64*1024*1024, 1, 0> ReferrerListPool;
+// typedef MemoryPool<TinyChunk, 64*1024*1024, 1, -1> TinyMemPool;
 
 class GCRuntime {
 public:
 	ShortcutPool g_shortcutPool;
+#if !NEW_GC_UTILS
     TinyMemPool gTinyPool;
     ReferrerListPool gRefListPool;
+#endif	
 	GarbageProcessor* g_pGarbageProcessor;
 	char _gp[sizeof(GarbageProcessor)];
 
 	void initialize() {
 		g_shortcutPool.initialize();
+#if !NEW_GC_UTILS		
 		gTinyPool.initialize();
 		gRefListPool.initialize();
+#endif		
 		SafeShortcut::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
 		g_pGarbageProcessor->initialize();

@@ -339,6 +339,7 @@ void RTGC::initialize() {
   logOptions[0] = -1;
 #endif
 
+  ReferrerList::initialize();
   RTGC::_rtgc.initialize();
   rtHeap__initialize();
   rtSpace__initialize();

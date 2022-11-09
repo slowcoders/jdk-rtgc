@@ -13,6 +13,7 @@ namespace RTGC {
 const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
+#if !NEW_GC_UTILS
 void ReferrerList::init(int initialSize) {
     TinyChunk* chunk = _rtgc.gTinyPool.allocate();;
     *(void**)this = chunk;
@@ -59,14 +60,19 @@ void DefaultAllocator::free(void* mem) {
         ::free(mem);
     }
 }
+#endif
 
 #if GC_DEBUG
 int GCRuntime::getTinyChunkCount() {
+#if !NEW_GC_UTILS
     return _rtgc.gTinyPool.getAllocatedItemCount();
+#else 
+    return 0;
+#endif
 }
 
 int GCRuntime::getReferrerListCount() {
-    return _rtgc.gRefListPool.getAllocatedItemCount();
+    return ReferrerList::getAllocatedItemCount();
 }
 #endif
 
@@ -89,8 +95,7 @@ void GCRuntime::disconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    int idx = erased->removeReferrer(owner);
-    if (idx == 0) {
+    if (erased->removeReferrer(owner)) {
         detectUnsafeObject(erased);
     }
 }
@@ -99,11 +104,11 @@ bool GCRuntime::tryDisconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    int idx = erased->tryRemoveReferrer(owner);
-    if (idx == 0) {
+    if (erased->tryRemoveReferrer(owner)) {
         detectUnsafeObject(erased);
+        return true;
     }
-    return idx >= 0;
+    return false;
 }
 
 

@@ -1,13 +1,12 @@
 #ifndef __GCOBJECT_HPP
 #define __GCOBJECT_HPP
 
-#define GC_UTILS_ORG 1
-#if GC_UTILS_ORG
+#define NEW_GC_UTILS 1
 #include "GCUtils.hpp"
-#else 
+#include "GCPointer.hpp"
+#if NEW_GC_UTILS
 #include "GCUtils2.hpp"
 #endif
-#include "GCPointer.hpp"
 #include "runtime/atomic.hpp"
 #include "oops/oop.hpp"
 #include "GCNode.hpp"
@@ -22,12 +21,14 @@ namespace RTGC {
 
 class GCObject;
 class SafeShortcut;
-class AnchorIterator;
 
+#if !NEW_GC_UTILS
+class AnchorIterator;
 class ReferrerList : public SimpleVector<ShortOOP> {
 public:    
 	void init(int initialSize);
 };
+#endif
 
 class GCObject : public GCNode {
 	friend class GCRuntime;
@@ -97,25 +98,28 @@ public:
 
 	void addReferrer(GCObject* referrer);
 
-	int removeReferrer(GCObject* referrer);
+	// return true if safe_anchor removed;
+	bool removeReferrer(GCObject* referrer);
 
-	int removeReferrerWithoutReallocaton(GCObject* referrer);
+	// return true if safe_anchor removed;
+	bool removeReferrerWithoutReallocaton(GCObject* referrer);
 
-	int tryRemoveReferrer(GCObject* referrer);
+	// return true if safe_anchor removed;
+	bool tryRemoveReferrer(GCObject* referrer);
+
+	// return true if any referrer removed.
+	bool removeMatchedReferrers(GCObject* referrer);
+
+	void removeAllAnchors();
 
 	void clearAnchorList();
 
 	bool clearEmptyAnchorList();
 
-	void removeAllAnchors();
-
-	bool removeMatchedReferrers(GCObject* referrer);
-
-	void removeBrokenAnchors();
-
 private:
-	template <bool reallocReferrerList> 
-	int removeReferrer_impl(GCObject* referrer);
+	// return true if safe_anchor removed;
+	template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items> 
+	int  removeReferrer_impl(GCObject* referrer);
 };
 
 static const int MIN_SHORTCUT_LENGTH = 3;
@@ -226,6 +230,7 @@ public:
 };
 
 
+#if !NEW_GC_UTILS
 
 class AnchorIterator : public NodeIterator<ShortOOP> {
 public:
@@ -235,7 +240,7 @@ public:
 		node->initIterator(this);
 	}
 };
-
+#endif
 
 }
 
