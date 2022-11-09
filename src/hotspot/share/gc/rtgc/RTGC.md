@@ -90,12 +90,12 @@ bash configure --with-jvm-variants=client \
 
 
 ==============================
-Test summary 2022 11/04 No-Cross-Check
+Test summary 2022 11/09 Full RTGC
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/hotspot/jtreg:tier1                     1610  1583    19     8 <<
->> jtreg:test/jdk:tier1                               2062  2058     1     3 <<
->> jtreg:test/langtools:tier1                         4215  4202     0    13 <<
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1586    19     5 <<
+>> jtreg:test/jdk:tier1                               2062  2060     0     2 <<
+>> jtreg:test/langtools:tier1                         4215  4200     0    15 <<
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0   
 ==============================
