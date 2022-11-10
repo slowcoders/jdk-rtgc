@@ -249,7 +249,7 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
     if (link->removeMatchedReferrers(garbageAnchor)) {
         if (link->isUnsafeTrackable() && !link->isUnstableMarked()) {
             link->markUnstable();
-            rtgc_debug_log(link, "mark unsafe by clear_garbage_links %p\n", link);
+            rtgc_debug_log(link, "marked unsafe to check garbage %p\n", link);
             return true;
         }
     }

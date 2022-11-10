@@ -142,6 +142,10 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         }
     }
 
+    if (!this->hasSafeAnchor()) {
+        return this->isAnchored() ? 1 : 0;
+    }
+
     if (this->hasShortcut()) {
 		SafeShortcut* shortcut = this->getShortcut();
         shortcut->split(referrer, this);
