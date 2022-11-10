@@ -11,7 +11,8 @@
           -> iterate_young_gen_roots() 전에 history-clean)
       (anchorList memory compression)
    2. rt_node 데이터 최적화
-   3. handle_bit (optional)
+   3. isAcyclic()!!
+   4. handle_bit (optional)
 
 
 1) Flags

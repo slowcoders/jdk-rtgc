@@ -85,7 +85,7 @@ public:
         return count;
     }
 
-    ShortOOP* getLastItemSlotPtr() {
+    ShortOOP* getLastItemOffsetPtr() {
         return &_head._items[MAX_COUNT_IN_CHUNK];
     }    
 
@@ -140,7 +140,6 @@ class NodeIterator {
 protected:    
     ShortOOP* _ptr;
     ShortOOP* _end;
-    GCObject* _current;
 
 public:
     NodeIterator() {}
@@ -152,18 +151,18 @@ public:
     }
 
     void initIterator(ReferrerList* vector) {
+        precond(!vector->empty());
         if (!vector->hasMultiChunk()) {
             _ptr = vector->firstItemPtr();
             _end = vector->lastItemPtr() + 1;
-            _current = NULL;
+            postcond(_ptr != _end);
         } else if (trace_reverse) {
             _ptr = vector->lastItemPtr();
-            _end = vector->getLastItemSlotPtr();
-            _current = NULL;
+            _end = vector->getLastItemOffsetPtr();
+            postcond(_ptr != _end);
         } else {
             _ptr = vector->firstItemPtr();
             _end = _ptr;
-            _current = (GCObject*)_ptr; 
         }
     } 
 
@@ -173,8 +172,39 @@ public:
     }
 
     bool hasNext() {
-        return (_ptr != _end || _ptr == (void*)_current);
+        return _ptr != (trace_reverse ? _end : NULL);
     }
+
+    ShortOOP& next() {
+        precond(hasNext());
+        ShortOOP& oop = *_ptr ++;
+        if (_ptr != _end) {
+            ReferrerList::validateChunktemPtr(_ptr);
+            if (!trace_reverse && _ptr == _end) {
+                _ptr = NULL;
+            } 
+        } else if (!trace_reverse) {
+            _ptr = NULL;
+        }
+        return oop;
+    }
+};
+
+class ReverseIterator : public NodeIterator<true> {
+public:     
+    ReverseIterator(ReferrerList* list) {
+        initIterator(list);
+    }
+};
+
+class AnchorIterator : public NodeIterator<false> {
+    GCObject* _current;
+public:    
+    AnchorIterator(GCObject* obj) {
+        initialize(obj);
+    }
+
+    void initialize(GCObject* obj);
 
     GCObject* peekPrev() {
         return _current;
@@ -186,38 +216,9 @@ public:
     }
 
     ShortOOP& next() {
-        precond(hasNext());
-        ShortOOP& oop = *_ptr ++;
-        if (_ptr != _end) {
-            ReferrerList::validateChunktemPtr(_ptr);
-        }
-        this->_current = oop;
-        return oop;
+        this->_current = *_ptr;
+        return NodeIterator<false>::next();
     }
-};
-
-class ReverseIterator : public NodeIterator<true> {
-    ReferrerList* _list;
-    ShortOOP* _prev;
-public:     
-    ReverseIterator(ReferrerList* list) {
-        _list = list;
-        initIterator(list);
-    }
-
-    void removePrev() {
-        _list->cut_tail_end(_prev);
-    } 
-
-    ShortOOP& next() {
-        _prev = _ptr;
-        return NodeIterator<true>::next();
-    }
-};
-
-class AnchorIterator : public NodeIterator<false> {
-public:    
-    AnchorIterator(GCObject* obj);
 };
 
 }

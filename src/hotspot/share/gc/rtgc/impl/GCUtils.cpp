@@ -127,13 +127,25 @@ const void* ReferrerList::removeMatchedItems(ShortOOP item) {
         ShortOOP* pItem = __getItemPtr(iter, item);
         if (pItem == NULL) break;
         cut_tail_end(pItem);
-        last_removed = pItem;
+        if (last_removed != this->_head._items) {
+            last_removed = pItem;
+        }
     }
     return last_removed;
 }
 
-AnchorIterator::AnchorIterator(GCObject* obj) {
-    obj->initIterator(this);
+void AnchorIterator::initialize(GCObject* obj) {
+    if (!obj->isAnchored()) {
+        this->initEmpty();
+    }
+    else if (!obj->hasMultiRef()) {
+        this->initSingleIterator((ShortOOP*)(void*)&obj->_refs);
+    }
+    else {
+        ReferrerList* referrers = obj->getReferrerList();
+        this->initIterator(referrers);
+    }
+    // obj->initIterator(this);
 }
 
 

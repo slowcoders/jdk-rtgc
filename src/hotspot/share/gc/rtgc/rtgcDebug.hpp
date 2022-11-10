@@ -45,6 +45,11 @@ namespace RTGC {
   void adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node);
 };
 
+#define PTR_DBG_SIG "%p(%s) rc=%d tr=%d cls=%d garbage=%d unsafe=%d marked=%d\n"
+#define PTR_DBG_INFO(obj) (void*)obj, RTGC::getClassName(obj), \
+  to_obj(obj)->getRootRefCount(), to_obj(obj)->isTrackable(), \
+  cast_to_oop(obj)->klass() == vmClasses::Class_klass(), \
+  to_obj(obj)->isGarbageMarked(), to_obj(obj)->isUnstableMarked(), cast_to_oop(obj)->is_gc_marked()
 
 #define rtgc_log(logOption, ...) \
   if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { \

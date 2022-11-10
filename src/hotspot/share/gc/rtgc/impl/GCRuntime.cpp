@@ -13,75 +13,15 @@ namespace RTGC {
 const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
-#if !NEW_GC_UTILS
-void ReferrerList::init(int initialSize) {
-    TinyChunk* chunk = _rtgc.gTinyPool.allocate();;
-    *(void**)this = chunk;
-    chunk->_capacity = (int)sizeof(TinyChunk) / sizeof(void*) -1;
-    chunk->_size = initialSize;
-    precond(chunk->_size <= chunk->_capacity);
-}
 
 
-void* DefaultAllocator::alloc(size_t size) {
-    if (USE_TINY_MEM_POOL && size <= sizeof(TinyChunk)) {
-        return _rtgc.gTinyPool.allocate();
-    }
-    else {
-        void * mem = ::malloc(size);
-        postcond(mem != nullptr);
-        return mem;
-    }
-}
-
-void* DefaultAllocator::realloc(void* mem, size_t size) {
-    if (USE_TINY_MEM_POOL && _rtgc.gTinyPool.isInside(mem)) {
-        if (size <= sizeof(TinyChunk)) {
-            return mem;
-        }
-        void* new_mem = ::malloc(size);
-        postcond(mem != nullptr);
-        memcpy(new_mem, mem, sizeof(TinyChunk));
-        _rtgc.gTinyPool.delete_((TinyChunk*)mem);
-        return new_mem;
-    }
-    else {
-        void* mem2 = ::realloc(mem, size);
-        postcond(mem != nullptr);
-        return mem2;
-    }
-}
-
-void DefaultAllocator::free(void* mem) {
-    if (USE_TINY_MEM_POOL && _rtgc.gTinyPool.isInside(mem)) {
-        _rtgc.gTinyPool.delete_((TinyChunk*)mem);
-    }
-    else {
-        ::free(mem);
-    }
-}
-#endif
-
-#if GC_DEBUG
-int GCRuntime::getTinyChunkCount() {
-#if !NEW_GC_UTILS
-    return _rtgc.gTinyPool.getAllocatedItemCount();
-#else 
-    return 0;
-#endif
-}
-
-int GCRuntime::getReferrerListCount() {
-    return ReferrerList::getAllocatedItemCount();
-}
-#endif
-
-void GCRuntime::detectUnsafeObject(GCObject* erased) {
+bool GCRuntime::detectUnsafeObject(GCObject* erased) {
     if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {
         _rtgc.g_pGarbageProcessor->addUnstable(erased);
+        return true;
         // GCRuntime::detectGarbages(erased);
-        //earlyDetectedUnsafeObjects.add(erased);
     }
+    return false;
 }
 
 void GCRuntime::connectReferenceLink(
@@ -95,20 +35,14 @@ void GCRuntime::disconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    if (erased->removeReferrer(owner)) {
-        detectUnsafeObject(erased);
-    }
+    erased->removeReferrer(owner);
 }
 
 bool GCRuntime::tryDisconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    if (erased->tryRemoveReferrer(owner)) {
-        detectUnsafeObject(erased);
-        return true;
-    }
-    return false;
+    return erased->tryRemoveReferrer(owner);
 }
 
 
@@ -195,11 +129,6 @@ void GCRuntime::replaceMemberVariable(
 }
 #endif 
 
-#if GC_DEBUG
-int GCRuntime::getCircuitCount() {
-	return 0;//g_shortcutPool.getAllocatedItemCount();
-}
-#endif
 
 void GCRuntime::adjustShortcutPoints() {
     int allocSize = _rtgc.g_shortcutPool.size();
@@ -229,8 +158,8 @@ void GCRuntime::adjustShortcutPoints() {
 
 void GCRuntime::dumpDebugInfos() {
     #if GC_DEBUG
-    printf("Circuit: %d, TinyChunk: %d, ReferrerList: %d\n", 
-        getCircuitCount(), getTinyChunkCount(), getReferrerListCount());
+    printf("Shorcut: %d, ReferrerList::Chunk: %d\n", 
+        _rtgc.g_shortcutPool.getAllocatedItemCount(), ReferrerList::getAllocatedItemCount());
     #endif
 }
 

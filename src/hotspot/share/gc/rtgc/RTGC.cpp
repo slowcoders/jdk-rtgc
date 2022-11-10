@@ -228,7 +228,7 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MemberName",
   // "java/lang/invoke/ResolvedMethodName",
-  "java/util/ServiceLoader$3",
+  // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -261,9 +261,8 @@ bool RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj) return true;
 
   if (ptr == debug_obj2) return true;
-  // if (ptr < (void*)0x203990310) return true;
-  // if (!UnlockExperimentalVMOptions || !to_obj(ptr)->isActiveFinalizerReachable()) return false;
-  // return (vmClasses::Class_klass() == obj->klass());
+
+  // if (((uintptr_t)ptr & ~0xFFF) != 0x7f5643000) return false;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -335,7 +334,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 1;// UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 0;// UnlockExperimentalVMOptions;
   logOptions[0] = -1;
 #endif
 
@@ -363,6 +362,7 @@ void RTGC::initialize() {
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
+    enableLog(LOG_SHORTCUT, 0);
 
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);

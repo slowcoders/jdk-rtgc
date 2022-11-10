@@ -107,7 +107,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
                     top, top->getShortcutId(), (void*)shortcut->anchor());
                 shortcut->shrinkAnchorTo(top);
                 it = _trackers.push_empty();
-                top->initIterator(it);
+                it->initialize(top);
                 top->markGarbage(NULL);
                 _visitedNodes.push_back(top);
                 break;
@@ -150,7 +150,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
                     shortcut->shrinkAnchorTo(R);
                 }
             }
-            R->initIterator(it);
+            it->initialize(R);
         }
 
         R->markGarbage(NULL);
@@ -245,18 +245,12 @@ void GarbageProcessor::constructShortcut() {
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     precond(!rtHeapEx::g_lock_unsafe_list);
     precond(garbageAnchor->isTrackable());
-    rtgc_debug_log(garbageAnchor, "clear_garbage_links %p->%p\n", garbageAnchor, link);
-    if (!link->removeMatchedReferrers(garbageAnchor)) {
-        // rtgc_debug_log(link, "unknown link %p->%p\n", garbageAnchor, link);
-        return false;
-    }
-    if (link->isUnsafeTrackable()) {
-        if (!link->isUnstableMarked()) {
+    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    if (link->removeMatchedReferrers(garbageAnchor)) {
+        if (link->isUnsafeTrackable() && !link->isUnstableMarked()) {
             link->markUnstable();
-            // rtgc_debug_log(link, "Add unsafe object by clear_garbage_links %p\n", link);
+            rtgc_debug_log(link, "mark unsafe by clear_garbage_links %p\n", link);
             return true;
-        }  else {
-            // rtgc_debug_log(link, "Already marked unsafe before clear_garbage_links %p\n", link);
         }
     }
     return false;
@@ -264,7 +258,6 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
-    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
     _unsafeObjects.push_back(obj);
 }
 
@@ -274,6 +267,7 @@ static int __break() {
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
+    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
     precond(!rtHeapEx::g_lock_unsafe_list);
     precond(obj->isTrackable());
     precond(!obj->isUnstableMarked());

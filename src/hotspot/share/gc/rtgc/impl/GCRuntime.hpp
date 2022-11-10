@@ -54,19 +54,11 @@ typedef MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> ShortcutPool;
 class GCRuntime {
 public:
 	ShortcutPool g_shortcutPool;
-#if !NEW_GC_UTILS
-    TinyMemPool gTinyPool;
-    ReferrerListPool gRefListPool;
-#endif	
 	GarbageProcessor* g_pGarbageProcessor;
 	char _gp[sizeof(GarbageProcessor)];
 
 	void initialize() {
 		g_shortcutPool.initialize();
-#if !NEW_GC_UTILS		
-		gTinyPool.initialize();
-		gRefListPool.initialize();
-#endif		
 		SafeShortcut::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
 		g_pGarbageProcessor->initialize();
@@ -104,17 +96,10 @@ public:
 
 	static void onEraseRootVariable_internal(GCObject* assigned);
 
-	static void detectUnsafeObject(GCObject* erased);
+	static bool detectUnsafeObject(GCObject* erased);
 
 private:
-	#if GC_DEBUG
-	static int getCircuitCount();
-	static int getTinyChunkCount();
-	static int getReferrerListCount();
-	#endif
-
 	static void reclaimGarbage(GCObject* garbage, GCObject* garbageNode);
-
 };	
 
 extern GCRuntime _rtgc;

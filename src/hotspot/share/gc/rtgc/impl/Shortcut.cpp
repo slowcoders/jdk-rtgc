@@ -80,7 +80,7 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
         SafeShortcut::create(prev, _tail, MIN_SHORTCUT_LENGTH+1, true);
     }
     prev->invalidateShortcutId();
-    rtgc_log(LOG_OPT(7), "slpit cicular shortcut %d (%p->%p)", 
+    rtgc_log(LOG_OPT(7), "split circular shortcut %d (%p->%p)\n", 
         (*ppShortcut)->getIndex(*ppShortcut), (void*)_anchor, _inTracing);
     *ppShortcut = jump_in->getShortcut();
     this->_tail = _inTracing;
@@ -107,14 +107,9 @@ void SafeShortcut::vailidateShortcut() {
 
 void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
     int s_id = getIndex(this);
-    // rtgc_log(RTGC::is_debug_pointer(leftTail) && java_lang_ref_Reference::is_phantom(cast_to_oop(leftTail)), 
-    //     "REF_PHANTOM[%d] shotcut split=%p(%s) rightAnchor=%p(%s)\n", 
-    //     getIndex(this), leftTail, RTGC::getClassName(leftTail), 
-    //                     rightAnchor, RTGC::getClassName(rightAnchor));
 
-    assert(this->isValid(), "shotcut[%d] is invalid leftTail=%p(%s) rightAnchor=%p(%s)\n", 
-        getIndex(this), leftTail, RTGC::getClassName(leftTail), 
-                        rightAnchor, RTGC::getClassName(rightAnchor));
+    assert(this->isValid(), "shotcut[%d] is invalid\nleftTail=" PTR_DBG_SIG "rightAnchor=" PTR_DBG_SIG "\n", 
+        getIndex(this), PTR_DBG_INFO(leftTail), PTR_DBG_INFO(rightAnchor));
     precond(rightAnchor->getShortcut() == this);
     assert(leftTail->getShortcut() == this || leftTail == this->anchor(), 
         "wrong tail [%d] -> %p(%s) [%d] gm = %d\n", 

@@ -106,11 +106,12 @@ bool rtHeap::is_destroyed(oopDesc* p) {
 }
 
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
-  precond(to_obj(old_p)->isTrackable());
-  precond(!to_obj(old_p)->isGarbageMarked());
+  GCObject* node = to_obj(old_p);
+  precond(node->isTrackable());
+  precond(!node->isGarbageMarked());
   // precond(g_young_roots.indexOf(old_p) < 0);
   // precond(g_young_roots.indexOf(new_p) < 0);
-  to_obj(old_p)->markYoungRoot();
+  node->markYoungRoot();
   g_young_roots.push_back(new_p);
   rtgc_debug_log(old_p, "mark YG Root (%p)->%p idx=%d\n", old_p, new_p, g_young_roots.size());
 }
@@ -376,9 +377,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   precond(!node->isGarbageMarked());
   assert(!node->isTrackable() || 
     node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked(),
-      " invalid node %p(%s) rc=%d, safeAnchor=%d unsafe=%d\n", 
-      node, RTGC::getClassName(node),
-      node->getRootRefCount(), node->hasSafeAnchor(), node->isUnstableMarked());
+      " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
   // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
@@ -411,88 +410,17 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 }
 
 
-static bool adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
+static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
-  if (old_p->isGarbageMarked()) {
-    rtgc_log(LOG_OPT(11), "garbage anchor %p in %p\n", old_p, node);
-    return false;
-  }
-
-  GCObject* new_obj = (GCObject*)cast_to_oop(old_p)->mark().decode_pointer();
+  precond(!old_p->isGarbageMarked());
+  GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
-    precond(new_obj != (void*)0xbaadbabebaadbabc);
-    rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p\n", 
-      old_p, new_obj, node);
+    rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p\n", old_p, new_obj, node);
     p[0] = new_obj;
   }  
-  return true;
 }
-
-static void __adjust_anchor_pointers(oopDesc* old_p) {
-  precond(old_p->is_gc_marked() || 
-      (old_p->forwardee() == NULL && !RtLateClearGcMark));
-
-  GCObject* obj = to_obj(old_p);
-  precond(!obj->isGarbageMarked());
-
-  const bool CHECK_GARBAGE = RtLateClearGcMark;
-  bool check_shortcut;
-
-  if (!obj->isAnchored()) {
-    check_shortcut = true;
-  }
-  else if (obj->hasMultiRef()) {
-    ReferrerList* referrers = obj->getReferrerList();
-    check_shortcut = referrers->front()->isGarbageMarked();
-    for (ReverseIterator it(referrers); it.hasNext(); ) {
-      ShortOOP& ptr = it.next();
-      if (!adjust_anchor_pointer(&ptr, obj)) {
-        it.removePrev();
-      }
-    }
-
-    if (referrers->isTooSmall()) {
-      if (referrers->empty()) {
-        precond(!referrers->hasSingleItem());
-        obj->_refs = 0;
-        rtgc_debug_log(obj, "anchor-list cleared %p\n", obj);
-      }
-      else {
-        precond(referrers->hasSingleItem());
-        GCObject* remained = referrers->front();
-        obj->_refs = _pointer2offset(remained);
-      }
-      obj->setHasMultiRef(false);
-      ReferrerList::delete_(referrers);
-    }
-  }
-  else {
-    check_shortcut = (!adjust_anchor_pointer((ShortOOP*)&obj->_refs, obj) && CHECK_GARBAGE);
-    if (check_shortcut) {
-      obj->_refs = 0;
-      rtgc_debug_log(obj, "single anchor cleared %p\n", obj);
-    }
-  }
-
-  if (check_shortcut) {
-    if (obj->hasShortcut()) {
-      rtgc_log(LOG_OPT(9), "broken shortcut found [%d] %p\n", obj->getShortcutId(), obj);
-      // node 가 가비지면 생존경로가 존재하지 않는다.
-      SafeShortcut* ss = obj->getShortcut();
-      if (ss->tail() != obj) {
-        // adjust_point 가 완료되지 않아 validateShortcut() 실행 불가.
-        ss->anchor_ref() = obj;
-      } else {
-        delete ss;
-      }
-      obj->invalidateSafeAnchor();
-    }
-  }
-}
-
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
-  // precond(is_alive(old_p));
   if (!is_alive(old_p, false)) {
     precond(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
     int size = old_p->size_given_klass(old_p->klass());
@@ -503,13 +431,14 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   g_cntScan ++;
 #endif
 
+  GCObject* node = to_obj(old_p);
   oopDesc* new_anchor_p = NULL;
-  if (!to_obj(old_p)->isTrackable()) {
+  if (!node->isTrackable()) {
     oopDesc* new_p = old_p->forwardee();
     if (new_p == NULL) new_p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(new_p)) {
       mark_promoted_trackable(old_p);
-      if (to_obj(old_p)->isUnreachable()) {
+      if (node->isUnreachable()) {
         // GC 종료 후 UnsafeList 에 추가.
         mark_survivor_reachable(old_p);
       }
@@ -517,26 +446,37 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     }
   } else {
     // ensure UnsafeList is empty.
-    assert(!to_obj(old_p)->isUnreachable() || to_obj(old_p)->isUnstableMarked(), 
+    assert(!node->isUnreachable() || node->isUnstableMarked(), 
       "unreachable trackable %p(%s)\n", 
-      old_p, getClassName(to_obj(old_p)));
+      old_p, getClassName(node));
   }
-  postcond(rtHeap::is_alive(old_p));
 
   rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
   g_adjust_pointer_closure.init(old_p, new_anchor_p);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
-  bool is_young_root = g_adjust_pointer_closure._has_young_ref && to_obj(old_p)->isTrackable();
+  bool is_young_root = g_adjust_pointer_closure._has_young_ref && node->isTrackable();
   if (is_young_root) {
     oopDesc* forwardee = old_p->forwardee();
     if (forwardee == NULL) forwardee = old_p;
     add_young_root(old_p, forwardee);
   }
 
-  __adjust_anchor_pointers(old_p); 
+  if (node->isAnchored()) {
+    if (node->hasMultiRef()) {
+      ReferrerList* referrers = node->getReferrerList();
+      precond(!referrers->isTooSmall());
+      for (ReverseIterator it(referrers); it.hasNext(); ) {
+        ShortOOP& ptr = it.next();
+        adjust_anchor_pointer(&ptr, node);
+      }
+    }
+    else {
+      adjust_anchor_pointer((ShortOOP*)&node->_refs, node);
+    }
+  }
 
-  to_obj(old_p)->unmarkDirtyReferrerPoints();
+  node->unmarkDirtyReferrerPoints();
   return size; 
 }
 

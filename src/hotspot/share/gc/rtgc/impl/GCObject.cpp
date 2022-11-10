@@ -103,6 +103,9 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         } else {
             removed = referrers->remove(referrer);
         }
+        rtgc_debug_log(this, "anchor removed(%p/%d) from " PTR_DBG_SIG, 
+            removed, removed == referrers->firstItemPtr(), PTR_DBG_INFO(this)); 
+
         if (!must_exist && removed == NULL) return -1;
 
 #ifdef ASSERT            
@@ -150,20 +153,28 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     return 0;
 }
 
-bool GCObject::removeReferrer(GCObject* referrer) {
-    return removeReferrer_impl<true, true, false>(referrer) == 0;
+void GCObject::removeReferrer(GCObject* referrer) {
+    if (removeReferrer_impl<true, true, false>(referrer) == 0) {
+        GCRuntime::detectUnsafeObject(this);
+    }
 }
 
-bool GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
-    return removeReferrer_impl<false, true, false>(referrer) == 0;
+void GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
+    if (removeReferrer_impl<false, true, false>(referrer) == 0) {
+        GCRuntime::detectUnsafeObject(this);
+    }
 }
 
 bool GCObject::tryRemoveReferrer(GCObject* referrer) {
-    return removeReferrer_impl<true, false, false>(referrer) == 0;
+    int res = removeReferrer_impl<true, false, false>(referrer);
+    if (res == 0) {
+        GCRuntime::detectUnsafeObject(this);
+    }
+    return res != -1;
 }
 
 bool GCObject::removeMatchedReferrers(GCObject* referrer) {
-    return removeReferrer_impl<true, false, true>(referrer) != -1;
+    return removeReferrer_impl<true, false, true>(referrer) == 0;
 }
 
 bool GCObject::containsReferrer(GCObject* referrer) {
@@ -259,42 +270,6 @@ SafeShortcut* GCObject::getShortcut() {
 }
 
 
-
-bool GCObject::visitLinks(LinkVisitor visitor, void* callbackParam) {
-    assert(0, "not impl");
-    return true;
-}
-
-
-void GCObject::initIterator(AnchorIterator* iterator) {
-#if !NEW_GC_UTILS
-    if (!isAnchored()) {
-        iterator->_current = iterator->_end = nullptr;
-    }
-    else if (!hasMultiRef()) {
-        iterator->_current = (ShortOOP*)(void*)&_refs;//&iterator->_temp;
-        iterator->_end = iterator->_current + 1;
-    }
-    else {
-        ReferrerList* referrers = getReferrerList();
-        iterator->_current = &referrers->at(0);
-        iterator->_end = iterator->_current + referrers->size();
-    }
-#else 
-    if (!isAnchored()) {
-        iterator->initEmpty();
-    }
-    else if (!hasMultiRef()) {
-        iterator->initSingleIterator((ShortOOP*)(void*)&_refs);
-    }
-    else {
-        ReferrerList* referrers = getReferrerList();
-        iterator->initIterator(referrers);
-    }
-#endif
-}
-
-
 ReferrerList* GCObject::getReferrerList() {
     precond(hasMultiRef());
     return ReferrerList::getPointer(_refs);
@@ -310,16 +285,3 @@ void GCObject::invaliateSurvivalPath(GCObject* newTail) {
 	}
 }
 
-
-#if 0
-bool GCArray::visitLinks(LinkVisitor visitor, void* callbackParam) {
-    fatal("not impl");
-    return true;
-}
-
-
-GCObject* GCObject::getLinkInside(SafeShortcut* container) {
-    fatal("not impl");
-    return nullptr;
-}
-#endif

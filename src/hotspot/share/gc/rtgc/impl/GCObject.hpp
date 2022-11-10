@@ -1,12 +1,9 @@
 #ifndef __GCOBJECT_HPP
 #define __GCOBJECT_HPP
 
-#define NEW_GC_UTILS 1
 #include "GCUtils.hpp"
 #include "GCPointer.hpp"
-#if NEW_GC_UTILS
 #include "GCUtils2.hpp"
-#endif
 #include "runtime/atomic.hpp"
 #include "oops/oop.hpp"
 #include "GCNode.hpp"
@@ -22,14 +19,6 @@ namespace RTGC {
 class GCObject;
 class SafeShortcut;
 
-#if !NEW_GC_UTILS
-class AnchorIterator;
-class ReferrerList : public SimpleVector<ShortOOP> {
-public:    
-	void init(int initialSize);
-};
-#endif
-
 class GCObject : public GCNode {
 	friend class GCRuntime;
 	friend class GarbageProcessor;
@@ -40,8 +29,6 @@ public:
 		// *((int64_t*)this) = 0;
 		// _nodeType = (int)type;
 	} 
-
-	void initIterator(AnchorIterator* iterator);
 
 	ReferrerList* getReferrerList();
 
@@ -90,24 +77,20 @@ public:
 
 	void invaliateSurvivalPath(GCObject* newTail);
 
-	GCObject* getLinkInside(SafeShortcut* container);
-
-	bool visitLinks(LinkVisitor visitor, void* callbackParam);
-
 	bool containsReferrer(GCObject* node);
 
 	void addReferrer(GCObject* referrer);
 
 	// return true if safe_anchor removed;
-	bool removeReferrer(GCObject* referrer);
+	void removeReferrer(GCObject* referrer);
 
 	// return true if safe_anchor removed;
-	bool removeReferrerWithoutReallocaton(GCObject* referrer);
+	void removeReferrerWithoutReallocaton(GCObject* referrer);
 
 	// return true if safe_anchor removed;
 	bool tryRemoveReferrer(GCObject* referrer);
 
-	// return true if any referrer removed.
+	// return true if safe_anchor removed;
 	bool removeMatchedReferrers(GCObject* referrer);
 
 	void removeAllAnchors();
@@ -134,7 +117,10 @@ class SafeShortcut {
 	SafeShortcut(GCObject* anchor, GCObject* tail) :  
 			_inTracing(NULL), _anchor(anchor), _tail(tail) {}
 public:
-	~SafeShortcut() { *(int32_t*)&_anchor = 0; }
+	~SafeShortcut() { 
+		//rtgc_log(true, "SafeShortcut deleted %d\n", this->getIndex());
+		*(int32_t*)&_anchor = 0; 
+	}
 
 	static void initialize();
 
@@ -213,6 +199,7 @@ public:
 	static bool clearTooShort(GCObject* anchor, GCObject* tail);
 
 	void adjustPointUnsafe(GCObject* anchor, GCObject* tail) {
+		precond(anchor != NULL);
 		_anchor = anchor; _tail = tail;
 	}
 
@@ -228,19 +215,6 @@ public:
 
 	static bool isValidIndex(int idx);
 };
-
-
-#if !NEW_GC_UTILS
-
-class AnchorIterator : public NodeIterator<ShortOOP> {
-public:
-	AnchorIterator() {}
-
-	AnchorIterator(GCObject* const node) {
-		node->initIterator(this);
-	}
-};
-#endif
 
 }
 
