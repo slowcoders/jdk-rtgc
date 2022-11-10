@@ -1,5 +1,6 @@
 ###
    1. lockfree set-field: modified history (modified bit);
+      MacroAssembler::decode_heap_oop/encode_heap_oop
       (old_p, anchor, [new_p], pointer)
           -> [link, anchor(+0 deassigned)], [link, anchor(+1 assigned)]
           -> link 로 sorting 하여 anchor list 변경 목록 확보.
