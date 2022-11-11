@@ -141,6 +141,7 @@ public:
     }
 
     T front() {
+        precond(!empty());
         return this->at(0);
     }
 

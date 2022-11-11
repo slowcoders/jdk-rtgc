@@ -199,10 +199,9 @@ void rtHeap__addResurrectedObject(GCObject* node) {
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
-  assert(node->isTrackable(), "must be trackable %p(%s)\n", new_p, RTGC::getClassName(to_obj(new_p)));
+  assert(node->isTrackable(), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   if (node->isGarbageMarked()) {
-    assert(node->isTrackable(), "no y-root %p(%s)\n",
-        node, RTGC::getClassName(node));
+    assert(node->isTrackable(), "not yr " PTR_DBG_SIG, PTR_DBG_INFO(node));
     rtHeapUtil::resurrect_young_root(node);
     if (node->hasSafeAnchor()) return;
     // garbage marking 된 상태는 stack marking 이 끝난 상태.
@@ -467,8 +466,8 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       ReferrerList* referrers = node->getReferrerList();
       assert(!referrers->isTooSmall(), "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
       for (ReverseIterator it(referrers); it.hasNext(); ) {
-        ShortOOP& ptr = it.next();
-        adjust_anchor_pointer(&ptr, node);
+        ShortOOP* ptr = (ShortOOP*)it.getAndNext();
+        adjust_anchor_pointer(ptr, node);
       }
     }
     else {

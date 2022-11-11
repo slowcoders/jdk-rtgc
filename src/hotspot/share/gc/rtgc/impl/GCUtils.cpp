@@ -22,11 +22,20 @@ namespace RTGC {
         precond(offset != 0);
 		return (void*)(CompressedOops::base() + (uintptr_t)offset * OBJ_ALIGN);
     }
+
+    class TailNodeIterator : public NodeIterator<true> {
+    public:    
+        TailNodeIterator(ReferrerList* list) {
+            _ptr = list->lastItemPtr();
+            _end = list->firstItemPtr();
+        }     
+    };
+
 }
 
 ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
-ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
+const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
     Chunk* tail = g_chunkPool.allocate();
     precond(((uintptr_t)tail & CHUNK_MASK) == 0);
     tail->_last_item_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
@@ -44,7 +53,7 @@ ReferrerList::Chunk* ReferrerList::dealloc_chunk(Chunk* chunk) {
 
 
 void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
-    ShortOOP* pLast = lastItemPtr();
+    const ShortOOP* pLast = lastItemPtr();
     if (copy_to != NULL) {
         *copy_to = *pLast;
     }
@@ -64,74 +73,98 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
 }
 
 void ReferrerList::add(ShortOOP item) {
-    ShortOOP* pLast = lastItemPtr();
-    Chunk* last_chunk = (Chunk*)((uintptr_t)pLast & ~CHUNK_MASK);
-    if (last_chunk == &_head) {
+    const ShortOOP* pLast = lastItemPtr();
+    if (!hasMultiChunk()) {
         if (pLast == &_head._items[MAX_COUNT_IN_CHUNK - 1]) {
-            pLast = extend_tail(last_chunk);
+            pLast = extend_tail(&_head);
             set_last_item_ptr(pLast);
         } else {
             pLast++;
             _head._last_item_offset ++;
         }
     } else {
-        if (((uintptr_t)pLast % sizeof(Chunk)) == 0) {
-            pLast = extend_tail(last_chunk);
+        if (((uintptr_t)pLast & CHUNK_MASK) == 0) {
+            precond(((uintptr_t)pLast & ~CHUNK_MASK) == (uintptr_t)pLast);
+            pLast = extend_tail((Chunk*)pLast);
             set_last_item_ptr(pLast);
         } else {
             pLast --;
             _head._last_item_offset --;
         }
     }
-    *pLast = item;
+    *(ShortOOP*)pLast = item;
 }
 
-static ShortOOP* __getItemPtr(ReverseIterator& iter, ShortOOP item) {
+static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
     while (iter.hasNext()) {
-        ShortOOP& ptr = iter.next();
-        if (ptr == item) {
-            return &ptr;
+        const ShortOOP* ptr = iter.getAndNext();
+        if (*ptr == item) {
+            return ptr;
         }
     }
     return NULL;
 }
 
-ShortOOP* ReferrerList::getItemPtr(ShortOOP item) {
-    ReverseIterator iter(this);
-    return __getItemPtr(iter, item);
+const ShortOOP* ReferrerList::getItemPtr(ShortOOP item) {
+    const ShortOOP* pItem;
+    if (this->hasMultiChunk()) {
+        TailNodeIterator iter(this);
+        pItem = __getItemPtr(iter, item);
+        if (pItem != NULL) return pItem;
+        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
+    } else {
+        pItem = lastItemPtr();
+    }
+
+    for (;; pItem--) {
+        if (*pItem == item) return pItem;
+    }
+    return NULL;
 }
 
 void ReferrerList::replaceFirst(ShortOOP new_first) {
     ShortOOP old_first = this->front();
     if (old_first != new_first) {
-        ShortOOP* pItem = getItemPtr(new_first);
+        const ShortOOP* pItem = getItemPtr(new_first);
         assert(pItem != NULL, "incorrect anchor %p(%s)\n",
             (GCObject*)new_first, RTGC::getClassName((GCObject*)new_first));
-        *firstItemPtr() = new_first;
-        *pItem = old_first;
+        _head._items[0] = new_first;
+        *(ShortOOP*)pItem = old_first;
     }
 }
 
 const void* ReferrerList::remove(ShortOOP item) {
-    ShortOOP* pItem = getItemPtr(item);
+    const ShortOOP* pItem = getItemPtr(item);
     if (pItem != NULL) {
-        cut_tail_end(pItem);
+        cut_tail_end((ShortOOP*)pItem);
         return pItem;
     }
     return NULL;
 }
 
+
 const void* ReferrerList::removeMatchedItems(ShortOOP item) {
-    ReverseIterator iter(this);
     const void* last_removed = NULL;
-    while (true) {
-        ShortOOP* pItem = __getItemPtr(iter, item);
-        if (pItem == NULL) break;
-        cut_tail_end(pItem);
-        if (last_removed != this->_head._items) {
+    const ShortOOP* pItem;
+    if (this->hasMultiChunk()) {
+        TailNodeIterator iter(this);
+        while ((pItem = __getItemPtr(iter, item)) != NULL) {
+            cut_tail_end((ShortOOP*)pItem);
             last_removed = pItem;
         }
+        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
+    } else {
+        pItem = lastItemPtr();
     }
+
+    for (;; pItem--) {
+        if (*pItem == item) {
+            cut_tail_end((ShortOOP*)pItem);
+            last_removed = pItem;
+        }
+        if (pItem == _head._items) break;
+    }
+
     return last_removed;
 }
 

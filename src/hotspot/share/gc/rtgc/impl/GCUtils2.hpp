@@ -19,7 +19,7 @@ class ReferrerList {
     Chunk _head;
 
 public:
-    void init() {
+    void initEmpty() {
         _head._last_item_offset = -MAX_COUNT_IN_CHUNK;
     }
 
@@ -29,32 +29,32 @@ public:
         _head._last_item_offset = -(MAX_COUNT_IN_CHUNK - 1);
     }
 
-    ShortOOP* firstItemPtr() {
+    const ShortOOP* firstItemPtr() {
         return &_head._items[0];
     }
 
-    ShortOOP* lastItemPtr() {
+    const ShortOOP* lastItemPtr() {
         return &_head._items[MAX_COUNT_IN_CHUNK] + _head._last_item_offset;
     }
 
     bool empty() {
-        return _head._last_item_offset == -(MAX_COUNT_IN_CHUNK+1);
+        return approximated_item_count() == 0;
     }
 
     bool hasSingleItem() {
-        return _head._last_item_offset + MAX_COUNT_IN_CHUNK == 0;
+        return approximated_item_count() == 1;
     }
 
     bool isTooSmall() {
-        uint32_t offset = (uint32_t)_head._last_item_offset + MAX_COUNT_IN_CHUNK + 1;
-        return offset < 2;
+        return approximated_item_count() <= 1;
     }
 
     bool hasMultiChunk() {
-        return (uint32_t)_head._last_item_offset < (uint32_t)(-MAX_COUNT_IN_CHUNK);
+        return approximated_item_count() > MAX_COUNT_IN_CHUNK;
     }
 
     ShortOOP front() {
+        precond(!empty());
         return _head._items[0];
     }
 
@@ -75,24 +75,19 @@ public:
 
     const void* removeMatchedItems(ShortOOP item);
 
-    ShortOOP* getItemPtr(ShortOOP item);
+    const ShortOOP* getItemPtr(ShortOOP item);
 
-    int approximated_item_count() {
-        int count = lastItemPtr() - firstItemPtr();
-        if (count < 0) {
-            count = -count;
-        }
-        return count;
+    uint32_t approximated_item_count() {
+        uint32_t size = _head._last_item_offset + (MAX_COUNT_IN_CHUNK+1);
+        return size;
     }
 
-    ShortOOP* getLastItemOffsetPtr() {
+    const ShortOOP* getLastItemOffsetPtr() {
         return &_head._items[MAX_COUNT_IN_CHUNK];
     }    
 
-    static void validateChunktemPtr(ShortOOP*& ptr) {
-        if (((uintptr_t)ptr & CHUNK_MASK) == sizeof(Chunk) - sizeof(int32_t)) {
-            ptr = ptr + *(int32_t*)ptr;
-        }
+    static bool isEndOfChunk(const ShortOOP* ptr) {
+        return ((uintptr_t)ptr & CHUNK_MASK) == (sizeof(Chunk) - sizeof(ShortOOP));
     }
 
     static void initialize() {
@@ -124,11 +119,11 @@ private:
     
     static  ChunkPool g_chunkPool;
 
-    ShortOOP* extend_tail(Chunk* last_chunk);
+    const ShortOOP* extend_tail(Chunk* last_chunk);
 
     Chunk* dealloc_chunk(Chunk* chunk);
 
-    void set_last_item_ptr(ShortOOP* pLast) {
+    void set_last_item_ptr(const ShortOOP* pLast) {
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
     }
 
@@ -138,33 +133,15 @@ private:
 template <bool trace_reverse>
 class NodeIterator {
 protected:    
-    ShortOOP* _ptr;
-    ShortOOP* _end;
+    const ShortOOP* _ptr;
+    const ShortOOP* _end;
 
 public:
     void initEmpty() {
         _ptr = _end = NULL;
     }
 
-    void initIterator(ReferrerList* vector) {
-        if (!vector->hasMultiChunk()) {
-            if (vector->empty()) {
-                _ptr = _end = NULL;
-            } else {
-                _ptr = vector->firstItemPtr();
-                _end = vector->lastItemPtr() + 1;
-            }
-        } else if (trace_reverse) {
-            _ptr = vector->lastItemPtr();
-            _end = vector->getLastItemOffsetPtr();
-            postcond(_ptr != _end);
-        } else {
-            _ptr = vector->firstItemPtr();
-            _end = _ptr;
-        }
-    } 
-
-    void initSingleIterator(ShortOOP* temp) {
+    void initSingleIterator(const ShortOOP* temp) {
         _ptr = temp;
         _end = temp + 1;
     }
@@ -173,12 +150,14 @@ public:
         return _ptr != (trace_reverse ? _end : NULL);
     }
 
-    ShortOOP& next() {
+    const ShortOOP* getAndNext() {
         precond(hasNext());
-        ShortOOP& oop = *_ptr ++;
-        precond((GCObject*)oop != NULL);
+        const ShortOOP* oop = _ptr ++;
+        precond((GCObject*)*oop != NULL);
         if (_ptr != _end) {
-            ReferrerList::validateChunktemPtr(_ptr);
+            if (ReferrerList::isEndOfChunk(_ptr)) {
+                _ptr = _ptr + *(int32_t*)_ptr;
+            }
             if (!trace_reverse && _ptr == _end) {
                 _ptr = NULL;
             } 
@@ -192,8 +171,16 @@ public:
 class ReverseIterator : public NodeIterator<true> {
 public:     
     ReverseIterator(ReferrerList* list) {
-        initIterator(list);
-    }
+        precond(!list->isTooSmall());
+        if (!list->hasMultiChunk()) {
+            _ptr = list->firstItemPtr();
+            _end = list->lastItemPtr() + 1;
+        } else {
+            _ptr = list->lastItemPtr();
+            _end = list->getLastItemOffsetPtr();
+        }
+        postcond(_ptr != _end);
+    }     
 };
 
 class AnchorIterator : public NodeIterator<false> {
@@ -205,18 +192,32 @@ public:
 
     void initialize(GCObject* obj);
 
+    void initIterator(ReferrerList* list) {
+        if (!list->hasMultiChunk()) {
+            if (list->empty()) {
+                _ptr = _end = NULL;
+            } else {
+                _ptr = list->firstItemPtr();
+                _end = list->lastItemPtr() + 1;
+            }
+        } else {
+            _ptr = list->firstItemPtr();
+            _end = _ptr;
+        }
+    } 
+
     GCObject* peekPrev() {
         return _current;
     }
 
-    GCObject* next_obj() {
-        this->_current = next();
+    GCObject* next() {
+        this->_current = *getAndNext();
         return this->_current;
     }
 
-    ShortOOP& next() {
+    const ShortOOP* getAndNext() {
         this->_current = *_ptr;
-        return NodeIterator<false>::next();
+        return NodeIterator<false>::getAndNext();
     }
 };
 

@@ -102,10 +102,12 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
   if (false && RTGC::is_debug_pointer(debug_base)) {
-     rtgc_log(1, "referrer %p(rc=%d) added to %p\n", base, to_obj(base)->getRootRefCount(), p);
+     rtgc_log(1, "referrer %p(rc=%d) added to %p(%s)\n", 
+        base, to_obj(base)->getRootRefCount(), p, RTGC::getClassName(p));
   }
   if (RTGC::is_debug_pointer(p)) {
-     rtgc_log(1, "referrer %p added to %p(rc=%d)\n", base, p, to_obj(p)->getRootRefCount());
+     rtgc_log(1, "referrer %p(%s) added to %p(rc=%d)\n", 
+        debug_base, RTGC::getClassName(debug_base), p, to_obj(p)->getRootRefCount());
   }
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
@@ -226,7 +228,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "com/sun/tools/javac/util/SharedNameTable$NameImpl",
+  "[Lcom/sun/tools/javac/util/SharedNameTable$NameImpl;",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -333,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 1;//UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG |= UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 
