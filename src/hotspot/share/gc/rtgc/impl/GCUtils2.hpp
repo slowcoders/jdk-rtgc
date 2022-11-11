@@ -42,7 +42,7 @@ public:
     }
 
     bool hasSingleItem() {
-        return _head._last_item_offset == -(MAX_COUNT_IN_CHUNK);
+        return _head._last_item_offset + MAX_COUNT_IN_CHUNK == 0;
     }
 
     bool isTooSmall() {
@@ -142,20 +142,18 @@ protected:
     ShortOOP* _end;
 
 public:
-    NodeIterator() {}
-
-    NodeIterator(GCObject* obj);
-
     void initEmpty() {
         _ptr = _end = NULL;
     }
 
     void initIterator(ReferrerList* vector) {
-        precond(!vector->empty());
         if (!vector->hasMultiChunk()) {
-            _ptr = vector->firstItemPtr();
-            _end = vector->lastItemPtr() + 1;
-            postcond(_ptr != _end);
+            if (vector->empty()) {
+                _ptr = _end = NULL;
+            } else {
+                _ptr = vector->firstItemPtr();
+                _end = vector->lastItemPtr() + 1;
+            }
         } else if (trace_reverse) {
             _ptr = vector->lastItemPtr();
             _end = vector->getLastItemOffsetPtr();
@@ -178,6 +176,7 @@ public:
     ShortOOP& next() {
         precond(hasNext());
         ShortOOP& oop = *_ptr ++;
+        precond((GCObject*)oop != NULL);
         if (_ptr != _end) {
             ReferrerList::validateChunktemPtr(_ptr);
             if (!trace_reverse && _ptr == _end) {

@@ -25,7 +25,6 @@ extern void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
 static const bool USE_REF_ARRAY = true;
 static const bool ENABLE_SOFT_WEAK_REF = true;
-static const bool REMOVE_REF_TEMPORARY = true;
 static const bool CLEAR_FINALIZE_REF = false;
 #if DO_CROSS_CHECK_REF
 static int g_cntMisRef = 0;
@@ -377,13 +376,8 @@ namespace RTGC {
 
     void break_weak_soft_link() {
       GCObject* ref = to_obj(_curr_ref);
-      GCObject* referent = to_obj(this->_referent_p);
-      if (REMOVE_REF_TEMPORARY) {
-        if (ref->isTrackable()) {
-          referent->removeReferrerWithoutReallocaton(ref);
-        }
-      } else if (referent->hasShortcut() && referent->getSafeAnchor() == ref) {
-        referent->getShortcut()->split(ref, referent);
+      if (ref->isTrackable()) {
+        to_obj(_referent_p)->removeReferrerWithoutReallocaton(ref);
       }
     } 
 
@@ -421,11 +415,9 @@ namespace RTGC {
               "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
               referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), referent->hasMultiRef());
         }
-        if (REMOVE_REF_TEMPORARY) {
-          GCObject* ref = to_obj(_curr_ref);
-          if (ref->isTrackable()) {
-            referent->addReferrer(ref);
-          }
+        GCObject* ref = to_obj(_curr_ref);
+        if (ref->isTrackable()) {
+          referent->addReferrer(ref);
         }
       }
     }

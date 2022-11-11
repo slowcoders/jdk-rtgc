@@ -49,6 +49,10 @@ public:
     GCObject* operator -> () const {
         return (GCObject*)_offset2Pointer(_ofs);
     }
+
+    uint32_t getOffset() const {
+        return _ofs;
+    }
 };
 
 template <class T>

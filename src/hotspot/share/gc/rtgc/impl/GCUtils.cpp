@@ -8,7 +8,6 @@ using namespace RTGC;
 
 namespace RTGC {
     static const int OBJ_ALIGN = 8;
-    ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
     uint32_t _pointer2offset(void* ref) {
         precond(ref != nullptr);
@@ -24,6 +23,8 @@ namespace RTGC {
 		return (void*)(CompressedOops::base() + (uintptr_t)offset * OBJ_ALIGN);
     }
 }
+
+ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
 ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
     Chunk* tail = g_chunkPool.allocate();

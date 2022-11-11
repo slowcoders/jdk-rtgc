@@ -122,15 +122,7 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
 
         bool first_item_removed = removed == referrers->firstItemPtr();
         if (reallocReferrerList && referrers->isTooSmall()) {
-            if (referrers->empty()) {
-                precond(!referrers->hasSingleItem());
-                this->_refs = 0;
-            }
-            else {
-                precond(referrers->hasSingleItem());
-                GCObject* remained = referrers->front();
-                this->_refs = _pointer2offset(remained);
-            }
+            this->_refs = referrers->empty() ? 0 : referrers->front().getOffset();
             ReferrerList::delete_(referrers);
             setHasMultiRef(false);
         } else {
@@ -165,7 +157,7 @@ void GCObject::removeReferrer(GCObject* referrer) {
 
 void GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
     if (removeReferrer_impl<false, true, false>(referrer) == 0) {
-        GCRuntime::detectUnsafeObject(this);
+        // GCRuntime::detectUnsafeObject(this);
     }
 }
 
@@ -209,11 +201,11 @@ void GCObject::clearAnchorList() {
 bool GCObject::clearEmptyAnchorList() {
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
-        if (referrers->empty()) {
+        if (referrers->isTooSmall()) {
             precond(!this->hasShortcut());
+            this->_refs = referrers->empty() ? 0 : referrers->front().getOffset();
             ReferrerList::delete_(referrers);
             setHasMultiRef(false);
-            this->_refs = 0;
         }
     }    
     return this->_refs == 0;

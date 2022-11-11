@@ -226,8 +226,8 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/lang/invoke/MemberName",
-  // "java/lang/invoke/ResolvedMethodName",
+  "com/sun/tools/javac/util/SharedNameTable$NameImpl",
+  // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
@@ -256,7 +256,7 @@ int cntDbgObj = 0;
 // }
 bool RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
-  if (obj == NULL) return false;
+  if (!RTGC_DEBUG || obj == NULL) return false;
 
   if (ptr == debug_obj) return true;
 
@@ -291,6 +291,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 }
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
+  if (!RTGC_DEBUG) return;
   if (destroy_old_node) {
     to_node(old_p)->invalidateAnchorList_unsafe();
   }
@@ -307,9 +308,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
-    return;
-//else 
-  if (is_debug_pointer(old_p)) {
+  else if (is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
@@ -334,7 +333,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0;// UnlockExperimentalVMOptions;
+  RTGC_DEBUG |= 1;//UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 

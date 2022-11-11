@@ -465,7 +465,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   if (node->isAnchored()) {
     if (node->hasMultiRef()) {
       ReferrerList* referrers = node->getReferrerList();
-      precond(!referrers->isTooSmall());
+      assert(!referrers->isTooSmall(), "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
       for (ReverseIterator it(referrers); it.hasNext(); ) {
         ShortOOP& ptr = it.next();
         adjust_anchor_pointer(&ptr, node);
@@ -655,9 +655,10 @@ void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
 
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
-    assert(rtHeap::is_alive(obj), "must not a garbage %p(%s)\n", 
-        (void*)obj, obj->klass()->name()->bytes());
-    precond(to_obj(obj)->hasReferrer(to_obj(anchor)));
+    assert(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
+    assert(to_obj(obj)->hasReferrer(to_obj(anchor)), 
+        "invalid link %d\n anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
+        rtHeapEx::print_ghost_anchors(to_obj(obj)), PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
   }
 }
 
