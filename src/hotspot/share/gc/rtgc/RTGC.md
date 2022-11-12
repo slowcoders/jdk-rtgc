@@ -88,6 +88,15 @@ bash configure --with-jvm-variants=client \
   ENABLE_RTGC_STORE_HOOK = 1 (RTGC_HOOK enable)
   ENABLE_RTGC_STORE_TEST = 1 ( TEST Log 출력)
 
+==============================
+Test summary 2022 11/12 Opt Anchor List
+==============================
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1585    22     3 <<
+>> jtreg:test/jdk:tier1                               2062  2058     0     4 <<
+>> jtreg:test/langtools:tier1                         4215  4199     0    16 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0 
+==============================
 
 ==============================
 Test summary 2022 11/09 Full RTGC
