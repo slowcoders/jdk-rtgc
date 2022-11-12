@@ -1,5 +1,8 @@
 #         --add-modules jdk.compiler \
 #        --add-modules java.base \
+#        --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+#        --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+#        --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.sjavac=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.sjavac.server=ALL-UNNAMED \
@@ -79,7 +82,7 @@
 #         com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_defineHiddenClass_UnloadingTest_java/java/lang/invoke/defineHiddenClass/UnloadingTest.d/testng.0.jta java/lang/invoke/defineHiddenClass/UnloadingTest.java false UnloadingTest
 
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
@@ -87,22 +90,25 @@ LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/tmp' \
+        -Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/tmp -ea -esa' \
+        -Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/tmp -J-ea -J-esa' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dtest.timeout.factor=4.0 \
-        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
-        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=runtime/BadObjectClass/TestUnloadClassError.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/BadObjectClass/TestUnloadClassError.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/BadObjectClass \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/BadObjectClass:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/runtime/BadObjectClass/TestUnloadClassError.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/runtime/BadObjectClass/TestUnloadClassError.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/test/lib \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/runtime/BadObjectClass/TestUnloadClassError.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/BadObjectClass:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/test/lib \
-        -Dtest.modules='java.base/jdk.internal.misc java.compiler' \
-        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/runtime/BadObjectClass/TestUnloadClassError.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/BadObjectClass:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_BadObjectClass_TestUnloadClassError_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
-        TestUnloadClassError
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
+        -Dtest.name=tools/javac/cast/intersection/IntersectionTypeCastTest.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/cast/intersection/IntersectionTypeCastTest.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/cast/intersection \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/cast/intersection:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/cast/intersection/IntersectionTypeCastTest.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/cast/intersection/IntersectionTypeCastTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/cast/intersection/IntersectionTypeCastTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/cast/intersection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/lib \
+        --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.sjavac=ALL-UNNAMED \
+        -Dtest.modules='jdk.compiler/com.sun.tools.javac.api jdk.compiler/com.sun.tools.javac.file jdk.compiler/com.sun.tools.javac.util' \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/cast/intersection/IntersectionTypeCastTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/cast/intersection:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_cast_intersection_IntersectionTypeCastTest_java/classes/0/tools/javac/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        IntersectionTypeCastTest
