@@ -83,9 +83,9 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
 }
 
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(oop* p)       { Derived::do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(oop* p)       { ((Derived*)this)->do_oop_work(p); }
 template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { Derived::do_oop_work(p); }
+inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { ((Derived*)this)->do_oop_work(p); }
 
 #if !INCLUDE_RTGC
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :

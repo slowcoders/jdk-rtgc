@@ -3,7 +3,7 @@
 
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtRefProcessor.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "logging/logConfiguration.hpp"
 
@@ -17,7 +17,7 @@ static const int LOG_OPT(int function) {
 static int _logOptions[256];
 static int _debugOptions[256];
 namespace RTGC {
-
+  bool rtHeapEx::OptStoreOop = false;
   Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
@@ -228,7 +228,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "[Lcom/sun/tools/javac/util/SharedNameTable$NameImpl;",
+  // "[Lcom/sun/tools/javac/util/SharedNameTable$NameImpl;",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",

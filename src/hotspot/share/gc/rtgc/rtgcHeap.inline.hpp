@@ -13,7 +13,7 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
-#include "rtRefProcessor.hpp"
+#include "rtHeapEx.hpp"
 
 
 class YoungRootClosure : public BasicOopIterateClosure {

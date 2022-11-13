@@ -19,7 +19,7 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
-#include "rtRefProcessor.hpp"
+#include "rtHeapEx.hpp"
 #include "rtCLDCleaner.hpp"
 
 int rtHeap::in_full_gc = 0;

@@ -209,7 +209,7 @@ class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClo
   bool _is_young_root;
 public:
   
-  bool iterate_tenured_young_root_oop(oop obj) {
+  bool iterate_tenured_young_root_oop(oopDesc* obj) {
     precond(rtHeap::is_trackable(obj));
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;

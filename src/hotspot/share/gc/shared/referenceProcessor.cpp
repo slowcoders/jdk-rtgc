@@ -41,7 +41,7 @@
 #include "runtime/java.hpp"
 #include "runtime/nonJavaThread.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
-#include "gc/rtgc/rtRefProcessor.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 
 ReferencePolicy* ReferenceProcessor::_always_clear_soft_ref_policy = NULL;
 ReferencePolicy* ReferenceProcessor::_default_soft_ref_policy      = NULL;

@@ -19,13 +19,13 @@ class ReferenceDiscoverer;
 
 class RtYoungRootClosure {
 protected:
-  oop _current_anchor;
+  oopDesc* _current_anchor;
 public:  
   RtYoungRootClosure() : _current_anchor(0) {}
 
-  virtual bool iterate_tenured_young_root_oop(oop root) = 0;
+  virtual bool iterate_tenured_young_root_oop(oopDesc* root) = 0;
   virtual void do_complete() = 0;
-  oop current_anchor() { return _current_anchor; }
+  oopDesc* current_anchor() { return _current_anchor; }
 };
 
 class rtHeap : AllStatic {

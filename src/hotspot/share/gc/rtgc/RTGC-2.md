@@ -1,6 +1,10 @@
 ###
    1. lockfree set-field: modified history (modified bit);
       MacroAssembler::decode_heap_oop/encode_heap_oop
+      참조) BarrierSetAssembler::eden_allocate
+      참고) thread::_gc_data -> GCThreadLocalData[19];
+         thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
+         
       (old_p, anchor, [new_p], pointer)
           -> [link, anchor(+0 deassigned)], [link, anchor(+1 assigned)]
           -> link 로 sorting 하여 anchor list 변경 목록 확보.

@@ -4,7 +4,7 @@
 #include "../RTGC.hpp"
 #include "../rtgcDebug.hpp"
 #include "../rtgcHeap.hpp"
-#include "../rtRefProcessor.hpp"
+#include "../rtHeapEx.hpp"
 
 #define USE_ITERATOR_STACK false
 #define USE_ANCHOR_VISIOR true
@@ -259,11 +259,6 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
 
 void GarbageProcessor::addUnstable_ex(GCObject* obj) {
     _unsafeObjects.push_back(obj);
-}
-
-static int __break() {
-    fatal("rtgc break");
-    return 0;
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {

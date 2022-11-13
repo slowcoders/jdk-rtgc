@@ -126,7 +126,7 @@ public:
   YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
    : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
   
-  bool iterate_tenured_young_root_oop(oop obj) {
+  bool iterate_tenured_young_root_oop(oopDesc* obj) {
     _has_young_ref = false;
     oop old_anchor = _current_anchor;
     _current_anchor = obj;

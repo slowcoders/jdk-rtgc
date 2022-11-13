@@ -2,14 +2,17 @@
 #define SHARE_GC_RTGC_RTREFPROCESSOR_HPP
 
 #include "rtgcHeap.hpp"
-#include "gc/rtgc/impl/GCObject.hpp"
 
 class RefProcProxyTask;
 
 namespace RTGC {
 
+class GCObject;
+
 class rtHeapEx {
 public:  
+  static bool OptStoreOop;
+
   static void adjust_ref_q_pointers(bool is_full_gc);
 
   static void initializeRefProcessor();

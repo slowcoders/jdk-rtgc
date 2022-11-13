@@ -36,6 +36,7 @@
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 
 static int rtgc_log_trigger = 0;
 static const bool ENABLE_CPU_MEMBAR = false;
@@ -47,11 +48,134 @@ static const int LOG_OPT(int function) {
 }
 
 void __trace(narrowOop* addr) {
-  rtgc_log(1, "__TRCAE %p\n", addr);
+  //rtgc_log(1, "__TRCAE %p\n", addr);
 }
 void __break(narrowOop* addr) {
   assert(false, "__BREAK %p\n", addr);
 }
+
+class LIR_OpCompareAndSwapOop : public LIR_OpCompareAndSwap {
+  LIR_Opr _base;
+public:
+  LIR_OpCompareAndSwapOop(LIR_Opr base, LIR_Opr addr, LIR_Opr cmp_value, LIR_Opr new_value,
+      LIR_Opr t1, LIR_Opr t2, LIR_Opr result) 
+      : LIR_OpCompareAndSwap(lir_cas_obj, addr, cmp_value, new_value, t2, t2, result) {
+        this->_base = base;
+  }
+
+  virtual void emit_code(LIR_Assembler* masm);
+  virtual void visit(LIR_OpVisitState* state);
+};
+
+void LIR_OpCompareAndSwapOop::visit(LIR_OpVisitState* state) {
+  // _code 가 lir_none 인 경우에만 호출된다. 
+  // (LIR_OpCompareAndSwap 을 상속한 경우엔 호출되지 않는다)
+  fatal("should not reach here!");
+  // assert(addr()->is_valid(),      "used");
+  // assert(cmp_value()->is_valid(), "used");
+  // assert(new_value()->is_valid(), "used");
+  // if (info())               state->do_info(info());
+  //                           state->do_input(addr());
+  //                           state->do_temp(addr());
+  //                           state->do_input(cmp_value());
+  //                           state->do_temp(cmp_value());
+  //                           state->do_input(new_value());
+  //                           state->do_temp(new_value());
+  // if (tmp1->is_valid())     state->do_temp(tmp1());
+  // if (tmp2->is_valid())     state->do_temp(tmp2());
+  // if (result()->is_valid()) state->do_output(result());
+}
+
+void addUpdateLog(LIR_Assembler* masm, Register base, Register addr, Register erased) {
+  Label L_done;
+  C1_MacroAssembler* cm = masm->masm();
+  cm-> testl(erased, 1);
+  /*if*/cm-> jcc(Assembler::Condition::zero, L_done);
+  {
+    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+    Address log_top(thread, Thread::gc_data_offset());
+    cm-> movq(rscratch1, 16);
+
+    cm-> lock();
+    cm-> xaddq(log_top, rscratch1);
+
+    Address new_log(rscratch1, 0);
+    cm-> movq(new_log, base);
+    cm-> addq(rscratch1, 8);
+    cm-> subl(addr, base);
+    cm-> movl(new_log, addr);
+    cm-> addq(rscratch1, 4);
+    cm-> movl(new_log, erased);
+  }
+  cm-> bind(L_done);
+}
+
+void LIR_OpCompareAndSwapOop::emit_code(LIR_Assembler* masm) {
+  
+  NOT_LP64(assert(this->addr()->is_single_cpu(), "must be single");)
+  Register base = this->_base->as_register();
+  Register addr = (this->addr()->is_single_cpu() ? this->addr()->as_register() : this->addr()->as_register_lo());
+  Register newval = this->new_value()->as_register();
+  Register cmpval = this->cmp_value()->as_register();
+  assert(cmpval == rax, "wrong register");
+  assert(newval != NULL, "new val must be register");
+  assert(cmpval != newval, "cmp and new values must be in different registers");
+  assert(cmpval != addr, "cmp and addr must be in different registers");
+  assert(newval != addr, "new value and addr must be in different registers");
+  C1_MacroAssembler* cm = masm->masm();
+  cm->call(RuntimeAddress((address)__trace));
+
+#ifdef _LP64
+  if (UseCompressedOops) {
+    Label L_compare_fast;
+
+    cm-> encode_heap_oop(cmpval);
+
+    cm-> movl(rscratch1, Address(addr, 0));
+    cm-> testl(rscratch1, 1);
+    cm-> jcc(Assembler::Condition::zero, L_compare_fast);
+
+    cm-> mov(rscratch1, cmpval);
+    cm-> shlq(rscratch1, 32);
+    cm-> movl(rscratch1, cmpval);
+    cm-> mov(cmpval, rscratch1);
+    cm-> andl(cmpval, ~1);
+    
+    cm-> bind(L_compare_fast);
+    cm-> mov(rscratch1, newval);
+    cm-> encode_heap_oop(rscratch1);
+    cm-> lock();
+    // cmpval (rax) is implicitly used by this instruction
+    cm-> cmpxchgl(rscratch1, Address(addr, 0));
+    // @zee) modify-flag 사용 시 2회 검사 필요!!!
+    Label L_compare_done;
+    Label L_compare_dirty;
+
+    cm-> jcc(Assembler::notZero, L_compare_dirty);
+    {
+      addUpdateLog(masm, base, addr, cmpval);
+
+      cm-> jmp(L_compare_done);
+    }
+    // else 
+    { 
+      cm-> bind(L_compare_dirty);
+      cm-> shrq(cmpval, 32);
+      cm-> testl(cmpval, 1);
+      cm-> jcc(Assembler::notEqual, L_compare_done);
+
+      cm-> lock();
+      cm-> cmpxchgl(rscratch1, Address(addr, 0));
+    }
+    cm-> bind(L_compare_done);
+  } else
+#endif
+  {
+    cm-> lock();
+    cm-> cmpxchgptr(newval, Address(addr, 0));
+  }
+}
+
 
 
 static LIR_Opr get_resolved_addr(LIRAccess& access) {
@@ -599,24 +723,52 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   }
   
   new_value.load_item();
-  address fn = RtgcBarrier::getCmpSetFunction(access.decorators());
-  OopStoreStub* stub = new OopStoreStub(fn, access, new_value.result(), objectType, &cmp_value);
   LIR_Opr result = gen->new_register(intType);
-  __ move(cmp_value.result(), result);
-  LabelObj* L_done = new LabelObj();
-  if (stub->genConditionalAccessBranch(gen, this)) {
+  
+  if (true) {
     LIR_Opr addr = access.resolved_addr();
     cmp_value.load_item_force(FrameMap::rax_oop_opr);
-    __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
-    // __ branch(lir_cond_always, L_done->label());
-    // LIR_Opr tmp = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
-    // __ move(tmp, gen->result_register_for(intType));
-  } 
-  __ branch_destination(stub->continuation());
-  // __ cmp(lir_cond_equal, result, stub->get_result(gen, objectType));
-  // __ branch_destination(L_done->label());
-  __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
-           result, T_INT);
+    LIRItem& base = access.base().item();
+    LIR_Opr base_opr = base.result();
+    LIR_Opr cmp_opr = cmp_value.result();
+    LIR_Opr new_opr = new_value.result();
+    LIR_Opr addr_opr = addr->as_address_ptr()->base();
+    __ push(base_opr);
+
+    __ append(new LIR_OpCompareAndSwapOop(base_opr, addr_opr, cmp_opr, new_opr, ill, ill, ill));
+
+    LIR_Opr result = gen->new_register(intType);
+    __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
+          result, T_INT);
+    __ pop(base_opr);
+
+    // LIR_Address update_log_top(gen->getThreadPointer(), (int)Thread::gc_data_offset(), T_ADDRESS);
+    // LIR_Opr tmp = gen->new_register(addressType);
+    // __ move(&update_log_top, tmp);
+    // LIR_Opr ptr_size = LIR_OprFact::intConst(sizeof(void*));
+    // LIR_Opr top_addr = gen->atomic_add(T_ADDRESS, tmp, ptr_size);
+    // __ move(base_opr, new LIR_Address(top_addr, 0, T_ASDDRESS));
+    // __ move(addr_opr, new LIR_Address(top_addr, 8));
+    // __ move(cmp_opr, new LIR_Address(top_addr, 8));
+  } else {
+    address fn = RtgcBarrier::getCmpSetFunction(access.decorators());
+    OopStoreStub* stub = new OopStoreStub(fn, access, new_value.result(), objectType, &cmp_value);
+    __ move(cmp_value.result(), result);
+    LabelObj* L_done = new LabelObj();
+    if (stub->genConditionalAccessBranch(gen, this)) {
+      LIR_Opr addr = access.resolved_addr();
+      cmp_value.load_item_force(FrameMap::rax_oop_opr);
+      __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
+      // __ branch(lir_cond_always, L_done->label());
+      // LIR_Opr tmp = BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
+      // __ move(tmp, gen->result_register_for(intType));
+    } 
+    __ branch_destination(stub->continuation());
+    // __ cmp(lir_cond_equal, result, stub->get_result(gen, objectType));
+    // __ branch_destination(L_done->label());
+    __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
+            result, T_INT);
+  }
   return result;
 
   //return stub->get_result(gen, intType);   

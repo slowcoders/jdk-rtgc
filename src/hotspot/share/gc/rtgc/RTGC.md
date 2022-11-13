@@ -18,17 +18,17 @@
    https://code.visualstudio.com/docs/cpp/config-clang-mac
 
 ## 2. Run configure
-* for macosx
+### for macosx 
 ```
 bash configure --with-jvm-variants=client \
-  --enable-ccache \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
+  --enable-ccache \
   --with-gtest=./googletest
-
-  --with-toolchain-type=clang \
+# --with-toolchain-type=clang \
 ```
-* for linux container
+
+### for linux (without ccache -> is docker problrem??)
 ```
 bash configure --with-jvm-variants=client \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \

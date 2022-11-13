@@ -34,7 +34,7 @@
 #include "jvm_io.h"
 
 #ifndef INCLUDE_RTGC
-#define INCLUDE_RTGC
+#define INCLUDE_RTGC 1
 #endif
 
 #ifdef __cplusplus

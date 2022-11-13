@@ -7,6 +7,9 @@
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
+
+using namespace RTGC;
 
 #define __ masm->
 
@@ -120,53 +123,104 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
-
-  //const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+  
   Register obj = dst.base();
+  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
 
+  if (false && rtHeapEx::OptStoreOop) {
   Label L_raw_access, _done;
 
-  Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
   __checkTrackable(masm, obj, L_raw_access, tmp3);
+    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
 
-  push_registers(masm, true, false);
+    push_registers(masm, true, false);
 
-  assert_different_registers(c_rarg0, val);
-  if (in_heap) {
-    assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
-    assert_different_registers(c_rarg2, val);
-    if (dst.index() == c_rarg2) {
-      __ leaq(c_rarg0, dst);
-      __ movptr(c_rarg2, obj);
-    } else {
-      if (obj != c_rarg2) {
-        assert_different_registers(c_rarg2, val);
+    assert_different_registers(c_rarg0, val);
+    if (in_heap) {
+      assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
+      assert_different_registers(c_rarg2, val);
+      if (dst.index() == c_rarg2) {
+        __ leaq(c_rarg0, dst);
         __ movptr(c_rarg2, obj);
+      } else {
+        if (obj != c_rarg2) {
+          assert_different_registers(c_rarg2, val);
+          __ movptr(c_rarg2, obj);
+        }
+        __ leaq(c_rarg0, dst);
       }
-      __ leaq(c_rarg0, dst);
     }
-  }
-  else if (dst.index() != noreg || dst.disp() != 0) {
-    __ lea(c_rarg0, dst);  
-  } else if (dst.base() != c_rarg0) {
-    __ movptr(c_rarg0, dst.base());
-  }
-
-  if (val != c_rarg1) {
-    if (val == noreg) {
-      __ xorq(c_rarg1, c_rarg1);
-    } else {
-      __ movptr(c_rarg1, val);
+    else if (dst.index() != noreg || dst.disp() != 0) {
+      __ lea(c_rarg0, dst);  
+    } else if (dst.base() != c_rarg0) {
+      __ movptr(c_rarg0, dst.base());
     }
-  }
 
-  address fn = RtgcBarrier::getStoreFunction(decorators);
-  __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
-  pop_registers(masm, true, false);
-  __ jmp(_done);
-  __ bind(L_raw_access);
-  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
-  __ bind(_done);
+    if (val != c_rarg1) {
+      if (val == noreg) {
+        __ xorq(c_rarg1, c_rarg1);
+      } else {
+        __ movptr(c_rarg1, val);
+      }
+    }
+
+    address fn = RtgcBarrier::getStoreFunction(decorators);
+    __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
+    pop_registers(masm, true, false);
+    __ jmp(_done);
+    __ bind(L_raw_access);
+    BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+    __ bind(_done);
+
+  } else {    
+
+    // ================== //
+    Register obj = dst.base();
+
+    Label L_raw_access, _done;
+
+    Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+    __checkTrackable(masm, obj, L_raw_access, tmp3);
+
+    push_registers(masm, true, false);
+
+    assert_different_registers(c_rarg0, val);
+    if (in_heap) {
+      assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
+      assert_different_registers(c_rarg2, val);
+      if (dst.index() == c_rarg2) {
+        __ leaq(c_rarg0, dst);
+        __ movptr(c_rarg2, obj);
+      } else {
+        if (obj != c_rarg2) {
+          assert_different_registers(c_rarg2, val);
+          __ movptr(c_rarg2, obj);
+        }
+        __ leaq(c_rarg0, dst);
+      }
+    }
+    else if (dst.index() != noreg || dst.disp() != 0) {
+      __ lea(c_rarg0, dst);  
+    } else if (dst.base() != c_rarg0) {
+      __ movptr(c_rarg0, dst.base());
+    }
+
+    if (val != c_rarg1) {
+      if (val == noreg) {
+        __ xorq(c_rarg1, c_rarg1);
+      } else {
+        __ movptr(c_rarg1, val);
+      }
+    }
+
+    address fn = RtgcBarrier::getStoreFunction(decorators);
+    __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
+    pop_registers(masm, true, false);
+    __ jmp(_done);
+    __ bind(L_raw_access);
+    BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+    __ bind(_done);
+  }
 }
 
 void RtgcBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
