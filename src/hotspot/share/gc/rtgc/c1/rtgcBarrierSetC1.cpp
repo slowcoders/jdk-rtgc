@@ -210,7 +210,8 @@ static LIR_Opr get_resolved_addr(LIRAccess& access) {
 }
 
 void rtgc_update_inverse_graph_c1(oopDesc* base, oopDesc* old_v, oopDesc* new_v);
-static LIR_Opr update_inverse_graph(LIRGenerator* gen, LIR_Opr base, LIR_Opr old_v, LIR_Opr new_v) {
+namespace RTGC_unused { 
+LIR_Opr update_inverse_graph(LIRGenerator* gen, LIR_Opr base, LIR_Opr old_v, LIR_Opr new_v) {
 
   BasicTypeList signature;
   signature.append(T_OBJECT); // base
@@ -226,6 +227,7 @@ static LIR_Opr update_inverse_graph(LIRGenerator* gen, LIR_Opr base, LIR_Opr old
 
   address fn = (address)__break;//rtgc_update_inverse_graph_c1;
   return gen->call_runtime(&signature, args, fn, voidType, NULL);
+}
 }
 
 static LIR_Opr call_barrier(address fn, LIRAccess& access, LIR_Opr new_value, ValueType* result_type,

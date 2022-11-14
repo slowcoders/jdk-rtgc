@@ -1,6 +1,7 @@
 #ifndef SHARE_GC_RTGC_RTGC_HPP
 #define SHARE_GC_RTGC_RTGC_HPP
 
+class oopDesc;
 
 namespace RTGC {
   class GCNode;

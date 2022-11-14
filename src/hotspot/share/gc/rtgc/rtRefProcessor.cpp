@@ -467,19 +467,19 @@ void rtHeapEx::initializeRefProcessor() {
   postcond(RefList::_discovered_off != 0);
 }
 
-static const char* reference_type_to_string(ReferenceType rt) {
-  switch (rt) {
-    case REF_NONE: return "None ref";
-    case REF_OTHER: return "Other ref";
-    case REF_SOFT: return "Soft ref";
-    case REF_WEAK: return "Weak ref";
-    case REF_FINAL: return "Final ref";
-    case REF_PHANTOM: return "Phantom ref";
-    default:
-      ShouldNotReachHere();
-    return NULL;
-  }
-}
+// static const char* reference_type_to_string(ReferenceType rt) {
+//   switch (rt) {
+//     case REF_NONE: return "None ref";
+//     case REF_OTHER: return "Other ref";
+//     case REF_SOFT: return "Soft ref";
+//     case REF_WEAK: return "Weak ref";
+//     case REF_FINAL: return "Final ref";
+//     case REF_PHANTOM: return "Phantom ref";
+//     default:
+//       ShouldNotReachHere();
+//     return NULL;
+//   }
+// }
 
 jlong rtHeapEx::_soft_ref_timestamp_clock;
 

@@ -68,23 +68,27 @@ namespace RTGC {
   RtYoungRootClosure* g_young_root_closure;
   const bool USE_PENDING_TRACKABLES = false;
   oopDesc* empty_trackable;
+}
+
+namespace RTGC_unused {
+  bool IS_GC_MARKED(oopDesc* obj) {
+    return obj->is_gc_marked();
+  }
+
+  bool is_java_reference(oopDesc* obj, ReferenceType rt) {
+    return obj->klass()->id() == InstanceRefKlassID && 
+          (rt == (ReferenceType)-1 || ((InstanceRefKlass*)obj->klass())->reference_type() == rt);
+  }
+
 };
 
 using namespace RTGC;
-
-static bool IS_GC_MARKED(oopDesc* obj) {
-  return obj->is_gc_marked();
-}
-
-static bool is_java_reference(oopDesc* obj, ReferenceType rt) {
-  return obj->klass()->id() == InstanceRefKlassID && 
-        (rt == (ReferenceType)-1 || ((InstanceRefKlass*)obj->klass())->reference_type() == rt);
-}
 
 static oopDesc* __get_discovered(oop obj) {
   return obj->klass()->id() != InstanceRefKlassID ? NULL
     : java_lang_ref_Reference::discovered(obj);
 }
+
 
 bool rtHeap::is_alive(oopDesc* p, bool must_not_destroyed) {
   GCObject* node = to_obj(p);

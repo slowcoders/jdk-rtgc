@@ -13,6 +13,7 @@ class oopDesc;
 class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;
+class VoidClosure;
 class ReferencePolicy;
 class RecycledTrackableClosure;
 class ReferenceDiscoverer;
