@@ -59,7 +59,7 @@ namespace RTGC {
   bool g_in_iterate_younger_gen_roots = false;
   HugeArray<oop> g_young_roots;
   HugeArray<GCObject*> g_stack_roots;
-  int g_resurrected_top = INT_MAX;
+  HugeArray<GCObject*> g_resurrected;
   Thread* gcThread = NULL;
   int g_cntTrackable = 0;
   int g_cntScan = 0;
@@ -194,10 +194,7 @@ void rtHeap__addRootStack_unsafe(GCObject* node) {
 }
 
 void rtHeap__addResurrectedObject(GCObject* node) {
-  if (g_resurrected_top == INT_MAX) {
-    g_resurrected_top = g_stack_roots.size();
-  }
-  g_stack_roots.push_back(node);
+  g_resurrected.push_back(node);
 }
 
 
@@ -666,21 +663,19 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
 }
 
 
-void rtHeap::oop_recycled_iterate(RecycledTrackableClosure* closure) {
-  for (int idx = g_resurrected_top; idx < g_stack_roots.size(); idx++) {
-    GCObject* node = g_stack_roots.at(idx);
-    if (!node->isTrackable()) {
-      node->markSurvivorReachable();
-      closure->do_iterate(cast_to_oop(node));
-    }
-    g_resurrected_top = INT_MAX; 
+void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
+  for (int idx = 0; idx < g_resurrected.size(); idx++) {
+    GCObject* node = g_resurrected.at(idx);
+    closure->do_iterate(cast_to_oop(node));
   }
+  g_resurrected.resize(0); 
 }
 
 
 void rtHeap__initialize() {
   g_young_roots.initialize();
   g_stack_roots.initialize();
+  g_resurrected.initialize();
   rtCLDCleaner::initialize();
 }
 

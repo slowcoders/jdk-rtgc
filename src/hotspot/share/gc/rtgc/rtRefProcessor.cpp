@@ -244,7 +244,10 @@ namespace RTGC {
         }
 
         if (!(policy & (SkipGarbageRef | DetectGarbageRef))) {
-          precond((policy & NoGarbageCheck) || rtHeap::is_alive(_curr_ref));
+          if (!(policy & NoGarbageCheck)) {
+            precond(rtHeap::is_alive(_curr_ref));
+            precond(__getRefType(_curr_ref) == _refList.ref_type());
+          }
         } else if (is_garbage_ref(policy)) {
           if (policy & ClearAnchorList) {
             GCObject* referent = to_obj(get_raw_referent());
@@ -264,7 +267,6 @@ namespace RTGC {
           this->remove_curr_ref(true);
           continue;
         }
-        precond(__getRefType(_curr_ref) == _refList.ref_type());
 
         if ((policy & NoReferentCheck)) {
           _referent_p = 0;
