@@ -246,7 +246,6 @@ namespace RTGC {
         if (!(policy & (SkipGarbageRef | DetectGarbageRef))) {
           if (!(policy & NoGarbageCheck)) {
             precond(rtHeap::is_alive(_curr_ref));
-            precond(__getRefType(_curr_ref) == _refList.ref_type());
           }
         } else if (is_garbage_ref(policy)) {
           if (policy & ClearAnchorList) {
@@ -266,6 +265,10 @@ namespace RTGC {
               rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
           this->remove_curr_ref(true);
           continue;
+        }
+
+        if (!(policy & NoGarbageCheck)) {
+          precond(__getRefType(_curr_ref) == _refList.ref_type());
         }
 
         if ((policy & NoReferentCheck)) {
