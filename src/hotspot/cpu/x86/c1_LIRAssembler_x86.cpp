@@ -744,6 +744,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     case T_ARRAY:
       if (c->as_jobject() == NULL) {
         if (UseCompressedOops && !wide) {
+          // OptStoreOop
           __ movl(as_Address(addr), (int32_t)NULL_WORD);
         } else {
 #ifdef _LP64
