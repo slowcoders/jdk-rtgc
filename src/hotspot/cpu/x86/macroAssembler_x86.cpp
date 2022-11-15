@@ -4973,6 +4973,10 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       if (dst != src) {
         movq(dst, src);
       }
+      if (RTGC::rtHeapEx::OptStoreOop) {
+        precond(CompressedOppShift < 3);
+        andq(dst, ~1);
+      }
       shlq(dst, CompressedOppShift);
       if (CompressedOops::base() != NULL) {
         addq(dst, r12_heapbase);
@@ -4983,10 +4987,6 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
     if (dst != src) {
       movq(dst, src);
     }
-  }
-  if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    andq(dst, ~1);
   }
 }
 

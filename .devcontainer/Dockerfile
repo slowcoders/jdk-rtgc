@@ -31,3 +31,4 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive \
 
 #  && apt install -y ccache
 # ENV CCACHE_DIR=/workspace/jdk-rtgc/ccache
+RUN rm /home/vscode/.bashrc
