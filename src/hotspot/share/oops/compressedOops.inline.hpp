@@ -48,6 +48,10 @@ inline oop CompressedOops::decode_raw_not_null(narrowOop v) {
 }
 
 inline oop CompressedOops::decode_raw(narrowOop v) {
+  extern bool rtHeapEx__OptStoreOop;
+  if (rtHeapEx__OptStoreOop) {
+    *(int*)&v &= ~1;
+  }
   return cast_to_oop((uintptr_t)base() + ((uintptr_t)v << shift()));
 }
 
@@ -70,7 +74,8 @@ inline narrowOop CompressedOops::encode_not_null(oop v) {
   uint64_t  pd = (uint64_t)(pointer_delta((void*)v, (void*)base(), 1));
   assert(OopEncodingHeapMax > pd, "change encoding max if new encoding");
   narrowOop result = narrow_oop_cast(pd >> shift());
-  assert(decode_raw(result) == v, "reversibility");
+  assert(decode_raw(result) == v, "reversibility %p >> %d -> %x : %p\n", 
+      (void*)v, shift(), *(int*)&result, (void*)decode_raw(result));
   return result;
 }
 

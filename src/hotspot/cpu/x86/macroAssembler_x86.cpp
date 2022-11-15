@@ -54,6 +54,7 @@
 #include "utilities/macros.hpp"
 #include "crc32c.h"
 #include "gc/shared/gc_globals.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -4840,15 +4841,23 @@ void MacroAssembler::encode_heap_oop(Register r) {
   verify_oop_msg(r, "broken oop in encode_heap_oop");
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-      assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-      shrq(r, LogMinObjAlignmentInBytes);
+      assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+      shrq(r, CompressedOppShift);
+      if (RTGC::rtHeapEx::OptStoreOop) {
+        precond(CompressedOppShift < 3);
+        orq(r, 1);
+      }
     }
     return;
   }
   testq(r, r);
   cmovq(Assembler::equal, r, r12_heapbase);
   subq(r, r12_heapbase);
-  shrq(r, LogMinObjAlignmentInBytes);
+  shrq(r, CompressedOppShift);
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    orq(r, 1);
+  }
 }
 
 void MacroAssembler::encode_heap_oop_not_null(Register r) {
@@ -4867,8 +4876,12 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
     subq(r, r12_heapbase);
   }
   if (CompressedOops::shift() != 0) {
-    assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-    shrq(r, LogMinObjAlignmentInBytes);
+    assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+    shrq(r, CompressedOppShift);
+  }
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    orq(r, 1);
   }
 }
 
@@ -4891,8 +4904,12 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
     subq(dst, r12_heapbase);
   }
   if (CompressedOops::shift() != 0) {
-    assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-    shrq(dst, LogMinObjAlignmentInBytes);
+    assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+    shrq(dst, CompressedOppShift);
+  }
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    orq(dst, 1);
   }
 }
 
@@ -4900,14 +4917,18 @@ void  MacroAssembler::decode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    andq(r, ~1);
+  }
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-      assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-      shlq(r, LogMinObjAlignmentInBytes);
+      assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+      shlq(r, CompressedOppShift);
     }
   } else {
     Label done;
-    shlq(r, LogMinObjAlignmentInBytes);
+    shlq(r, CompressedOppShift);
     jccb(Assembler::equal, done);
     addq(r, r12_heapbase);
     bind(done);
@@ -4922,9 +4943,13 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    andq(r, ~1);
+  }
   if (CompressedOops::shift() != 0) {
-    assert(LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-    shlq(r, LogMinObjAlignmentInBytes);
+    assert(CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+    shlq(r, CompressedOppShift);
     if (CompressedOops::base() != NULL) {
       addq(r, r12_heapbase);
     }
@@ -4941,14 +4966,14 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
   if (CompressedOops::shift() != 0) {
-    assert(LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-    if (LogMinObjAlignmentInBytes == Address::times_8) {
+    assert(CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
+    if (CompressedOppShift == Address::times_8) {
       leaq(dst, Address(r12_heapbase, src, Address::times_8, 0));
     } else {
       if (dst != src) {
         movq(dst, src);
       }
-      shlq(dst, LogMinObjAlignmentInBytes);
+      shlq(dst, CompressedOppShift);
       if (CompressedOops::base() != NULL) {
         addq(dst, r12_heapbase);
       }
@@ -4958,6 +4983,10 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
     if (dst != src) {
       movq(dst, src);
     }
+  }
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    precond(CompressedOppShift < 3);
+    andq(dst, ~1);
   }
 }
 

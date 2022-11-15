@@ -29,6 +29,7 @@
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
 #include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtThreadLocalData.hpp"
 
 RtgcBarrierSet::RtgcBarrierSet(CardTable* card_table) :  
     ModRefBarrierSet(make_barrier_set_assembler<RtgcBarrierSetAssembler>(),
@@ -44,9 +45,11 @@ void RtgcBarrierSet::initialize() {
 }
 
 void RtgcBarrierSet::on_thread_create(Thread *thread) {
+  RTGC::RtThreadLocalData::create(thread);
 }
 
 void RtgcBarrierSet::on_thread_destroy(Thread *thread) {
+  RTGC::RtThreadLocalData::destroy(thread);
 }
 
 void RtgcBarrierSet::on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {

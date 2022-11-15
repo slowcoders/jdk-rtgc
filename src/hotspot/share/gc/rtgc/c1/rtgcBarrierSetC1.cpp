@@ -89,12 +89,16 @@ void LIR_OpCompareAndSwapOop::visit(LIR_OpVisitState* state) {
 void addUpdateLog(LIR_Assembler* masm, Register base, Register addr, Register erased) {
   Label L_done;
   C1_MacroAssembler* cm = masm->masm();
+  
+  // check dirty
   cm-> testl(erased, 1);
-  /*if*/cm-> jcc(Assembler::Condition::zero, L_done);
+  
+  /*if need log upate log*/
+  cm-> jcc(Assembler::Condition::zero, L_done);
   {
     const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
     Address log_top(thread, Thread::gc_data_offset());
-    cm-> movq(rscratch1, 16);
+    cm-> movq(rscratch1, -16);
 
     cm-> lock();
     cm-> xaddq(log_top, rscratch1);
@@ -128,40 +132,41 @@ void LIR_OpCompareAndSwapOop::emit_code(LIR_Assembler* masm) {
 #ifdef _LP64
   if (UseCompressedOops) {
     Label L_compare_fast;
+    // @zee) modify-flag 사용 시 2회 검사 필요!!!
+    Label L_compare_done;
+    Label L_compare_dirty;
+    Label L_compare_first_fail;
 
     cm-> encode_heap_oop(cmpval);
 
     cm-> movl(rscratch1, Address(addr, 0));
     cm-> testl(rscratch1, 1);
-    cm-> jcc(Assembler::Condition::zero, L_compare_fast);
+    cm-> jcc(Assembler::Condition::zero, L_compare_dirty);
 
-    cm-> mov(rscratch1, cmpval);
-    cm-> shlq(rscratch1, 32);
     cm-> movl(rscratch1, cmpval);
-    cm-> mov(cmpval, rscratch1);
+    cm-> shlq(cmpval, 32);
+    cm-> addq(cmpval, rscratch1);
     cm-> andl(cmpval, ~1);
     
-    cm-> bind(L_compare_fast);
     cm-> mov(rscratch1, newval);
     cm-> encode_heap_oop(rscratch1);
     cm-> lock();
     // cmpval (rax) is implicitly used by this instruction
     cm-> cmpxchgl(rscratch1, Address(addr, 0));
-    // @zee) modify-flag 사용 시 2회 검사 필요!!!
-    Label L_compare_done;
-    Label L_compare_dirty;
 
-    cm-> jcc(Assembler::notZero, L_compare_dirty);
+    cm-> jcc(Assembler::notZero, L_compare_first_fail);
     {
       addUpdateLog(masm, base, addr, cmpval);
 
       cm-> jmp(L_compare_done);
     }
-    // else 
-    { 
-      cm-> bind(L_compare_dirty);
+    cm-> bind(L_compare_first_fail); 
+    {
       cm-> shrq(cmpval, 32);
       cm-> testl(cmpval, 1);
+    }
+    cm-> bind(L_compare_dirty);
+    { 
       cm-> jcc(Assembler::notEqual, L_compare_done);
 
       cm-> lock();
@@ -735,14 +740,14 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
     LIR_Opr cmp_opr = cmp_value.result();
     LIR_Opr new_opr = new_value.result();
     LIR_Opr addr_opr = addr->as_address_ptr()->base();
-    __ push(base_opr);
+    // __ push(base_opr);
 
     __ append(new LIR_OpCompareAndSwapOop(base_opr, addr_opr, cmp_opr, new_opr, ill, ill, ill));
 
     LIR_Opr result = gen->new_register(intType);
     __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
           result, T_INT);
-    __ pop(base_opr);
+    // __ pop(base_opr);
 
     // LIR_Address update_log_top(gen->getThreadPointer(), (int)Thread::gc_data_offset(), T_ADDRESS);
     // LIR_Opr tmp = gen->new_register(addressType);

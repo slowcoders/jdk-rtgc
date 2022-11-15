@@ -117,8 +117,18 @@ public:
   static void     print_mode(outputStream* st);
 
   static bool is_null(oop v)       { return v == NULL; }
+#if INCLUDE_RTGC
+  static bool is_null(narrowOop v) { 
+    extern bool rtHeapEx__OptStoreOop;
+    if (rtHeapEx__OptStoreOop) {
+      return (*(uint32_t*)&v & ~1) == 0; 
+    } else {
+      return v == narrowOop::null;
+    }
+  }
+#else  
   static bool is_null(narrowOop v) { return v == narrowOop::null; }
-
+#endif
   static inline oop decode_raw_not_null(narrowOop v);
   static inline oop decode_raw(narrowOop v);
   static inline oop decode_not_null(narrowOop v);

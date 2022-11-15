@@ -53,14 +53,20 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   // See needs_explicit_null_check.
   // Only set the heap base for compressed oops because it indicates
   // compressed oops for pstack code.
+
   if ((uint64_t)heap_space.end() > UnscaledOopHeapMax) {
     // Didn't reserve heap below 4Gb.  Must shift.
+#if INCLUDE_RTGC
+    set_shift(CompressedOppShift);
+#else    
     set_shift(LogMinObjAlignmentInBytes);
+#endif
   }
   if ((uint64_t)heap_space.end() <= OopEncodingHeapMax) {
     // Did reserve heap below 32Gb. Can use base == 0;
     set_base(0);
   } else {
+    precond((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2);
     set_base((address)heap_space.compressed_oop_base());
   }
 
@@ -81,7 +87,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   // base() is one page below the heap.
   assert((intptr_t)base() <= ((intptr_t)_heap_address_range.start() - os::vm_page_size()) ||
          base() == NULL, "invalid value");
-  assert(shift() == LogMinObjAlignmentInBytes ||
+  assert(shift() == CompressedOppShift ||
          shift() == 0, "invalid value");
 #endif
 }

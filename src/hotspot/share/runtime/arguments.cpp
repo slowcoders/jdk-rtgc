@@ -62,6 +62,7 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#include "gc/rtgc/rtHeapEx.hpp"
 
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 
@@ -1513,6 +1514,14 @@ void set_object_alignment() {
 
   // Oop encoding heap max
   OopEncodingHeapMax = (uint64_t(max_juint) + 1) << LogMinObjAlignmentInBytes;
+#if INCLUDE_RTGC
+  if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    CompressedOppShift = LogMinObjAlignmentInBytes - 1;
+    OopEncodingHeapMax /= 2;
+  } else {
+    CompressedOppShift = LogMinObjAlignmentInBytes;
+  }
+#endif
 }
 
 size_t Arguments::max_heap_for_compressed_oops() {

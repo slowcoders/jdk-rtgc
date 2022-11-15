@@ -21,6 +21,7 @@
 
 #include "rtHeapEx.hpp"
 #include "rtCLDCleaner.hpp"
+#include "rtThreadLocalData.hpp"
 
 int rtHeap::in_full_gc = 0;
 
@@ -620,6 +621,7 @@ void rtHeap::finish_rtgc(bool is_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
+  RtThreadLocalData::reset_gc_context();
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
   in_full_gc = 0;

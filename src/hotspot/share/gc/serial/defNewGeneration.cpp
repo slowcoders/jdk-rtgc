@@ -665,12 +665,6 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
-#if INCLUDE_RTGC
-  if (EnableRTGC) { 
-    rtHeap::finish_rtgc(false);
-  }
-#endif
-
   if (!_promotion_failed) {
     // Swap the survivor spaces.
     eden()->clear(SpaceDecorator::Mangle);
@@ -718,6 +712,13 @@ void DefNewGeneration::collect(bool   full,
     // Reset the PromotionFailureALot counters.
     NOT_PRODUCT(heap->reset_promotion_should_fail();)
   }
+
+#if INCLUDE_RTGC
+  if (EnableRTGC) { 
+    rtHeap::finish_rtgc(false);
+  }
+#endif
+
   // We should have processed and cleared all the preserved marks.
   _preserved_marks_set.reclaim();
 

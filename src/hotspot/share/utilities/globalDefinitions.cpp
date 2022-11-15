@@ -47,7 +47,11 @@ int MinObjAlignmentInBytesMask = 0;
 
 int LogMinObjAlignment         = -1;
 int LogMinObjAlignmentInBytes  = -1;
-
+#if INCLUDE_RTGC
+int CompressedOppShift         = -1;
+#else 
+#define CompressedOppShift  LogMinObjAlignmentInBytes
+#endif
 // Oop encoding heap max
 uint64_t OopEncodingHeapMax = 0;
 
