@@ -4999,7 +4999,12 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   // Also do not verify_oop as this is called by verify_oop.
   if (CompressedOops::shift() != 0) {
     assert(RTGC_ONLY(RTGC::rtHeapEx::OptStoreOop ||) LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
-    if (RTGC_ONLY(!RTGC::rtHeapEx::OptStoreOop &&) LogMinObjAlignmentInBytes == Address::times_8) {
+    if (LogMinObjAlignmentInBytes == Address::times_8) {
+#if INCLUDE_RTGC      
+      if (RTGC::rtHeapEx::OptStoreOop) {
+        leaq(dst, Address(r12_heapbase, src, Address::times_4, 0));
+      } else
+#endif      
       leaq(dst, Address(r12_heapbase, src, Address::times_8, 0));
     } else {
       if (dst != src) {

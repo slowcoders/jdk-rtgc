@@ -3960,6 +3960,7 @@ operand indPosIndexScaleOffset(any_RegP reg, immL32 off, rRegI idx, immI2 scale)
 // we can't free r12 even with CompressedOops::base() == NULL.
 operand indCompressedOopOffset(rRegN reg, immL32 off) %{
   predicate(UseCompressedOops && (CompressedOops::shift() == Address::times_8));
+  rtgc error!!
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) off);
 
