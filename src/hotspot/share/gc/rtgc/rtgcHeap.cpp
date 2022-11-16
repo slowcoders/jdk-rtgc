@@ -398,14 +398,12 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   _has_young_ref |= is_in_young(new_p);
   if (_new_anchor_p == NULL) return;
 
-  // _old_anchor_p 는 old-address를 가지고 있으므로, Young root로 등록할 수 없다.
+  // old_p 내부 field 에 대한 adjust_pointers 가 처리되지 않았으면...
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
-    //RTGC::add_referrer_ex(old_p, _old_anchor_p, false);
     RTGC::add_referrer_unsafe(old_p, _old_anchor_p, _old_anchor_p);
   }
   else {
-    // old_p 에 대해 이미 adjust_pointers 가 수행됨.
     RTGC::add_referrer_unsafe(old_p, _new_anchor_p, _old_anchor_p);
   }
 }

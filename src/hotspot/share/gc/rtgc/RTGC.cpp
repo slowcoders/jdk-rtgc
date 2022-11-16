@@ -13,7 +13,7 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
-bool rtHeapEx__OptStoreOop = true;
+bool rtHeapEx__OptStoreOop = false;
 static int _logOptions[256];
 static int _debugOptions[256];
 namespace RTGC {

@@ -81,8 +81,8 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool do_mark_trackable, bool is_promoted=true> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<do_mark_trackable>> {
+template <bool is_promoted> 
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>> {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -90,7 +90,7 @@ private:
 
 public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<do_mark_trackable>>(young_gen), 
+    : FastScanClosure<ScanTrackableClosure<is_promoted>>(young_gen), 
     _old_gen(old_gen) {}
 
   template <typename T>
@@ -101,22 +101,16 @@ public:
   void do_iterate(oop obj);
 };
 
-class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
+class DefNewYoungerGenClosure : public ScanTrackableClosure<true> {
 public:  
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<false>(young_gen, old_gen) {}
-};
-
-class RecycledTrackableClosure : public ScanTrackableClosure<true> {
-public:  
-  RecycledTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 
-class OldTrackableClosure : public ScanTrackableClosure<true, false> {
+class OldTrackableClosure : public ScanTrackableClosure<false> {
 public:  
   OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<true, false>(young_gen, old_gen) {}
+    : ScanTrackableClosure<false>(young_gen, old_gen) {}
 };
 
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {

@@ -5,10 +5,18 @@
       참고) thread::_gc_data -> GCThreadLocalData[19];
          thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
          
-      (old_p, anchor, [new_p], pointer)
-          -> [link, anchor(+0 deassigned)], [link, anchor(+1 assigned)]
-          -> link 로 sorting 하여 anchor list 변경 목록 확보.
-          -> 두 개의 field 가 동일 link 를 가리키는 경우, 동일한 deassigned 와 assigned 가 중복될 수 있음. (무시해도 된다.)
+      bool is_null(narrowOop ptr) { return ((int32_t)ptr << 1) == 0; }
+      bool is_modified(narrowOop ptr) { return (int32_t)ptr >= 0; }
+      oop  decode_narrow_oop(narrowOop ptr) { uint32_t p = (uint32_t)ptr << 1; return (uintptr_t)p << 2; }
+      narrowOop encode_narrow_oop(oop ptr)  { 기존과 동일. }
+
+      GCObject::is_modified { return _flags._modified; }
+
+      1) GC 직전, modified변경된 addr 를 등록.
+      2) add_trackable_link() 수행 시 *p 의 값을 not modified 상대로 변경.
+      3) RtAdjustPointerClosure::do_oop_work() :: MarkSweep::adjust_pointer() 에서 수행 시 *p 의 값을 not modified 상대로 변경.
+      4) array 의 경우, 
+
       rtgcBarrier
       rtgcBarrierSetC1
       rtgcBarrierSetAssembler_x86
