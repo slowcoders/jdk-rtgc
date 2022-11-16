@@ -335,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= 0;//UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG |= 1;//UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 

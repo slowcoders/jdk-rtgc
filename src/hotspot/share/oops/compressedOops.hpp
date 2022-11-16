@@ -121,8 +121,8 @@ public:
 #if INCLUDE_RTGC
     extern bool rtHeapEx__OptStoreOop;
     if (rtHeapEx__OptStoreOop) {
-      // remove sign bit
-      return ((uint32_t)v << 1) == 0; 
+      // remove unmodified flag
+      return ((uint32_t)v & ~1) == 0; 
     }
 #endif
     return v == narrowOop::null;

@@ -52,7 +52,7 @@ inline oop CompressedOops::decode_raw(narrowOop v) {
 #if INCLUDE_RTGC      
   if (rtHeapEx__OptStoreOop) {
     // remove sign bit
-    uint32_t p = (uint32_t)v << 1;
+    uint32_t p = (uint32_t)v & ~1;
     return cast_to_oop((uintptr_t)base() + ((uintptr_t)p << CompressedOppShift));
   }
 #endif

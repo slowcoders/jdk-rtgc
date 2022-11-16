@@ -100,7 +100,6 @@ static void raw_set_field(oop* addr, oopDesc* value) {
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(volatile narrowOop* addr, oopDesc* value) {
   narrowOop n_v = CompressedOops::encode(value);
-  if (in_heap && rtHeapEx::OptStoreOop) *(int*)&n_v |= 1;
   narrowOop res = Atomic::xchg(addr, n_v);
   return CompressedOops::decode(res);
 }

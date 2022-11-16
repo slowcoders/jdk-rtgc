@@ -4880,7 +4880,6 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
     subq(r, r12_heapbase);
   }
   
-  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
     if (RTGC::rtHeapEx::OptStoreOop) {
@@ -4912,7 +4911,6 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
   if (CompressedOops::base() != NULL) {
     subq(dst, r12_heapbase);
   }
-  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
     if (RTGC::rtHeapEx::OptStoreOop) {
@@ -4930,13 +4928,14 @@ void  MacroAssembler::decode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
-  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    andl(r, ~1); // clear unmodified flag
+  }
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
       if (RTGC::rtHeapEx::OptStoreOop) {
-        shll(r, 1); // remove sign bit
-        if (CompressedOppShift > 0) shlq(r, CompressedOppShift);
+        shlq(r, CompressedOops::shift());
       } else 
 #endif
       {
@@ -4948,11 +4947,11 @@ void  MacroAssembler::decode_heap_oop(Register r) {
     Label done;
 #if INCLUDE_RTGC      
     if (RTGC::rtHeapEx::OptStoreOop) {
-      shll(r, 1); // remove sign bit
-      if (CompressedOppShift > 0) shlq(r, CompressedOppShift);
+      shlq(r, CompressedOops::shift());
     } else 
 #endif
     shlq(r, LogMinObjAlignmentInBytes);
+
     jccb(Assembler::equal, done);
     addq(r, r12_heapbase);
     bind(done);
@@ -4967,12 +4966,16 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
-  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
+#if INCLUDE_RTGC      
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    andl(r, ~1); // clear unmodified flag
+  }
+#endif
+
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
     if (RTGC::rtHeapEx::OptStoreOop) {
-      shll(r, 1); // remove sign bit
-      shlq(r, CompressedOppShift);
+      shlq(r, CompressedOops::shift());
     } else 
 #endif
     {
@@ -4994,9 +4997,8 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
-  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
-    assert(LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+    assert(RTGC_ONLY(RTGC::rtHeapEx::OptStoreOop ||) LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
     if (RTGC_ONLY(!RTGC::rtHeapEx::OptStoreOop &&) LogMinObjAlignmentInBytes == Address::times_8) {
       leaq(dst, Address(r12_heapbase, src, Address::times_8, 0));
     } else {
@@ -5005,8 +5007,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       }
 #if INCLUDE_RTGC      
       if (RTGC::rtHeapEx::OptStoreOop) {
-        shll(dst, 1); // remove sign bit
-        shlq(dst, CompressedOppShift);
+        shlq(dst, CompressedOops::shift());
       } else 
 #endif
       shlq(dst, LogMinObjAlignmentInBytes);
@@ -5021,6 +5022,12 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       movq(dst, src);
     }
   }
+#if INCLUDE_RTGC      
+  if (RTGC::rtHeapEx::OptStoreOop) {
+    andl(dst, ~7); // clear unmodified flag
+  }
+#endif
+
 }
 
 void MacroAssembler::encode_klass_not_null(Register r, Register tmp) {
