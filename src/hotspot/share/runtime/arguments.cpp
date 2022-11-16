@@ -1516,10 +1516,8 @@ void set_object_alignment() {
   OopEncodingHeapMax = (uint64_t(max_juint) + 1) << LogMinObjAlignmentInBytes;
 #if INCLUDE_RTGC
   if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
-    CompressedOppShift = LogMinObjAlignmentInBytes - 1;
     OopEncodingHeapMax /= 2;
-  } else {
-    CompressedOppShift = LogMinObjAlignmentInBytes;
+    CompressedOppShift = LogMinObjAlignmentInBytes - 1;
   }
 #endif
 }

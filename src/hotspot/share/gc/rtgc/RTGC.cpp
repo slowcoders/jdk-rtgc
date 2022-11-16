@@ -13,7 +13,7 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
-bool rtHeapEx__OptStoreOop = false;
+bool rtHeapEx__OptStoreOop = true;
 static int _logOptions[256];
 static int _debugOptions[256];
 namespace RTGC {
@@ -330,9 +330,6 @@ void rtSpace__initialize();
 void RTGC::initialize() {
 #ifdef _LP64
   is_narrow_oop_mode = UseCompressedOops;
-  if (rtHeapEx::OptStoreOop) {
-    precond(CompressedOops::shift() < 3);
-  }
 #else
   is_narrow_oop_mode = false;
 #endif

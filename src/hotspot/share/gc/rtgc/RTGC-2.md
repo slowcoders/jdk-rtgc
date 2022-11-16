@@ -12,10 +12,10 @@
 
       GCObject::is_modified { return _flags._modified; }
 
-      1) GC 직전, modified변경된 addr 를 등록.
-      2) add_trackable_link() 수행 시 *p 의 값을 not modified 상대로 변경.
+      1) GC 직전, modified 객체들의 ref-field 중 변경된 field를 찾아, AnchorList 변경하고, modified 상태 clear.
+      2) add_trackable_link() 수행 시 *p 의 값을 not modified 상태로 변경.
       3) RtAdjustPointerClosure::do_oop_work() :: MarkSweep::adjust_pointer() 에서 수행 시 *p 의 값을 not modified 상대로 변경.
-      4) array 의 경우, 
+      4) array 의 경우도 처리 방식 동일 (일반적인 경우, 객체 Array 는 비교적 작으므로, scan 부담은 크지 않다? -> 필요시 32bit modify-bitmap 추가)
 
       rtgcBarrier
       rtgcBarrierSetC1

@@ -4841,11 +4841,14 @@ void MacroAssembler::encode_heap_oop(Register r) {
   verify_oop_msg(r, "broken oop in encode_heap_oop");
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-      assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-      shrq(r, CompressedOppShift);
+#if INCLUDE_RTGC      
       if (RTGC::rtHeapEx::OptStoreOop) {
-        precond(CompressedOppShift < 3);
-        orq(r, 1);
+        shrq(r, CompressedOops::shift());
+      } else 
+#endif
+      {
+        assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+        shrq(r, LogMinObjAlignmentInBytes);
       }
     }
     return;
@@ -4853,11 +4856,12 @@ void MacroAssembler::encode_heap_oop(Register r) {
   testq(r, r);
   cmovq(Assembler::equal, r, r12_heapbase);
   subq(r, r12_heapbase);
-  shrq(r, CompressedOppShift);
+#if INCLUDE_RTGC      
   if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    orq(r, 1);
-  }
+    shrq(r, CompressedOops::shift());
+  } else 
+#endif
+  shrq(r, LogMinObjAlignmentInBytes);
 }
 
 void MacroAssembler::encode_heap_oop_not_null(Register r) {
@@ -4875,13 +4879,18 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
   if (CompressedOops::base() != NULL) {
     subq(r, r12_heapbase);
   }
+  
+  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
-    assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-    shrq(r, CompressedOppShift);
-  }
-  if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    orq(r, 1);
+#if INCLUDE_RTGC      
+    if (RTGC::rtHeapEx::OptStoreOop) {
+      shrq(r, CompressedOops::shift());
+    } else 
+#endif
+    {
+      assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+      shrq(r, LogMinObjAlignmentInBytes);
+    }
   }
 }
 
@@ -4903,13 +4912,17 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
   if (CompressedOops::base() != NULL) {
     subq(dst, r12_heapbase);
   }
+  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
-    assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-    shrq(dst, CompressedOppShift);
-  }
-  if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    orq(dst, 1);
+#if INCLUDE_RTGC      
+    if (RTGC::rtHeapEx::OptStoreOop) {
+      shrq(dst, CompressedOops::shift());
+    } else 
+#endif
+    {
+      assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+      shrq(dst, LogMinObjAlignmentInBytes);
+    }
   }
 }
 
@@ -4917,18 +4930,29 @@ void  MacroAssembler::decode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
-  if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    andq(r, ~1);
-  }
+  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-      assert (CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-      shlq(r, CompressedOppShift);
+#if INCLUDE_RTGC      
+      if (RTGC::rtHeapEx::OptStoreOop) {
+        shll(r, 1); // remove sign bit
+        if (CompressedOppShift > 0) shlq(r, CompressedOppShift);
+      } else 
+#endif
+      {
+        assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+        shlq(r, LogMinObjAlignmentInBytes);
+      }
     }
   } else {
     Label done;
-    shlq(r, CompressedOppShift);
+#if INCLUDE_RTGC      
+    if (RTGC::rtHeapEx::OptStoreOop) {
+      shll(r, 1); // remove sign bit
+      if (CompressedOppShift > 0) shlq(r, CompressedOppShift);
+    } else 
+#endif
+    shlq(r, LogMinObjAlignmentInBytes);
     jccb(Assembler::equal, done);
     addq(r, r12_heapbase);
     bind(done);
@@ -4943,13 +4967,18 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
-  if (RTGC::rtHeapEx::OptStoreOop) {
-    precond(CompressedOppShift < 3);
-    andq(r, ~1);
-  }
+  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
-    assert(CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-    shlq(r, CompressedOppShift);
+#if INCLUDE_RTGC      
+    if (RTGC::rtHeapEx::OptStoreOop) {
+      shll(r, 1); // remove sign bit
+      shlq(r, CompressedOppShift);
+    } else 
+#endif
+    {
+      assert(LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+      shlq(r, LogMinObjAlignmentInBytes);
+    }
     if (CompressedOops::base() != NULL) {
       addq(r, r12_heapbase);
     }
@@ -4965,19 +4994,23 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
+  RTGC_ONLY(precond(!RTGC::rtHeapEx::OptStoreOop || CompressedOops::shift() != 0));
   if (CompressedOops::shift() != 0) {
-    assert(CompressedOppShift == CompressedOops::shift(), "decode alg wrong");
-    if (CompressedOppShift == Address::times_8) {
+    assert(LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+    if (RTGC_ONLY(!RTGC::rtHeapEx::OptStoreOop &&) LogMinObjAlignmentInBytes == Address::times_8) {
       leaq(dst, Address(r12_heapbase, src, Address::times_8, 0));
     } else {
       if (dst != src) {
         movq(dst, src);
       }
+#if INCLUDE_RTGC      
       if (RTGC::rtHeapEx::OptStoreOop) {
-        precond(CompressedOppShift < 3);
-        andq(dst, ~1);
-      }
-      shlq(dst, CompressedOppShift);
+        shll(dst, 1); // remove sign bit
+        shlq(dst, CompressedOppShift);
+      } else 
+#endif
+      shlq(dst, LogMinObjAlignmentInBytes);
+
       if (CompressedOops::base() != NULL) {
         addq(dst, r12_heapbase);
       }

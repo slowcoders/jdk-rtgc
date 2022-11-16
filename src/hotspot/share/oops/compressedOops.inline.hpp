@@ -49,9 +49,13 @@ inline oop CompressedOops::decode_raw_not_null(narrowOop v) {
 
 inline oop CompressedOops::decode_raw(narrowOop v) {
   extern bool rtHeapEx__OptStoreOop;
+#if INCLUDE_RTGC      
   if (rtHeapEx__OptStoreOop) {
-    *(int*)&v &= ~1;
+    // remove sign bit
+    uint32_t p = (uint32_t)v << 1;
+    return cast_to_oop((uintptr_t)base() + ((uintptr_t)p << CompressedOppShift));
   }
+#endif
   return cast_to_oop((uintptr_t)base() + ((uintptr_t)v << shift()));
 }
 
