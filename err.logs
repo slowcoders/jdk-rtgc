@@ -1,54 +1,6 @@
-# langtools tier1 
-## errors (timeout)
-# sh exec_test.sh jdk/jshell/ToolSimpleTest
-# sh exec_test.sh tools/javac/T8022162/IncorrectSignatureDeterminationForInnerClassesTest
-sh exec_test.sh tools/javac/cast/intersection/IntersectionTypeCastTest
-sh exec_test.sh tools/javac/defaultMethods/static/hiding/InterfaceMethodHidingTest
-sh exec_test.sh tools/javac/defaultMethods/super/TestDefaultSuperCall
-sh exec_test.sh tools/javac/failover/CheckAttributedTree
-# sh exec_test.sh tools/javac/importscope/ImportDependenciesTest
-# sh exec_test.sh tools/javac/importscope/T8193717
-sh exec_test.sh tools/javac/lambda/LambdaParserTest
-sh exec_test.sh tools/javac/lambda/T8031967
-sh exec_test.sh tools/javac/lambda/bytecode/TestLambdaBytecodeTargetRelease14
-# sh exec_test.sh tools/javac/processing/OverwriteInitialInput
-sh exec_test.sh tools/javac/processing/model/testgetallmembers
-sh exec_test.sh tools/jdeprscan/tests/jdk/jdeprscan/TestRelease
-sh exec_test.sh tools/jdeps/listdeps/ListModuleDeps
-# sh exec_test.sh tools/jdeps/modules/UnnamedPackage
+#  Internal Error (../../src/hotspot/share/gc/rtgc/rtRefProcessor.cpp:271), pid=42966, tid=13315
+#  assert(__getRefType(_curr_ref) == _refList.ref_type()) failed: precond
 
-# jdk_tier1 
-## errors (timeout)
-# sh exec_test.sh java/lang/String/concat/ImplicitStringConcatShapes
-sh exec_test.sh java/lang/annotation/LoaderLeakTest
-# sh exec_test.sh java/lang/invoke/LFCaching/LFSingleThreadCachingTest
-# sh exec_test.sh java/math/BigDecimal/DivideMcTests
-
-# jtreg_tier1
-## errors (timeout)
-sh exec_test.sh compiler/jsr292/CallSiteDepContextTest
-sh exec_test.sh gc/TestSoftReferencesBehaviorOnOOME
-sh exec_test.sh runtime/Nestmates/protectionDomain
-## failed
-sh exec_test.sh compiler/arraycopy/TestCloneAccess
-sh exec_test.sh compiler/arraycopy/TestCloneAccessStressGCM
-sh exec_test.sh compiler/c2/TestJumpTable
-sh exec_test.sh compiler/c2/TestReplaceEquivPhis
-sh exec_test.sh compiler/c2/TestShiftRightAndAccumulate
-sh exec_test.sh compiler/codecache/CheckSegmentedCodeCache
-sh exec_test.sh compiler/codegen/ClearArrayTest
-sh exec_test.sh compiler/codegen/TestCharVect2
-sh exec_test.sh gc/g1/TestMixedGCLiveThreshold
-sh exec_test.sh gc/g1/TestSkipRebuildRemsetPhase
-sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader
-sh exec_test.sh gc/g1/humongousObjects/TestHumongousNonArrayAllocation
-sh exec_test.sh gc/logging/TestPrintReferences
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationAgeThreshold
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationFullGC
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationInterned
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationPrintOptions
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationTableResize
-sh exec_test.sh gc/stringdedup/TestStringDeduplicationYoungGC
-sh exec_test.sh gtest/GTestWrapper
-# (??) sh exec_test.sh runtime/Dictionary/ProtectionDomainCacheTest
-sh exec_test.sh runtime/Monitor/SyncOnValueBasedClassTest
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/jdk/jshell/ImportTest/hs_err_pid41898.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/jdk/jshell/ToolRetainTest/hs_err_pid41909.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/jdk/jshell/ToolLocalSimpleTest/hs_err_pid42966.log
