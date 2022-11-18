@@ -228,7 +228,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "[Lcom/sun/tools/javac/util/SharedNameTable$NameImpl;",
+  // "java/lang/ref/WeakReference",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -335,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG |= UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 

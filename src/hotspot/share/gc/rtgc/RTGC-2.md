@@ -4,18 +4,13 @@
       참조) BarrierSetAssembler::eden_allocate
       참고) thread::_gc_data -> GCThreadLocalData[19];
          thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
+
+      UpdateLog { anchor, offset, old_v}
          
-      bool is_null(narrowOop ptr) { return ((int32_t)ptr << 1) == 0; }
-      bool is_modified(narrowOop ptr) { return (int32_t)ptr >= 0; }
-      oop  decode_narrow_oop(narrowOop ptr) { uint32_t p = (uint32_t)ptr << 1; return (uintptr_t)p << 2; }
-      narrowOop encode_narrow_oop(oop ptr)  { 기존과 동일. }
-
-      GCObject::is_modified { return _flags._modified; }
-
-      1) GC 직전, modified 객체들의 ref-field 중 변경된 field를 찾아, AnchorList 변경하고, modified 상태 clear.
+      1) GC 직전, modified field list 처리.
       2) add_trackable_link() 수행 시 *p 의 값을 not modified 상태로 변경.
       3) RtAdjustPointerClosure::do_oop_work() :: MarkSweep::adjust_pointer() 에서 수행 시 *p 의 값을 not modified 상대로 변경.
-      4) array 의 경우도 처리 방식 동일 (일반적인 경우, 객체 Array 는 비교적 작으므로, scan 부담은 크지 않다? -> 필요시 32bit modify-bitmap 추가)
+      4) array 의 경우, 최적화 고민.
 
       rtgcBarrier
       rtgcBarrierSetC1
@@ -26,6 +21,9 @@
    2. rt_node 데이터 최적화
    3. isAcyclic()!!
    4. handle_bit (optional)
+   5. AnchorList -> doubly link list 변경 (31bit offset)
+   6. vmClass::deadSpaceKlass()
+   7. detectGarbageFast()
 
 
 1) Flags
