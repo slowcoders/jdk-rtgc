@@ -715,7 +715,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC
   if (EnableRTGC) { 
-    rtHeap::finish_rtgc(false);
+    rtHeap::finish_rtgc(false, !_promotion_failed);
   }
 #endif
 

@@ -614,12 +614,12 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
 }
 
 
-void rtHeap::finish_rtgc(bool is_full_gc) {
+void rtHeap::finish_rtgc(bool is_full_gc, bool promotion_finished) {
   if (!is_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
-  RtThreadLocalData::reset_gc_context();
+  FieldUpdateReport::reset_gc_context(promotion_finished);
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
   in_full_gc = 0;

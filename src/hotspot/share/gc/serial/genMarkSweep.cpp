@@ -129,7 +129,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
 #if INCLUDE_RTGC
   if (EnableRTGC) { 
-    rtHeap::finish_rtgc(true);
+    rtHeap::finish_rtgc(true, true);
   }
 #endif
 
