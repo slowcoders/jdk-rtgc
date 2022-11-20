@@ -7,7 +7,7 @@
 using namespace RTGC;
 
 namespace RTGC {
-    static const int OBJ_ALIGN = 8;
+    static const int OBJ_ALIGN = 4;
 
     uint32_t _pointer2offset(void* ref) {
         precond(ref != nullptr);
@@ -140,6 +140,13 @@ const void* ReferrerList::remove(ShortOOP item) {
         return pItem;
     }
     return NULL;
+}
+
+const void* ReferrerList::replace(ShortOOP old_p, ShortOOP new_p) {
+    const ShortOOP* pItem = getItemPtr(old_p);
+    precond(pItem != NULL);
+    *(uint32_t*)pItem = new_p.getOffset();
+    return pItem;
 }
 
 

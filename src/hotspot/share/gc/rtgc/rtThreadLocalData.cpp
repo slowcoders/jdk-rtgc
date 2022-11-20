@@ -10,6 +10,7 @@
 #include "gc/shared/memAllocator.hpp"
 #include "gc/rtgc/RTGC.hpp"
 #include "rtThreadLocalData.hpp"
+#include "gc/rtgc/impl/GCObject.hpp"
 
 using namespace RTGC;
 
@@ -70,4 +71,44 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
   report->_sp = report->_end;
   report->_next = Atomic::xchg(&g_report_q, report);
   return report;
+}
+
+void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
+  precond(to_obj(anchor)->isTrackable());
+  this->_anchor = (address)anchor;
+  this->_offset = (address)field - (address)anchor;
+  this->_erased = erased;
+  rtgc_debug_log(_anchor, "add log(%p) %p[%d]\n", this, _anchor, _offset);
+  postcond(_offset > 0);
+}
+
+void FieldUpdateLog::updateAnchorList() {
+  narrowOop* pField = (narrowOop*)(_anchor + _offset);
+  rtgc_debug_log(_anchor, "set_unmodified(%p) %p[%d]\n", this, _anchor, _offset);
+  narrowOop new_p = *pField;
+  precond(rtHeap::is_modified(new_p));
+  narrowOop old_p = rtHeap::to_modified(_erased);
+  if (new_p != old_p) {
+    if (false) to_obj(_anchor)->replaceAnchor(*(ShortOOP*)&old_p, *(ShortOOP*)&new_p);
+  }
+  rtHeap::set_unmodified(pField);
+}
+
+
+void FieldUpdateReport::process_update_logs() {
+  Klass* intArrayKlass = Universe::intArrayKlassObj();
+  FieldUpdateReport* next_report;
+  for (FieldUpdateReport* report = g_report_q; report != NULL; report = next_report) {
+    next_report = report->_next;
+    FieldUpdateLog* end = report->end_of_log();
+    rtgc_log(true, "report(%d) from %p to %p\n", 
+        (int)(end - report->first_log()), report->first_log(), end);
+    for (FieldUpdateLog* log = report->first_log(); log < end; log ++) {
+      log->updateAnchorList();
+    }
+    int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
+    to_obj(report)->markGarbage();
+    to_obj(report)->markDestroyed();
+    CollectedHeap::fill_with_object((HeapWord*)report, STACK_CHUNK_SIZE >> LogHeapWordSize, false);
+  }
 }

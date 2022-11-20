@@ -5,6 +5,7 @@
 #include "memory/allStatic.hpp"
 #include "memory/referenceType.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
 
@@ -33,6 +34,7 @@ class rtHeap : AllStatic {
 public:
   static int  DoCrossCheck;
   static int  in_full_gc;
+
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);
@@ -75,6 +77,34 @@ public:
   // just for debugging
   static void print_heap_after_gc(bool full_gc);
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
+
+  static inline bool is_modified(narrowOop p) {
+    return (((uint32_t)p) & 1) == 0;
+  }
+
+  static inline bool is_modified(oop p) {
+    fatal("should not reach here!");
+    return (((uintptr_t)(void*)p) & 1) == 0;
+  }
+
+  static inline narrowOop to_modified(narrowOop p) {
+    return (narrowOop)(((uint32_t)p) & ~1);
+  }
+
+  static inline oop to_modified(oop p) {
+    fatal("should not reach here!");
+    return cast_to_oop(((uintptr_t)(void*)p) & ~1);
+  }
+
+  static inline void set_unmodified(narrowOop* p) {
+    *((uint32_t*)p) |= 1;
+  }
+
+  static inline void set_unmodified(oop* p) {
+    fatal("should not reach here!");
+    *((uint32_t*)p) |= 1;
+  }
+
 };
 
 

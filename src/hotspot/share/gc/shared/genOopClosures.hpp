@@ -56,7 +56,8 @@ protected:
 public:
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
-  void trackable_barrier(oop old_p, oop new_p) { fatal("not implemented"); }
+  template <typename T>
+  void trackable_barrier(T* p, oop new_p) { fatal("not implemented"); }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -96,7 +97,8 @@ public:
   template <typename T>
   void barrier(T* p, oop forwardee);
 
-  void trackable_barrier(oop old_p, oop new_p);
+  template <typename T>
+  void trackable_barrier(T* p, oop new_p);
 
   void do_iterate(oop obj);
 };
@@ -135,10 +137,13 @@ public:
 
   template <typename T>
   void barrier(T* p, oop new_obj) {
+    rtHeap::set_unmodified(p);
     _has_young_ref = true;
   }
 
-  void trackable_barrier(oop old_p, oop new_p) {
+  template <typename T>
+  void trackable_barrier(T* p, oop new_p) {
+    rtHeap::set_unmodified(p);
     void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
     rtHeap__ensure_trackable_link(_current_anchor, new_p);
   }
@@ -150,7 +155,6 @@ public:
 // This closures records changes to oops in CLDs.
 class DefNewScanClosure : public FastScanClosure<DefNewScanClosure> {
   ClassLoaderData* _scanned_cld;
-  debug_only(oop _anchor;)
 public:
   DefNewScanClosure(DefNewGeneration* g);
 
@@ -163,13 +167,12 @@ public:
   void barrier(T* p, oop new_obj);
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  void trackable_barrier(oop old_p, oop new_p) { 
-    precond(old_p != _anchor);
+  template <typename T>
+  void trackable_barrier(T* p, oop new_p) { 
     rtHeap::mark_survivor_reachable(new_p);
   }
 
   void do_iterate(oop obj) {
-    debug_only(_anchor = obj;)
     obj->oop_iterate(this);
   }
 #endif

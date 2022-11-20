@@ -101,7 +101,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
 
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
-  if (false && RTGC::is_debug_pointer(debug_base)) {
+  if (RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p(%s)\n", 
         base, to_obj(base)->getRootRefCount(), p, RTGC::getClassName(p));
   }
@@ -335,7 +335,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = 1; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 
@@ -354,7 +354,7 @@ void RTGC::initialize() {
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    //debug_obj = 0x7f0260f58;
+    debug_obj = (void*)0x3f5550000;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

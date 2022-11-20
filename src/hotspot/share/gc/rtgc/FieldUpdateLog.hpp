@@ -1,18 +1,16 @@
 #include "oops/oop.inline.hpp"
+#include "impl/GCObject.hpp"
 
 namespace RTGC {
 
 struct FieldUpdateLog {
-  oop       _anchor;
+  address   _anchor;
   int32_t   _offset;
   narrowOop _erased;
 
-  void init(oopDesc* anchor, narrowOop* field, narrowOop erased) {
-    this->_anchor = anchor;
-    this->_offset = (address)field - (address)anchor;
-    this->_erased = erased;
-    postcond(_offset > 0);
-  }
+  void init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased);
+
+  void updateAnchorList();
 };
 
 class FieldUpdateReport {
@@ -33,7 +31,7 @@ public:
 
   bool is_full() { return _sp <= (void*)&_sp; }
 
-  FieldUpdateLog* first_log() { return _sp; }
+  FieldUpdateLog* first_log() { return is_full() ? (FieldUpdateLog*)&_sp + 1 : _sp; }
 
   FieldUpdateLog* end_of_log() { return _end; }
 
@@ -44,6 +42,8 @@ public:
   static FieldUpdateLog** default_stack_pointer() {
     return g_dummy_report.stack_pointer();
   }
+
+  static void process_update_logs();
 
   static void reset_gc_context(bool promotion_finished);
 };

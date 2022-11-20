@@ -5,6 +5,7 @@ namespace RTGC {
 
 class RtThreadLocalData {    
   FieldUpdateLog** _log_sp;
+
 public:
 
   RtThreadLocalData() { reset_field_update_log_sp(); }
@@ -26,15 +27,17 @@ public:
   }
 
   FieldUpdateLog* allocateLog() {
-    while (true) {
-      FieldUpdateLog* log = --_log_sp[0];
-      if (log > (void*)_log_sp) {
-        return (FieldUpdateLog*)log;
-      } 
-      _log_sp = FieldUpdateReport::allocate()->stack_pointer();
-    }
+    FieldUpdateLog* log = --_log_sp[0];
+    if (log <= (void*)_log_sp) {
+      log = allocate_log_in_new_stack();
+    } 
+    return log;
   }
 
+  FieldUpdateLog* allocate_log_in_new_stack() {
+    _log_sp = FieldUpdateReport::allocate()->stack_pointer();
+    return --_log_sp[0];
+  }  
 };
 
 };

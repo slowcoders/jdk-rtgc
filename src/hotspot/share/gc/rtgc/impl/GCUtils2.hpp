@@ -70,9 +70,13 @@ public:
         return getItemPtr(item) != NULL;
     }
 
+    // returns removed item pointer
+    const void* replace(ShortOOP old_p, ShortOOP new_p);
+
     // returns removed item pointer (the memory may not accessable);
     const void* remove(ShortOOP item);
 
+    // returns lowerest removed item pointer (the memory may not accessable);
     const void* removeMatchedItems(ShortOOP item);
 
     const ShortOOP* getItemPtr(ShortOOP item);

@@ -387,8 +387,16 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
+  assert(_new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
+      (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
+      "modified field %p(%s) %p\n", 
+      _old_anchor_p, RTGC::getClassName(_old_anchor_p), (void*)CompressedOops::decode(*p));
+
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
+  if (to_obj(_old_anchor_p)->isTrackable()) {
+    rtHeap::set_unmodified(p);
+  }
   if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT
@@ -396,7 +404,9 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 #endif   
 
   _has_young_ref |= is_in_young(new_p);
-  if (_new_anchor_p == NULL) return;
+  if (_new_anchor_p == NULL) {
+    return;
+  }
 
   // old_p 내부 field 에 대한 adjust_pointers 가 처리되지 않았으면...
   if (to_obj(old_p)->isDirtyReferrerPoints()) {
@@ -599,6 +609,8 @@ class ClearWeakHandleRef: public OopClosure {
 
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   precond(g_stack_roots.size() == 0);
+  FieldUpdateReport::process_update_logs();
+
   if (policy != NULL) {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();

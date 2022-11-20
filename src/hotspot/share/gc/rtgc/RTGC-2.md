@@ -24,6 +24,7 @@
    5. AnchorList -> doubly link list 변경 (31bit offset)
    6. vmClass::deadSpaceKlass()
    7. detectGarbageFast()
+   8. findSurvivalPath() in_tracing flag 처리. 순환 참조 처리 최적화.
 
 
 1) Flags

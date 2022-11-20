@@ -55,6 +55,8 @@ public:
 
 	bool hasReferrer(GCObject* referrer);
 
+	void replaceAnchor(ShortOOP old_referrer, ShortOOP new_referrer);
+
 	bool hasSafeAnchor() {
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}
