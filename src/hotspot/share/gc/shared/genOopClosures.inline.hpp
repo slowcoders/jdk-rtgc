@@ -53,7 +53,8 @@ template <typename Derived>
 template <typename T>
 inline void FastScanClosure<Derived>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
-  assert(!rtHeap::is_modified(heap_oop), "oop modified %p\n", (void*)heap_oop);
+  assert(sizeof(T) > 4 || !rtHeap::is_modified(heap_oop), 
+      "oop modified %p v=%p\n", p, (void*)heap_oop);
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // OptStoreOop
@@ -121,8 +122,8 @@ void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
   precond(!rtHeap::is_modified(*p));
-  rtgc_debug_log(_trackable_anchor, "barrier %p[%d] = %p\n", 
-      (void*)_trackable_anchor, (int)((address)p - address(_trackable_anchor)), (void*)new_p);
+  rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
+      (void*)_trackable_anchor, p, (void*)new_p);
   rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 
@@ -131,8 +132,8 @@ template <typename T>
 void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
   precond(!rtHeap::is_modified(*p));
-  rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%d] = %p\n", 
-      (void*)_trackable_anchor, (int)((address)p - address(_trackable_anchor)), (void*)new_p);
+  rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%p] = %p\n", 
+      (void*)_trackable_anchor, p, (void*)new_p);
   rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 

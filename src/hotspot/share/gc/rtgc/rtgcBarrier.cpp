@@ -101,7 +101,10 @@ static void raw_set_field(oop* addr, oopDesc* value) {
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
   narrowOop new_v = CompressedOops::encode(value);
-  new_v = rtHeap::to_modified(new_v);
+  if (in_heap && rtHeapEx::OptStoreOop) {
+    new_v = rtHeap::to_modified(new_v);
+    rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
+  }
   narrowOop old_v = Atomic::xchg(addr, new_v);
   if (in_heap && rtHeapEx::OptStoreOop && !rtHeap::is_modified(old_v)) {
     FieldUpdateLog* log = RtThreadLocalData::data(Thread::current())->allocateLog();
@@ -125,7 +128,10 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   } 
 
   narrowOop n_v = CompressedOops::encode(value);
-  n_v = rtHeap::to_modified(n_v);
+  if (in_heap && rtHeapEx::OptStoreOop) {
+    n_v = rtHeap::to_modified(n_v);
+    rtgc_debug_log(base, "raw_atomic_cmpxchg(%p)[%p] -> %p\n", base, addr, (void*)n_v);
+  }
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
   if (in_heap && rtHeapEx::OptStoreOop) {
     if (res == c_v) {
@@ -599,33 +605,37 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
                     size_t length, arrayOopDesc* dst_array) {
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
-  rtgc_log(LOG_OPT(5), "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+  rtgc_debug_log(src_p, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
       src_p, dst_array, dst_p, (int)length,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
-  RTGC::lock_heap();                          
+  if (SEQ_LOCK) RTGC::lock_heap();                          
   for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
     oopDesc* new_v = CompressedOops::decode(s_raw);
     if (checkcast && new_v != NULL) {
       Klass* stype = new_v->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
-        memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
+        if (SEQ_LOCK) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         RTGC::unlock_heap(true);
         rtgc_log(LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
         return i;
       }
     }
-    oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
-    // 사용불가 memmove 필요
-    // dst_p[i] = s_raw;
-    if (old != new_v) {
-      RTGC::on_field_changed(dst_array, old, new_v, &dst_p[i], "arry");
+    if (!SEQ_LOCK) {
+      raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
+    } else {
+      oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
+      // 사용불가 memmove 필요
+      // dst_p[i] = s_raw;
+      if (old != new_v) {
+        RTGC::on_field_changed(dst_array, old, new_v, &dst_p[i], "arry");
+      }
     }
   } 
-  memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
-  RTGC::unlock_heap(true);
+  if (SEQ_LOCK) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
+  if (SEQ_LOCK) RTGC::unlock_heap(true);
   rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   return length;
 }
@@ -683,8 +693,10 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
   void do_work(T* p) {
-    oop obj = CompressedOops::decode(*p);
-    if (obj != NULL) RTGC::add_referrer_ex(obj, _rookie, true);
+    T heap_oop = *p;
+    if (rtHeap::is_modified(heap_oop)) {
+      *p = rtHeap::to_unmodified(heap_oop);
+    }
   }
 
 public:
@@ -710,12 +722,12 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
   rtgc_debug_log(new_obj, "clone_post_barrier %p\n", new_obj); 
   rtgc_log(RTGC::to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, RTGC::to_obj(new_obj)->getRootRefCount());
-  if (false && RTGC::to_node(new_obj)->isTrackable()) {
+  if (!SEQ_LOCK && rtHeapEx::OptStoreOop && RTGC::to_node(src)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
-    RTGC::lock_heap();
+    // RTGC::lock_heap();
     RTGC_CloneClosure c(new_obj);
     new_obj->oop_iterate(&c);
-    RTGC::unlock_heap(true);
+    // RTGC::unlock_heap(true);
   }
 }
 

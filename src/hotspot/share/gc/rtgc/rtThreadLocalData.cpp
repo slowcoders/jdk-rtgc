@@ -75,23 +75,28 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
   precond(to_obj(anchor)->isTrackable());
+  precond(!rtHeap::is_modified(erased));
   this->_anchor = (address)anchor;
   this->_offset = (address)field - (address)anchor;
   this->_erased = erased;
-  rtgc_debug_log(_anchor, "add log(%p) %p[%d]\n", this, _anchor, _offset);
+  rtgc_debug_log(_anchor, "add log %p[%d]\n", _anchor, _offset);
   postcond(_offset > 0);
 }
 
 void FieldUpdateLog::updateAnchorList() {
   narrowOop* pField = (narrowOop*)(_anchor + _offset);
-  rtgc_debug_log(_anchor, "set_unmodified(%p) %p[%d]\n", this, _anchor, _offset);
   narrowOop new_p = *pField;
+  rtgc_debug_log(_anchor, "set_unmodified %p(%s)[%p] v=%p\n", 
+      _anchor, RTGC::getClassName(_anchor), _anchor + _offset, (void*)new_p);
   precond(rtHeap::is_modified(new_p));
-  narrowOop old_p = rtHeap::to_modified(_erased);
-  if (new_p != old_p) {
-    if (false) to_obj(_anchor)->replaceAnchor(*(ShortOOP*)&old_p, *(ShortOOP*)&new_p);
+  precond(!rtHeap::is_modified(_erased));
+  new_p = rtHeap::to_unmodified(new_p);
+  if (new_p != _erased) {
+    if (false) to_obj(_anchor)->replaceAnchor(*(ShortOOP*)&_erased, *(ShortOOP*)&new_p);
+  } else {
+    // 여러번 변경되어 _erased 값이 동일해진 경우.
   }
-  *pField = rtHeap::to_unmodified(*pField);
+  *pField = new_p;
 }
 
 
