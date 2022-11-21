@@ -36,6 +36,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 #if INCLUDE_SERIALGC
 #include "gc/serial/defNewGeneration.inline.hpp"
 #endif
@@ -52,8 +53,17 @@ template <typename Derived>
 template <typename T>
 inline void FastScanClosure<Derived>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
+  assert(!rtHeap::is_modified(heap_oop), "oop modified %p\n", (void*)heap_oop);
   // Should we copy the obj?
-  if (!CompressedOops::is_null(heap_oop)) {
+  if (CompressedOops::is_null(heap_oop)) {
+#if INCLUDE_RTGC // OptStoreOop
+    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (rtHeap::is_modified(heap_oop)) {
+        *p = rtHeap::to_unmodified((T)0);
+      }
+    }
+#endif
+  } else {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 #if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
     if (cast_from_oop<HeapWord*>(obj) < _young_gen_end) {
@@ -107,18 +117,22 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 template <bool is_promoted> 
 template <typename T>
-void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_obj) {
+void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
-  rtHeap::set_unmodified(p);
-  rtHeap::add_trackable_link(_trackable_anchor, new_obj);
+  precond(!rtHeap::is_modified(*p));
+  rtgc_debug_log(_trackable_anchor, "barrier %p[%d] = %p\n", 
+      (void*)_trackable_anchor, (int)((address)p - address(_trackable_anchor)), (void*)new_p);
+  rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 
 template <bool is_promoted> 
 template <typename T>
 void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
-  rtHeap::set_unmodified(p);
+  precond(!rtHeap::is_modified(*p));
+  rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%d] = %p\n", 
+      (void*)_trackable_anchor, (int)((address)p - address(_trackable_anchor)), (void*)new_p);
   rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 
@@ -144,7 +158,7 @@ inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
     FastScanClosure<DefNewScanClosure>(g), _scanned_cld(NULL) {}
 
 template <class T>
-void DefNewScanClosure::barrier(T* p, oop new_obj) {
+void DefNewScanClosure::barrier(T* p, oop new_p) {
 #if INCLUDE_RTGC // RTGC_NO_DIRTY_CARD_MARKING
   if (RtNoDirtyCardMarking) return;
 #endif    

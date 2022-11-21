@@ -91,7 +91,7 @@ void FieldUpdateLog::updateAnchorList() {
   if (new_p != old_p) {
     if (false) to_obj(_anchor)->replaceAnchor(*(ShortOOP*)&old_p, *(ShortOOP*)&new_p);
   }
-  rtHeap::set_unmodified(pField);
+  *pField = rtHeap::to_unmodified(*pField);
 }
 
 

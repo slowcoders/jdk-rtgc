@@ -79,30 +79,30 @@ public:
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
 
   static inline bool is_modified(narrowOop p) {
-    return (((uint32_t)p) & 1) == 0;
+    return (((uint32_t)p) & 1) != 0;
   }
 
   static inline bool is_modified(oop p) {
-    fatal("should not reach here!");
-    return (((uintptr_t)(void*)p) & 1) == 0;
+    if (true) return true;
+    return (((uintptr_t)(void*)p) & 1) != 0;
   }
 
   static inline narrowOop to_modified(narrowOop p) {
-    return (narrowOop)(((uint32_t)p) & ~1);
+    return (narrowOop)(((uint32_t)p) | 1);
   }
 
   static inline oop to_modified(oop p) {
-    fatal("should not reach here!");
+    if (true) return p;
+    return cast_to_oop(((uintptr_t)(void*)p) | 1);
+  }
+
+  static inline narrowOop to_unmodified(narrowOop p) {
+    return (narrowOop)(((uint32_t)p) & ~1);
+  }
+
+  static inline oop to_unmodified(oop p) {
+    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) & ~1);
-  }
-
-  static inline void set_unmodified(narrowOop* p) {
-    *((uint32_t*)p) |= 1;
-  }
-
-  static inline void set_unmodified(oop* p) {
-    fatal("should not reach here!");
-    *((uint32_t*)p) |= 1;
   }
 
 };

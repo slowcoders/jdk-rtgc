@@ -101,6 +101,7 @@ static void raw_set_field(oop* addr, oopDesc* value) {
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
   narrowOop new_v = CompressedOops::encode(value);
+  new_v = rtHeap::to_modified(new_v);
   narrowOop old_v = Atomic::xchg(addr, new_v);
   if (in_heap && rtHeapEx::OptStoreOop && !rtHeap::is_modified(old_v)) {
     FieldUpdateLog* log = RtThreadLocalData::data(Thread::current())->allocateLog();
@@ -120,10 +121,11 @@ template <bool in_heap>
 static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare, oopDesc* value) {
   narrowOop c_v = CompressedOops::encode(compare);
   if (in_heap && rtHeapEx::OptStoreOop) {
-    rtHeap::set_unmodified(&c_v);
+    c_v = rtHeap::to_unmodified(c_v);
   } 
 
   narrowOop n_v = CompressedOops::encode(value);
+  n_v = rtHeap::to_modified(n_v);
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
   if (in_heap && rtHeapEx::OptStoreOop) {
     if (res == c_v) {

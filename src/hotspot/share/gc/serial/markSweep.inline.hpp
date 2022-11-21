@@ -36,6 +36,7 @@
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
@@ -121,7 +122,16 @@ inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow
 
 template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
-  if (!CompressedOops::is_null(heap_oop)) {
+  precond(!rtHeap::is_modified(heap_oop));
+  if (CompressedOops::is_null(heap_oop)) {
+#if INCLUDE_RTGC // OptStoreOop
+    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (rtHeap::is_modified(heap_oop)) {
+        *p = rtHeap::to_unmodified((T)0);
+      }
+    }
+#endif
+  } else {
     oop obj = CompressedOops::decode_not_null(heap_oop);
     assert(Universe::heap()->is_in(obj), "should be in heap");
 

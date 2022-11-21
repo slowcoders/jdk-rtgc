@@ -389,13 +389,13 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   assert(_new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
       (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
-      "modified field %p(%s) %p\n", 
-      _old_anchor_p, RTGC::getClassName(_old_anchor_p), (void*)CompressedOops::decode(*p));
+      "modified field %p(%s)[%d]\n" PTR_DBG_SIG, 
+      _old_anchor_p, RTGC::getClassName(_old_anchor_p), (int)((address)p - (address)_old_anchor_p), PTR_DBG_INFO(_old_anchor_p));
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
   if (to_obj(_old_anchor_p)->isTrackable()) {
-    rtHeap::set_unmodified(p);
+    *p = rtHeap::to_unmodified(*p);
   }
   if (old_p == NULL || old_p == _old_anchor_p) return;
 

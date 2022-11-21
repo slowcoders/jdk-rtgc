@@ -136,14 +136,18 @@ public:
   }
 
   template <typename T>
-  void barrier(T* p, oop new_obj) {
-    rtHeap::set_unmodified(p);
+  void barrier(T* p, oop new_p) {
+    precond(!rtHeap::is_modified(*p));
+    rtgc_debug_log(_current_anchor, "yg-barrier %p[%d] = %p\n", 
+        (void*)_current_anchor, (int)((address)p - address(_current_anchor)), (void*)new_p);
     _has_young_ref = true;
   }
 
   template <typename T>
   void trackable_barrier(T* p, oop new_p) {
-    rtHeap::set_unmodified(p);
+    precond(!rtHeap::is_modified(*p));
+    rtgc_debug_log(_current_anchor, "yg-barrier %p[%d] = %p\n", 
+        (void*)_current_anchor, (int)((address)p - address(_current_anchor)), (void*)new_p);
     void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
     rtHeap__ensure_trackable_link(_current_anchor, new_p);
   }
@@ -164,7 +168,7 @@ public:
   }
 
   template <typename T>
-  void barrier(T* p, oop new_obj);
+  void barrier(T* p, oop new_p);
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   template <typename T>
