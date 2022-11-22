@@ -28,6 +28,7 @@ public:
 
   FieldUpdateLog* allocateLog() {
     FieldUpdateLog* log = --_log_sp[0];
+    // rtgc_log(true, "add log(%p) sp= %p\n", log, _log_sp);
     if (log <= (void*)_log_sp) {
       log = allocate_log_in_new_stack();
     } 
@@ -35,9 +36,11 @@ public:
   }
 
   FieldUpdateLog* allocate_log_in_new_stack() {
+    // rtgc_log(true, "allocate_log_in_new_stack\n");
     _log_sp = FieldUpdateReport::allocate()->stack_pointer();
     return --_log_sp[0];
   }  
+
 };
 
 };

@@ -805,11 +805,11 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   old->forward_to(obj);
 
 #ifdef INCLUDE_RTGC
-#ifdef ASSERT
   if (EnableRTGC) {
+#ifdef ASSERT
     RTGC::adjust_debug_pointer(old, obj, true);
-  }
 #endif
+  }
 #endif
   return obj;
 }

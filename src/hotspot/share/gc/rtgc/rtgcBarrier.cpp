@@ -610,6 +610,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
+  bool is_trackable_dst = to_obj(dst_array)->isTrackable();
   if (SEQ_LOCK) RTGC::lock_heap();                          
   for (size_t i = 0; i < length; i++) {
     ITEM_T s_raw = src_p[i]; 
@@ -624,8 +625,15 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       }
     }
     if (!SEQ_LOCK) {
-      raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
-    } else {
+      if (is_trackable_dst) {
+        raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
+      } else if (sizeof(ITEM_T) == sizeof(narrowOop)) {
+        ((narrowOop*)dst_p)[i] = CompressedOops::encode(new_v);
+      } else {
+        ((oop*)dst_p)[i] = new_v;
+      }
+    } // else  
+    {
       oopDesc* old = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
       // 사용불가 memmove 필요
       // dst_p[i] = s_raw;

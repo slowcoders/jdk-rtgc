@@ -35,6 +35,7 @@ namespace RTGC {
   // bool yg_root_locked = false;
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
+  bool g_in_gc_termination = false;
 
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
@@ -635,6 +636,7 @@ void rtHeap::finish_rtgc(bool is_full_gc, bool promotion_finished) {
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
   in_full_gc = 0;
+  g_in_gc_termination = true;
 }
 
 
@@ -653,6 +655,7 @@ void rtHeap::release_jni_handle(oopDesc* p) {
 
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
+  g_in_gc_termination = false;
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
       g_cntTrackable, g_young_roots.size(), full_gc); 
 }

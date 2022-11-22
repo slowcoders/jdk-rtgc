@@ -41,7 +41,7 @@ class KlassRemSet;
 //
 // - Derived: The derived type provides necessary barrier
 //            after an oop has been updated.
-template <typename Derived>
+template <typename Derived, bool clear_modified_flag=false>
 class FastScanClosure : public BasicOopIterateClosure {
 private:
   DefNewGeneration* _young_gen;
@@ -83,7 +83,7 @@ public:
 
 #else // RTGC_OPT_YOUNG_ROOTS
 template <bool is_promoted> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>> {
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true> {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -91,7 +91,7 @@ private:
 
 public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<is_promoted>>(young_gen), 
+    : FastScanClosure<ScanTrackableClosure<is_promoted>, true>(young_gen), 
     _old_gen(old_gen) {}
 
   template <typename T>
@@ -137,7 +137,7 @@ public:
 
   template <typename T>
   void barrier(T* p, oop new_p) {
-    precond(!rtHeap::is_modified(*p));
+    // precond(!rtHeap::is_modified(*p));
     rtgc_debug_log(_current_anchor, "yg-barrier %p[%p] = %p\n", 
         (void*)_current_anchor, p, (void*)new_p);
     _has_young_ref = true;

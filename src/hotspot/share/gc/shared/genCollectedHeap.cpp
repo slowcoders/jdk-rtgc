@@ -679,6 +679,12 @@ void GenCollectedHeap::do_collection(bool           full,
     BiasedLocking::restore_marks();
 
     print_heap_after_gc();
+
+#if INCLUDE_RTGC
+    if (EnableRTGC) { 
+      rtHeap::finish_rtgc(true, true);
+    }
+#endif
   }
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS

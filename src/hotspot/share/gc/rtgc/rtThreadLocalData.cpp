@@ -22,8 +22,9 @@ namespace RTGC {
     }
   };
 
-  static address g_report_area = 0;
-  static address g_last_report = 0;
+  extern bool g_in_gc_termination;
+  address g_report_area = 0;
+  address g_last_report = 0;
   static const int STACK_CHUNK_SIZE = sizeof(FieldUpdateLog)*512;
 }
 
@@ -42,6 +43,7 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
     g_report_area = 0;
     g_last_report = 0;
   }
+  rtgc_log(true, "reset log chunk area %p size=%x", g_report_area, (int)(g_last_report - g_report_area));
 
   ThreadLocalDataClosure tld_closure;
   Threads::java_threads_do(&tld_closure);
@@ -50,6 +52,11 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
 static FieldUpdateReport* __allocate_log_stack_chunk() {
   address report;
   if (g_last_report > g_report_area) {
+    DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
+    ContiguousSpace* to = newGen->to();
+    assert(g_report_area == (address)to->bottom(), "wrong chunk area %p : %p\n", g_report_area, to->bottom());
+
+
     report = Atomic::sub(&g_last_report, STACK_CHUNK_SIZE);
     if (report >= g_report_area) {
       return (FieldUpdateReport*)report;
@@ -58,6 +65,7 @@ static FieldUpdateReport* __allocate_log_stack_chunk() {
     }
   }
 
+  fatal("allocation fail!");
   int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
   ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 
       STACK_CHUNK_SIZE >> LogHeapWordSize, length, false);
@@ -65,22 +73,25 @@ static FieldUpdateReport* __allocate_log_stack_chunk() {
 }
 
 FieldUpdateReport* FieldUpdateReport::allocate() {
+  precond(!g_in_gc_termination);
+
   FieldUpdateReport* report = __allocate_log_stack_chunk();
-  
   report->_end = (FieldUpdateLog*)((uintptr_t)report + STACK_CHUNK_SIZE);
   report->_sp = report->_end;
   report->_next = Atomic::xchg(&g_report_q, report);
+  rtgc_log(true, "report allocated %p to %p\n", report, report->_end);
+
   return report;
 }
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
+  // rtgc_log(true, "add log(%p) %p[%p] v=%p\n", this, anchor, field, (void*)erased);
   precond(to_obj(anchor)->isTrackable());
   precond(!rtHeap::is_modified(erased));
   this->_anchor = (address)anchor;
   this->_offset = (address)field - (address)anchor;
   this->_erased = erased;
-  rtgc_debug_log(_anchor, "add log %p[%d]\n", _anchor, _offset);
-  postcond(_offset > 0);
+  assert(_offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
 }
 
 void FieldUpdateLog::updateAnchorList() {
@@ -106,8 +117,6 @@ void FieldUpdateReport::process_update_logs() {
   for (FieldUpdateReport* report = g_report_q; report != NULL; report = next_report) {
     next_report = report->_next;
     FieldUpdateLog* end = report->end_of_log();
-    rtgc_log(true, "report(%d) from %p to %p\n", 
-        (int)(end - report->first_log()), report->first_log(), end);
     for (FieldUpdateLog* log = report->first_log(); log < end; log ++) {
       log->updateAnchorList();
     }

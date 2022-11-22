@@ -122,7 +122,6 @@ inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow
 
 template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
-  precond(!rtHeap::is_modified(heap_oop));
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // OptStoreOop
     if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {

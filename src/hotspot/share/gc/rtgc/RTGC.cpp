@@ -228,7 +228,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "[Ljava/lang/Object;",
+  // "[Ljava/lang/Object;",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",

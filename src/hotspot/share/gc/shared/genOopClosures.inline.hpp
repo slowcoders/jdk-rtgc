@@ -43,22 +43,20 @@
 
 #if INCLUDE_SERIALGC
 
-template <typename Derived>
-inline FastScanClosure<Derived>::FastScanClosure(DefNewGeneration* g) :
+template <typename Derived, bool clear_modified_flag>
+inline FastScanClosure<Derived, clear_modified_flag>::FastScanClosure(DefNewGeneration* g) :
     BasicOopIterateClosure(g->ref_processor()),
     _young_gen(g),
     _young_gen_end(g->reserved().end()) {}
 
-template <typename Derived>
+template <typename Derived, bool clear_modified_flag>
 template <typename T>
-inline void FastScanClosure<Derived>::do_oop_work(T* p) {
+inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
-  assert(sizeof(T) > 4 || !rtHeap::is_modified(heap_oop), 
-      "oop modified %p v=%p\n", p, (void*)heap_oop);
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // OptStoreOop
-    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -87,16 +85,21 @@ inline void FastScanClosure<Derived>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
+      if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+        if (rtHeap::is_modified(heap_oop)) {
+          *p = rtHeap::to_unmodified(heap_oop);
+        }
+      }
       static_cast<Derived*>(this)->trackable_barrier(p, obj);
     }
 #endif
   }
 }
 
-template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(oop* p)       { ((Derived*)this)->do_oop_work(p); }
-template <typename Derived>
-inline void FastScanClosure<Derived>::do_oop(narrowOop* p) { ((Derived*)this)->do_oop_work(p); }
+template <typename Derived, bool clear_modified_flag>
+inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(oop* p)       { ((Derived*)this)->do_oop_work(p); }
+template <typename Derived, bool clear_modified_flag>
+inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(narrowOop* p) { ((Derived*)this)->do_oop_work(p); }
 
 #if !INCLUDE_RTGC
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :
@@ -121,7 +124,7 @@ template <typename T>
 void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
-  precond(!rtHeap::is_modified(*p));
+  // precond(!rtHeap::is_modified(*p));
   rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
       (void*)_trackable_anchor, p, (void*)new_p);
   rtHeap::add_trackable_link(_trackable_anchor, new_p);
