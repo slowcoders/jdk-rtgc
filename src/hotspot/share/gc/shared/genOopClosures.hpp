@@ -28,6 +28,7 @@
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
 
 class Generation;
 class CardTableRS;
@@ -145,7 +146,7 @@ public:
 
   template <typename T>
   void trackable_barrier(T* p, oop new_p) {
-    precond(!rtHeap::is_modified(*p));
+    precond(!RTGC::rtHeapEx::OptStoreOop || !rtHeap::is_modified(*p));
     rtgc_debug_log(_current_anchor, "yg-barrier %p[%p] = %p\n", 
         (void*)_current_anchor, p, (void*)new_p);
     void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);

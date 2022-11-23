@@ -50,6 +50,7 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
 }
 
 static FieldUpdateReport* __allocate_log_stack_chunk() {
+  precond(rtHeapEx::OptStoreOop);
   address report;
   if (g_last_report > g_report_area) {
     DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();

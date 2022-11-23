@@ -3,11 +3,12 @@
 #include "GCObject.hpp"
 #include "memory/virtualspace.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "../rtHeapEx.hpp"
 
 using namespace RTGC;
 
 namespace RTGC {
-    static const int OBJ_ALIGN = 4;
+    static const int OBJ_ALIGN = rtHeapEx::OptStoreOop ? 4 : 8;
 
     uint32_t _pointer2offset(void* ref) {
         precond(ref != nullptr);

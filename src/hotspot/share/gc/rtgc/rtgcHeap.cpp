@@ -388,14 +388,14 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
-  assert(_new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
+  assert(!rtHeapEx::OptStoreOop || _new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
       (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
       "modified field %p(%s)[%d]\n" PTR_DBG_SIG, 
       _old_anchor_p, RTGC::getClassName(_old_anchor_p), (int)((address)p - (address)_old_anchor_p), PTR_DBG_INFO(_old_anchor_p));
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (to_obj(_old_anchor_p)->isTrackable()) {
+  if (rtHeapEx::OptStoreOop && to_obj(_old_anchor_p)->isTrackable()) {
     *p = rtHeap::to_unmodified(*p);
   }
   if (old_p == NULL || old_p == _old_anchor_p) return;
@@ -610,7 +610,9 @@ class ClearWeakHandleRef: public OopClosure {
 
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   precond(g_stack_roots.size() == 0);
-  FieldUpdateReport::process_update_logs();
+  if (rtHeapEx::OptStoreOop) {
+    FieldUpdateReport::process_update_logs();
+  }
 
   if (policy != NULL) {
     // yg_root_locked = true;
@@ -632,7 +634,9 @@ void rtHeap::finish_rtgc(bool is_full_gc, bool promotion_finished) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
-  FieldUpdateReport::reset_gc_context(promotion_finished);
+  if (rtHeapEx::OptStoreOop) {
+    FieldUpdateReport::reset_gc_context(promotion_finished);
+  }
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
   in_full_gc = 0;

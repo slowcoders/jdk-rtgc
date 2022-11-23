@@ -764,13 +764,7 @@ UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, j
   if (EnableRTGC) {
     if (e == (jlong)0x876543DB876543DB && (x >> 32) == (jlong)0x123456DB) {
       int32_t flag = (int32_t)x;
-      if (flag == 0) {
-        RTGC::debugOptions[0] = true;
-        RTGC::enableLog(RTGC::LOG_HEAP, 3);
-      }
-      else {
-        RTGC::enableLog(flag / 100, flag % 100);
-      }
+      RTGC::enableLog(flag / 100, flag % 100);
     }
   }
 #endif

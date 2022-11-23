@@ -701,6 +701,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
   void do_work(T* p) {
+    precond(rtHeapEx::OptStoreOop);
     T heap_oop = *p;
     if (rtHeap::is_modified(heap_oop)) {
       *p = rtHeap::to_unmodified(heap_oop);

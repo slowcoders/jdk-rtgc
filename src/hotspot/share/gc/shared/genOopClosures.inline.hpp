@@ -134,7 +134,7 @@ template <bool is_promoted>
 template <typename T>
 void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
-  precond(!rtHeap::is_modified(*p));
+  precond(!RTGC::rtHeapEx::OptStoreOop || !rtHeap::is_modified(*p));
   rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%p] = %p\n", 
       (void*)_trackable_anchor, p, (void*)new_p);
   rtHeap::add_trackable_link(_trackable_anchor, new_p);

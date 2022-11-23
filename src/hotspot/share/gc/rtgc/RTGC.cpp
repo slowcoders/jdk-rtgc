@@ -13,11 +13,10 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
-bool rtHeapEx__OptStoreOop = true;
+bool rtHeapEx__OptStoreOop = rtHeapEx::OptStoreOop;
 static int _logOptions[256];
 static int _debugOptions[256];
 namespace RTGC {
-  bool rtHeapEx::OptStoreOop = rtHeapEx__OptStoreOop;
   Thread* g_mv_lock = 0;
   volatile int* logOptions = _logOptions;
   volatile int* debugOptions = _debugOptions;
@@ -190,13 +189,6 @@ GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
   return p == NULL ? obj : to_obj(p);
 }
 
-void RTGC::print_anchor_list(void* obj) {
-  AnchorIterator it((GCObject*)obj);
-  while (it.hasNext()) {
-    GCObject* R = it.next();
-    rtgc_log(1, "anchor obj(%p) -> %p(%s)\n", obj, R, RTGC::getClassName(R));
-  }
-}
 
 const char* RTGC::getClassName(void* obj, bool showClassInfo) {
     if (obj == NULL || obj == (void*)-1) return NULL;
@@ -335,7 +327,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG = 1; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 
