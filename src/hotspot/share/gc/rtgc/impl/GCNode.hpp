@@ -2,7 +2,7 @@
 #define SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 
 #include "../RTGC.hpp"
-#include "../rtgcDebug.hpp"
+#include "../rtgcLog.hpp"
 
 #define ZERO_ROOT_REF 		0
 static const int NO_SAFE_ANCHOR = 0;
@@ -193,19 +193,9 @@ public:
 		return _flags.rootRefCount;
 	}
 
-	int incrementRootRefCount() {
-		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
-			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
-		return (_flags.rootRefCount += 2);
-	}
+	int incrementRootRefCount();
 
-	int decrementRootRefCount() {
-		assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
-			this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
-		assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
-			this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
-		return (_flags.rootRefCount -= 2);
-	}
+	int decrementRootRefCount();
 
 	bool isGarbageMarked() {
 		return _flags.isGarbage;

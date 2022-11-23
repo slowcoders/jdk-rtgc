@@ -1,7 +1,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
-#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
@@ -44,6 +44,8 @@ bool RTGC::isPublished(GCObject* obj) {
 }
 
 void RTGC::lock_heap() {
+  if (!ENABLE_HEAP_LOCK) return;
+
 #ifdef ASSERT
   Thread* self = Thread::current();
 #else 
@@ -53,6 +55,8 @@ void RTGC::lock_heap() {
 }
 
 bool RTGC::heap_locked_bySelf() {
+  if (!ENABLE_HEAP_LOCK) return true;
+
 #ifdef ASSERT
   Thread* self = Thread::current();
 #else 
@@ -76,6 +80,8 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
 }
 
 void RTGC::unlock_heap(bool locked) {
+  if (!ENABLE_HEAP_LOCK) return;
+
   if (locked) {
 #ifdef ASSERT
     Thread* self = Thread::current();
@@ -130,9 +136,6 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
-  rtgc_log(false && base->klass()->id() == InstanceRefKlassID &&
-      (address)addr - (address)base == java_lang_ref_Reference::discovered_offset(),
-      "discover changed %p.%p -> %p\n", base, oldValue, newValue);
 
   // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 
   //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
@@ -327,7 +330,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = 1; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 

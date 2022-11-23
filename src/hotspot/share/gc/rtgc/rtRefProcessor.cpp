@@ -1,9 +1,8 @@
 #include "gc/rtgc/rtHeapEx.hpp"
 
-#include "gc/rtgc/RTGC.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 #include "impl/GCObject.hpp"
 #include "gc/rtgc/rtSpace.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "gc/serial/serialGcRefProcProxyTask.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
@@ -1010,7 +1009,6 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     RTGC::lock_heap();
     RTGC::add_referrer_ex(referent_p, ref, true);
     RTGC::unlock_heap(true);
-    // to_obj(referent_p)->addReferrer(ref_node);
   }
 
   return;

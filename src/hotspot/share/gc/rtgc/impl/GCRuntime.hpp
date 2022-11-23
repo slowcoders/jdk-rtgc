@@ -2,7 +2,7 @@
 #define SHARE_GC_RTGC_IMPL_GCRUNTIME_HPP
 
 #include "GCObject.hpp" 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcLog.hpp"
 
 namespace RTGC {
 

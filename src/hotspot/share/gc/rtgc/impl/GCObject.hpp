@@ -55,8 +55,6 @@ public:
 
 	bool hasReferrer(GCObject* referrer);
 
-	void replaceAnchor(ShortOOP old_referrer, ShortOOP new_referrer);
-
 	bool hasSafeAnchor() {
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}
@@ -140,8 +138,8 @@ public:
 			node->setShortcutId_unsafe(s_id);
 		}
 		if (shortcut != NULL) {
-	        rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 
-				s_id, cntNode, anchor, tail);
+	        // rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 
+			// 	s_id, cntNode, anchor, tail);
 			shortcut->vailidateShortcut();
 		}
 		return shortcut;

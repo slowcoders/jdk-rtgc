@@ -34,8 +34,8 @@ void* _offset2Pointer(uint32_t offset);
 class GCObject;
 
 class ShortOOP {
-    uint32_t _ofs;
 public:
+    typedef uint32_t OffsetType;
     ShortOOP(GCObject* ptr) {
         precond(ptr != NULL);
         _ofs = _pointer2offset(ptr);
@@ -50,9 +50,11 @@ public:
         return (GCObject*)_offset2Pointer(_ofs);
     }
 
-    uint32_t getOffset() const {
+    OffsetType getOffset() const {
         return _ofs;
     }
+private:
+    OffsetType _ofs;
 };
 
 template <class T>

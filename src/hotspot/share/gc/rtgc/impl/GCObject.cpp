@@ -3,7 +3,7 @@
 
 #include "GCObject.hpp"
 #include "GCRuntime.hpp"
-#include "../RTGC.hpp"
+#include "../rtgcDebug.hpp"
 
 using namespace RTGC;
 
@@ -65,41 +65,6 @@ bool GCObject::hasReferrer(GCObject* referrer) {
     else {
         ReferrerList* referrers = getReferrerList();
         return referrers->contains(referrer);
-    }
-}
-
-void GCObject::replaceAnchor(ShortOOP old_referrer, ShortOOP new_referrer) {
-    precond(old_referrer != new_referrer);
-    if (old_referrer.getOffset() == 0) {
-        addReferrer(new_referrer);
-        return;
-    } 
-    if (new_referrer.getOffset() == 0) {
-        removeReferrer(old_referrer);
-        return;
-    } 
-    
-    if (!this->hasMultiRef()) {
-        precond (this->_refs == old_referrer.getOffset());
-        this->_refs = new_referrer.getOffset();
-    } else {
-        ReferrerList* referrers = getReferrerList();
-        const void* replaced = referrers->replace(old_referrer, new_referrer);
-        if (replaced != referrers->firstItemPtr()) {
-            return;
-        }
-    }
-
-    if (!this->hasSafeAnchor()) {
-        return;
-    }
-
-    if (this->hasShortcut()) {
-		SafeShortcut* shortcut = this->getShortcut();
-        shortcut->split(old_referrer, this);
-    } 
-    else {
-        this->invalidateSafeAnchor();
     }
 }
 

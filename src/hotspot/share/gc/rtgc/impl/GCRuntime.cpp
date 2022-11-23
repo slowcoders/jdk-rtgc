@@ -1,8 +1,10 @@
+#include "precompiled.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 #include "GCObject.hpp"
-#include "gc/rtgc/RTGC.hpp"
 #include "GCRuntime.hpp" 
 #include "oops/oop.inline.hpp"
 #include "classfile/vmClasses.hpp"
+#include "runtime/atomic.hpp"
 
 using namespace RTGC;
 namespace RTGC {
@@ -13,7 +15,27 @@ namespace RTGC {
 const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
+int GCNode::incrementRootRefCount() {
+    assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+        this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
+    if (RTGC::ENABLE_HEAP_LOCK) {
+        return (_flags.rootRefCount += 2);
+    } else {
+        return Atomic::add((volatile int32_t*)&_flags, 0x200);
+    }
+}
 
+int GCNode::decrementRootRefCount() {
+    assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
+        this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
+    assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
+        this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
+    if (RTGC::ENABLE_HEAP_LOCK) {
+        return (_flags.rootRefCount -= 2);
+    } else {
+        return Atomic::sub((volatile int32_t*)&_flags, 0x200);
+    }
+}
 
 bool GCRuntime::detectUnsafeObject(GCObject* erased) {
     if (erased->isUnsafeTrackable() && !erased->isUnstableMarked()) {

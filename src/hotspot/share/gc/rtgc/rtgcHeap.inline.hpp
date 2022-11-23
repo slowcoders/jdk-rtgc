@@ -9,11 +9,7 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 
-#include "gc/rtgc/RTGC.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
-#include "gc/rtgc/impl/GCRuntime.hpp"
-
-#include "rtHeapEx.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 
 class YoungRootClosure : public BasicOopIterateClosure {

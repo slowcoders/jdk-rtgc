@@ -8,7 +8,8 @@
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "gc/serial/defNewGeneration.inline.hpp"
 #include "gc/shared/memAllocator.hpp"
-#include "gc/rtgc/RTGC.hpp"
+
+#include "gc/rtgc/rtgcDebug.hpp"
 #include "rtThreadLocalData.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 
@@ -98,13 +99,24 @@ void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop 
 void FieldUpdateLog::updateAnchorList() {
   narrowOop* pField = (narrowOop*)(_anchor + _offset);
   narrowOop new_p = *pField;
-  rtgc_debug_log(_anchor, "set_unmodified %p(%s)[%p] v=%p\n", 
-      _anchor, RTGC::getClassName(_anchor), _anchor + _offset, (void*)new_p);
+  rtgc_log(true, "updateAnchorList %p [%p]->[%p]\n", 
+      _anchor, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
   precond(rtHeap::is_modified(new_p));
   precond(!rtHeap::is_modified(_erased));
   new_p = rtHeap::to_unmodified(new_p);
-  if (new_p != _erased) {
-    if (false) to_obj(_anchor)->replaceAnchor(*(ShortOOP*)&_erased, *(ShortOOP*)&new_p);
+  if (RTGC::USE_UPDATE_LOG_ONLY && new_p != _erased) {
+    if (!CompressedOops::is_null(_erased)) {
+      oop erased = CompressedOops::decode(_erased);
+      if (erased != (void*)_anchor) {
+        to_obj(erased)->removeReferrer(to_obj(_anchor));
+      }
+    }
+    if (!CompressedOops::is_null(new_p)) {
+      oop assigned = CompressedOops::decode(new_p);
+      if (assigned != (void*)_anchor) {
+        to_obj(assigned)->addReferrer(to_obj(_anchor));
+      }
+    }
   } else {
     // 여러번 변경되어 _erased 값이 동일해진 경우.
   }

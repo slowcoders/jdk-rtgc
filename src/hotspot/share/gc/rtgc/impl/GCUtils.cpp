@@ -144,9 +144,10 @@ const void* ReferrerList::remove(ShortOOP item) {
 }
 
 const void* ReferrerList::replace(ShortOOP old_p, ShortOOP new_p) {
+    precond(new_p.getOffset() != 0);
     const ShortOOP* pItem = getItemPtr(old_p);
     precond(pItem != NULL);
-    *(uint32_t*)pItem = new_p.getOffset();
+    *(ShortOOP::OffsetType*)pItem = new_p.getOffset();
     return pItem;
 }
 

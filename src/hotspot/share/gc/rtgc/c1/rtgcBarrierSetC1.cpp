@@ -32,9 +32,9 @@
 #include "gc/z/c1/zBarrierSetC1.hpp"
 #endif // COMPILER1
 
+#include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
-#include "gc/rtgc/RTGC.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 
