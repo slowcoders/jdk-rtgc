@@ -87,7 +87,8 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
 }
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
-  // rtgc_log(true, "add log(%p) %p[%p] v=%p\n", this, anchor, field, (void*)erased);
+  rtgc_log(true, "add log(%p) [%p] %p\n", 
+      _anchor, field, (void*)CompressedOops::decode(_erased));
   precond(to_obj(anchor)->isTrackable());
   precond(!rtHeap::is_modified(erased));
   this->_anchor = (address)anchor;
@@ -99,8 +100,8 @@ void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop 
 void FieldUpdateLog::updateAnchorList() {
   narrowOop* pField = (narrowOop*)(_anchor + _offset);
   narrowOop new_p = *pField;
-  rtgc_log(true, "updateAnchorList %p [%p]->[%p]\n", 
-      _anchor, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
+  // rtgc_log(true, "updateAnchorList %p [%p] %p -> %p\n", 
+  //     _anchor, pField, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
   precond(rtHeap::is_modified(new_p));
   precond(!rtHeap::is_modified(_erased));
   new_p = rtHeap::to_unmodified(new_p);
