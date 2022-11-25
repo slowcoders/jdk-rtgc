@@ -23,6 +23,8 @@ namespace RTGC {
     }
   };
 
+  int g_cnt_update = 0;
+  int g_cnt_update_log = 0;
   extern bool g_in_gc_termination;
   address g_report_area = 0;
   address g_last_report = 0;
@@ -40,6 +42,11 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
     g_report_area = (address)to->bottom();
     g_last_report = (address)to->end();
     precond(g_report_area < g_last_report);
+#ifdef ASSERT    
+    rtgc_log(true, "heap old %p young=%p update=%d log=%d\n", 
+      GenCollectedHeap::heap()->old_gen()->reserved().start(),
+      newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
+#endif    
   } else {
     g_report_area = 0;
     g_last_report = 0;
@@ -87,8 +94,10 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
 }
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
-  rtgc_log(true, "add log(%p) [%p] %p\n", 
-      _anchor, field, (void*)CompressedOops::decode(_erased));
+  // rtgc_log(true, "add log(%p) [%p] %p\n", 
+  //     anchor, field, (void*)CompressedOops::decode(erased));
+  debug_only(Atomic::add(&g_cnt_update_log, 1);)
+
   precond(to_obj(anchor)->isTrackable());
   precond(!rtHeap::is_modified(erased));
   this->_anchor = (address)anchor;
@@ -102,7 +111,8 @@ void FieldUpdateLog::updateAnchorList() {
   narrowOop new_p = *pField;
   // rtgc_log(true, "updateAnchorList %p [%p] %p -> %p\n", 
   //     _anchor, pField, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
-  precond(rtHeap::is_modified(new_p));
+  assert(rtHeap::is_modified(new_p), "%p(%s) v=%x/n", 
+      _anchor, RTGC::getClassName(_anchor), (int32_t)new_p);
   precond(!rtHeap::is_modified(_erased));
   new_p = rtHeap::to_unmodified(new_p);
   if (RTGC::USE_UPDATE_LOG_ONLY && new_p != _erased) {

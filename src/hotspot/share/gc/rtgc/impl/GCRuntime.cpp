@@ -18,11 +18,7 @@ const static bool IS_MULTI_LAYER_NODE = false;
 int GCNode::incrementRootRefCount() {
     assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
         this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
-    if (RTGC::ENABLE_HEAP_LOCK) {
-        return (_flags.rootRefCount += 2);
-    } else {
-        return Atomic::add((volatile int32_t*)&_flags, 0x200);
-    }
+    return (_flags.rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
@@ -30,11 +26,7 @@ int GCNode::decrementRootRefCount() {
         this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
     assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
         this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
-    if (RTGC::ENABLE_HEAP_LOCK) {
-        return (_flags.rootRefCount -= 2);
-    } else {
-        return Atomic::sub((volatile int32_t*)&_flags, 0x200);
-    }
+    return (_flags.rootRefCount -= 2);
 }
 
 bool GCRuntime::detectUnsafeObject(GCObject* erased) {
@@ -69,6 +61,10 @@ bool GCRuntime::tryDisconnectReferenceLink(
 
 
 void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
+    assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
+
     assigned->incrementRootRefCount();
     rtgc_debug_log(assigned, "root assigned %p(%s) rc=%d\n", assigned, RTGC::getClassName(assigned), assigned->getRootRefCount());
     // postcond(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
@@ -82,6 +78,10 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
+    assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
+
     assert(!erased->isGarbageMarked() && erased->isStrongRootReachable(), 
         "wrong ref-count %p rc=%d garbage=%d\n", 
         erased, erased->getRootRefCount(), erased->isGarbageMarked());
@@ -122,8 +122,11 @@ void GCRuntime::onReplaceRootVariable(
     GCObject* assigned, 
     GCObject* erased 
 ) {
-    onAssignRootVariable(assigned);
-    onEraseRootVariable(erased);
+    if (assigned == erased) return;
+    RTGC::lock_heap();
+    if (assigned != NULL) onAssignRootVariable_internal(assigned);
+    if (erased   != NULL) onEraseRootVariable_internal(erased);
+    RTGC::unlock_heap(true);
 }
 
 #if 0

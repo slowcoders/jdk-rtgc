@@ -44,8 +44,6 @@ bool RTGC::isPublished(GCObject* obj) {
 }
 
 void RTGC::lock_heap() {
-  if (!ENABLE_HEAP_LOCK) return;
-
 #ifdef ASSERT
   Thread* self = Thread::current();
 #else 
@@ -55,8 +53,6 @@ void RTGC::lock_heap() {
 }
 
 bool RTGC::heap_locked_bySelf() {
-  if (!ENABLE_HEAP_LOCK) return true;
-
 #ifdef ASSERT
   Thread* self = Thread::current();
 #else 
@@ -80,8 +76,6 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
 }
 
 void RTGC::unlock_heap(bool locked) {
-  if (!ENABLE_HEAP_LOCK) return;
-
   if (locked) {
 #ifdef ASSERT
     Thread* self = Thread::current();
@@ -155,13 +149,8 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   check_valid_obj(newValue, newValue);
   check_valid_obj(oldValue, newValue);
 
-  assert(RTGC::heap_locked_bySelf() ||
-         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
-         "not locked");
-
   if (!REF_LINK_ENABLED) return;
-  if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
-  if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
+  GCRuntime::onReplaceRootVariable(to_obj(newValue), to_obj(oldValue));
 }
 
 
@@ -330,7 +319,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG = 1; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
   logOptions[0] = -1;
 #endif
 
@@ -349,7 +338,7 @@ void RTGC::initialize() {
     // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
     debugClassNames[0] = AbortVMOnExceptionMessage;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x3f5550000;
+    debug_obj = (void*)0x2eab6eaf8;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

@@ -404,7 +404,7 @@ class HandleEraser : public OopClosure {
       T heap_oop = RawAccess<>::oop_load(p);
       if (!CompressedOops::is_null(heap_oop)) {
         oop obj = CompressedOops::decode_not_null(heap_oop);
-        rtHeap::release_jni_handle(obj);
+        rtHeap::clear_weak_reachable(obj);
       }
     }
     virtual void do_oop(oop* p)       { do_oop_work(p); }

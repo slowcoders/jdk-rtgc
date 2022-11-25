@@ -1548,7 +1548,11 @@ LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
 
 //------------------------field access--------------------------------------
 
+#if INCLUDE_RTGC // Exact Array Upate Detection
+void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type, DecoratorSet extraFlag) {
+#else
 void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
+#endif
   assert(x->number_of_arguments() == 4, "wrong type");
   LIRItem obj   (x->argument_at(0), this);  // object
   LIRItem offset(x->argument_at(1), this);  // offset of field
@@ -1558,7 +1562,7 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   assert(cmp.type()->tag() == type->tag(), "invalid type");
   assert(val.type()->tag() == type->tag(), "invalid type");
 
-  LIR_Opr result = access_atomic_cmpxchg_at(IN_HEAP, as_BasicType(type),
+  LIR_Opr result = access_atomic_cmpxchg_at(IN_HEAP RTGC_ONLY(| extraF), as_BasicType(type),
                                             obj, offset, cmp, val);
   set_result(x, result);
 }
@@ -3119,7 +3123,14 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_checkIndex:     do_NIOCheckIndex(x); break;
 
   case vmIntrinsics::_compareAndSetReference:
+#if INCLUDE_RTGC // Exact Array Upate Detection
+#ifdef ASSERT
+    if (EnableRTGC) {
+      do_CompareAndSwap(x, objectType, ON_UNKNOWN_OOP_REF);
+    } else 
+#endif
     do_CompareAndSwap(x, objectType);
+#endif
     break;
   case vmIntrinsics::_compareAndSetInt:
     do_CompareAndSwap(x, intType);

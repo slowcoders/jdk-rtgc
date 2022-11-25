@@ -83,8 +83,7 @@ RtgcBarrierSetAssembler::RtgcBarrierSetAssembler() {
 
 static bool __needBarrier(BasicType type, DecoratorSet decorators, Address dst, bool op_store) {
   if (!is_reference_type(type) || RtgcBarrier::is_raw_access(decorators, op_store)) return false;
-  bool is_array = dst.index() != noreg;
-  return is_array || dst.disp() > oopDesc::klass_offset_in_bytes();
+  return dst.index() != noreg || dst.disp() > oopDesc::klass_offset_in_bytes();
 }
 
 void RtgcBarrierSetAssembler::oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,

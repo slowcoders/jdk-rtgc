@@ -796,8 +796,3 @@ const char* RtgcBarrierSetC1::rtcall_name_for_address(address entry) {
   return "RtgcRuntime::method";
 }
 
-/* for skip load_address ??
-LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
-  return BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
-}
-*/

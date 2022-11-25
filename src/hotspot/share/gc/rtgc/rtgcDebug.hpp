@@ -14,9 +14,10 @@ namespace RTGC {
   static const int LOG_SHORTCUT   = 7;
   static const int LOG_REF        = 8;
 
-  static const bool USE_UPDATE_LOG_ONLY = true;
-  static const bool ENABLE_HEAP_LOCK = false || !USE_UPDATE_LOG_ONLY;
-
+  static const bool USE_UPDATE_LOG_ONLY = false;
+  static const bool ENABLE_BARRIER_LOCK = false || !USE_UPDATE_LOG_ONLY;
+  extern int g_cnt_update;
+  extern int g_cnt_update_log;
 };
 
 #endif // SHARE_GC_RTGC_RTGCDEBUG_HPP

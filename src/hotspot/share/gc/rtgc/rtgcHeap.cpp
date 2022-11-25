@@ -643,18 +643,18 @@ void rtHeap::finish_rtgc(bool is_full_gc, bool promotion_finished) {
 }
 
 
-void rtHeap::lock_jni_handle(oopDesc* p) {
-  if (!REF_LINK_ENABLED) return;
-  rtgc_debug_log(p, "lock_handle %p\n", p);
-  GCRuntime::onAssignRootVariable_internal(to_obj(p));
-}
+// void rtHeap::lock_jni_handle(oopDesc* p) {
+//   if (!REF_LINK_ENABLED) return;
+//   rtgc_debug_log(p, "lock_handle %p\n", p);
+//   GCRuntime::onAssignRootVariable(to_obj(p));
+// }
 
-void rtHeap::release_jni_handle(oopDesc* p) {
-  if (!REF_LINK_ENABLED) return;
-  assert(to_obj(p)->isStrongRootReachable(), "wrong handle %p(%s) isClass=%d\n", p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
-  rtgc_debug_log(p, "release_handle %p\n", p);
-  GCRuntime::onEraseRootVariable_internal(to_obj(p));
-}
+// void rtHeap::release_jni_handle(oopDesc* p) {
+//   if (!REF_LINK_ENABLED) return;
+//   assert(to_obj(p)->isStrongRootReachable(), "wrong handle %p(%s) isClass=%d\n", p, RTGC::getClassName(to_obj(p)), p->klass() == vmClasses::Class_klass());
+//   rtgc_debug_log(p, "release_handle %p\n", p);
+//   GCRuntime::onEraseRootVariable_internal(to_obj(p));
+// }
 
 
 void rtHeap::print_heap_after_gc(bool full_gc) {  
