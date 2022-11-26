@@ -41,13 +41,13 @@ namespace RTGC {
   class RtSpace: public TenuredSpace {
   public:
     typedef TenuredSpace _SUPER;
-    RtSpace(BlockOffsetSharedArray* sharedOffsetArray,
-                MemRegion mr) :
-      TenuredSpace(sharedOffsetArray, mr) {}
+    RtSpace(BlockOffsetSharedArray* sharedOffsetArray, MemRegion mr)
+        : TenuredSpace(sharedOffsetArray, mr) {
+      GCNode::g_trackable_heap_start = mr.start();
+    }
 
     virtual HeapWord* allocate(size_t word_size);
     virtual HeapWord* par_allocate(size_t word_size);
-
   };
 }
 

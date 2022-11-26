@@ -62,9 +62,12 @@ public class DeoptReallocFailure {
     public static synchronized long  test() {
         NoEscape[] noEscape = new NoEscape[45];
         noEscape[0] = new NoEscape();
+        System.err.println("10");
+
         for (int i=0;i<1024*256;i++) {
            root.array[i]= new Object[45];
         }
+        System.err.println("11");
         return noEscape[0].f1;
     }
 
@@ -72,6 +75,7 @@ public class DeoptReallocFailure {
 
         //Exhaust Memory
         root = null;
+        System.err.println("0");
         try {
             while (true) {
                 root = new MemoryChunk(root);
@@ -79,10 +83,12 @@ public class DeoptReallocFailure {
         } catch (OutOfMemoryError oom) {
         }
 
+        System.err.println("1");
         if (root == null) {
           return;
         }
 
+        System.err.println("2");
         try {
             NoEscape dummy = new NoEscape();
             Method m = DeoptReallocFailure.class.getMethod("test");

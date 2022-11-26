@@ -39,7 +39,7 @@ public:
 	uint32_t _refs;
 	GCFlags _flags;
 	static int _cntTrackable;
-
+	static void* g_trackable_heap_start; 
 public:
 	void clearFlags() { 
 		_refs = 0; 

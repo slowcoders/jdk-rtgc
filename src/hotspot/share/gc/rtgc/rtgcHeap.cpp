@@ -146,9 +146,8 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
   precond(!to_obj(new_p)->isTrackable());
   to_obj(new_p)->markTrackable();
+  rtgc_debug_log(new_p, "mark_promoted_trackable %p\n", new_p);
   rtCLDCleaner::lock_cld(new_p);
-  // ClassLoaderData* cld = rtHeapUtil::tenured_class_loader_data(new_p);
-  // if (cld != NULL) cld->increase_holder_ref_count();
 }
 
 void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
@@ -373,13 +372,12 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
 
 
 void rtHeap::mark_forwarded(oopDesc* p) {
-  // rtgc_log(LOG_OPT(4), "marked %p\n", p);
   GCObject* node = to_obj(p);
   precond(!node->isGarbageMarked());
-  assert(!node->isTrackable() || 
+  
+  assert(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
     node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked(),
       " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
-  // assert(!to_node(p)->isUnstableMarked(), "unstable forwarded %p(%s)\n", p, getClassName(to_obj(p)));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
 }
@@ -390,8 +388,10 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   assert(!rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || 
       _new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
       (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
-      "modified field [%d] v = %x\n" PTR_DBG_SIG, 
-      (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, PTR_DBG_INFO(_old_anchor_p));
+      "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
+      (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
+      RTGC::getClassName(CompressedOops::decode(*p)),
+      PTR_DBG_INFO(_old_anchor_p));
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
@@ -609,12 +609,14 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
-  precond(g_stack_roots.size() == 0);
-  if (rtHeapEx::OptStoreOop) {
-    FieldUpdateReport::process_update_logs();
-  }
-
-  if (policy != NULL) {
+  rtgc_log(LOG_OPT(1), "prepare_rtgc %p\n", policy);
+  if (policy == NULL) {
+    precond(g_stack_roots.size() == 0);
+    if (rtHeapEx::OptStoreOop) {
+      FieldUpdateReport::process_update_logs();
+    }
+    g_saved_young_root_count = g_young_roots.size();
+  } else {
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
@@ -623,19 +625,20 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     }
     in_full_gc = 1;
     rtHeapEx::break_reference_links(policy);
-  } else {
-    g_saved_young_root_count = g_young_roots.size();
   }
 }
 
 
-void rtHeap::finish_rtgc(bool is_full_gc, bool promotion_finished) {
-  if (!is_full_gc) {
+void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused) {
+  precond(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
+  rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d\n", in_full_gc);
+
+  if (!in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
   if (rtHeapEx::OptStoreOop) {
-    FieldUpdateReport::reset_gc_context(promotion_finished);
+    FieldUpdateReport::reset_gc_context(true || promotion_finished_unused);
   }
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
@@ -685,13 +688,18 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
 void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
   for (int idx = 0; idx < g_resurrected.size(); idx++) {
     GCObject* node = g_resurrected.at(idx);
+    rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
     closure->do_iterate(cast_to_oop(node));
   }
   g_resurrected.resize(0); 
 }
 
-
+int cnt_init = 0;
 void rtHeap__initialize() {
+  // GCNode::g_trackable_heap_start = (void*)GenCollectedHeap::heap()->old_gen()->top_addr();
+  precond(cnt_init ++ == 0);
+  printf("GCNode::g_trackable_heap_start = %p\n", GCNode::g_trackable_heap_start);
+
   g_young_roots.initialize();
   g_stack_roots.initialize();
   g_resurrected.initialize();

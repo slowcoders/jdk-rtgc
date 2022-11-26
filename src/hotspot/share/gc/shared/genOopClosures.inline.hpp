@@ -146,9 +146,10 @@ void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
 template <bool is_promoted> 
 void ScanTrackableClosure<is_promoted>::do_iterate(oop obj) {
   if (!is_promoted) {
-    rtHeap::mark_promoted_trackable(obj);
+    rtHeap::mark_tenured_trackable(obj);
   } else {
-    precond(rtHeap::is_trackable(obj));
+    assert(rtHeap::is_trackable(obj), "wrong anchor %p%s)\n", 
+        (void*)obj, obj->klass()->name()->bytes());
   }  
   _trackable_anchor = obj;
   _is_young_root = false;

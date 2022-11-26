@@ -13,6 +13,9 @@ namespace RTGC {
   static const int LOG_SCANNER    = 6;
   static const int LOG_SHORTCUT   = 7;
   static const int LOG_REF        = 8;
+  static const int LOG_TLS        = 9;
+  static const int LOG_CLD        = 10;
+  static const int LOG_SPACE      = 11;
 
   static const bool USE_UPDATE_LOG_ONLY = false;
   static const bool ENABLE_BARRIER_LOCK = false || !USE_UPDATE_LOG_ONLY;

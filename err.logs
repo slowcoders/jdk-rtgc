@@ -1,10 +1,14 @@
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtRefProcessor.cpp:271), pid=42966, tid=13315
-#  assert(__getRefType(_curr_ref) == _refList.ref_type()) failed: precond
-
-sh exec_test.sh jdk/jshell/ImportTest
-sh exec_test.sh jdk/jshell/ToolRetainTest
-sh exec_test.sh jdk/jshell/ToolLocalSimpleTest
-
-exit
-
-0x7fb8d1008e20] rtgcBarrier.cpp:106 raw_atomic_xchg(0x3eaad5d80)[0x3eaad5dc8] -> 0xf80d52bd
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/StringCoding/Enormous/hs_err_pid21973.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x3f7aa0000([C��g�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/StringBuilder/HugeCapacity/hs_err_pid21943.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x32aaa0000([B��A�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/String/StringRepeat_id1/hs_err_pid21865.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x3aaabe1b8([B��A�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/foreign/TestSegments/hs_err_pid17833.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x35583c208([C��g�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/foreign/TestSegments/hs_err_pid17833.log:Event: 4.951 Thread 0x00007fcade01aa20  712             java.lang.invoke.LambdaForm$NamedFunction::assertMemberIsConsistent (45 bytes)
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/ErrorHandling/ErrorFileOverwriteTest/hs_err_pid_test11063.log:#  assert(how == 0) failed: test assert
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Safepoint/TestAbortOnVMOperationTimeout/hs_err_pid16674.log:#  assert(!to_obj(new_p)->isTrackable()) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ModulesSymLink/hs_err_pid11376.log:#  assert(rtHeap::is_modified(new_p)) failed: 0x3f5b25da8([Ljava/lang/invoke/LambdaForm$Name;����������y) v=fd6c99bc/n
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestMaxRAMFlags/hs_err_pid13734.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id0/hs_err_pid14054.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id1/hs_err_pid14078.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id3/hs_err_pid14135.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id2/hs_err_pid14108.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/unsafe/SunMiscUnsafeAccessTestObject/hs_err_pid13471.log:Event: 1.221 Thread 0x00007ff5d080b020  394             org.testng.Assert::assertEquals (13 bytes)

@@ -7,6 +7,8 @@
 
 using namespace RTGC;
 
+void* GCNode::g_trackable_heap_start = 0;
+
 static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_GCNODE, function);
 }

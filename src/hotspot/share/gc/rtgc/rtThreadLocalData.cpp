@@ -15,6 +15,10 @@
 
 using namespace RTGC;
 
+static const int LOG_OPT(int function) {
+  return RTGC::LOG_OPTION(RTGC::LOG_TLS, function);
+}
+
 namespace RTGC {
   class ThreadLocalDataClosure : public ThreadClosure {
   public:  
@@ -34,6 +38,12 @@ namespace RTGC {
 FieldUpdateReport* FieldUpdateReport::g_report_q = NULL;
 FieldUpdateReport  FieldUpdateReport::g_dummy_report;
 
+RtThreadLocalData::RtThreadLocalData() { 
+  _trackable_heap_start = GCNode::g_trackable_heap_start;
+  precond(_trackable_heap_start != NULL);
+  reset_field_update_log_sp(); 
+}
+
 void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
   g_report_q = NULL;
   if (init_shared_chunk_area) {
@@ -43,7 +53,7 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
     g_last_report = (address)to->end();
     precond(g_report_area < g_last_report);
 #ifdef ASSERT    
-    rtgc_log(true, "heap old %p young=%p update=%d log=%d\n", 
+    rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
       GenCollectedHeap::heap()->old_gen()->reserved().start(),
       newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
 #endif    
@@ -51,7 +61,7 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
     g_report_area = 0;
     g_last_report = 0;
   }
-  rtgc_log(true, "reset log chunk area %p size=%x", g_report_area, (int)(g_last_report - g_report_area));
+  rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x", g_report_area, (int)(g_last_report - g_report_area));
 
   ThreadLocalDataClosure tld_closure;
   Threads::java_threads_do(&tld_closure);
@@ -88,14 +98,14 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
   report->_end = (FieldUpdateLog*)((uintptr_t)report + STACK_CHUNK_SIZE);
   report->_sp = report->_end;
   report->_next = Atomic::xchg(&g_report_q, report);
-  rtgc_log(true, "report allocated %p to %p\n", report, report->_end);
+  rtgc_log(LOG_OPT(1), "report allocated %p to %p\n", report, report->_end);
 
   return report;
 }
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
-  // rtgc_log(true, "add log(%p) [%p] %p\n", 
-  //     anchor, field, (void*)CompressedOops::decode(erased));
+  rtgc_log(LOG_OPT(10), "add log(%p) [%p] %p\n", 
+      anchor, field, (void*)CompressedOops::decode(erased));
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
 
   precond(to_obj(anchor)->isTrackable());
@@ -109,8 +119,8 @@ void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop 
 void FieldUpdateLog::updateAnchorList() {
   narrowOop* pField = (narrowOop*)(_anchor + _offset);
   narrowOop new_p = *pField;
-  // rtgc_log(true, "updateAnchorList %p [%p] %p -> %p\n", 
-  //     _anchor, pField, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
+  rtgc_log(LOG_OPT(10), "updateAnchorList %p [%p] %p -> %p\n", 
+      _anchor, pField, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
   assert(rtHeap::is_modified(new_p), "%p(%s) v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), (int32_t)new_p);
   precond(!rtHeap::is_modified(_erased));
@@ -149,4 +159,5 @@ void FieldUpdateReport::process_update_logs() {
     to_obj(report)->markDestroyed();
     CollectedHeap::fill_with_object((HeapWord*)report, STACK_CHUNK_SIZE >> LogHeapWordSize, false);
   }
+  g_report_q = NULL;
 }

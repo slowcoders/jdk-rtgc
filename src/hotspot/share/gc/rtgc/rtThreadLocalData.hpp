@@ -4,11 +4,12 @@
 namespace RTGC {
 
 class RtThreadLocalData {    
+  void* _trackable_heap_start;
   FieldUpdateLog** _log_sp;
 
 public:
 
-  RtThreadLocalData() { reset_field_update_log_sp(); }
+  RtThreadLocalData();
 
   static RtThreadLocalData* data(Thread* thread) {
     return thread->gc_data<RtThreadLocalData>();
@@ -20,6 +21,14 @@ public:
 
   static void destroy(Thread* thread) {
     data(thread)->~RtThreadLocalData();
+  }
+
+  static ByteSize trackable_heap_start_offset() {
+    return Thread::gc_data_offset() + byte_offset_of(RtThreadLocalData, _trackable_heap_start);
+  }
+
+  static ByteSize log_sp_offset() {
+    return Thread::gc_data_offset() + byte_offset_of(RtThreadLocalData, _log_sp);
   }
 
   void reset_field_update_log_sp() {

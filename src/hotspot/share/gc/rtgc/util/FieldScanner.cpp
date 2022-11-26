@@ -12,11 +12,6 @@
 
 using namespace RTGC;
 
-// static const int LOG_OPT(int function) {
-//   return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
-// }
-
-
 template <class T, bool isTenured>
 class FieldIterator : public BasicOopIterateClosure {
   GCObject* _base;

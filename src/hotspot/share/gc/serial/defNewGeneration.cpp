@@ -585,8 +585,6 @@ void DefNewGeneration::collect(bool   full,
   if (EnableRTGC) { 
     assert(this->no_allocs_since_save_marks(),
          "save marks have not been newly set.");
-
-    rtHeap::prepare_rtgc(NULL);
   } else
 #endif
   {

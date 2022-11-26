@@ -9,7 +9,7 @@ using namespace RTGC;
 FreeMemStore g_freeMemStore;
 
 static const int LOG_OPT(int function) {
-  return RTGC::LOG_OPTION(RTGC::LOG_HEAP, function);
+  return RTGC::LOG_OPTION(RTGC::LOG_SPACE, function);
 }
 
 bool rtHeapUtil::is_dead_space(oopDesc* obj) {
@@ -141,7 +141,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     // if (cntGarbage > 0) {
       heap = (HeapWord*)g_freeMemStore.recycle(word_size);
       if (heap != NULL) {
-        rtgc_log(LOG_OPT(6), "recycle garbage %ld %p\n", 
+        rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
             word_size, heap);
         rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
       }

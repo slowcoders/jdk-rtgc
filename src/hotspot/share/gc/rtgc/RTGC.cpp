@@ -339,16 +339,17 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x2eab6eaf8;
+    debug_obj = (void*)0x32aaa0000;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 0);
+    enableLog(LOG_HEAP, 1);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
     enableLog(LOG_SHORTCUT, 0);
+    enableLog(LOG_TLS, 10);
 
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);

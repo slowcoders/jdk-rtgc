@@ -52,7 +52,7 @@ TenuredGeneration::TenuredGeneration(ReservedSpace rs,
 {
   HeapWord* bottom = (HeapWord*) _virtual_space.low();
   HeapWord* end    = (HeapWord*) _virtual_space.high();
-
+  
 #if INCLUDE_RTGC // RT_HEAP_MANAGER
   if (EnableRTGC) {
     _the_space  = new RTGC::RtSpace(_bts, MemRegion(bottom, end));

@@ -139,8 +139,9 @@ jint GenCollectedHeap::initialize() {
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();
   }
+#if !INCLUDE_RTGC  
   BarrierSet::set_barrier_set(bs);
-
+#endif
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
   _young_gen = _young_gen_spec->init(young_rs, rem_set());
   ReservedSpace old_rs = heap_rs.last_part(_young_gen_spec->max_size());
@@ -148,6 +149,9 @@ jint GenCollectedHeap::initialize() {
   old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
 
+#if INCLUDE_RTGC  
+  BarrierSet::set_barrier_set(bs);
+#endif
   GCInitLogger::print();
 
   return JNI_OK;
@@ -573,6 +577,11 @@ void GenCollectedHeap::do_collection(bool           full,
   bool prepared_for_verification = false;
   bool do_full_collection = false;
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) { 
+    rtHeap::prepare_rtgc(NULL);
+  }
+#endif
   if (do_young_collection) {
     GCIdMark gc_id_mark;
     GCTraceCPUTime tcpu;
@@ -616,11 +625,6 @@ void GenCollectedHeap::do_collection(bool           full,
 
       gc_epilogue(complete);
     }
-#if INCLUDE_RTGC
-    if (EnableRTGC) { 
-      rtHeap::finish_rtgc(false, !do_full_collection);
-    }
-#endif
 
     print_heap_after_gc();
 
@@ -684,16 +688,11 @@ void GenCollectedHeap::do_collection(bool           full,
     BiasedLocking::restore_marks();
 
     print_heap_after_gc();
-
-#if INCLUDE_RTGC
-    if (EnableRTGC) { 
-      rtHeap::finish_rtgc(true, true);
-    }
-#endif
   }
 #ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
+    rtHeap::finish_rtgc(true, true);
     rtHeap::print_heap_after_gc(do_full_collection);
   }
 #endif  

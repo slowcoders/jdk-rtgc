@@ -8,6 +8,7 @@
 #include "gc/rtgc/rtgcDebug.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
+#include "gc/rtgc/rtThreadLocalData.hpp"
 
 using namespace RTGC;
 
@@ -105,11 +106,17 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
 }
 
 static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAccess, Register tmp3) {
-  ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-
-  __ movl(tmp3, Address(obj, offset_gc_flags));
-  __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
-  __ jcc(Assembler::zero, rawAccess);
+  if (true) {
+    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+    Address trackable_start(thread, RtThreadLocalData::trackable_heap_start_offset());
+    __ cmpptr(obj, trackable_start);
+    __ jcc(Assembler::less, rawAccess);
+  } else {
+    ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
+    __ movl(tmp3, Address(obj, offset_gc_flags));
+    __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
+    __ jcc(Assembler::zero, rawAccess);
+  }
 }
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
