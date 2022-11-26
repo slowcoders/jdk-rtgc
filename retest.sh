@@ -7,7 +7,7 @@
 #        --add-exports jdk.compiler/com.sun.tools.sjavac=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.sjavac.server=ALL-UNNAMED \
 #        -XX:+UnlockExperimentalVMOptions \
-#        -XX:AbortVMOnExceptionMessage='[B' \
+#        -XX:AbortVMOnExceptionMessage='#[B' \
 #        -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1' \
 #        --patch-module java.base=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_logging_TestMetaSpaceLog_java/patches/java.base \
 
@@ -45,42 +45,47 @@
 # sh exec_test.sh runtime/ClassUnload/DictionaryDependsTest
 # sh exec_test.sh java/lang/invoke/defineHiddenClass/UnloadingTest
 
+#        -XX:+UnlockExperimentalVMOptions \
+#        -XX:AbortVMOnExceptionMessage='#[B' \
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/classes/0/jdk/jshell/ToolLocalSimpleTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/testng.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jcommander.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/guice.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/gc/metaspace/TestPerfCountersAndMemoryPools.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/metaspace:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-       -XX:+UnlockExperimentalVMOptions \
-       -XX:AbortVMOnExceptionMessage='java/lang/ref/WeakReference' \
-        -Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/tmp -ea -esa' \
-        -Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/tmp -J-ea -J-esa' \
+        -XX:+UnlockExperimentalVMOptions \
+        -XX:AbortVMOnExceptionMessage='#' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dtest.timeout.factor=4.0 \
-        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
-        -Dtest.name=jdk/jshell/ToolLocalSimpleTest.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell/ToolLocalSimpleTest.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/classes/0/jdk/jshell/ToolLocalSimpleTest.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/classes/0/jdk/jshell/ToolLocalSimpleTest.d \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/classes/0/jdk/jshell/ToolLocalSimpleTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/jdk/jshell \
-        -Dtest.modules='jdk.compiler/com.sun.tools.javac.api jdk.compiler/com.sun.tools.javac.main jdk.jdeps/com.sun.tools.javap jdk.jshell/jdk.internal.jshell.tool' \
-        --add-modules jdk.compiler,jdk.jdeps,jdk.jshell \
-        --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
-        --add-exports jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED \
-        --add-exports jdk.jdeps/com.sun.tools.javap=ALL-UNNAMED \
-        --add-exports jdk.jshell/jdk.internal.jshell.tool=ALL-UNNAMED \
-        -Xmx768m \
+        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.name=gc/metaspace/TestPerfCountersAndMemoryPools.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/metaspace/TestPerfCountersAndMemoryPools.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/metaspace \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/metaspace:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/gc/metaspace/TestPerfCountersAndMemoryPools.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/gc/metaspace/TestPerfCountersAndMemoryPools.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0 \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/gc/metaspace/TestPerfCountersAndMemoryPools.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/gc/metaspace:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/classes/0 \
+        -Dtest.modules='java.base/jdk.internal.misc java.management jdk.internal.jvmstat/sun.jvmstat.monitor' \
+        --add-modules java.base,java.management,jdk.internal.jvmstat \
+        --add-exports java.base/jdk.internal.misc=ALL-UNNAMED \
+        --add-exports jdk.internal.jvmstat/sun.jvmstat.monitor=ALL-UNNAMED \
         -XX:MaxRAMPercentage=6.25 \
-        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/tmp \
-        -ea \
-        -esa \
-        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_jdk_jshell_ToolLocalSimpleTest_java/jdk/jshell/ToolLocalSimpleTest.d/testng.0.jta jdk/jshell/ToolLocalSimpleTest.java false ToolLocalSimpleTest
+        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/tmp \
+        -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -XX:+IgnoreUnrecognizedVMOptions \
+        -XX:-UseCompressedOops \
+        -XX:-UseCompressedClassPointers \
+        -XX:+UseSerialGC \
+        -XX:+UsePerfData \
+        -Xint \
+        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_metaspace_TestPerfCountersAndMemoryPools_java/gc/metaspace/TestPerfCountersAndMemoryPools.d/main.0.jta

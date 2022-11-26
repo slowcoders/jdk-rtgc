@@ -48,6 +48,7 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
   if (RtNoDiscoverPhantom || !RtLazyClearWeakHandle) {
+    precond((ds & ON_PHANTOM_OOP_REF) == 0);
     return (ds & ON_PHANTOM_OOP_REF) == 0;
   }
   return true;

@@ -713,11 +713,11 @@ void DefNewGeneration::collect(bool   full,
     NOT_PRODUCT(heap->reset_promotion_should_fail();)
   }
 
-#if INCLUDE_RTGC
-  if (EnableRTGC) { 
-    rtHeap::finish_rtgc(false, !_promotion_failed);
-  }
-#endif
+// #if INCLUDE_RTGC
+//   if (EnableRTGC) { 
+//     rtHeap::finish_rtgc(false, !_promotion_failed);
+//   }
+// #endif
 
   // We should have processed and cleared all the preserved marks.
   _preserved_marks_set.reclaim();

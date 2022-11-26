@@ -616,6 +616,11 @@ void GenCollectedHeap::do_collection(bool           full,
 
       gc_epilogue(complete);
     }
+#if INCLUDE_RTGC
+    if (EnableRTGC) { 
+      rtHeap::finish_rtgc(false, !do_full_collection);
+    }
+#endif
 
     print_heap_after_gc();
 

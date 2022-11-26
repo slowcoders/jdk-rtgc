@@ -387,10 +387,11 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
-  assert(!rtHeapEx::OptStoreOop || _new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
+  assert(!rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || 
+      _new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
       (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
-      "modified field %p(%s)[%d]\n" PTR_DBG_SIG, 
-      _old_anchor_p, RTGC::getClassName(_old_anchor_p), (int)((address)p - (address)_old_anchor_p), PTR_DBG_INFO(_old_anchor_p));
+      "modified field [%d] v = %x\n" PTR_DBG_SIG, 
+      (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, PTR_DBG_INFO(_old_anchor_p));
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 

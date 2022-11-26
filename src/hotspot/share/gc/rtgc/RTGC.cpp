@@ -319,7 +319,7 @@ void RTGC::initialize() {
 #endif
 
 #ifdef ASSERT
-  RTGC_DEBUG = 0; // UnlockExperimentalVMOptions && AbortVMOnExceptionMessage != NULL;
+  RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
   logOptions[0] = -1;
 #endif
 
@@ -335,8 +335,9 @@ void RTGC::initialize() {
   if (RTGC_DEBUG) {
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
-    // -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1'
-    debugClassNames[0] = AbortVMOnExceptionMessage;
+    // -XX:AbortVMOnExceptionMessage='#compiler/c2/Test7190310$1'
+    ccstr s = AbortVMOnExceptionMessage;
+    debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
     debugOptions[0] = 1;
     debug_obj = (void*)0x2eab6eaf8;
 
