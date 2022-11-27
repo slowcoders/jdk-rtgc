@@ -199,6 +199,7 @@ void GenMarkSweep::deallocate_stacks() {
 }
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+template<bool is_tracked>
 class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
   bool _is_young_root;
 public:
@@ -231,7 +232,10 @@ public:
         if (!rtHeap::is_alive(obj)) {
           rtHeap::mark_survivor_reachable(obj);
         } 
-        if (!rtHeap::DoCrossCheck) return;
+        if (is_tracked && !rtHeap::DoCrossCheck) return;
+      } 
+      if (!is_tracked) {
+        rtHeap::add_trackable_link(_current_anchor, obj);
       }
       MarkSweep::mark_and_push_internal(obj, true);
     }
@@ -241,7 +245,8 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
 };
-static TenuredYoungRootClosure young_root_closure;
+static TenuredYoungRootClosure<true> young_root_closure;
+// static TenuredYoungRootClosure<false> untracked_closure;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {

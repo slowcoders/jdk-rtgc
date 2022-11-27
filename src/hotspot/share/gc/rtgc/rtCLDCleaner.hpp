@@ -6,7 +6,7 @@
 #include "memory/referenceType.hpp"
 #include "gc/shared/gc_globals.hpp"
 
-#include "rtgcLog.hpp"
+#include "rtgcDebug.hpp"
 
 class RtYoungRootClosure;
 

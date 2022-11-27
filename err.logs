@@ -1,14 +1,766 @@
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/StringCoding/Enormous/hs_err_pid21973.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x3f7aa0000([C��g�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/StringBuilder/HugeCapacity/hs_err_pid21943.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x32aaa0000([B��A�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/String/StringRepeat_id1/hs_err_pid21865.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x3aaabe1b8([B��A�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/foreign/TestSegments/hs_err_pid17833.log:#  assert(!node->isTrackable() || node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked()) failed:  invalid node 0x35583c208([C��g�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=1
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/foreign/TestSegments/hs_err_pid17833.log:Event: 4.951 Thread 0x00007fcade01aa20  712             java.lang.invoke.LambdaForm$NamedFunction::assertMemberIsConsistent (45 bytes)
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/ErrorHandling/ErrorFileOverwriteTest/hs_err_pid_test11063.log:#  assert(how == 0) failed: test assert
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Safepoint/TestAbortOnVMOperationTimeout/hs_err_pid16674.log:#  assert(!to_obj(new_p)->isTrackable()) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ModulesSymLink/hs_err_pid11376.log:#  assert(rtHeap::is_modified(new_p)) failed: 0x3f5b25da8([Ljava/lang/invoke/LambdaForm$Name;����������y) v=fd6c99bc/n
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestMaxRAMFlags/hs_err_pid13734.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id0/hs_err_pid14054.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id1/hs_err_pid14078.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id3/hs_err_pid14135.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestUseCompressedOopsErgo_id2/hs_err_pid14108.log:#  assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2) failed: precond
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/unsafe/SunMiscUnsafeAccessTestObject/hs_err_pid13471.log:Event: 1.221 Thread 0x00007ff5d080b020  394             org.testng.Assert::assertEquals (13 bytes)
+sh exec_test.sh java/foreign/TestSegments
+# java.lang.invoke.LambdaForm$NamedFunction::assertMemberIsConsistent (45 bytes)
+sh exec_test.sh runtime/Safepoint/TestAbortOnVMOperationTimeout
+# assert(!to_obj(new_p)->isTrackable()) failed: precond
+sh exec_test.sh runtime/modules/ModulesSymLink
+# assert(rtHeap::is_modified(new_p)) failed: 0x3f5b25da8([Ljava/lang/invoke/LambdaForm$Name;����������y) v=fd6c99bc/n
+sh exec_test.sh compiler/unsafe/SunMiscUnsafeAccessTestObject
+# org.testng.Assert::assertEquals (13 bytes)
+
+
+DaeHoons-MacBook-Pro:jdk-rtgc zeedh$ sh retest.sh 
+~/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/scratch/0 ~/slowcoders/jdk-rtgc
+0x7ffddc008820] rtgcHeap.cpp:719 trackable_heap_start = 0x3f5550000
+0x7ffddc008820] RTGC.cpp:344 debug_class '[Ljava/lang/Object;'
+0x7ffddc008820] RTGC.cpp:268 debug class resolved [Ljava/lang/Object;�����������
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008940([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008970([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008a70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008a98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008ac0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008b08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008bd0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008c20([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0008c60([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0009008([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00090d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00091a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00091f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0009228([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0009368([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00095f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00098d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0009918([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00099a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0009d88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000a6e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000a708([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000a7f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000aa50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000aa98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000abf0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000adc0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000ade8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000af60([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000afb8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000b058([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000b310([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000b3f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000b690([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000b7f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000bad0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000bb00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000bc68([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000bed8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c1b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c5c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c5f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c670([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c7c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000c838([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000cca8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000ce38([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000cec0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000d110([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000d600([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000d660([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000d758([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000d7d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000e4a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000e7a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000efd8([Ljava/lang/Object;�����������) rc=2
+0x7ffdde009220] GCRuntime.cpp:69 root assigned 0x3f00162b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000f440([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f000f640([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0013eb8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0013ee8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0014910([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0015450([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00154e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0015e20([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002e848([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002e880([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002fb80([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002fdf0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002fe28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f002ff38([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0030370([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0030590([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00327a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00328b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0032b40([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0032d28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0032d50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00332c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0033510([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0033c28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0033c50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0033d50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0033f18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034200([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034600([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034b00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034b58([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034c40([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0034dc8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0036fe0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00371a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00415f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0041830([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0041cc8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0041d50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0042140([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00422d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0042318([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0043030([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0043160([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0043320([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0043c08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044170([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00444c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044790([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00447e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044ae8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044d68([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044d90([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0044e58([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00451f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0045370([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0045560([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0045ba0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0045ed0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0046308([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0047b08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f004efc8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f004f018([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0050ed8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0050f38([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00512a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00512e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0051760([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00519b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00589b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0077fb0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00789e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007e4f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007eee8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f030([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f1b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f2a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f540([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f590([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f5d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f710([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007f888([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007fba8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f007ffa8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00800b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0080278([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00804c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0080a28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0081158([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00814d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00816b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00820c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00825a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00826b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0083038([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00830a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00832d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0084680([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00846c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0085588([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0089698([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f008bc08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f008c250([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0092700([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0092870([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f009ce18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d34c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d6068([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d69f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d6b18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d6cc0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d7b70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d8028([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d80f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d8678([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d8850([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00d8ac8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00daea0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00db038([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00db060([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dc750([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dca18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dca40([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dcc98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dcd80([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dcf18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dd0d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dd338([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00decd0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00def00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00def30([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00df038([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00df3f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dfa78([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00dfb98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e0480([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e0848([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e0980([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e1340([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e1880([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e1c68([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e1e50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e33f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e3570([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e3a98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00e57e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ea158([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ea330([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00eac88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00eb900([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ec600([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ecb90([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ed530([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00edda0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00eddd0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ee1e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ee7c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ee960([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00eec10([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f0be8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f1e70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f1f68([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f46b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f4990([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f49e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f6590([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f65f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f6ea8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f6ee8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f72a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00f81b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fb550([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fb678([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f00fb8a8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f00fb900
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f00fb960
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fba98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fc078([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fc0b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fc260([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fca30([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fce38([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fd238([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fd268([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fda90([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fdd68([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fdf88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fe148([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fe170([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00fe890([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ff890([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f00ff8b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0100d38([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0101478([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0101598([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0101928([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01043d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01054f8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0105578
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01094e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f010a6b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f010a730
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f010e588([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f010f9a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0111170
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01111f0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0111280
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0111300
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0111568
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01115e8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0111678
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0115c20([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f011b308([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f011d518
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f011d598
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f011d770
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0121260([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0121b88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01240c8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124148
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01241c8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124248
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01242d8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124358
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124590
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124610
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124690
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0124720
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0128fb0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f012bb60([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01366a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0139390([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01407d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0140d60([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0143e78([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0143ed8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0144438([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0144cd8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0145070([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0145098([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0146048([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0147108([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0147150([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01482d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0148628([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014c928([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014ca00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014cad8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014cfb0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014cfe8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014d020([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014d090([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014d0b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014d270([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014dcc8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014ddf8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014dee0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014e0f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014e2b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014ed28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014ed50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014f110([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014f748([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f014faf8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0152728
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0152780
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01527e0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0156480([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0158908
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0158988
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f015c9d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f015db60
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f015dbe0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0161b70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01621e8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0162268
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0162440
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0165d60([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0166238
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01662b8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0166348
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01663c8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0166630
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01666b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0166740
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f016a9c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f016c980
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f016ca00
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f016cbd8
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01706b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171710
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171790
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171810
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171890
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171920
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01719a0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171bd8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171c58
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171cd8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0171d68
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0176408([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0176d70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178a30
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178ab0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178b30
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178bb0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178c30
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178cb0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178d40
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0178dc0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f017da90([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f017e4f0([Ljava/lang/Object;�����������) rc=2
+Command line: [/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -cp /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar -XX:+UnlockDiagnosticVMOptions -XX:+AbortVMOnVMOperationTimeout -XX:AbortVMOnVMOperationTimeoutDelay=63423 -XX:+UnlockExperimentalVMOptions -XX:AbortVMOnExceptionMessage=# -Xmx512m -XX:+UseSerialGC -XX:-CreateCoredumpOnCrash TestAbortOnVMOperationTimeout foo ]
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f017e838([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0186020([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01862a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0186758([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01867a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01868c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0186b00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0186da0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01872e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0187760([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0187940([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0187b88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f018c518([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f018d5c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0191cc0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01999d0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0199b00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019a3e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019ec18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019ec80([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019ecb8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019edc8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019f1a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f019fde0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b4f08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b52e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b5478([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b5690([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b5e70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b5ea0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b5ef8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b60a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b6440([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b6b40([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b6d70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b6eb0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b79d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b7c50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b7c98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01b7cc0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01caee0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01cb1c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01cb5a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01cb618([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01cb8a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ce6d8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01cf108([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01d0070([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01d06e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01dded8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de3a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de3e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de410([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de638([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de660([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de7b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01de970([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e3c00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e3c28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e3fd8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e4298([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e4478([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01e87a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb010([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb0f0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb1e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb328([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb470([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb5c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01eb810([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ec048([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ec120([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ec810([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ecd08([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ecf28([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ed0a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ed4e8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ed520([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ed5b0([Ljava/lang/Object;�����������) rc=2
+0x7fa70c808620] rtgcHeap.cpp:719 trackable_heap_start = 0x3eaaa0000
+0x7fa70c808620] RTGC.cpp:344 debug_class '(null)'
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ed770([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ede88([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ee098([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ee360([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ee6f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01ef6a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f01c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f0cb0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f10a8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f25a0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f2c18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f3118([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f3760([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f38c8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01f3ba0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fb708([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fbb18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fbc58([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fdf00([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fdf70([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fe140([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fe1b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f01fe400([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01ffd10
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01ffd68
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f01ffdc8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0200138
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0200190
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02001f0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02040b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0204770
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02047f0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0208808([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0208f08
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0208f88
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0209018
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0209098
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f020d2f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f020f720
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f020f7a0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0213770([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214a10
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214a90
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214b20
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214ba0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214c30
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0214cb0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02193f8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02199b8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219a38
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219ac8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219b48
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219bd8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219c58
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219ce8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0219d68
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f021a080
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f021a100
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f021a190
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f021a220
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f021a2b0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f021ef50([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f021f900([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221c60
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221ce0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221d60
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221de0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221e70
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221ef0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0221f80
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0222000
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0222090
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0222110
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0227878([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0228208([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022a928
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022a9a8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022aa38
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022aab8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022ab38
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022abb8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022ac48
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022acc8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022ad58
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022add8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022ae68
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f022aee8
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02309c0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0232a30
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0232ab0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0232c88
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02365e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0236f98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a390
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a410
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a4a0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a520
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a5b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a630
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a6b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a730
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a7c0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a840
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a8d0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a950
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023a9e0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023aa60
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023ad78
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023adf8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023ae88
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023af18
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023af98
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023b028
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023b0b8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f023b148
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0241108([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0241c98([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0244a78([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0244ac0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0244db8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0245248([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245310
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245390
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245410
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245490
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245520
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02455a0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245630
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02456b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245730
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02457b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245840
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02458c0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245950
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02459d0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245a60
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0245ae0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f024be10([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0254ae0([Ljava/lang/Object;�����������) rc=2
+[2022-11-27T11:41:40.394832Z] Gathering output for process 5108
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02581b0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f025c800([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f025ccf0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f025de90([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f025e578([Ljava/lang/Object;�����������) rc=2
+[2022-11-27T11:41:40.493270Z] Waiting for completion for process 5108
+[0.203s][trace][gc] GC(0) Young invoke=1 size=40000032
+[0.203s][trace][gc] GC(0) Tenured: promo attempt is safe: available(357957632) >= av_promo(0), max_promo(1004336)
+0x7fa70b46e500] CircuitDetector.cpp:274 collectGarbage start cntUnsafe 0
+0x7fa70b46e500] CircuitDetector.cpp:277 collectGarbage done cntUnsafe 0
+[0.207s][trace][gc] GC(0) TenuredGeneration::should_collect: because should_allocate(5000004)
+[0.207s][info ][gc] GC(0) Pause Young (Allocation Failure) 0M->0M(15M) 3.993ms
+[0.207s][trace][gc] GC(1) Old invoke=1 size=40000032
+0x7fa70b46e500] CircuitDetector.cpp:274 collectGarbage start cntUnsafe 0
+0x7fa70b46e500] CircuitDetector.cpp:277 collectGarbage done cntUnsafe 0
+[0.214s][trace][gc] GC(1) Restoring 420 marks
+[0.214s][trace][gc] GC(1) Tenured: promo attempt is safe: available(357349168) >= av_promo(95496), max_promo(0)
+[0.214s][trace][gc] GC(1) DefNewEpilogue: cause(Allocation Failure), full, safe, clear_failed, clear_alloc_from, clear_seen
+[0.214s][info ][gc] GC(1) Pause Full (Allocation Failure) 0M->0M(15M) 7.170ms
+0x7fa70b46e500] rtgcHeap.cpp:199 rtHeap__addUntrackedTenuredObject 0x3eab348d0, recycled=0 
+0x7fa70b46e500] rtgcHeap.cpp:208 rtHeap__processUntrackedTenuredObjects 0x3eab348d0
+[0.244s][trace][gc] GC(2) Young invoke=2 size=32
+[0.244s][trace][gc] GC(2) Tenured: promo attempt is safe: available(317349136) >= av_promo(95496), max_promo(4587520)
+0x7fa70b46e500] rtgcHeap.cpp:550 no anchors for 0x3ed15a2f0
+# To suppress the following error report, specify this argument
+# after -XX: or in .hotspotrc:  SuppressErrorAt=/rtgcHeap.cpp:701
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:701), pid=5108, tid=13315
+#  assert(to_obj(obj)->hasReferrer(to_obj(anchor))) failed: invalid link 0
+ anchor=0x3eab348d0([Ljava/lang/Object;�����������) tr=1 rc=4194304 ac=0 g=0 sc=[0] cls=0 u=1 m=0
+link=0x3ed15a2f0(java/lang/Object����6�) tr=1 rc=0 ac=0 g=0 sc=[0] cls=0 u=0 m=0
+
+#
+# JRE version: OpenJDK Runtime Environment (17.0) (fastdebug build 17-internal+0-adhoc.zeedh.jdk-rtgc)
+# Java VM: OpenJDK 64-Bit Client VM (fastdebug 17-internal+0-adhoc.zeedh.jdk-rtgc, mixed mode, emulated-client, compressed oops, compressed class ptrs, serial gc, bsd-amd64)
+# CreateCoredumpOnCrash turned off, no core file dumped
+#
+# An error report file with more information is saved as:
+# /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/scratch/0/hs_err_pid5108.log
+#
+# If you would like to submit a bug report, please visit:
+#   https://bugreport.java.com/bugreport/crash.jsp
+#
+[2022-11-27T11:41:40.631048Z] Waiting for completion finished for process 5108
+[2022-11-27T11:41:40.631354Z] Waiting for completion for process 5108
+[2022-11-27T11:41:40.631429Z] Waiting for completion finished for process 5108
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0261360
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02613b8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0261418
+0x7ffddc014020] GCRuntime.cpp:69 root assigned 0x3f0297f78([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0265308([Ljava/lang/Object;�����������) rc=2
+0x7ffddc014020] GCRuntime.cpp:69 root assigned 0x3f02988e0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02659c0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f0265a40
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f0269a58([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f026a158
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f026a1d8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f026a268
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f026a2e8
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02b09b8([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b1130
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b11b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b1240
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b12c0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b1350
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b13d0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02b5a18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b60e0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6160
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b61f0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6270
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6300
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6380
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6410
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6490
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b67a8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6828
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b68b8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b6948
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02b69d8
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02bb670([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bbdf8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bbe78
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bbef8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bbf78
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc008
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc088
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc118
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc198
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc228
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02bc2a8
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02c1818([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2000
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2080
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2110
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2190
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2210
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2290
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2320
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c23a0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2430
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c24b0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c2540
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c25c0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02c7ef0([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c86f8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8778
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8808
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8888
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8918
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8998
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8a18
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8a98
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8b28
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8ba8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8c38
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8cb8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8d48
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c8dc8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c90e0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c9160
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c91f0
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c9280
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c9300
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c9390
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c9420
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02c94b0
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02cef18([Ljava/lang/Object;�����������) rc=2
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfb48
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfbc8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfc48
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfcc8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfd58
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfdd8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfe68
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cfee8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cff68
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02cffe8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d0078
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d00f8
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d0188
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d0208
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d0298
+0x7ffddc008820] rtgcBarrier.cpp:822 clone_post_barrier 0x3f02d0318
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02d63c8([Ljava/lang/Object;�����������) rc=2
+ stdout: [];
+ stderr: []
+ exitValue = 1
+
+Exception in thread "main" 0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02d7a60([Ljava/lang/Object;�����������) rc=2
+java.lang.RuntimeException: Expected to get exit value of [0]
+
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02d7f30([Ljava/lang/Object;�����������) rc=2
+        at jdk.test.lib.process.OutputAnalyzer.shouldHaveExitValue(OutputAnalyzer.java:489)
+        at TestAbortOnVMOperationTimeout.testWith(TestAbortOnVMOperationTimeout.java:78)
+        at TestAbortOnVMOperationTimeout.main(TestAbortOnVMOperationTimeout.java:51)
+0x7ffddc008820] GCRuntime.cpp:69 root assigned 0x3f02d9d58([Ljava/lang/Object;�����������) rc=2
+DaeHoons-MacBook-Pro:jdk-rtgc zeedh$ 

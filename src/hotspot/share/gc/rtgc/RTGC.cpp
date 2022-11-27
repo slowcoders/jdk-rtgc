@@ -1,7 +1,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
@@ -343,13 +343,13 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 1);
+    enableLog(LOG_HEAP, 0);
     enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
     enableLog(LOG_SHORTCUT, 0);
-    enableLog(LOG_TLS, 10);
+    enableLog(LOG_TLS, 0);
 
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);

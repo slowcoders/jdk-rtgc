@@ -1,5 +1,5 @@
 #include "precompiled.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "GCObject.hpp"
 #include "GCRuntime.hpp" 
 #include "oops/oop.inline.hpp"
@@ -16,16 +16,13 @@ const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
-    assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
-        this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
+    assert(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
     return (_flags.rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
-    assert(!this->isGarbageMarked(), "wrong ref-count %p(%s) tr=%d rc=%d garbage=%d\n", 
-        this, RTGC::getClassName(this), isTrackable(), _flags.rootRefCount, isGarbageMarked());
-    assert(_flags.rootRefCount > 1, "wrong ref-count %p(%s) rc=%d garbage=%d\n", 
-        this, RTGC::getClassName(this), _flags.rootRefCount, isGarbageMarked());
+    assert(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
+    assert(_flags.rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
     return (_flags.rootRefCount -= 2);
 }
 

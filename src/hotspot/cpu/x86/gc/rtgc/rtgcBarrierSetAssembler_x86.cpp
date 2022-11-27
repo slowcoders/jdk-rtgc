@@ -5,7 +5,7 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/rtThreadLocalData.hpp"

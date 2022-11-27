@@ -2,18 +2,19 @@
 #define SHARE_GC_RTGC_IMPL_RTGCNODE_HPP
 
 #include "../RTGC.hpp"
-#include "../rtgcLog.hpp"
+#include "../rtgcDebug.hpp"
 
 #define ZERO_ROOT_REF 		0
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
+static const bool USE_EXPLICIT_TRACKABLE_MARK = false;
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
 
 struct GCFlags {
-	uint32_t isTrackable: 1;
+	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;
 	uint32_t isGarbage: 1;
 	uint32_t dirtyReferrerPoints: 1;
@@ -74,12 +75,20 @@ public:
 	}
 
 	bool isTrackable() {
-		return _flags.isTrackable;
+		if (USE_EXPLICIT_TRACKABLE_MARK) {
+			return _flags.isTrackableOrDestroyed;
+		} else {
+			return (void*)this >= g_trackable_heap_start;
+		}
 	}
 
 	void markTrackable() {
-		precond(!this->isTrackable());
-		_flags.isTrackable = true;
+		if (USE_EXPLICIT_TRACKABLE_MARK) {
+			precond(!this->isTrackable());
+			_flags.isTrackableOrDestroyed = true;
+		} else {
+			fatal("should not reach here.");
+		}
 	}
 
 	void markDestroyed() {
@@ -87,11 +96,16 @@ public:
 #ifdef ASSERT		
 		_cntTrackable--;
 #endif		
-		_flags.isTrackable = false;
+		if (USE_EXPLICIT_TRACKABLE_MARK) {
+			_flags.isTrackableOrDestroyed = false;
+		} else {
+			_flags.isTrackableOrDestroyed = true;
+		}
 	}
 
 	bool isDestroyed() {
-		return _flags.isGarbage && !_flags.isTrackable;
+		return _flags.isGarbage && 
+			_flags.isTrackableOrDestroyed != USE_EXPLICIT_TRACKABLE_MARK;
 	}
 
 	bool isActiveFinalizer() {

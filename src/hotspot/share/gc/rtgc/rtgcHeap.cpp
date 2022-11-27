@@ -14,7 +14,7 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/rtSpace.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
@@ -35,7 +35,7 @@ namespace RTGC {
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
   bool g_in_gc_termination = false;
-
+  bool is_gc_started = false;
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
     template <typename T> void do_oop_work(T* p);
@@ -141,11 +141,21 @@ bool rtHeap::ensure_weak_reachable(oopDesc* p) {
   return obj->isStrongRootReachable();
 }
 
+static bool is_adjusted_trackable(oopDesc* new_p) {
+  if (to_obj(new_p)->isTrackable()) return true;
+  return !USE_EXPLICIT_TRACKABLE_MARK && 
+      rtHeap::in_full_gc && 
+      to_obj(new_p->forwardee())->isTrackable();
+}
 
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
-  precond(!to_obj(new_p)->isTrackable());
-  to_obj(new_p)->markTrackable();
+  if (USE_EXPLICIT_TRACKABLE_MARK) {
+    precond(!to_obj(new_p)->isTrackable());
+    to_obj(new_p)->markTrackable();
+  } else {
+    precond(is_adjusted_trackable(new_p));
+  }
   rtgc_debug_log(new_p, "mark_promoted_trackable %p\n", new_p);
   rtCLDCleaner::lock_cld(new_p);
 }
@@ -193,14 +203,32 @@ void rtHeap__addRootStack_unsafe(GCObject* node) {
   g_stack_roots.push_back(node);
 }
 
-void rtHeap__addResurrectedObject(GCObject* node) {
-  g_resurrected.push_back(node);
+void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled) {
+  precond(!is_gc_started || !rtHeap::in_full_gc);
+  if (!is_gc_started || is_recycled) {
+    rtgc_log(true, "rtHeap__addUntrackedTenuredObject %p, recycled=%d \n", node, is_recycled);
+    g_resurrected.push_back(node);
+  }
+}
+
+void rtHeap__processUntrackedTenuredObjects() {
+  for (int idx = 0; idx < g_resurrected.size(); idx++) {
+    GCObject* node = g_resurrected.at(idx);
+    rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
+    rtgc_log(true, "rtHeap__processUntrackedTenuredObjects %p\n", node);
+    rtHeap::mark_promoted_trackable(cast_to_oop(node));
+    GCRuntime::detectUnsafeObject(node);
+    // rtHeap::add_young_root(cast_to_oop(node), cast_to_oop(node));
+  }
+  if (!USE_EXPLICIT_TRACKABLE_MARK) {
+    g_resurrected.resize(0); 
+  }
 }
 
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   GCObject* node = to_obj(new_p);
-  assert(node->isTrackable(), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
+  assert(is_adjusted_trackable(new_p), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "not yr " PTR_DBG_SIG, PTR_DBG_INFO(node));
     rtHeapUtil::resurrect_young_root(node);
@@ -611,6 +639,8 @@ class ClearWeakHandleRef: public OopClosure {
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
   rtgc_log(LOG_OPT(1), "prepare_rtgc %p\n", policy);
   if (policy == NULL) {
+    is_gc_started = true;
+    rtHeap__processUntrackedTenuredObjects();
     precond(g_stack_roots.size() == 0);
     if (rtHeapEx::OptStoreOop) {
       FieldUpdateReport::process_update_logs();
@@ -632,7 +662,7 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
 void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused) {
   precond(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d\n", in_full_gc);
-
+  is_gc_started = false;
   if (!in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
@@ -667,12 +697,31 @@ void rtHeap::print_heap_after_gc(bool full_gc) {
       g_cntTrackable, g_young_roots.size(), full_gc); 
 }
 
+// copyed from CollectedHeap.cpp
+size_t CollectedHeap::filler_array_hdr_size() {
+  return align_object_offset(arrayOopDesc::header_size(T_INT)); // align to Long
+}
+
+size_t CollectedHeap::filler_array_min_size() {
+  return align_object_size(filler_array_hdr_size()); // align to MinObjAlignment
+}
+
 void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   GCObject* obj = to_obj(start);
+  precond(obj->isTrackable());
+
   oopDesc::clear_rt_node(start);
   obj->markGarbage(NULL);
+  obj->markDestroyed();
+
+  // size_t words = pointer_delta(end, start);
+  // if (words >= CollectedHeap::filler_array_min_size()) {
+  //   fill_with_array(start, words, zap);
+  // } else if (words > 0) {
+  //     init_dead_space(start, vmClasses::Object_klass(), -1);
+  // }
+  //RuntimeHeap::reclaimObject(obj);
   CollectedHeap::fill_with_object(start, end, zap);
-  postcond(!obj->isTrackable());
 }
 
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
@@ -686,19 +735,22 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
 
 
 void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
-  for (int idx = 0; idx < g_resurrected.size(); idx++) {
-    GCObject* node = g_resurrected.at(idx);
-    rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
-    closure->do_iterate(cast_to_oop(node));
+  if (USE_EXPLICIT_TRACKABLE_MARK) {
+    // fatal("full gc 도 oop_recycled_iterate() 호출해야 한다");
+    precond(is_gc_started && !in_full_gc);
+    for (int idx = 0; idx < g_resurrected.size(); idx++) {
+      GCObject* node = g_resurrected.at(idx);
+      rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
+      rtgc_log(true, "oop_recycled_iterate %p\n", node);
+      closure->do_iterate(cast_to_oop(node));
+    }
+    g_resurrected.resize(0); 
   }
-  g_resurrected.resize(0); 
 }
 
 int cnt_init = 0;
 void rtHeap__initialize() {
-  // GCNode::g_trackable_heap_start = (void*)GenCollectedHeap::heap()->old_gen()->top_addr();
-  precond(cnt_init ++ == 0);
-  printf("GCNode::g_trackable_heap_start = %p\n", GCNode::g_trackable_heap_start);
+  rtgc_log(true, "trackable_heap_start = %p\n", GCNode::g_trackable_heap_start);
 
   g_young_roots.initialize();
   g_stack_roots.initialize();

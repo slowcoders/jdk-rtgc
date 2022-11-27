@@ -3,7 +3,7 @@
 
 #include "GCObject.hpp"
 #include "GCRuntime.hpp"
-#include "../rtgcDebug.hpp"
+#include "../rtgcGlobals.hpp"
 
 using namespace RTGC;
 
@@ -79,10 +79,9 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     assert(isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
-    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from %p isMulti=%d tr=%d rc=%d\n", 
+    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from " PTR_DBG_SIG, 
             referrer, RTGC::getClassName(referrer), 
-            cast_to_oop(referrer)->is_gc_marked(), this, hasMultiRef(), 
-            isTrackable(), getRootRefCount());
+            cast_to_oop(referrer)->is_gc_marked(), PTR_DBG_INFO(this)); 
 
     if (!hasMultiRef()) {
         if (!must_exist && _refs != _pointer2offset(referrer)) return -1;
@@ -187,8 +186,7 @@ bool GCObject::containsReferrer(GCObject* referrer) {
 }
 
 void GCObject::clearAnchorList() {
-    rtgc_debug_log(this, "all anchor removed from %p isMulti=%d tr=%d rc=%d\n",
-        this, hasMultiRef(), isTrackable(), getRootRefCount());
+    rtgc_debug_log(this, "all anchor removed from " PTR_DBG_SIG, PTR_DBG_INFO(this));
     precond(!this->hasShortcut());
     if (hasMultiRef()) {
         ReferrerList* referrers = getReferrerList();
@@ -215,7 +213,6 @@ void GCObject::removeAllAnchors() {
     rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
 
     if (this->hasShortcut()) {
-        precond(this->isTrackable());
         SafeShortcut* shortcut = this->getShortcut();
         shortcut->shrinkTailTo(this->getSafeAnchor());
     }  

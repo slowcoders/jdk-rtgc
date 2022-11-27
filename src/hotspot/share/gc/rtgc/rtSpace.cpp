@@ -1,4 +1,5 @@
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "oops/typeArrayKlass.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/rtSpace.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
@@ -6,11 +7,14 @@
 
 using namespace rtHeapUtil;
 using namespace RTGC;
+
 FreeMemStore g_freeMemStore;
+static Klass* g_deadspace_klass;
 
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SPACE, function);
 }
+
 
 bool rtHeapUtil::is_dead_space(oopDesc* obj) {
   Klass* klass = obj->klass();
@@ -19,9 +23,8 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
 
 void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
   assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "invalid pointer %p(%s) isClass=%d isTr=%d anchor=%p(%s)\n", 
-        old_p, RTGC::getClassName(to_obj(old_p)), old_p->klass() == vmClasses::Class_klass(),
-        to_obj(old_p)->isTrackable(), anchor, anchor==NULL?"":RTGC::getClassName(to_obj(anchor)));
+        "anchor=%p(%s) invalid pointer " PTR_DBG_SIG, 
+        anchor, RTGC::getClassName(anchor), PTR_DBG_INFO(old_p));
 }
 
 
@@ -132,19 +135,19 @@ bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
 }
 
 
-void rtHeap__addResurrectedObject(GCObject* node);
+void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled);
 
 HeapWord* RtSpace::allocate(size_t word_size) {
   HeapWord* heap = _SUPER::allocate(word_size);
+  bool recycled = false;
   if (heap == NULL) {
-    // int cntGarbage = g_garbage_list.size();
-    // if (cntGarbage > 0) {
-      heap = (HeapWord*)g_freeMemStore.recycle(word_size);
-      if (heap != NULL) {
-        rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
-            word_size, heap);
-        rtHeap__addResurrectedObject(reinterpret_cast<GCObject*>(heap));
-      }
+    heap = (HeapWord*)g_freeMemStore.recycle(word_size);
+    recycled = true;
+    rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
+        word_size, heap);
+  }
+  if (heap != NULL) {
+    rtHeap__addUntrackedTenuredObject(reinterpret_cast<GCObject*>(heap), recycled);
   }
   return heap;
 }
@@ -155,5 +158,7 @@ HeapWord* RtSpace::par_allocate(size_t word_size) {
 }
 
 void rtSpace__initialize() {
+  // g_deadspace_klass = TypeArrayKlass::create_klass((BasicType)T_INT, Thread::current());
+  // precond(g_deadspace_klass != NULL);
   g_freeMemStore.initialize();
 }

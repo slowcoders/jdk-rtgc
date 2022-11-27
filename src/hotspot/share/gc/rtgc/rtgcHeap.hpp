@@ -7,7 +7,7 @@
 #include "gc/shared/gc_globals.hpp"
 #include "oops/oopsHierarchy.hpp"
 
-#include "rtgcLog.hpp"
+#include "rtgcDebug.hpp"
 
 class Thread;
 class oopDesc;

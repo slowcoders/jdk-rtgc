@@ -2,7 +2,7 @@
 #include "GCRuntime.hpp" 
 #include "classfile/javaClasses.inline.hpp"
 #include "../RTGC.hpp"
-#include "../rtgcDebug.hpp"
+#include "../rtgcGlobals.hpp"
 #include "../rtgcHeap.hpp"
 #include "../rtHeapEx.hpp"
 

@@ -2,7 +2,7 @@
 #include "GCRuntime.hpp" 
 #include "classfile/javaClasses.inline.hpp"
 #include "../RTGC.hpp"
-#include "../rtgcDebug.hpp"
+#include "../rtgcGlobals.hpp"
 #include "../rtgcHeap.hpp"
 
 #define USE_ITERATOR_STACK false
@@ -91,13 +91,11 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
 void SafeShortcut::vailidateShortcut() {
     precond(_anchor->getShortcut() != this);
     GCObject* anchor = _anchor;
-    assert(anchor->isTrackable(), "not trackable %p(%s) rc=%d garbage=%d isClass=%d\n", 
-        anchor, RTGC::getClassName(anchor), anchor->getRootRefCount(), 
-        anchor->isGarbageMarked(), cast_to_oop(anchor)->klass() == vmClasses::Class_klass());
+    assert(anchor->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
     debug_only(int cnt = 0;)
     GCObject* tail = this->_tail;
     for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
-        precond(obj->isTrackable());
+        assert(obj->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(obj));
         //rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
         assert(obj->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
             obj, RTGC::getClassName(obj), getIndex(this));

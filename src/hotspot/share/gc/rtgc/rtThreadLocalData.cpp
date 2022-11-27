@@ -9,7 +9,7 @@
 #include "gc/serial/defNewGeneration.inline.hpp"
 #include "gc/shared/memAllocator.hpp"
 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "rtThreadLocalData.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 

@@ -1,26 +1,55 @@
-#ifndef SHARE_GC_RTGC_RTGCDEBUG_HPP
-#define SHARE_GC_RTGC_RTGCDEBUG_HPP
+#ifndef SHARE_GC_RTGC_RTGC_LOG_HPP
+#define SHARE_GC_RTGC_RTGC_LOG_HPP
 
-#include "gc/rtgc/RTGC.hpp"
-#include "gc/rtgc/rtgcLog.hpp"
+#include <stdio.h>
+
+#ifdef ASSERT
+  extern bool RTGC_DEBUG;
+#else 
+  #define RTGC_DEBUG false
+#endif
+
 
 namespace RTGC {
-  static const int LOG_BARRIER    = 1;
-  static const int LOG_BARRIER_C1 = 2;
-  static const int LOG_HEAP       = 3;
-  static const int LOG_REF_LINK   = 4;
-  static const int LOG_GCNODE     = 5;
-  static const int LOG_SCANNER    = 6;
-  static const int LOG_SHORTCUT   = 7;
-  static const int LOG_REF        = 8;
-  static const int LOG_TLS        = 9;
-  static const int LOG_CLD        = 10;
-  static const int LOG_SPACE      = 11;
+  static const int LOG_CATEGORY_BASE = 0x1000000;
+  static const int LOG_FUNCTION_MASK = (LOG_CATEGORY_BASE-1);
 
-  static const bool USE_UPDATE_LOG_ONLY = false;
-  static const bool ENABLE_BARRIER_LOCK = false || !USE_UPDATE_LOG_ONLY;
-  extern int g_cnt_update;
-  extern int g_cnt_update_log;
+  inline int LOG_OPTION(int category, int function) {
+    return LOG_CATEGORY_BASE * category + (1 << function);
+  }
+
+  bool logEnabled(int logOption);
+  void enableLog(int category, int functions);
+
+  const char* baseFileName(const char* filePath);
+  const void* currentThreadId();
+
+  extern volatile int* logOptions;
+  extern volatile int* debugOptions;
+  extern void* debug_obj;
+  extern void* debug_obj2;
+  extern bool REF_LINK_ENABLED;
+
+  bool is_debug_pointer(void* obj);
+  void adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node);
 };
 
-#endif // SHARE_GC_RTGC_RTGCDEBUG_HPP
+#define PTR_DBG_SIG "%p(%s) tr=%d rc=%d ac=%d g=%d sc=[%d] cls=%d u=%d m=%d\n"
+#define PTR_DBG_INFO(obj) (void*)obj, RTGC::getClassName(obj), \
+  to_obj(obj)->isTrackable(), to_obj(obj)->getRootRefCount(), to_obj(obj)->getReferrerCount(), \
+  to_obj(obj)->isGarbageMarked(), to_obj(obj)->getShortcutId(), \
+   cast_to_oop(obj)->klass() == vmClasses::Class_klass(), \
+  to_obj(obj)->isUnstableMarked(), cast_to_oop(obj)->is_gc_marked()
+
+#define rtgc_log(logOption, ...) \
+  if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { \
+    printf("%p] %s:%d ", RTGC::currentThreadId(), RTGC::baseFileName(__FILE__), __LINE__); \
+    printf(__VA_ARGS__); \
+  }
+
+#define rtgc_debug_log(obj, ...) \
+  rtgc_log(RTGC::is_debug_pointer((void*)obj), __VA_ARGS__)
+
+#define rtgc_trace(opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)
+
+#endif // SHARE_GC_RTGC_RTGC_LOG_HPP

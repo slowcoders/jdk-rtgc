@@ -582,10 +582,10 @@ void DefNewGeneration::collect(bool   full,
   _preserved_marks_set.init(1);
 
 #if INCLUDE_RTGC  
-  if (EnableRTGC) { 
-    assert(this->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
-  } else
+  // if (EnableRTGC) { 
+  //   assert(this->no_allocs_since_save_marks(),
+  //        "save marks have not been newly set.");
+  // } else
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
@@ -603,12 +603,12 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   YoungRootClosure        young_root_closure(this, &evacuate_followers);
-  if (EnableRTGC) {
-    assert(this->no_allocs_since_save_marks(),
-        "save marks have not been newly set.");
-    OldTrackableClosure old_closure(this, _old_gen);
-    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
-  } else 
+  // if (EnableRTGC) {
+  //   assert(this->no_allocs_since_save_marks(),
+  //       "save marks have not been newly set.");
+  //   OldTrackableClosure old_closure(this, _old_gen);
+  //   static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
+  // } else 
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),

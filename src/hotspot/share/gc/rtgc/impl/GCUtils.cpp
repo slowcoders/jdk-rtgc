@@ -1,4 +1,4 @@
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "oops/compressedOops.hpp"
 #include "GCObject.hpp"
 #include "memory/virtualspace.hpp"

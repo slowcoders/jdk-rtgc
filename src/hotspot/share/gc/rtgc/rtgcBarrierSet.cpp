@@ -28,7 +28,7 @@
 #include "utilities/macros.hpp"
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 #include "gc/rtgc/rtgcBarrier.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/rtThreadLocalData.hpp"
 
 RtgcBarrierSet::RtgcBarrierSet(CardTable* card_table) :  

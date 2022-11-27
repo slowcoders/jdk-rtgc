@@ -1,6 +1,6 @@
 #include "gc/rtgc/rtHeapEx.hpp"
 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "impl/GCObject.hpp"
 #include "gc/rtgc/rtSpace.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"

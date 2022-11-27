@@ -58,7 +58,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   if ((uint64_t)heap_space.end() > UnscaledOopHeapMax) {
     // Didn't reserve heap below 4Gb.  Must shift.
   #if INCLUDE_RTGC
-    if (RTGC::rtHeapEx::OptStoreOop) {
+    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
       set_shift(LogMinObjAlignmentInBytes-1);
     } else 
   #endif  
@@ -69,7 +69,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
     // Did reserve heap below 32Gb. Can use base == 0;
     set_base(0);
   } else {
-    precond((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax / 2);
+    precond((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax);
     set_base((address)heap_space.compressed_oop_base());
   }
 
@@ -90,7 +90,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   // base() is one page below the heap.
   assert((intptr_t)base() <= ((intptr_t)_heap_address_range.start() - os::vm_page_size()) ||
          base() == NULL, "invalid value");
-  assert(RTGC_ONLY(RTGC::rtHeapEx::OptStoreOop ||) shift() == LogMinObjAlignmentInBytes ||
+  assert(RTGC_ONLY((EnableRTGC && RTGC::rtHeapEx::OptStoreOop) ||) shift() == LogMinObjAlignmentInBytes ||
          shift() == 0, "invalid value");
 #endif
 }

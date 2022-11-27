@@ -7,7 +7,7 @@
 #include "runtime/globals.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 
-#include "gc/rtgc/rtgcDebug.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 #include "gc/rtgc/impl/GCRuntime.hpp"
 
 using namespace RTGC;

@@ -1,7 +1,7 @@
 #include <memory.h>
 #include "utilities/globalDefinitions_gcc.hpp"
 #include "utilities/debug.hpp"
-#include "gc/rtgc/rtgcLog.hpp"
+#include "gc/rtgc/rtgcDebug.hpp"
 
 
 namespace RTGC {
