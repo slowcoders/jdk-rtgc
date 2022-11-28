@@ -8,7 +8,7 @@
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
-static const bool USE_EXPLICIT_TRACKABLE_MARK = false;
+static const bool USE_EXPLICIT_TRACKABLE_MARK = true;
 namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;

@@ -425,7 +425,7 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
-  precond(!rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
+  precond(/*!rtHeap::is_trackable(cast_to_oop(mem)) || */rtHeap::is_destroyed(cast_to_oop(mem)));
   if (UseBiasedLocking) {
     oopDesc::set_mark(mem, klass->prototype_header());
   } else {
@@ -519,7 +519,7 @@ void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 
 void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC && rtHeap::is_trackable((oopDesc*)start)) {
+  if (EnableRTGC) {//} && rtHeap::is_trackable((oopDesc*)start)) {
     void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap);
     rtgc_fill_dead_space(start, end, zap);
   } else

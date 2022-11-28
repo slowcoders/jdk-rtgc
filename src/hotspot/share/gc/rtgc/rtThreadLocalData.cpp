@@ -42,6 +42,7 @@ RtThreadLocalData::RtThreadLocalData() {
   _trackable_heap_start = GCNode::g_trackable_heap_start;
   precond(_trackable_heap_start != NULL);
   reset_field_update_log_sp(); 
+  precond(_log_sp[0] <= (void*)_log_sp);
 }
 
 void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
@@ -146,6 +147,8 @@ void FieldUpdateLog::updateAnchorList() {
 
 
 void FieldUpdateReport::process_update_logs() {
+  precond(g_dummy_report.is_full());
+  precond(g_dummy_report.next() == NULL);
   Klass* intArrayKlass = Universe::intArrayKlassObj();
   FieldUpdateReport* next_report;
   for (FieldUpdateReport* report = g_report_q; report != NULL; report = next_report) {
@@ -154,10 +157,12 @@ void FieldUpdateReport::process_update_logs() {
     for (FieldUpdateLog* log = report->first_log(); log < end; log ++) {
       log->updateAnchorList();
     }
-    int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
-    to_obj(report)->markGarbage();
-    to_obj(report)->markDestroyed();
-    CollectedHeap::fill_with_object((HeapWord*)report, STACK_CHUNK_SIZE >> LogHeapWordSize, false);
+    if (false) {
+      int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
+      to_obj(report)->markGarbage(NULL);
+      to_obj(report)->markDestroyed();
+      CollectedHeap::fill_with_object((HeapWord*)report, STACK_CHUNK_SIZE >> LogHeapWordSize, false);
+    }
   }
   g_report_q = NULL;
 }

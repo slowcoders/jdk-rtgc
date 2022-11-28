@@ -106,7 +106,7 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
 }
 
 static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAccess, Register tmp3) {
-  if (true) {
+  if (!USE_EXPLICIT_TRACKABLE_MARK) {
     const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
     Address trackable_start(thread, RtThreadLocalData::trackable_heap_start_offset());
     __ cmpptr(obj, trackable_start);

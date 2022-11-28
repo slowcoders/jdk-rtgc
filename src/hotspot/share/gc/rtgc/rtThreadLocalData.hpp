@@ -4,8 +4,8 @@
 namespace RTGC {
 
 class RtThreadLocalData {    
-  void* _trackable_heap_start;
   FieldUpdateLog** _log_sp;
+  void* _trackable_heap_start;
 
 public:
 

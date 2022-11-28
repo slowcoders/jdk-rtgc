@@ -44,16 +44,18 @@ namespace RTGC {
     virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
     bool is_in_young(void* p) { return p < _old_gen_start; }
-    void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p) { 
+    void init(oopDesc* old_anchor_p, oopDesc* new_anchor_p, bool is_trackable_forwardee) { 
       _old_anchor_p = old_anchor_p; 
       _new_anchor_p = new_anchor_p; 
       _has_young_ref = false; 
+      _is_trackable_forwardee = is_trackable_forwardee;
     }
     bool _has_young_ref;
     HeapWord* _old_gen_start;
+    bool _is_trackable_forwardee;
   private:
     oopDesc* _old_anchor_p;
-    oopDesc* _new_anchor_p;
+    oopDesc* _new_anchor_p;    
   };
 
   
@@ -414,7 +416,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   assert(!rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || 
-      _new_anchor_p != NULL || !to_obj(_old_anchor_p)->isTrackable() ||
+      _new_anchor_p != NULL || !_is_trackable_forwardee ||
       (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
       "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
       (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
@@ -423,7 +425,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (rtHeapEx::OptStoreOop && to_obj(_old_anchor_p)->isTrackable()) {
+  if (rtHeapEx::OptStoreOop && _is_trackable_forwardee) {
     *p = rtHeap::to_unmodified(*p);
   }
   if (old_p == NULL || old_p == _old_anchor_p) return;
@@ -471,10 +473,12 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 
   GCObject* node = to_obj(old_p);
   oopDesc* new_anchor_p = NULL;
-  if (!node->isTrackable()) {
+  bool is_trackable_forwardee = node->isTrackable();
+  if (!is_trackable_forwardee) {
     oopDesc* new_p = old_p->forwardee();
     if (new_p == NULL) new_p = old_p;
     if (!g_adjust_pointer_closure.is_in_young(new_p)) {
+      is_trackable_forwardee = true;
       mark_promoted_trackable(old_p);
       if (node->isUnreachable()) {
         // GC 종료 후 UnsafeList 에 추가.
@@ -483,6 +487,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       new_anchor_p = new_p;
     }
   } else {
+    precond(old_p->forwardee() == NULL || !g_adjust_pointer_closure.is_in_young(old_p->forwardee()));
     // ensure UnsafeList is empty.
     assert(!node->isUnreachable() || node->isUnstableMarked(), 
       "unreachable trackable %p(%s)\n", 
@@ -490,7 +495,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
 
   rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
-  g_adjust_pointer_closure.init(old_p, new_anchor_p);
+  g_adjust_pointer_closure.init(old_p, new_anchor_p, is_trackable_forwardee);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
   bool is_young_root = g_adjust_pointer_closure._has_young_ref && node->isTrackable();
@@ -708,7 +713,7 @@ size_t CollectedHeap::filler_array_min_size() {
 
 void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   GCObject* obj = to_obj(start);
-  precond(obj->isTrackable());
+  // precond(obj->isTrackable());
 
   oopDesc::clear_rt_node(start);
   obj->markGarbage(NULL);
