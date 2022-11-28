@@ -320,7 +320,9 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
+  // printf("init rtgc %d, %s\n", UnlockExperimentalVMOptions, AbortVMOnExceptionMessage);
 #endif
 
   ReferrerList::initialize();

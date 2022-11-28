@@ -107,6 +107,7 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
   rtgc_log(LOG_OPT(10), "add log(%p) [%p] %p\n", 
       anchor, field, (void*)CompressedOops::decode(erased));
+  narrowOop new_p = *field;
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
 
   precond(to_obj(anchor)->isTrackable());
@@ -114,7 +115,11 @@ void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop 
   this->_anchor = (address)anchor;
   this->_offset = (address)field - (address)anchor;
   this->_erased = erased;
+  assert(rtHeap::is_modified(new_p), "%p(%s) [%d] v=%x/n", 
+      _anchor, RTGC::getClassName(_anchor), _offset, (int32_t)new_p);
   assert(_offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+  rtgc_log(_offset == 68, "add log(%p) [%p] %p\n", 
+      anchor, field, (void*)CompressedOops::decode(erased));
 }
 
 void FieldUpdateLog::updateAnchorList() {
@@ -122,8 +127,8 @@ void FieldUpdateLog::updateAnchorList() {
   narrowOop new_p = *pField;
   rtgc_log(LOG_OPT(10), "updateAnchorList %p [%p] %p -> %p\n", 
       _anchor, pField, (void*)CompressedOops::decode(_erased), (void*)CompressedOops::decode(new_p));
-  assert(rtHeap::is_modified(new_p), "%p(%s) v=%x/n", 
-      _anchor, RTGC::getClassName(_anchor), (int32_t)new_p);
+  assert(rtHeap::is_modified(new_p), "%p(%s) [%d] v=%x/n", 
+      _anchor, RTGC::getClassName(_anchor), _offset, (int32_t)new_p);
   precond(!rtHeap::is_modified(_erased));
   new_p = rtHeap::to_unmodified(new_p);
   if (RTGC::USE_UPDATE_LOG_ONLY && new_p != _erased) {

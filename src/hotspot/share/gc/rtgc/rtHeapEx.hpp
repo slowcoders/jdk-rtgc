@@ -11,7 +11,7 @@ class GCObject;
 
 class rtHeapEx {
 public:  
-  static const bool OptStoreOop = true;
+  static const bool OptStoreOop = false;
 
   static void adjust_ref_q_pointers(bool is_full_gc);
 

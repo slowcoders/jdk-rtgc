@@ -216,8 +216,8 @@ void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled) {
 void rtHeap__processUntrackedTenuredObjects() {
   for (int idx = 0; idx < g_resurrected.size(); idx++) {
     GCObject* node = g_resurrected.at(idx);
-    rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
-    rtgc_log(true, "rtHeap__processUntrackedTenuredObjects %p\n", node);
+    // rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
+    // rtgc_log(true, "rtHeap__processUntrackedTenuredObjects %p\n", node);
     rtHeap::mark_promoted_trackable(cast_to_oop(node));
     GCRuntime::detectUnsafeObject(node);
     // rtHeap::add_young_root(cast_to_oop(node), cast_to_oop(node));
@@ -745,8 +745,8 @@ void rtHeap::oop_recycled_iterate(DefNewYoungerGenClosure* closure) {
     precond(is_gc_started && !in_full_gc);
     for (int idx = 0; idx < g_resurrected.size(); idx++) {
       GCObject* node = g_resurrected.at(idx);
-      rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
-      rtgc_log(true, "oop_recycled_iterate %p\n", node);
+      // rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
+      // rtgc_log(true, "oop_recycled_iterate %p\n", node);
       closure->do_iterate(cast_to_oop(node));
     }
     g_resurrected.resize(0); 

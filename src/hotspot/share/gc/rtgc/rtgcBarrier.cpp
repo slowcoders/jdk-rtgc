@@ -707,26 +707,35 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   // rtgc_log(true, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
   //     src_p, dst_array, dst_p, (int)length,
   //     (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
-  rtgc_debug_log(src_p, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+  rtgc_debug_log(dst_array, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
       src_p, dst_array, dst_p, (int)length,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
-  lock_barrier();                          
-  for (size_t i = 0; i < length; i++) {
+  const int delta = checkcast || (ds & ARRAYCOPY_DISJOINT) != 0 ? +1 : -1;
+  if (delta > 0) {
+    precond(dst_p < src_p || src_p + length < dst_p || dst_p + length < src_p);
+  }
+
+
+  lock_barrier();  
+  size_t reverse_i = length;                    
+  for (size_t k = 0; k < length; k++) {
+    const int i = delta > 0 ? k : --reverse_i;
+
     ITEM_T s_raw = src_p[i]; 
     oopDesc* new_v = CompressedOops::decode(s_raw);
     if (checkcast && new_v != NULL) {
       Klass* stype = new_v->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
-        if (ENABLE_BARRIER_LOCK) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
+        if (!rtHeapEx::OptStoreOop) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         unlock_barrier();
         rtgc_log(LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
         return i;
       }
     }
     oopDesc* old_v;
-    if (!ENABLE_BARRIER_LOCK) {
+    if (!rtHeapEx::OptStoreOop) {
       precond(!dest_uninitialized); 
       old_v = raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
     } else {
@@ -735,7 +744,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     rtgc_update_inverse_graph(dst_array, &dst_p[i], old_v, new_v);
   } 
 
-  if (ENABLE_BARRIER_LOCK) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
+  if (!rtHeapEx::OptStoreOop) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   unlock_barrier();
   rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   return length;
