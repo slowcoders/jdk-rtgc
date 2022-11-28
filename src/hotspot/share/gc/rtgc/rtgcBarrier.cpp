@@ -117,7 +117,7 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
   narrowOop new_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::OptStoreOop) {
     new_v = rtHeap::to_modified(new_v);
-    rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
+    //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
   if (in_heap && rtHeapEx::OptStoreOop && !rtHeap::is_modified(old_v)) {
@@ -144,7 +144,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   narrowOop n_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::OptStoreOop) {
     n_v = rtHeap::to_modified(n_v);
-    rtgc_debug_log(base, "raw_atomic_cmpxchg(%p)[%p] -> %p\n", base, addr, (void*)n_v);
+    //rtgc_debug_log(base, "raw_atomic_cmpxchg(%p)[%p] -> %p\n", base, addr, (void*)n_v);
   }
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
   if (in_heap && rtHeapEx::OptStoreOop) {
@@ -513,9 +513,7 @@ oopDesc* RtgcBarrier::oop_cmpxchg_unknown(volatile void* addr, oopDesc* cmp_v, o
       return rt_cmpxchg_array_item(addr, cmp_v, new_v, base);
     }
 #endif
-    rtgc_log(true, "<<1");
     oopDesc* res = rt_cmpxchg(addr, cmp_v, new_v, base);
-    rtgc_log(true, "1>>");
     return res;
   }
   if (UseCompressedOops) {
@@ -706,6 +704,9 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   precond(to_obj(dst_array)->isTrackable());
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
+  // rtgc_log(true, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
+  //     src_p, dst_array, dst_p, (int)length,
+  //     (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   rtgc_debug_log(src_p, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
       src_p, dst_array, dst_p, (int)length,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
@@ -726,6 +727,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     }
     oopDesc* old_v;
     if (!ENABLE_BARRIER_LOCK) {
+      precond(!dest_uninitialized); 
       old_v = raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
     } else {
       old_v = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);

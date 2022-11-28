@@ -55,7 +55,7 @@ public class ModulesSymLink {
         ProcessBuilder pb = new ProcessBuilder(
             test_jdk + File.separator + "bin" + File.separator + "java",
             "-XX:+UnlockExperimentalVMOptions",
-            "-XX:AbortVMOnExceptionMessage=java/lang/invoke/ResolvedMethodName",
+            "-XX:AbortVMOnExceptionMessage=#java/lang/invoke/ResolvedMethodName",
             "-version");
         System.out.println(test_jdk + File.separator + "bin" + File.separator + "java\n--\n" +
             "-XX:+UnlockExperimentalVMOptions\n--\n" +

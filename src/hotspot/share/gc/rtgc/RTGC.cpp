@@ -212,7 +212,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "[Ljava/lang/Object;",
+  "[Ljava/lang/invoke/LambdaForm$Name;",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -349,8 +349,8 @@ void RTGC::initialize() {
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
     enableLog(LOG_SHORTCUT, 0);
-    enableLog(LOG_TLS, 1);
-    enableLog(LOG_TLS, 10);
+    // enableLog(LOG_TLS, 1);
+    // enableLog(LOG_TLS, 10);
 
     if (false) {
       rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
