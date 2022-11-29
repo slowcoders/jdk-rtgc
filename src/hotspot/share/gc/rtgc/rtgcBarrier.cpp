@@ -22,7 +22,7 @@ volatile int LOG_VERBOSE = 0;
 static void* _base = 0;
 static int _shift = 0;
 static const int MAX_OBJ_SIZE = 256*1024*1024;
-static const bool SKIP_UNTRACKABLE = true;
+static const bool SKIP_UNTRACKABLE = false;
 namespace RTGC {
   extern bool REF_LINK_ENABLED;
 }
@@ -166,7 +166,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* c
   return res;
 }
 
-void rtgc_update_inverse_graph(oopDesc* base, volatile void* pField, oopDesc* old_v, oopDesc* new_v) {
+void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
   precond(is_barrier_locked());
 
   if (old_v == new_v) return;
@@ -187,7 +187,7 @@ void rtgc_update_inverse_graph_c1(oopDesc* base, oopDesc* old_v, oopDesc* new_v)
   rtgc_log(LOG_OPT(9), "rtgc_update_inverse_graph_c1 %p.%p -> %p\n", base, old_v, new_v);
   if (to_obj(base)->isTrackable()) {
     lock_barrier();
-    rtgc_update_inverse_graph(base, NULL, old_v, new_v);
+    rtgc_update_inverse_graph(base, old_v, new_v);
     unlock_barrier();
   }
 }
@@ -203,7 +203,7 @@ void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
   check_field_addr(base, addr, is_array);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
-  rtgc_update_inverse_graph(base, addr, old, new_v);
+  rtgc_update_inverse_graph(base, old, new_v);
   unlock_barrier();
 }
 
@@ -358,7 +358,7 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_v, oopDesc* base) {
   check_field_addr(base, addr, is_array);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
-  rtgc_update_inverse_graph(base, addr, old, new_v);
+  rtgc_update_inverse_graph(base, old, new_v);
   unlock_barrier();
   return old;
 }
@@ -478,7 +478,7 @@ oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc*
   lock_barrier();
   oopDesc* old = raw_atomic_cmpxchg<true>(base, addr, cmp_v, new_v);
   if (old == cmp_v) {
-    rtgc_update_inverse_graph(base, addr, old, new_v);
+    rtgc_update_inverse_graph(base, old, new_v);
   }
   unlock_barrier();
   return old;
@@ -725,7 +725,6 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     precond(dst_p < src_p || src_p + length < dst_p || dst_p + length < src_p);
   }
 
-
   lock_barrier();  
   size_t reverse_i = length;                    
   for (size_t k = 0; k < length; k++) {
@@ -743,13 +742,13 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       }
     }
     oopDesc* old_v;
-    if (!rtHeapEx::OptStoreOop) {
+    if (rtHeapEx::OptStoreOop) {
       precond(!dest_uninitialized); 
       old_v = raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
     } else {
       old_v = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
     }
-    rtgc_update_inverse_graph(dst_array, &dst_p[i], old_v, new_v);
+    rtgc_update_inverse_graph(dst_array, old_v, new_v);
   } 
 
   if (!rtHeapEx::OptStoreOop) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
