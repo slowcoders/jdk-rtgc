@@ -42,7 +42,7 @@ class KlassRemSet;
 //
 // - Derived: The derived type provides necessary barrier
 //            after an oop has been updated.
-template <typename Derived, bool clear_modified_flag=false>
+template <typename Derived>
 class FastScanClosure : public BasicOopIterateClosure {
 private:
   DefNewGeneration* _young_gen;
@@ -83,8 +83,8 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool is_promoted> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true> {
+template <bool do_mark_trackable, bool is_promoted=true> 
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<do_mark_trackable>> {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -92,7 +92,7 @@ private:
 
 public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<is_promoted>, true>(young_gen), 
+    : FastScanClosure<ScanTrackableClosure<do_mark_trackable>>(young_gen), 
     _old_gen(old_gen) {}
 
   template <typename T>
@@ -104,17 +104,23 @@ public:
   void do_iterate(oop obj);
 };
 
-class DefNewYoungerGenClosure : public ScanTrackableClosure<true> {
+class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
 public:  
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<false>(young_gen, old_gen) {}
+};
+
+class RecycledTrackableClosure : public ScanTrackableClosure<true> {
+public:  
+  RecycledTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 
-// class OldTrackableClosure : public ScanTrackableClosure<false> {
-// public:  
-//   OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-//     : ScanTrackableClosure<false>(young_gen, old_gen) {}
-// };
+class OldTrackableClosure : public ScanTrackableClosure<true, false> {
+public:  
+  OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true, false>(young_gen, old_gen) {}
+};
 
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
   bool _has_young_ref;

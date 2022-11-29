@@ -265,7 +265,7 @@ namespace RTGC {
               GenCollectedHeap::heap()->old_gen()->reserved().start(),
               to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->isAnchored(), 
               rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
-          this->remove_curr_ref(false);
+          this->remove_curr_ref(true);
           continue;
         }
 

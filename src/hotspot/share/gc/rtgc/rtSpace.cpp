@@ -145,9 +145,9 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     recycled = true;
     rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
         word_size, heap);
-  }
-  if (heap != NULL) {
-    rtHeap__addUntrackedTenuredObject(reinterpret_cast<GCObject*>(heap), recycled);
+    if (heap != NULL) {
+      rtHeap__addUntrackedTenuredObject(reinterpret_cast<GCObject*>(heap), recycled);
+    }
   }
   return heap;
 }

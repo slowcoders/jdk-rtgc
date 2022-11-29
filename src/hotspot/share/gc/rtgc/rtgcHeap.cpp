@@ -652,6 +652,9 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     }
     g_saved_young_root_count = g_young_roots.size();
   } else {
+    // promotion fail 에 의해 full-gc 가 연달아 수행되는 경우의 처리.
+    rtHeap__clearStack<false>();
+
     // yg_root_locked = true;
     rtHeapEx::validate_trackable_refs();
     FreeMemStore::clearStore();
@@ -668,10 +671,10 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   precond(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d\n", in_full_gc);
   is_gc_started = false;
-  if (!in_full_gc) {
+  // if (!in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
-  }
+  // }
   if (rtHeapEx::OptStoreOop) {
     FieldUpdateReport::reset_gc_context(true || promotion_finished_unused);
   }

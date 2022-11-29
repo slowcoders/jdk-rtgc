@@ -40,7 +40,7 @@ FieldUpdateReport  FieldUpdateReport::g_dummy_report;
 
 RtThreadLocalData::RtThreadLocalData() { 
   _trackable_heap_start = GCNode::g_trackable_heap_start;
-  precond(_trackable_heap_start != NULL);
+  // precond(_trackable_heap_start != NULL);
   reset_field_update_log_sp(); 
   precond(_log_sp[0] <= (void*)_log_sp);
 }

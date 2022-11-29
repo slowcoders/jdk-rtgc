@@ -582,10 +582,12 @@ void DefNewGeneration::collect(bool   full,
   _preserved_marks_set.init(1);
 
 #if INCLUDE_RTGC  
-  // if (EnableRTGC) { 
-  //   assert(this->no_allocs_since_save_marks(),
-  //        "save marks have not been newly set.");
-  // } else
+  if (EnableRTGC) { 
+    assert(this->no_allocs_since_save_marks(),
+         "save marks have not been newly set.");
+
+    rtHeap::prepare_rtgc(NULL);
+  } else
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
@@ -603,12 +605,12 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
   YoungRootClosure        young_root_closure(this, &evacuate_followers);
-  // if (EnableRTGC) {
-  //   assert(this->no_allocs_since_save_marks(),
-  //       "save marks have not been newly set.");
-  //   OldTrackableClosure old_closure(this, _old_gen);
-  //   static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
-  // } else 
+  if (EnableRTGC) {
+    assert(this->no_allocs_since_save_marks(),
+        "save marks have not been newly set.");
+    OldTrackableClosure old_closure(this, _old_gen);
+    static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
+  } else 
 #endif
   {
     assert(heap->no_allocs_since_save_marks(),
@@ -663,6 +665,12 @@ void DefNewGeneration::collect(bool   full,
   // Verify that the usage of keep_alive didn't copy any objects.
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
+#if INCLUDE_RTGC
+  if (EnableRTGC) { 
+    rtHeap::finish_rtgc(false, true);
+  }
+#endif
+
   if (!_promotion_failed) {
     // Swap the survivor spaces.
     eden()->clear(SpaceDecorator::Mangle);
@@ -710,13 +718,6 @@ void DefNewGeneration::collect(bool   full,
     // Reset the PromotionFailureALot counters.
     NOT_PRODUCT(heap->reset_promotion_should_fail();)
   }
-
-// #if INCLUDE_RTGC
-//   if (EnableRTGC) { 
-//     rtHeap::finish_rtgc(false, !_promotion_failed);
-//   }
-// #endif
-
   // We should have processed and cleared all the preserved marks.
   _preserved_marks_set.reclaim();
 
