@@ -149,8 +149,13 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   check_valid_obj(newValue, newValue);
   check_valid_obj(oldValue, newValue);
 
+  assert(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
+
   if (!REF_LINK_ENABLED) return;
-  GCRuntime::onReplaceRootVariable(to_obj(newValue), to_obj(oldValue));
+  if (newValue != NULL) GCRuntime::onAssignRootVariable_internal(to_obj(newValue));
+  if (oldValue != NULL) GCRuntime::onEraseRootVariable_internal(to_obj(oldValue));
 }
 
 
