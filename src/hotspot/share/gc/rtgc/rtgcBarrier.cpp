@@ -169,8 +169,8 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* c
 void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
   precond(is_barrier_locked());
 
+  if (rtHeapEx::OptStoreOop) return;
   if (old_v == new_v) return;
-  if (USE_UPDATE_LOG_ONLY && !ENABLE_BARRIER_LOCK) return;
 
   if (new_v != NULL && new_v != base) {
     debug_only(Atomic::add(&RTGC::g_cnt_update, 1);)

@@ -12,6 +12,7 @@
 #include "gc/rtgc/rtgcGlobals.hpp"
 #include "rtThreadLocalData.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
+#include "gc/rtgc/impl/GCRuntime.hpp"
 
 using namespace RTGC;
 
@@ -130,24 +131,27 @@ void FieldUpdateLog::updateAnchorList() {
   assert(rtHeap::is_modified(new_p), "%p(%s) [%d] v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), _offset, (int32_t)new_p);
   precond(!rtHeap::is_modified(_erased));
+
   new_p = rtHeap::to_unmodified(new_p);
-  if (RTGC::USE_UPDATE_LOG_ONLY && new_p != _erased) {
-    if (!CompressedOops::is_null(_erased)) {
-      oop erased = CompressedOops::decode(_erased);
-      if (erased != (void*)_anchor) {
-        to_obj(erased)->removeReferrer(to_obj(_anchor));
-      }
-    }
+  *pField = new_p;
+  if (rtHeapEx::OptStoreOop && new_p != _erased) {
     if (!CompressedOops::is_null(new_p)) {
       oop assigned = CompressedOops::decode(new_p);
       if (assigned != (void*)_anchor) {
-        to_obj(assigned)->addReferrer(to_obj(_anchor));
+        RTGC::add_referrer_ex(assigned, cast_to_oop(_anchor), true);
+        // to_obj(assigned)->addReferrer(to_obj(_anchor));
+      }
+    }
+    if (!CompressedOops::is_null(_erased)) {
+      oop erased = CompressedOops::decode(_erased);
+      if (erased != (void*)_anchor) {
+        GCRuntime::disconnectReferenceLink(to_obj(erased), to_obj(_anchor));
+        //to_obj(erased)->removeReferrer(to_obj(_anchor));
       }
     }
   } else {
     // 여러번 변경되어 _erased 값이 동일해진 경우.
   }
-  *pField = new_p;
 }
 
 
