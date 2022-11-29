@@ -159,11 +159,11 @@ namespace RTGC {
     NoGarbageCheck = 4,
     NoReferentCheck = 8,
     DetectGarbageRef = 16,
-    //ClearAnchorList = 32,
+    ClearAnchorList = 32,
 
     SkipClearedRef_NoGarbageCheck = SkipClearedRef | NoGarbageCheck,
     SkipGarbageRef_NoReferentCheck = SkipGarbageRef | NoReferentCheck,
-    // DetectGarbageRef_ClearAnchorList = DetectGarbageRef | ClearAnchorList,
+    DetectGarbageRef_ClearAnchorList = DetectGarbageRef | ClearAnchorList,
   };
 
   template <bool is_full_gc>
@@ -212,19 +212,15 @@ namespace RTGC {
 
     bool is_garbage_ref(SkipPolicy policy) {
       GCObject* node = to_obj(_curr_ref);
-      if (node->isGarbageMarked()) {
-        return true;
-      }
-
       if (!node->isTrackable()) {
         return !_curr_ref->is_gc_marked(); 
       }
-
-      if (policy & DetectGarbageRef) {
-        return _rtgc.g_pGarbageProcessor->detectGarbage(node);
+      if (!(policy & DetectGarbageRef)) {
+        return node->isGarbageMarked();
       } 
       
-      return false;
+      bool is_garbage = _rtgc.g_pGarbageProcessor->detectGarbage(node);
+      return is_garbage;
     }
 
     GCObject* next_ref(SkipPolicy policy) {
@@ -248,9 +244,12 @@ namespace RTGC {
           postcond(_curr_ref != _next_ref);
         }
 
-        const bool check_garbage = (policy & (SkipGarbageRef | DetectGarbageRef)) != 0;
-        if (check_garbage && is_garbage_ref(policy)) {
-          if (policy & DetectGarbageRef) {
+        if (!(policy & (SkipGarbageRef | DetectGarbageRef))) {
+          if (!(policy & NoGarbageCheck)) {
+            precond(rtHeap::is_alive(_curr_ref));
+          }
+        } else if (is_garbage_ref(policy)) {
+          if (policy & ClearAnchorList) {
             GCObject* referent = to_obj(get_raw_referent());
             if (!referent->isGarbageMarked() && referent->clearEmptyAnchorList()) {
               // emptyAnchorList를 명시적으로 clear 한다.
@@ -269,10 +268,9 @@ namespace RTGC {
           continue;
         }
 
-        assert(!to_obj(_curr_ref)->isGarbageMarked(), PTR_DBG_SIG, PTR_DBG_INFO(_curr_ref));
-        assert(__getRefType(_curr_ref) == _refList.ref_type(), 
-              "wrong ref %d expected %d\n" PTR_DBG_SIG, 
-              __getRefType(_curr_ref), _refList.ref_type(), PTR_DBG_INFO(_curr_ref));
+        if (!(policy & NoGarbageCheck)) {
+          precond(__getRefType(_curr_ref) == _refList.ref_type());
+        }
 
         if ((policy & NoReferentCheck)) {
           _referent_p = 0;
@@ -609,7 +607,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
     GCObject* ref;
     rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
-    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef_ClearAnchorList)) != NULL; ) {
       if (ref->getContextFlag()) {
         ref->unmarkContextFlag();
         precond(rtHeap::is_alive(iter.referent()));
@@ -628,7 +626,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
     }
     rtHeap::in_full_gc = -1;
 
-    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; ) {
+    for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef_ClearAnchorList)) != NULL; ) {
       if (ENABLE_SOFT_WEAK_REF) {
         iter.clear_weak_soft_garbage_referent();
       }
@@ -850,20 +848,10 @@ void __adjust_ref_q_pointers() {
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
     iter.adjust_ref_pointer();
-    if (!is_full_gc && to_obj(iter.ref())->isGarbageMarked()) {
-      // YG-root 내부의 객체가 marking 시 promote 된 후, 해당 YG-root 가 garbage 처리된 상황.
-      rtgc_log(LOG_OPT(3), "promoted garbage soft-ref %p detected\n", to_obj(iter.ref()));
-      iter.remove_curr_ref(false);
-    }
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
     iter.adjust_ref_pointer();
-    if (!is_full_gc && to_obj(iter.ref())->isGarbageMarked()) {
-      // YG-root 내부의 객체가 marking 시 promote 된 후, 해당 YG-root 가 garbage 처리된 상황.
-      rtgc_log(LOG_OPT(3), "promoted garbage weak-ref %p detected\n", to_obj(iter.ref()));
-      iter.remove_curr_ref(false);
-    }
   } 
 
 #ifdef ASSERT
