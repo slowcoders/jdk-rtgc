@@ -100,7 +100,7 @@ public:
 
   static oopDesc* oop_xchg_array_item(volatile oop* p, oopDesc* new_value, oopDesc* base);
   static oopDesc* oop_xchg_array_item(volatile narrowOop* p, oopDesc* new_value, oopDesc* base) {
-    return rt_xchg(p, new_value, base);
+    return rt_xchg_array_item(p, new_value, base);
   }
 
   static oopDesc* oop_xchg_unknown(volatile void* p, oopDesc* new_value, oopDesc* base);
