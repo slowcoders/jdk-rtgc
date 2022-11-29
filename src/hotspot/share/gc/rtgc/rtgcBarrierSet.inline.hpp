@@ -25,12 +25,7 @@ oop_load_in_heap_at(oop base, ptrdiff_t offset) {
   if (!RtgcBarrier::needBarrier(decorators, base, offset, false)) {
     return ModRef::oop_load_in_heap(addr);
   }
-  oop o;
-  if (decorators & IS_ARRAY) {
-    o = RtgcBarrier::oop_load_array_item(addr, base);
-  } else {
-    o = RtgcBarrier::oop_load(addr, base);
-  }
+  const oop o = RtgcBarrier::oop_load(addr, base);
   return o;
 }
 
@@ -58,8 +53,6 @@ oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
   bs->template write_ref_field_pre<decorators>(addr);
   if (decorators & ON_UNKNOWN_OOP_REF) {
     RtgcBarrier::oop_store_unknown(addr, value, base);
-  } else if (decorators & IS_ARRAY) {
-    RtgcBarrier::oop_store_array_item(addr, value, base);
   } else {
     RtgcBarrier::oop_store(addr, value, base);
   }
@@ -89,8 +82,6 @@ oop_atomic_cmpxchg_in_heap_at(oop base, ptrdiff_t offset, oop compare_value, oop
   oop result;
   if (decorators & ON_UNKNOWN_OOP_REF) {
     result = RtgcBarrier::oop_cmpxchg_unknown(addr, compare_value, new_value, base);
-  } else if (decorators & IS_ARRAY) {
-    result = RtgcBarrier::oop_cmpxchg_array_item(addr, compare_value, new_value, base);
   } else {
     result = RtgcBarrier::oop_cmpxchg(addr, compare_value, new_value, base);
   }
@@ -123,8 +114,6 @@ oop_atomic_xchg_in_heap_at(oop base, ptrdiff_t offset, oop new_value) {
   oop result;
   if (decorators & ON_UNKNOWN_OOP_REF) {
     result = RtgcBarrier::oop_xchg_unknown(addr, new_value, base);
-  } else if (decorators & IS_ARRAY) {
-    result = RtgcBarrier::oop_xchg_array_item(addr, new_value, base);
   } else {
     result = RtgcBarrier::oop_xchg(addr, new_value, base);
   }

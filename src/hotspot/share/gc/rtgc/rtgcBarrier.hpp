@@ -8,20 +8,16 @@
 
 class RtgcBarrier : public AllStatic {
   static void (*rt_store)(void* p, oopDesc* new_value, oopDesc* base);
-  static void (*rt_store_array_item)(void* p, oopDesc* new_value, oopDesc* base);
   static void (*rt_store_not_in_heap)(void* p, oopDesc* new_value);
   static void (*rt_store_not_in_heap_uninitialized)(void* p, oopDesc* new_value);
 
   static oopDesc* (*rt_xchg)(volatile void* p, oopDesc* new_value, oopDesc* base);
-  static oopDesc* (*rt_xchg_array_item)(volatile void* p, oopDesc* new_value, oopDesc* base);
   static oopDesc* (*rt_xchg_not_in_heap)(volatile void* p, oopDesc* new_value);
 
   static oopDesc* (*rt_cmpxchg)(volatile void* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
-  static oopDesc* (*rt_cmpxchg_array_item)(volatile void* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
   static oopDesc* (*rt_cmpxchg_not_in_heap)(volatile void* p, oopDesc* cmp_value, oopDesc* new_value);
 
   static oopDesc* (*rt_load)(volatile void* p, oopDesc* base);
-  static oopDesc* (*rt_load_array_item)(volatile void* p, oopDesc* base);
   static oopDesc* (*rt_load_not_in_heap)(volatile void* p);
 
   static int  (*rt_arraycopy_checkcast)(void* src_p, void* dst_p, size_t length, arrayOopDesc* dst_array);
@@ -58,8 +54,6 @@ public:
 
   static inline bool needBarrier(DecoratorSet decorators, oopDesc* base,
                                  ptrdiff_t offset, bool op_store) {
-    precond(!(decorators & IS_ARRAY) ||
-            (!(decorators & (IS_DEST_UNINITIALIZED|IN_NATIVE)) && (decorators & IN_HEAP)));
     return !is_raw_access(decorators, op_store)
         && offset > oopDesc::klass_offset_in_bytes()
         && rtHeap::is_trackable(base);
@@ -74,11 +68,6 @@ public:
   static void oop_store(oop* p, oopDesc* new_value, oopDesc* base);
   static void oop_store(narrowOop* p, oopDesc* new_value, oopDesc* base) {
     rt_store(p, new_value, base);
-  }
-
-  static void oop_store_array_item(oop* p, oopDesc* new_value, oopDesc* base);
-  static void oop_store_array_item(narrowOop* p, oopDesc* new_value, oopDesc* base) {
-    rt_store_array_item(p, new_value, base);
   }
 
   static void oop_store_unknown(void* p, oopDesc* new_value, oopDesc* base);
@@ -98,11 +87,6 @@ public:
     return rt_xchg(p, new_value, base);
   }
 
-  static oopDesc* oop_xchg_array_item(volatile oop* p, oopDesc* new_value, oopDesc* base);
-  static oopDesc* oop_xchg_array_item(volatile narrowOop* p, oopDesc* new_value, oopDesc* base) {
-    return rt_xchg(p, new_value, base);
-  }
-
   static oopDesc* oop_xchg_unknown(volatile void* p, oopDesc* new_value, oopDesc* base);
 
   static oopDesc* oop_xchg_not_in_heap(volatile oop* p, oopDesc* new_value);
@@ -115,11 +99,6 @@ public:
     return rt_cmpxchg(p, cmp_value, new_value, base);
   }
 
-  static oopDesc* oop_cmpxchg_array_item(volatile oop* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
-  static oopDesc* oop_cmpxchg_array_item(volatile narrowOop* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base) {
-    return rt_cmpxchg_array_item(p, cmp_value, new_value, base);
-  }
-
   static oopDesc* oop_cmpxchg_unknown(volatile void* p, oopDesc* cmp_value, oopDesc* new_value, oopDesc* base);
 
   static oopDesc* oop_cmpxchg_not_in_heap(volatile oop* p, oopDesc* cmp_value, oopDesc* new_value);
@@ -130,11 +109,6 @@ public:
   static oopDesc* oop_load(volatile oop* p, oopDesc* base);
   static oopDesc* oop_load(volatile narrowOop* p, oopDesc* base) {
     return rt_load(p, base);
-  }
-
-  static oopDesc* oop_load_array_item(volatile oop* p, oopDesc* base);
-  static oopDesc* oop_load_array_item(volatile narrowOop* p, oopDesc* base) {
-    return rt_load_array_item(p, base);
   }
 
   static oopDesc* oop_load_unknown(volatile void* p, oopDesc* base);
