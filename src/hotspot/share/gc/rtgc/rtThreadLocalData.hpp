@@ -4,11 +4,11 @@
 namespace RTGC {
 
 class FieldUpdateLog {
+public:
   address   _anchor;
   int32_t   _offset;
   narrowOop _erased;
 
-public:
   void init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased);
   void updateAnchorList();
   static void add(oopDesc* anchor, volatile narrowOop* field, narrowOop erased);
@@ -78,6 +78,14 @@ public:
   }
 
   static void addUpdateLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData);
+
+  void checkLastLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
+    FieldUpdateLog* log = _log_sp[0];
+    printf("log sp  %p start=%p\n", log, _log_sp);
+    assert(log->_anchor == (void*)anchor, " %p %p\n", log->_anchor, anchor);
+    assert(log->_offset == (int32_t)(intptr_t)field, " %d %d\n", log->_offset, (int32_t)(intptr_t)field);
+    assert(log->_erased == erased, " %x %x\n", (int32_t)log->_erased, (int32_t)erased);
+  }
 };
 
 };

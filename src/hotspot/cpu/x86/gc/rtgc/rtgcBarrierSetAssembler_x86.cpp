@@ -105,19 +105,38 @@ void RtgcBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorat
   }
 }
 
-static void __checkTrackable(MacroAssembler* masm, Register obj, Label& rawAccess, Register tmp3) {
+static void __checkTrackable(MacroAssembler* masm, Register base, Label& rawAccess, Register tmp3) {
   if (!USE_EXPLICIT_TRACKABLE_MARK) {
     const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
     Address trackable_start(thread, RtThreadLocalData::trackable_heap_start_offset());
-    __ cmpptr(obj, trackable_start);
+    __ cmpptr(base, trackable_start);
     __ jcc(Assembler::less, rawAccess);
   } else {
     ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
-    __ movl(tmp3, Address(obj, offset_gc_flags));
+    __ movl(tmp3, Address(base, offset_gc_flags));
     __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
     __ jcc(Assembler::zero, rawAccess);
   }
 }
+
+static inline void __encode_modified_narrow_oop(MacroAssembler* masm, Register ptr, bool is_not_null) {
+    precond(ptr != noreg);
+    if (is_not_null) {
+      __ encode_heap_oop_not_null(ptr);
+    } else {
+      __ encode_heap_oop(ptr);
+    }
+    // mark modified;
+    __ orl(ptr, 1);
+}
+
+static int cnt_log = 0;
+static void __wrap_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
+  printf("add log %p[%p] v= %x\n", anchor, field, (int32_t)erased);
+  rtData->checkLastLog(anchor, field, erased);
+  postcond(cnt_log < 100);
+}
+
 
 void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2) {
@@ -130,85 +149,137 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   
-  Register obj = dst.base();
+  Register base = dst.base();
   Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
 
-  if (false && rtHeapEx::OptStoreOop) {
-  Label L_raw_access, _done;
+  if (rtHeapEx::OptStoreOop && UseCompressedOops && in_heap) {
 
-  __checkTrackable(masm, obj, L_raw_access, tmp3);
-    const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
-
-    push_registers(masm, true, false);
-
-    assert_different_registers(c_rarg0, val);
     if (in_heap) {
+
+      precond(tmp1 != noreg);
+      precond(tmp2 != noreg);
       assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
-      assert_different_registers(c_rarg2, val);
-      if (dst.index() == c_rarg2) {
-        __ leaq(c_rarg0, dst);
-        __ movptr(c_rarg2, obj);
-      } else {
-        if (obj != c_rarg2) {
-          assert_different_registers(c_rarg2, val);
-          __ movptr(c_rarg2, obj);
-        }
-        __ leaq(c_rarg0, dst);
-      }
-    }
-    else if (dst.index() != noreg || dst.disp() != 0) {
-      __ lea(c_rarg0, dst);  
-    } else if (dst.base() != c_rarg0) {
-      __ movptr(c_rarg0, dst.base());
-    }
 
-    if (val != c_rarg1) {
+      Label L_raw_access, _done, L_slowAccess;
+
+      __checkTrackable(masm, base, L_raw_access, tmp3);
+      const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
+
+      // to modified narrowOop;
       if (val == noreg) {
-        __ xorq(c_rarg1, c_rarg1);
+        val = LP64_ONLY(r8) NOT_LP64(rsi);
+        // modified null;
+        __ movl(val, (int32_t)1);
       } else {
-        __ movptr(c_rarg1, val);
+        __encode_modified_narrow_oop(masm, val, is_not_null);
+      }
+      
+      if (tmp2 == dst.index()) tmp2 = tmp1;
+      assert_different_registers(val, base, tmp2, dst.index(), rscratch1, rscratch2);
+
+      const Register offset = tmp2;
+      __ leaq(offset, dst);
+      // __ lock(); xchg 에는 lock 이 불필요(?)
+      __ xchgl(val, Address(offset, 0));
+
+      Address update_log_sp(thread, RtThreadLocalData::log_sp_offset());
+      const Register log = rscratch2;
+      if (true) {
+        __ movptr(rscratch1, update_log_sp);
+        __ movptr(log, Address(rscratch1, 0));
+        __ subptr(log, sizeof(FieldUpdateLog));
+        __ cmpptr(log, rscratch1);
+        __ jcc(Assembler::lessEqual, L_slowAccess);
+
+        __ movptr(Address(rscratch1, 0), log);
+        __ movptr(Address(log, ByteSize(0)), base);
+        __ subptr(offset, base);
+        __ movl(Address(log, ByteSize(8)), offset);
+        __ movl(Address(log, ByteSize(12)), val);
+
+        // __ movptr(base, log);
+      } else {
+        __ jmp(_done);
+      }
+      
+
+      __ bind(L_slowAccess);
+      push_registers(masm, true, false);
+      assert_different_registers(c_rarg0, val);
+            
+      if (base != c_rarg0) {
+        assert_different_registers(c_rarg0, val, offset);
+        __ movptr(c_rarg0, base);
+      }
+      if (offset != c_rarg1) {
+        assert_different_registers(c_rarg1, val);
+        __ movptr(c_rarg1, offset);
+      }
+      if (val != c_rarg2) {
+        __ movl(c_rarg2, val);
+      }
+      __ leaq(c_rarg3, Address(thread, Thread::gc_data_offset()));
+
+      address fn = (address)__wrap_update_log;//RtThreadLocalData::addUpdateLog;
+      __ MacroAssembler::call_VM_leaf_base(fn, 4);
+      pop_registers(masm, true, false);
+      __ jmp(_done);
+      __ bind(L_raw_access);
+      BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
+      __ bind(_done);
+
+    }
+    else {
+      if (dst.index() != noreg || dst.disp() != 0) {
+        __ lea(c_rarg0, dst);  
+      } else if (dst.base() != c_rarg0) {
+        __ movptr(c_rarg0, dst.base());
+      }
+
+      if (val != c_rarg1) {
+        if (val == noreg) {
+          __ xorq(c_rarg1, c_rarg1);
+        } else {
+          __ movptr(c_rarg1, val);
+        }
       }
     }
-
-    address fn = RtgcBarrier::getStoreFunction(decorators);
-    __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
-    pop_registers(masm, true, false);
-    __ jmp(_done);
-    __ bind(L_raw_access);
-    BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
-    __ bind(_done);
 
   } else {    
 
     // ================== //
-    Register obj = dst.base();
+    Register base = dst.base();
 
     Label L_raw_access, _done;
 
-    Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
-    __checkTrackable(masm, obj, L_raw_access, tmp3);
-
-    push_registers(masm, true, false);
-
-    assert_different_registers(c_rarg0, val);
     if (in_heap) {
+      Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
+      __checkTrackable(masm, base, L_raw_access, tmp3);
+
+      push_registers(masm, true, false);
+
+      assert_different_registers(c_rarg0, val);
       assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
       assert_different_registers(c_rarg2, val);
       if (dst.index() == c_rarg2) {
         __ leaq(c_rarg0, dst);
-        __ movptr(c_rarg2, obj);
+        __ movptr(c_rarg2, base);
       } else {
-        if (obj != c_rarg2) {
+        if (base != c_rarg2) {
           assert_different_registers(c_rarg2, val);
-          __ movptr(c_rarg2, obj);
+          __ movptr(c_rarg2, base);
         }
         __ leaq(c_rarg0, dst);
       }
     }
-    else if (dst.index() != noreg || dst.disp() != 0) {
-      __ lea(c_rarg0, dst);  
-    } else if (dst.base() != c_rarg0) {
-      __ movptr(c_rarg0, dst.base());
+    else {
+      push_registers(masm, true, false);
+
+      if (dst.index() != noreg || dst.disp() != 0) {
+        __ lea(c_rarg0, dst);  
+      } else if (dst.base() != c_rarg0) {
+        __ movptr(c_rarg0, dst.base());
+      }
     }
 
     if (val != c_rarg1) {
