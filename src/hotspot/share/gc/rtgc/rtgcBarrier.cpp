@@ -720,7 +720,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
   const int delta = checkcast || (ds & ARRAYCOPY_DISJOINT) != 0 ? +1 : -1;
   if (delta > 0) {
-    precond(dst_p < src_p || src_p + length < dst_p || dst_p + length < src_p);
+    precond(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
   }
 
   lock_barrier();  

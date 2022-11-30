@@ -132,9 +132,10 @@ static inline void __encode_modified_narrow_oop(MacroAssembler* masm, Register p
 
 static int cnt_log = 0;
 static void __wrap_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
-  printf("add log %p[%p] v= %x\n", anchor, field, (int32_t)erased);
-  rtData->checkLastLog(anchor, field, erased);
-  postcond(cnt_log < 100);
+  RtThreadLocalData::addUpdateLog(anchor, field, erased, rtData);
+  // printf("add log %p[%p] v= %x\n", anchor, field, (int32_t)erased);
+  // rtData->checkLastLog(anchor, field, erased);
+  // postcond(cnt_log < 100);
 }
 
 
@@ -160,7 +161,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
       precond(tmp2 != noreg);
       assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
 
-      Label L_raw_access, _done, L_slowAccess;
+      Label L_raw_access, L_done, L_slowAccess;
 
       __checkTrackable(masm, base, L_raw_access, tmp3);
       const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
@@ -181,26 +182,23 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
       __ leaq(offset, dst);
       // __ lock(); xchg 에는 lock 이 불필요(?)
       __ xchgl(val, Address(offset, 0));
+      __ testl(val, 1);
+      __ jcc(Assembler::notZero, L_done);
 
       Address update_log_sp(thread, RtThreadLocalData::log_sp_offset());
       const Register log = rscratch2;
-      if (true) {
-        __ movptr(rscratch1, update_log_sp);
-        __ movptr(log, Address(rscratch1, 0));
-        __ subptr(log, sizeof(FieldUpdateLog));
-        __ cmpptr(log, rscratch1);
-        __ jcc(Assembler::lessEqual, L_slowAccess);
+      __ movptr(rscratch1, update_log_sp);
+      __ movptr(log, Address(rscratch1, 0));
+      __ subptr(log, sizeof(FieldUpdateLog));
+      __ cmpptr(log, rscratch1);
+      __ jcc(Assembler::lessEqual, L_slowAccess);
 
-        __ movptr(Address(rscratch1, 0), log);
-        __ movptr(Address(log, ByteSize(0)), base);
-        __ subptr(offset, base);
-        __ movl(Address(log, ByteSize(8)), offset);
-        __ movl(Address(log, ByteSize(12)), val);
-
-        // __ movptr(base, log);
-      } else {
-        __ jmp(_done);
-      }
+      __ movptr(Address(rscratch1, 0), log);
+      __ movptr(Address(log, ByteSize(0)), base);
+      __ subptr(offset, base);
+      __ movl(Address(log, ByteSize(8)), offset);
+      __ movl(Address(log, ByteSize(12)), val);
+      __ jmp(L_done);
       
 
       __ bind(L_slowAccess);
@@ -223,10 +221,10 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
       address fn = (address)__wrap_update_log;//RtThreadLocalData::addUpdateLog;
       __ MacroAssembler::call_VM_leaf_base(fn, 4);
       pop_registers(masm, true, false);
-      __ jmp(_done);
+      __ jmp(L_done);
       __ bind(L_raw_access);
       BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
-      __ bind(_done);
+      __ bind(L_done);
 
     }
     else {
@@ -250,7 +248,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
     // ================== //
     Register base = dst.base();
 
-    Label L_raw_access, _done;
+    Label L_raw_access, L_done;
 
     if (in_heap) {
       Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
@@ -293,10 +291,10 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
     address fn = RtgcBarrier::getStoreFunction(decorators);
     __ MacroAssembler::call_VM_leaf_base(fn, in_heap ? 3 : 2);
     pop_registers(masm, true, false);
-    __ jmp(_done);
+    __ jmp(L_done);
     __ bind(L_raw_access);
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, noreg, noreg);
-    __ bind(_done);
+    __ bind(L_done);
   }
 }
 
