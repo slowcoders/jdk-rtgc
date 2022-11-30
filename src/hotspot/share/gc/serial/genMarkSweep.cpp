@@ -200,7 +200,7 @@ void GenMarkSweep::deallocate_stacks() {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 template<bool is_tracked>
-class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure {
+class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure, public ObjectClosure {
   bool _is_young_root;
 public:
   
@@ -244,9 +244,13 @@ public:
   virtual void do_oop(oop* p) { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
+  void do_object(oop obj) {
+    iterate_tenured_young_root_oop(obj);
+  }
+
 };
 static TenuredYoungRootClosure<true> young_root_closure;
-// static TenuredYoungRootClosure<false> untracked_closure;
+static TenuredYoungRootClosure<false> untracked_closure;
 #endif
 
 void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
@@ -271,10 +275,9 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    if (true || !rtHeap::DoCrossCheck) {
-      young_root_closure.set_ref_discoverer(_ref_processor);
-      rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
-    }
+    young_root_closure.set_ref_discoverer(_ref_processor);
+    rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
+    rtHeap::oop_recycled_iterate(&untracked_closure);
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
