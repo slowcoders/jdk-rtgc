@@ -144,7 +144,7 @@ void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
 }
 
 template <bool is_promoted> 
-void ScanTrackableClosure<is_promoted>::do_iterate(oop obj) {
+void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
   if (!is_promoted) {
     rtHeap::mark_tenured_trackable(obj);
   } else {

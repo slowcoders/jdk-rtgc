@@ -84,7 +84,7 @@ public:
 
 #else // RTGC_OPT_YOUNG_ROOTS
 template <bool is_promoted> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true> {
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true>, public ObjectClosure {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -101,7 +101,7 @@ public:
   template <typename T>
   void trackable_barrier(T* p, oop new_p);
 
-  void do_iterate(oop obj);
+  void do_object(oop obj);
 };
 
 class DefNewYoungerGenClosure : public ScanTrackableClosure<true> {
@@ -177,7 +177,7 @@ public:
     rtHeap::mark_survivor_reachable(new_p);
   }
 
-  void do_iterate(oop obj) {
+  void do_object(oop obj) {
     obj->oop_iterate(this);
   }
 #endif

@@ -121,8 +121,7 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
   if (in_heap && rtHeapEx::OptStoreOop && !rtHeap::is_modified(old_v)) {
-    FieldUpdateLog* log = RtThreadLocalData::data(Thread::current())->allocateLog();
-    log->init(base, addr, old_v);
+    FieldUpdateLog::add(base, addr, old_v);
   }
   return CompressedOops::decode(old_v);
 }
@@ -149,8 +148,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
   if (in_heap && rtHeapEx::OptStoreOop) {
     if (res == c_v) {
-      FieldUpdateLog* log = RtThreadLocalData::data(Thread::current())->allocateLog();
-      log->init(base, addr, c_v);
+      FieldUpdateLog::add(base, addr, c_v);
     } else {
       c_v = rtHeap::to_modified(c_v);
       res = Atomic::cmpxchg(addr, c_v, n_v);

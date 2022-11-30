@@ -424,7 +424,7 @@ void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
       if (EnableRTGC) {
         p += m->size_given_klass(m->klass());
-        blk->do_iterate(m);
+        blk->do_object(m);
       }
       else
 #endif

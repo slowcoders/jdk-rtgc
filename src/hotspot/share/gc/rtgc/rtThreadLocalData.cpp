@@ -34,10 +34,11 @@ namespace RTGC {
   address g_report_area = 0;
   address g_last_report = 0;
   static const int STACK_CHUNK_SIZE = sizeof(FieldUpdateLog)*512;
+  static const int MAX_LOG_IN_CHUNK = STACK_CHUNK_SIZE / sizeof(FieldUpdateLog) - 2;
 }
 
 FieldUpdateReport* FieldUpdateReport::g_report_q = NULL;
-FieldUpdateReport  FieldUpdateReport::g_dummy_report;
+FieldUpdateReport  RtThreadLocalData::g_dummy_report;
 
 RtThreadLocalData::RtThreadLocalData() { 
   _trackable_heap_start = GCNode::g_trackable_heap_start;
@@ -69,41 +70,77 @@ void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
   Threads::java_threads_do(&tld_closure);
 }
 
-static FieldUpdateReport* __allocate_log_stack_chunk() {
+FieldUpdateReport* FieldUpdateReport::allocate() {
+  precond(!g_in_gc_termination);
   precond(rtHeapEx::OptStoreOop);
-  address report;
+
+  FieldUpdateReport* report;
   if (g_last_report > g_report_area) {
+#ifdef ASSERT    
     DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
     ContiguousSpace* to = newGen->to();
     assert(g_report_area == (address)to->bottom(), "wrong chunk area %p : %p\n", g_report_area, to->bottom());
+#endif
 
-
-    report = Atomic::sub(&g_last_report, STACK_CHUNK_SIZE);
-    if (report >= g_report_area) {
+    report = (FieldUpdateReport*)Atomic::sub(&g_last_report, STACK_CHUNK_SIZE);
+    if (report >= (void*)g_report_area) {
+      report->_end = (FieldUpdateLog*)((uintptr_t)report + STACK_CHUNK_SIZE);
+      report->_sp = report->_end;
+      report->_next = Atomic::xchg(&g_report_q, report);
+      rtgc_log(LOG_OPT(1), "report allocated %p to %p\n", report, report->_end);
       return (FieldUpdateReport*)report;
     } else {
       // all chunk allocated;
     }
   }
 
-  fatal("allocation fail!");
-  int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
-  ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 
-      STACK_CHUNK_SIZE >> LogHeapWordSize, length, false);
-  return (FieldUpdateReport*)(void*)allocator.allocate();
+  fatal("allocation fail");
+  if (false) {
+    int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
+    ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 
+        STACK_CHUNK_SIZE >> LogHeapWordSize, length, false);
+    return (FieldUpdateReport*)(void*)allocator.allocate();
+  }
+  return NULL;
 }
 
-FieldUpdateReport* FieldUpdateReport::allocate() {
-  precond(!g_in_gc_termination);
-
-  FieldUpdateReport* report = __allocate_log_stack_chunk();
-  report->_end = (FieldUpdateLog*)((uintptr_t)report + STACK_CHUNK_SIZE);
-  report->_sp = report->_end;
-  report->_next = Atomic::xchg(&g_report_q, report);
-  rtgc_log(LOG_OPT(1), "report allocated %p to %p\n", report, report->_end);
-
-  return report;
+void RtThreadLocalData::addUpdateLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
+  FieldUpdateLog** log_sp = rtData->_log_sp;
+  FieldUpdateLog* log = --log_sp[0];
+  // rtgc_log(true, "add log(%p) sp= %p\n", log, _log_sp);
+  if (log <= (void*)log_sp) {
+    precond(g_dummy_report.is_full());
+    precond(g_dummy_report.next() == NULL);
+    FieldUpdateReport* report = FieldUpdateReport::allocate();
+    if (report != NULL) {
+      rtData->_log_sp = log_sp = report->stack_pointer();
+      log = --log_sp[0];
+    } else if (log_sp != g_dummy_report.stack_pointer()) {
+      FieldUpdateLog* last = log + MAX_LOG_IN_CHUNK;
+      precond(((uintptr_t)(last+1) % STACK_CHUNK_SIZE) == 0);
+      log_sp[0] = last;
+      RTGC::lock_heap();
+      while (true) {
+        ++log;
+        log->updateAnchorList();
+        if (log == last) break;
+      }
+      RTGC::unlock_heap(true);
+    } else {
+      RTGC::lock_heap();
+      oop assigned = CompressedOops::decode(*field);
+      RTGC::on_field_changed(anchor, CompressedOops::decode(erased), assigned, NULL, NULL);
+      RTGC::unlock_heap(true);
+      return;
+    }
+  } 
+  log->init(anchor, field, erased);
 }
+
+void FieldUpdateLog::add(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
+  RtThreadLocalData::addUpdateLog(anchor, field, erased, RtThreadLocalData::data(Thread::current()));
+}
+
 
 void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
   rtgc_log(LOG_OPT(10), "add log(%p) [%p] %p\n", 
@@ -135,20 +172,7 @@ void FieldUpdateLog::updateAnchorList() {
   new_p = rtHeap::to_unmodified(new_p);
   *pField = new_p;
   if (rtHeapEx::OptStoreOop && new_p != _erased) {
-    if (!CompressedOops::is_null(new_p)) {
-      oop assigned = CompressedOops::decode(new_p);
-      if (assigned != (void*)_anchor) {
-        RTGC::add_referrer_ex(assigned, cast_to_oop(_anchor), true);
-        // to_obj(assigned)->addReferrer(to_obj(_anchor));
-      }
-    }
-    if (!CompressedOops::is_null(_erased)) {
-      oop erased = CompressedOops::decode(_erased);
-      if (erased != (void*)_anchor) {
-        GCRuntime::disconnectReferenceLink(to_obj(erased), to_obj(_anchor));
-        //to_obj(erased)->removeReferrer(to_obj(_anchor));
-      }
-    }
+    RTGC::on_field_changed((oopDesc*)_anchor, CompressedOops::decode(_erased), CompressedOops::decode(new_p), NULL, NULL);
   } else {
     // 여러번 변경되어 _erased 값이 동일해진 경우.
   }
@@ -156,8 +180,6 @@ void FieldUpdateLog::updateAnchorList() {
 
 
 void FieldUpdateReport::process_update_logs() {
-  precond(g_dummy_report.is_full());
-  precond(g_dummy_report.next() == NULL);
   Klass* intArrayKlass = Universe::intArrayKlassObj();
   FieldUpdateReport* next_report;
   for (FieldUpdateReport* report = g_report_q; report != NULL; report = next_report) {

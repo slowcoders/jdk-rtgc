@@ -52,7 +52,7 @@
 #        -XX:AbortVMOnExceptionMessage='#' \
 
 # sh exec_test.sh runtime/modules/ModulesSymLink  # is_modified (array_item)
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
@@ -62,8 +62,8 @@ TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastd
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
        -XX:+UnlockExperimentalVMOptions \
        -XX:AbortVMOnExceptionMessage='#' \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/tmp' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
@@ -71,13 +71,12 @@ TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastd
         -Dtest.timeout.factor=4.0 \
         -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
         -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=runtime/modules/ModulesSymLink.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules/ModulesSymLink.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib \
-        -Dtest.modules='java.management jdk.jlink' \
-        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/runtime/modules/ModulesSymLink.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/modules:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_modules_ModulesSymLink_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
-        ModulesSymLink
+        -Dtest.name=runtime/Throwable/TestCatchThrowableOOM.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable/TestCatchThrowableOOM.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        TestCatchThrowableOOM
