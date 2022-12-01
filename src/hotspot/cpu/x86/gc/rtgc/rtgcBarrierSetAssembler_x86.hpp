@@ -31,23 +31,26 @@
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:
   RtgcBarrierSetAssembler();    
-  void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                       Register dst, Address src, Register tmp1, Register tmp_thread);
-  void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                            Address dst, Register val, Register tmp1, Register tmp2);
-  void oop_store_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                            Address dst, Register val, Register tmp1, Register tmp2);
-  void oop_store_at_old(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                            Address dst, Register val, Register tmp1, Register tmp2);
+  void oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
+                      Address dst, Register val, Register tmp1, Register tmp2,
+                      Register cmp_v, Register result);
+  void oop_replace_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators,
+                      Address dst, Register val, Register tmp1, Register tmp2,
+                      Register cmp_v, Register result);
+
+  virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                      Register dst, Address src, Register tmp1, Register tmp_thread);
+  virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+                      Address dst, Register val, Register tmp1, Register tmp2);
 
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                       Register dst, Address src, Register tmp1, Register tmp_thread);
+                      Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                        Address dst, Register val, Register tmp1, Register tmp2);
+                      Address dst, Register val, Register tmp1, Register tmp2);
 
   virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                  Register src, Register dst, Register count, 
-                                  Register dst_array, Label& copy_done, Register saved_count);
+                      Register src, Register dst, Register count, 
+                      Register dst_array, Label& copy_done, Register saved_count);
 };
 
 #endif // CPU_X86_GC_RTGC_MODREFBARRIERSETASSEMBLER_X86_HPP

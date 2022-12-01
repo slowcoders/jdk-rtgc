@@ -674,7 +674,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
     rtHeap__clearStack<false>();
   }
   if (rtHeapEx::OptStoreOop) {
-    FieldUpdateReport::reset_gc_context(true || promotion_finished_unused);
+    FieldUpdateReport::reset_gc_context();
   }
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
@@ -762,5 +762,7 @@ void rtHeap__initialize() {
   g_stack_roots.initialize();
   g_resurrected.initialize();
   rtCLDCleaner::initialize();
+  FieldUpdateReport::reset_gc_context();
+
 }
 

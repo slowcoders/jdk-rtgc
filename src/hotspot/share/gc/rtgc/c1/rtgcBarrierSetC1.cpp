@@ -506,17 +506,17 @@ public:
     RtgcBarrierSetAssembler *bs = (RtgcBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
     ce->masm()->bind(*entry());
 
-    //ce->masm()->jmp(*_L_done);
     Address addr = LIR_Assembler__as_Address(_addr->as_address_ptr());
     precond(!_value_item->is_valid() || (_value_item->is_single_cpu() && !_value_item->is_virtual()));
     precond(_tmp1->is_single_cpu() && !_tmp1->is_virtual());
     precond(_tmp2->is_single_cpu() && !_tmp2->is_virtual());
-    bs->oop_store_at(cm, _decorators | C1_NEEDS_PATCHING, T_OBJECT,
+    // Label L_raw_access;//, L_done;
+    bs->oop_replace_at(cm, _decorators | C1_NEEDS_PATCHING,
                                          addr, 
                                          _value_item->is_valid() ? _value_item->as_register() : noreg, 
                                          _tmp1->as_register(), 
-                                         _tmp2->as_register()
-                                         );
+                                         _tmp2->as_register(),
+                                         noreg, noreg);
     ce->masm()->jmp(*continuation());
   }
 #ifndef PRODUCT

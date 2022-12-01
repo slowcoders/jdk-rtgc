@@ -41,7 +41,7 @@ public:
 
   static void process_update_logs();
 
-  static void reset_gc_context(bool promotion_finished);
+  static void reset_gc_context();
 };
 
 class RtThreadLocalData {    

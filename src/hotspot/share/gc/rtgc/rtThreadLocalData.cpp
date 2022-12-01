@@ -47,23 +47,18 @@ RtThreadLocalData::RtThreadLocalData() {
   precond(_log_sp[0] <= (void*)_log_sp);
 }
 
-void FieldUpdateReport::reset_gc_context(bool init_shared_chunk_area) {
+void FieldUpdateReport::reset_gc_context() {
   g_report_q = NULL;
-  if (init_shared_chunk_area) {
-    DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
-    ContiguousSpace* to = newGen->to();
-    g_report_area = (address)to->bottom();
-    g_last_report = (address)to->end();
-    precond(g_report_area < g_last_report);
+  DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
+  ContiguousSpace* to = newGen->to();
+  g_report_area = (address)to->bottom();
+  g_last_report = (address)to->end();
+  precond(g_report_area < g_last_report);
 #ifdef ASSERT    
-    rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
-      GenCollectedHeap::heap()->old_gen()->reserved().start(),
-      newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
+  rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
+    GenCollectedHeap::heap()->old_gen()->reserved().start(),
+    newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
 #endif    
-  } else {
-    g_report_area = 0;
-    g_last_report = 0;
-  }
   rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x", g_report_area, (int)(g_last_report - g_report_area));
 
   ThreadLocalDataClosure tld_closure;
@@ -94,7 +89,7 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
     }
   }
 
-  fatal("allocation fail");
+  fatal("allocation fail %p, %p\n", g_report_area, g_last_report);
   if (false) {
     int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
     ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 
@@ -105,6 +100,7 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
 }
 
 void RtThreadLocalData::addUpdateLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
+
   FieldUpdateLog** log_sp = rtData->_log_sp;
   FieldUpdateLog* log = --log_sp[0];
   // rtgc_log(true, "add log(%p) sp= %p\n", log, _log_sp);
