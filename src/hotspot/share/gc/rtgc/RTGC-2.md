@@ -2,6 +2,7 @@
    * lockfree set-field: modified history (modified bit);
       MacroAssembler::decode_heap_oop/encode_heap_oop
       참조) BarrierSetAssembler::eden_allocate
+           ShenandoahBarrierSetC1::load_reference_barrier_impl
       참고) thread::_gc_data -> GCThreadLocalData[19];
          thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
 
@@ -31,6 +32,7 @@
    * 특정 크기 이상의 TypedArray 는 old-heap 에 allocate 한다. (RTGC 에 맞춰 allocation policy 최적화)
    * AnchorList -> doubly link list 변경 (31bit offset)
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
+   * Array-Item 은 64bit 로??
 
 1) Flags
 2) RootRefCount

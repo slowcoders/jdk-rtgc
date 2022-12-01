@@ -31,9 +31,9 @@
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:
   RtgcBarrierSetAssembler();    
-  virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+  void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
-  virtual void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
+  void oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                             Address dst, Register val, Register tmp1, Register tmp2);
 
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
