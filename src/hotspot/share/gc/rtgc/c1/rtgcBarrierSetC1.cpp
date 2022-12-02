@@ -434,14 +434,17 @@ public:
 
   virtual void visit(LIR_OpVisitState* visitor) {
     // visitor->do_input(_base_item);
-    if (_value_item->is_valid()) visitor->do_input(_value_item);
-    visitor->do_input(_addr);
-    visitor->do_temp(_tmp1);
-    visitor->do_temp(_tmp2);
+    if (_value_item->is_valid())  visitor->do_slow_case();
+                                  visitor->do_input(_value_item);
+                                  // visitor->do_input(_value_item);
+                                  // visitor->do_input(_value_item);
+                                  visitor->do_input(_addr);
+                                  visitor->do_temp(_tmp1);
+                                  visitor->do_temp(_tmp2);
+    if (_phys_reg->is_valid())    visitor->do_output(_phys_reg);
     // visitor->do_input(_addr);
     // visitor->do_slow_case();
     // visitor->do_call();
-    if (_phys_reg->is_valid()) visitor->do_output(_phys_reg);
   }
 
   bool genConditionalAccessBranch(LIRGenerator* gen, BarrierSetC1* c1) {
@@ -514,7 +517,7 @@ public:
     precond(_tmp2->is_single_cpu() && !_tmp2->is_virtual());
     // Label L_raw_access;//, L_done;
     bs->oop_replace_at(cm, _decorators | C1_NEEDS_PATCHING,
-                                         addr, 
+                                         noreg, noreg, 
                                          _value_item->is_valid() ? _value_item->as_register() : noreg, 
                                          _tmp1->as_register(), 
                                          _tmp2->as_register(),

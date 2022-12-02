@@ -32,7 +32,7 @@ class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:
   RtgcBarrierSetAssembler();    
   void oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
-                      Address dst, Register val, Register tmp1, Register tmp2,
+                      Register base, Register addr, Register val, Register tmp1, Register tmp2,
                       Register cmp_v, Register result);
   void oop_replace_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators,
                       Address dst, Register val, Register tmp1, Register tmp2,

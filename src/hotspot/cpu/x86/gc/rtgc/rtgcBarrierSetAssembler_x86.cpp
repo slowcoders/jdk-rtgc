@@ -153,7 +153,7 @@ static void __check_update_log(oopDesc* anchor, volatile narrowOop* field, narro
 
 #include "c1/c1_Decorators.hpp"
 void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
-                                            Address dst, Register val_org, Register tmp1, Register tmp2,
+                                            Register base, Register offset, Register val_org, Register tmp1, Register tmp2,
                                             Register cmp_v, Register result) {
   precond((decorators & IN_HEAP) != 0);
   precond((decorators & IS_DEST_UNINITIALIZED) == 0);
@@ -170,13 +170,13 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   
   Label L_raw_access, L_done, L_modify_done, L_no_modify_access, L_slowAccess;
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
-  const Register base = dst.base();
-  const Register val = rscratch2;//  LP64_ONLY(r8) NOT_LP64(rsi);
-  Register offset = (tmp1 != base && tmp1 != val_org) ? tmp1 : tmp2;
+  //const Register base = dst.base();
+  const Register val = rscratch2; //*/  LP64_ONLY(r8) NOT_LP64(rsi);
+  // Register offset = (tmp1 != base && tmp1 != val_org) ? tmp1 : tmp2;
   bool is_null = val_org == noreg;
   const int32_t modified_null = 1;
 
-  assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
+  // assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
 
 
   if (!dbg_trace) {
@@ -205,12 +205,12 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   __ bind(L_modify_done);
   // precond(tmp1 != base || tmp2 != base);
   if (true || is_null) {
-    assert_different_registers(val, base, offset, rscratch1);
+    assert_different_registers(val, base, offset, rscratch1, val_org);
   } else {
     // assert_different_registers(val, base, offset, rscratch1, tmp3);
   }
 
-  __ leaq(offset, dst);
+  // __ leaq(offset, dst);
 
   // xchg 에는 lock prefix 불필요.
   __ xchgl(val, Address(offset, 0));
@@ -283,7 +283,20 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   pop_registers(masm, true, false);
   __ jmp(L_done);
   __ bind(L_raw_access);
-  BarrierSetAssembler::store_at(masm, decorators, T_OBJECT, dst, val_org, noreg, noreg);
+  
+  // case BarrierSetAssembler::store_at(masm, decorators, T_OBJECT, dst, val_org, noreg, noreg);
+  Address dst = Address(offset, 0);
+  if (is_null) {
+    __ movl(dst, (int32_t)NULL_WORD);
+  } else {
+    if (is_not_null) {
+      __ encode_heap_oop_not_null(val_org);
+    } else {
+      __ encode_heap_oop(val_org);
+    }
+    __ movl(dst, val_org);
+  }  
+  
   __ bind(L_done);
 }
 
@@ -375,7 +388,14 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (rtHeapEx::OptStoreOop && UseCompressedOops) {
     if (in_heap) {
-      oop_replace_at(masm, decorators, dst, val, tmp1, tmp2, noreg, noreg);
+      const Register offset = LP64_ONLY(r8) NOT_LP64(rsi);
+      const Register base = dst.base();
+      assert(!dst.uses(val), "not enough registers");
+      assert(!dst.uses(offset), "not enough registers");
+
+      precond(base != offset);
+      __ leaq(offset, dst);
+      oop_replace_at(masm, decorators, base, offset, val, tmp1, tmp2, noreg, noreg);
       return;
     } 
     // else {
