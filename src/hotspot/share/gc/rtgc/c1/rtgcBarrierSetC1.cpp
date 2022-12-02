@@ -197,7 +197,7 @@ static LIR_Opr get_resolved_addr_reg(LIRAccess& access) {
 
   if (addr->is_address()) {
     LIR_Address* address = addr->as_address_ptr();
-    LIR_Opr resolved_addr = gen->new_pointer_register();
+    LIR_Opr resolved_addr = gen->new_register(T_ADDRESS);
     if (!address->index()->is_valid() && address->disp() == 0) {
       __ move(address->base(), resolved_addr);
     } else {
@@ -388,23 +388,24 @@ public:
     //   cmp_item->load_item();
     // }
     // signature.append(T_OBJECT); // new_value
-    // if (_in_heap) {
-    //   signature.append(T_OBJECT); // object
-    //   _base.item().load_item();
-    //   _base_item = _base.item().result();
-    // }
+    if (_in_heap) {
+      LIRItem& base = access.base().item();
+
+      base.load_item();
+      _base_item = base.result();
+    }
     
     // cc = gen->frame_map()->c_calling_convention(&signature);
     // this->_args = cc->args();
     // LIR_List* lir = gen->lir();
-    _addr = access.resolved_addr();
-    precond(_addr->is_address());
-    if (!_addr->is_address()) {
-      assert(_addr->is_register(), "must be");
-      _addr = LIR_OprFact::address(new LIR_Address(_addr, T_OBJECT));
-    }
+    _addr = get_resolved_addr_reg(access);
+    // precond(_addr->is_address());
+    // if (!_addr->is_address()) {
+    //   assert(_addr->is_register(), "must be");
+    //   _addr = LIR_OprFact::address(new LIR_Address(_addr, T_OBJECT));
+    // }
 
-    LIR_Address* address = _addr->as_address_ptr();
+    // LIR_Address* address = _addr->as_address_ptr();
     _value_item = new_value;
 
     //_tmp1 = _tmp2 = noreg;
@@ -434,14 +435,18 @@ public:
 
   virtual void visit(LIR_OpVisitState* visitor) {
     // visitor->do_input(_base_item);
-    if (_value_item->is_valid())  visitor->do_slow_case();
-                                  visitor->do_input(_value_item);
-                                  // visitor->do_input(_value_item);
-                                  // visitor->do_input(_value_item);
-                                  visitor->do_input(_addr);
-                                  visitor->do_temp(_tmp1);
-                                  visitor->do_temp(_tmp2);
-    if (_phys_reg->is_valid())    visitor->do_output(_phys_reg);
+    visitor->do_slow_case();
+    if (_value_item->is_valid()) {
+      visitor->do_input(_value_item);
+      visitor->do_temp(_value_item);
+    }
+    visitor->do_input(_base_item);
+    visitor->do_input(_addr);
+    visitor->do_temp(_tmp1);
+    visitor->do_temp(_tmp2);
+    if (_phys_reg->is_valid()) {
+      visitor->do_output(_phys_reg);
+    }
     // visitor->do_input(_addr);
     // visitor->do_slow_case();
     // visitor->do_call();
@@ -511,13 +516,16 @@ public:
     RtgcBarrierSetAssembler *bs = (RtgcBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
     ce->masm()->bind(*entry());
 
-    Address addr = LIR_Assembler__as_Address(_addr->as_address_ptr());
+    // Address addr = LIR_Assembler__as_Address(_addr->as_address_ptr());
     precond(!_value_item->is_valid() || (_value_item->is_single_cpu() && !_value_item->is_virtual()));
     precond(_tmp1->is_single_cpu() && !_tmp1->is_virtual());
     precond(_tmp2->is_single_cpu() && !_tmp2->is_virtual());
+    precond(_base_item->is_single_cpu() && !_base_item->is_virtual());
+    precond(_addr->is_single_cpu() && !_addr->is_virtual());
+
     // Label L_raw_access;//, L_done;
     bs->oop_replace_at(cm, _decorators | C1_NEEDS_PATCHING,
-                                         noreg, noreg, 
+                                         _base_item->as_register(), _addr->as_register(), 
                                          _value_item->is_valid() ? _value_item->as_register() : noreg, 
                                          _tmp1->as_register(), 
                                          _tmp2->as_register(),
@@ -628,7 +636,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   rtgc_log(LOG_OPT(11), "store_at_resolved\n");
   address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (true || !in_heap) {
+  if (0 || !in_heap) {
     call_barrier(fn, access, value, voidType);
     return;
   }
