@@ -276,8 +276,10 @@ RtgcBarrierSetC1::RtgcBarrierSetC1() {
 }
 
 bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access, bool op_store) {
+  bool in_heap = (access.decorators() & IN_HEAP) != 0;
+  precond(in_heap != (access.base().opr()->is_stack() || access.resolved_addr()->is_stack()));
   return access.is_oop() && !RtgcBarrier::is_raw_access(access.decorators(), op_store)
-      && !access.base().opr()->is_stack()
+      // && !access.base().opr()->is_stack()
       && !access.resolved_addr()->is_stack();
 }
 

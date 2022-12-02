@@ -1347,6 +1347,11 @@ class LIR_Op1: public LIR_Op {
     , _type(type)
     , _patch(patch)                    {
     assert(code == lir_move, "must be");
+    if (code == lir_move && result->is_address() && (type == T_ADDRESS || type == T_OBJECT) && kind != lir_move_wide) {
+      LIR_Address* addr = result->as_address_ptr();
+      assert(!addr->index()->is_valid() || addr->disp() == 0, "should not heap object pointer");
+      precond(opr->as_constant_ptr()->as_jobject() != NULL);
+    }
     set_kind(kind);
   }
 
