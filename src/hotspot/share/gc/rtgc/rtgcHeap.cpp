@@ -643,6 +643,10 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
+  rtgc_log(true, "trackable_heap_start = %p narrowKalssOpp:base = %p\n", 
+    GCNode::g_trackable_heap_start, 
+    CompressedKlassPointers::base());
+
   rtgc_log(LOG_OPT(1), "prepare_rtgc %p\n", policy);
   if (policy == NULL) {
     is_gc_started = true;
@@ -756,7 +760,10 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
 
 int cnt_init = 0;
 void rtHeap__initialize() {
-  rtgc_log(true, "trackable_heap_start = %p\n", GCNode::g_trackable_heap_start);
+  rtgc_log(true, "trackable_heap_start = %p narrowKalssOpp:base = %p klass_offset_in_bytes=%d\n", 
+    GCNode::g_trackable_heap_start, 
+    CompressedKlassPointers::base(),
+    oopDesc::klass_offset_in_bytes());
 
   g_young_roots.initialize();
   g_stack_roots.initialize();

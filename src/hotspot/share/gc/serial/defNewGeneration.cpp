@@ -769,6 +769,11 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
          "shouldn't be scavenging this oop");
   size_t s = old->size();
   oop obj = NULL;
+  markWord mark = old->mark();
+  if (mark.has_locker()) {
+    BasicLock* locker = mark.locker();
+    rtgc_log(locker < (void*)0xFFFFffff, "%p(%s)\n", (void*)old, old->klass()->name()->bytes());
+  }
 
   // Try allocating obj in to-space (unless too old)
   if (old->age() < tenuring_threshold()) {

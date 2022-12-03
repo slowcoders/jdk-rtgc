@@ -131,19 +131,45 @@ static inline void __encode_modified_narrow_oop(MacroAssembler* masm, Register p
 }
 
 static int cnt_log = 0;
-static void __wrap_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
-  printf("wrap log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
+static void __trace_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, void* rtData) {
+  intptr_t mark = (intptr_t)field;
+  mark &= ~0x1F;
+  rtgc_log(mark == 0x3e0013500, "trace update log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
   if (to_obj(anchor)->isTrackable() && !rtHeap::is_modified(erased)) {
-    RtThreadLocalData::addUpdateLog(anchor, field, erased, rtData);
+    RtThreadLocalData::addUpdateLog(anchor, field, erased, RtThreadLocalData::data(Thread::current()));
   }
 }
 
 static void __check_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
-  printf("check log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
+  // printf("check log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
   rtData->checkLastLog(anchor, field, erased);
   postcond(cnt_log < 100);
 }
 
+static void set_args_3(MacroAssembler* masm, Register a0, Register a1, Register a2) {
+  if (a0 != c_rarg0) {
+    if (a1 == c_rarg0) {
+      __ xchgptr(a1, a0);
+      a1 = a0;
+    } else if (a2 == c_rarg0) {
+      __ xchgptr(a2, a0);
+      a2 = a0;
+    } else {
+      __ movptr(c_rarg0, a0);
+    }
+  }
+  if (a1 != c_rarg1) {
+    if (a2 == c_rarg1) {
+      __ xchgptr(a2, a1);
+      a2 = a1;
+    } else {
+      __ movptr(c_rarg1, a1);
+    }
+  }
+  if (a2 != c_rarg2) {
+     __ movptr(c_rarg2, a2);
+  }
+}
 #include "c1/c1_Decorators.hpp"
 void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
                                             Register base, Register offset, Register val_org, Register tmp1, Register tmp2,
@@ -155,8 +181,8 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   precond(tmp1 != noreg);
   precond(tmp2 != noreg);
 
-  bool dbg_trace = (decorators & C1_NEEDS_PATCHING) != 0;
-  bool check_log = (decorators & C1_NEEDS_PATCHING) != 0;
+  bool dbg_trace = 1;//(decorators & C1_NEEDS_PATCHING) != 0;
+  bool check_log = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
   decorators &= ~C1_NEEDS_PATCHING;
 
   bool in_native = (decorators & IN_NATIVE) != 0;
@@ -167,12 +193,17 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   bool is_null = val_org == noreg;
   Register val = is_null ? rscratch2 : val_org;
   const int32_t modified_null = 1;
-
+  // if (tmp1 != base && tmp1 != offset && tmp1 != rscratch1) {
+  //   val = tmp1;
+  // } else if (tmp2 != base && tmp2 != offset && tmp2 != rscratch1) {
+  //   val = tmp2;
+  // } else {
+  //   val = rscratch2;
+  // }
   // assert(dst.index() != noreg || dst.disp() != 0, "absent dst object pointer");
   assert_different_registers(val, base, offset, thread, rscratch1);
 
   if (!dbg_trace) {
-    // tmp3 를 사용해야만 한다. (Why????)
     __checkTrackable(masm, base, L_raw_access, rscratch1);
   } else {
     __checkTrackable(masm, base, L_no_modify_access, rscratch1);
@@ -233,43 +264,18 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   // pop old_v;
   __ pop(val);
   push_registers(masm, true, false);
-  if (val == c_rarg0 || val == c_rarg1) {
-    if (base != c_rarg2 && offset != c_rarg2) {
-      __ movl(c_rarg2, val);
-      val = c_rarg2;
-    } else {
-      __ movl(rscratch1, val);
-      val = rscratch1;
-    }
+  set_args_3(masm, base, offset, val);
+  if (!dbg_trace) {
+    __ leaq(c_rarg3, Address(thread, Thread::gc_data_offset()));
+  } else if (is_null) {
+    __ xorptr(c_rarg3, c_rarg3);
+  } else {
+    __ movptr(c_rarg3, val_org);
   }
-
-  if (offset == c_rarg0) {
-    if (base != c_rarg1 && val != c_rarg1) {
-      __ movl(c_rarg1, offset);
-      offset = c_rarg1;
-    } else {
-      precond(rscratch1 != offset);
-      __ movl(rscratch1, offset);
-      offset = rscratch1;
-    }
-  }
-
-  if (base != c_rarg0) {
-    assert_different_registers(c_rarg0, val, offset);
-    __ movptr(c_rarg0, base);
-  }
-  if (offset != c_rarg1) {
-    precond(c_rarg1 != val);
-    __ movptr(c_rarg1, offset);
-  }
-  if (val != c_rarg2) {
-     __ movl(c_rarg2, val);
-  }
-  __ leaq(c_rarg3, Address(thread, Thread::gc_data_offset()));
 
   address fn;
   if (dbg_trace) {
-    fn = (address)__wrap_update_log;
+    fn = (address)__trace_update_log;
   } else if (check_log) {
     fn = (address)__check_update_log;
   } else {
@@ -285,12 +291,13 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   if (is_null) {
     __ movl(dst, (int32_t)NULL_WORD);
   } else {
+    __ movptr(val, val_org);
     if (is_not_null) {
-      __ encode_heap_oop_not_null(val_org);
+      __ encode_heap_oop_not_null(val);
     } else {
-      __ encode_heap_oop(val_org);
+      __ encode_heap_oop(val);
     }
-    __ movl(dst, val_org);
+    __ movl(dst, val);
   }  
   
   __ bind(L_done);

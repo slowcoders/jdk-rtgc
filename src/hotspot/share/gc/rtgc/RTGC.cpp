@@ -325,7 +325,7 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc %d, %s\n", UnlockExperimentalVMOptions, AbortVMOnExceptionMessage);
 #endif
@@ -346,7 +346,7 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x32aaa0000;
+    debug_obj = (void*)0x3e0013510;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

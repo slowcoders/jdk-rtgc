@@ -103,7 +103,6 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, volatile narrowOop* field,
 
   FieldUpdateLog** log_sp = rtData->_log_sp;
   FieldUpdateLog* log = --log_sp[0];
-  // rtgc_log(true, "add log(%p) sp= %p\n", log, _log_sp);
   if (log <= (void*)log_sp) {
     precond(g_dummy_report.is_full());
     precond(g_dummy_report.next() == NULL);
@@ -152,8 +151,6 @@ void FieldUpdateLog::init(oopDesc* anchor, volatile narrowOop* field, narrowOop 
   assert(rtHeap::is_modified(new_p), "%p(%s) [%d] v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), _offset, (int32_t)new_p);
   assert(_offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
-  rtgc_log(_offset == 68, "add log(%p) [%p] %p\n", 
-      anchor, field, (void*)CompressedOops::decode(erased));
 }
 
 void FieldUpdateLog::updateAnchorList() {

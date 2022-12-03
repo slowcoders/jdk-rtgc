@@ -11,6 +11,8 @@ public:
 
   static bool needBarrier_onResolvedAddress(LIRAccess& access, bool op_store);
 
+  LIR_Opr get_resolved_addr_reg(LIRAccess& access);
+
 protected:
   virtual void load_at_resolved(LIRAccess& access, LIR_Opr result);
 
