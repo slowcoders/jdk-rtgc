@@ -132,9 +132,7 @@ static inline void __encode_modified_narrow_oop(MacroAssembler* masm, Register p
 
 static int cnt_log = 0;
 static void __trace_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, void* rtData) {
-  intptr_t mark = (intptr_t)field;
-  mark &= ~0x1F;
-  rtgc_log(mark == 0x3e0013500, "trace update log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
+  rtgc_log(true, "trace update log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
   if (to_obj(anchor)->isTrackable() && !rtHeap::is_modified(erased)) {
     RtThreadLocalData::addUpdateLog(anchor, field, erased, RtThreadLocalData::data(Thread::current()));
   }
@@ -181,7 +179,7 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   precond(tmp1 != noreg);
   precond(tmp2 != noreg);
 
-  bool dbg_trace = 1;//(decorators & C1_NEEDS_PATCHING) != 0;
+  bool dbg_trace = (decorators & C1_NEEDS_PATCHING) != 0;
   bool check_log = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
   decorators &= ~C1_NEEDS_PATCHING;
 

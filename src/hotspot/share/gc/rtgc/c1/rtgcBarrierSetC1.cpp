@@ -286,12 +286,13 @@ public:
     RtgcBarrierSetAssembler *bs = (RtgcBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
     ce->masm()->bind(*entry());
 
-    DecoratorSet ds = _decorators | C1_NEEDS_PATCHING;
+    DecoratorSet ds = _decorators;// | C1_NEEDS_PATCHING;
     if (_value->is_constant()) {
       if (_value->as_constant_ptr()->as_jobject() == NULL) {
         _value = NULL;
         postcond(!_value);
       } else {
+        fatal("maybe something wrong");
         BasicType k = _value->as_constant_ptr()->type();
         printf("const value is %d co %d=%d\n", k, _offset->is_constant(), 
             _offset->is_constant() ? _offset->as_jint() : 0);
