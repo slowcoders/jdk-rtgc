@@ -132,7 +132,8 @@ bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access, bool op_
   if ((access.decorators() & IS_ARRAY) == 0) {
     LIR_Opr offset = access.offset().opr();
     if (offset->is_constant()) {
-      return offset->as_jint() > oopDesc::klass_offset_in_bytes();
+      assert(offset->as_jint() < 0 || offset->as_jint() > oopDesc::klass_offset_in_bytes(), "just checking");
+      return offset->as_jint() < 0 || offset->as_jint() > oopDesc::klass_offset_in_bytes();
     }
   }
   return true;
@@ -185,7 +186,7 @@ public:
   LIR_Opr _phys_reg;
   LIR_Opr _base;
   LIR_Opr _value;
-  LIR_Opr _tmp1, _tmp2;
+  // LIR_Opr _tmp1;
   LIR_Opr _offset;
   CallingConvention* cc;
   DecoratorSet _decorators;
@@ -206,8 +207,6 @@ public:
     _cmpxchg = cmp_item != NULL;
 
     _value = gen->new_register(T_ADDRESS);
-    _tmp1 = gen->new_register(T_ADDRESS);
-    _tmp2 = gen->new_register(T_ADDRESS);
     gen->lir()->move(new_value, _value);
 
     if (USE_REG_ADDR) {
@@ -221,15 +220,7 @@ public:
       _base = gen->new_register(T_ADDRESS);
       gen->lir()->move(base.result(), _base);
     }
-    // _patch_code =
-    // _info = access.patch_emit_info();
-
-    postcond(!_value->is_stack());
-    // if (!_value->is_constant()) {
-    //   postcond(_value->is_single_cpu());
-    // }
-    // postcond(_tmp1->is_single_cpu());
-    // postcond(_tmp2->is_single_cpu());
+    // _tmp1 = gen->new_register(T_ADDRESS);
   }  
 
   LIR_Opr get_result(LIRGenerator* gen, ValueType* result_type) {
@@ -248,8 +239,9 @@ public:
       visitor->do_input(_base);
     }
     visitor->do_input(_addr);
-    visitor->do_temp(_tmp1);
-    visitor->do_temp(_tmp2);
+    visitor->do_temp(_addr);
+    // visitor->do_input(_tmp1);
+    // visitor->do_temp(_tmp1);
     if (_phys_reg->is_valid()) {
       visitor->do_output(_phys_reg);
     }
@@ -286,40 +278,21 @@ public:
     RtgcBarrierSetAssembler *bs = (RtgcBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
     ce->masm()->bind(*entry());
 
-    DecoratorSet ds = _decorators;// | C1_NEEDS_PATCHING;
-    if (_value->is_constant()) {
-      if (_value->as_constant_ptr()->as_jobject() == NULL) {
-        _value = NULL;
-        postcond(!_value);
-      } else {
-        fatal("maybe something wrong");
-        BasicType k = _value->as_constant_ptr()->type();
-        printf("const value is %d co %d=%d\n", k, _offset->is_constant(), 
-            _offset->is_constant() ? _offset->as_jint() : 0);
-        ce->const2reg(_value, _tmp1, lir_patch_none, NULL);
-        ds |= C1_NEEDS_PATCHING;
-        _value = _tmp1;
-      }
-    }
-    // postcond(_tmp1->is_single_cpu() && !_tmp1->is_virtual());
-    // postcond(_tmp2->is_single_cpu() && !_tmp2->is_virtual());
-
-    // Label L_raw_access;//, L_done;
     if (USE_REG_ADDR) {
-      bs->oop_replace_at(cm, ds,
+      bs->oop_replace_at(cm, _decorators,
                         _base->as_register(), 
                         _addr->as_register(), 
-                        !_value ? noreg : _value->as_register(), 
-                        _tmp1->as_register(), 
-                        _tmp2->as_register(),
+                        _value->as_register(), 
+                        noreg,
+                        noreg, //_tmp1->as_register(), 
                         noreg, noreg);
     } else {
       Address addr = LIR_Assembler__as_Address(_addr->as_address_ptr());
       bs->oop_store_at(cm, _decorators | C1_NEEDS_PATCHING, T_OBJECT,
                                          addr, 
                                          !_value ? noreg : _value->as_register(), 
-                                         _tmp1->as_register(), 
-                                         _tmp2->as_register());
+                                         noreg, noreg //_tmp1->as_register()
+                                         );
     }
     ce->masm()->jmp(*continuation());
   }

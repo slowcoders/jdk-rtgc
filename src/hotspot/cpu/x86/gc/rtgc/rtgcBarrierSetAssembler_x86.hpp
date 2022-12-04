@@ -30,7 +30,12 @@
 
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:
-  RtgcBarrierSetAssembler();    
+  RtgcBarrierSetAssembler();   
+
+  static void set_args_3(MacroAssembler* masm, Register arg0, Register arg1, Register arg2);
+
+  static void set_args_2(MacroAssembler* masm, Register arg0, Register arg1);
+
   void oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
                       Register base, Register addr, Register val, Register tmp1, Register tmp2,
                       Register cmp_v, Register result);

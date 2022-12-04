@@ -208,8 +208,7 @@ void rtHeap__addRootStack_unsafe(GCObject* node) {
 void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled) {
   precond(!is_gc_started || !rtHeap::in_full_gc);
   if (!is_gc_started || is_recycled) {
-
-    rtgc_log(true, "rtHeap__addUntrackedTenuredObject %p, recycled=%d \n", node, is_recycled);
+    rtgc_debug_log(node, "rtHeap__addUntrackedTenuredObject %p, recycled=%d \n", node, is_recycled);
     g_resurrected.push_back(node);
   }
 }
@@ -217,11 +216,9 @@ void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled) {
 void rtHeap__processUntrackedTenuredObjects() {
   for (int idx = 0; idx < g_resurrected.size(); idx++) {
     GCObject* node = g_resurrected.at(idx);
-    // rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
-    rtgc_log(true, "rtHeap__processUntrackedTenuredObjects %d: %p\n", idx, node);
+    rtgc_debug_log(node, "rtHeap__processUntrackedTenuredObjects %d: %p\n", idx, node);
     rtHeap::mark_promoted_trackable(cast_to_oop(node));
     GCRuntime::detectUnsafeObject(node);
-    // rtHeap::add_young_root(cast_to_oop(node), cast_to_oop(node));
   }
   if (!USE_EXPLICIT_TRACKABLE_MARK) {
     g_resurrected.resize(0); 
@@ -643,10 +640,6 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
-  rtgc_log(true, "trackable_heap_start = %p narrowKalssOpp:base = %p\n", 
-    GCNode::g_trackable_heap_start, 
-    CompressedKlassPointers::base());
-
   rtgc_log(LOG_OPT(1), "prepare_rtgc %p\n", policy);
   if (policy == NULL) {
     is_gc_started = true;

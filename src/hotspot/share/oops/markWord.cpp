@@ -33,12 +33,10 @@ markWord markWord::displaced_mark_helper() const {
   if (has_monitor()) {
     // Has an inflated monitor. Must be checked before has_locker().
     ObjectMonitor* monitor = this->monitor();
-    rtgc_log(true, "monitor %p\n", monitor);
     return monitor->header();
   }
   if (has_locker()) {  // has a stack lock
     BasicLock* locker = this->locker();
-    rtgc_log(locker < (void*)0xFFFFffff, "locker %p\n", locker);
     return locker->displaced_header();
   }
   // This should never happen:
