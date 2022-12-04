@@ -87,7 +87,7 @@ namespace rtCLDCleaner {
           assert(!node->isTrackable() || rtHeap::is_alive(obj), 
               "invalid handle %p(%s) rc=%d\n", 
               node, RTGC::getClassName(node), node->getRootRefCount());
-          rtHeap::clear_weak_reachable(obj);
+          rtHeap::release_jni_handle_at_safepoint(obj);
 
           if (node->getRootRefCount() == 2) {
             ClassLoaderData* cld = tenured_class_loader_data(obj, false, true);
@@ -111,7 +111,7 @@ namespace rtCLDCleaner {
                 node, RTGC::getClassName(node), _cld, idx_cld, node->getReferrerCount());
             rtHeapUtil::resurrect_young_root(node);
           }
-          rtHeap::mark_weak_reachable(obj);
+          rtHeap::lock_jni_handle_at_safepoint(obj);
         }
 
         postcond((node->getRootRefCount() & 0x3FF) != 0);

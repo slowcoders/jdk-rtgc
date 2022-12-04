@@ -128,19 +128,14 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return obj->isTrackable();
 }
 
-void rtHeap::mark_weak_reachable(oopDesc* p) {
+void rtHeap::lock_jni_handle_at_safepoint(oopDesc* p) {
   GCObject* obj = to_obj(p);
   GCRuntime::onAssignRootVariable_internal(obj);
 }
 
-void rtHeap::clear_weak_reachable(oopDesc* p) {
+void rtHeap::release_jni_handle_at_safepoint(oopDesc* p) {
   GCObject* obj = to_obj(p);
   GCRuntime::onEraseRootVariable_internal(obj);
-}
-
-bool rtHeap::ensure_weak_reachable(oopDesc* p) {
-  GCObject* obj = to_obj(p);
-  return obj->isStrongRootReachable();
 }
 
 static bool is_adjusted_trackable(oopDesc* new_p) {
@@ -632,7 +627,7 @@ class ClearWeakHandleRef: public OopClosure {
   void do_object(oop* ptr) {
     oop v = *ptr;
     if (v != NULL) {
-      rtHeap::clear_weak_reachable(v);
+      rtHeap::release_jni_handle_at_safepoint(v);
     }
   }
   virtual void do_oop(oop* o) { do_object(o); };

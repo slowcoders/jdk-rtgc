@@ -30,6 +30,13 @@
 
 class RtgcBarrierSetAssembler : public BarrierSetAssembler {
 public:
+
+  enum ReplaceType {
+    Store,
+    Xchg,
+    CmpXchg
+  };
+
   RtgcBarrierSetAssembler();   
 
   static void set_args_3(MacroAssembler* masm, Register arg0, Register arg1, Register arg2);
@@ -37,11 +44,11 @@ public:
   static void set_args_2(MacroAssembler* masm, Register arg0, Register arg1);
 
   void oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
-                      Register base, Register addr, Register val, Register tmp1, Register tmp2,
-                      Register cmp_v, Register result);
+                      Register base, Register addr, Register val, ReplaceType type,
+                      Register cmp_v);
   void oop_replace_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators,
-                      Address dst, Register val, Register tmp1, Register tmp2,
-                      Register cmp_v, Register result);
+                      Address dst, Register val, ReplaceType type,
+                      Register cmp_v);
 
   virtual void oop_load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                       Register dst, Address src, Register tmp1, Register tmp_thread);

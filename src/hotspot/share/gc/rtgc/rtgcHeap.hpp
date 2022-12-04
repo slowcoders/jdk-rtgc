@@ -62,9 +62,8 @@ public:
   // for jni
   static void lock_jni_handle(oopDesc* p);
   static void release_jni_handle(oopDesc* p);
-  static void mark_weak_reachable(oopDesc* p);
-  static void clear_weak_reachable(oopDesc* p);
-  static bool ensure_weak_reachable(oopDesc* p);
+  static void lock_jni_handle_at_safepoint(oopDesc* p);
+  static void release_jni_handle_at_safepoint(oopDesc* p);
 
   // for reference management
   static bool try_discover(oopDesc* ref, ReferenceType ref_type, ReferenceDiscoverer* refDiscoverer);

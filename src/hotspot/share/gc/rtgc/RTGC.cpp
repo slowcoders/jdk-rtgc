@@ -217,7 +217,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "java/nio/file/FileTreeIterator",
+  // "java/nio/file/FileTreeIterator",
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -325,7 +325,7 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc %d, %s\n", UnlockExperimentalVMOptions, AbortVMOnExceptionMessage);
 #endif

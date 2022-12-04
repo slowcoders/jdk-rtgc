@@ -865,7 +865,7 @@ class ReMarkWeakReachableClosure: public BoolObjectClosure {
   public:
   virtual bool do_object_b(oop p) {
     precond(p != NULL);
-    rtHeap::mark_weak_reachable(p);
+    rtHeap::lock_jni_handle_at_safepoint(p);
     return true;
   }
 };

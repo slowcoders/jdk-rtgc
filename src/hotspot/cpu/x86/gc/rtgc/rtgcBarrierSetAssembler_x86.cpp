@@ -121,8 +121,8 @@ static void __checkTrackable(MacroAssembler* masm, Register base, Label& rawAcce
 
 static int cnt_log = 0;
 static void __trace_update_log(oopDesc* anchor, ErasedField erasedField, void* rtData) {  
-  // rtgc_debug_log(anchor, "trace update log %p[%d] v= %x rtData=%p thread=%p\n", 
-  //   anchor, erasedField._offset, (int32_t)erasedField._obj, rtData, Thread::current());
+  printf("trace update log %p[%d] v= %x rtData=%p thread=%p\n", 
+    anchor, erasedField._offset, (int32_t)erasedField._obj, rtData, Thread::current());
   if (to_obj(anchor)->isTrackable() && !rtHeap::is_modified(erasedField._obj)) {
     RtThreadLocalData::addUpdateLog(anchor, erasedField, RtThreadLocalData::data(Thread::current()));
   }
@@ -137,22 +137,22 @@ static void __check_update_log(oopDesc* anchor, volatile narrowOop* field, narro
 
 #include "c1/c1_Decorators.hpp"
 void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet decorators,
-                                            Register base, Register addr, Register val, Register tmp1, Register tmp2,
-                                            Register cmp_v, Register result) {
+                                            Register base, Register addr, Register val, 
+                                            ReplaceType type, Register cmp_v) {
   precond((decorators & IN_HEAP) != 0);
   precond((decorators & IS_DEST_UNINITIALIZED) == 0);
   precond((decorators & (AS_RAW | AS_NO_KEEPALIVE)) == 0);
   precond((decorators & ON_PHANTOM_OOP_REF) == 0);
   precond(val != noreg);
 
-  bool dbg_trace = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
+  bool dbg_trace = (decorators & C1_NEEDS_PATCHING) != 0;
   bool check_log = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
   // decorators &= ~C1_NEEDS_PATCHING;
 
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   
-  Label L_raw_access, L_done, L_no_modify_access, L_slowAccess;
+  Label L_raw_access, L_done, L_decode_xchg_result, L_no_modify_access, L_slowAccess;
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   const int32_t modified_null = 1;
   assert_different_registers(val, base, addr, thread, rscratch1);
@@ -198,7 +198,12 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
     __ movptr(Address(rscratch1, 0), log);
     __ movptr(Address(log, ByteSize(0)), base);
     __ movq(Address(log, ByteSize(8)), val);
-    __ jmp(L_done);
+    if (type == ReplaceType::Xchg) {
+      __ shrq(val, 32);
+      __ jmp(L_decode_xchg_result);
+    } else {
+      __ jmp(L_done);
+    }
   }
 
   // =====================
@@ -223,15 +228,20 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   //====================
   __ bind(L_raw_access); {
     Address dst = Address(addr, 0);
-    if (result == noreg) {
-      // case BarrierSetAssembler::store_at(masm, decorators, T_OBJECT, dst, val_org, noreg, noreg);
-      __ movl(dst, val);
-    } else if (cmp_v == noreg) {
-      // xchg
-      fatal("not impl");
-    } else {
-      // cmpxchg
-      fatal("not impl");
+    switch (type) {
+      case ReplaceType::Store:
+        // --> BarrierSetAssembler::store_at(masm, decorators, T_OBJECT, dst, val_org, noreg, noreg);
+        __ movl(dst, val);
+        break;
+      case ReplaceType::Xchg:
+        __ xchgl(val, dst);
+        __ bind(L_decode_xchg_result);
+        __ decode_heap_oop(val);
+        break;
+      case ReplaceType::CmpXchg:
+        // cmpxchg
+        fatal("not impl");
+        break;
     }
   }
   
@@ -240,8 +250,8 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
 }
 
 void RtgcBarrierSetAssembler::oop_replace_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators,
-                                            Address dst, Register val, Register tmp1, Register tmp2,
-                                            Register cmp_v, Register result) {
+                                            Address dst, Register val, ReplaceType type,
+                                            Register cmp_v) {
   precond((decorators & IN_HEAP) == 0);
 
   push_registers(masm, true, false);
@@ -339,7 +349,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
         val = rscratch2;
         __ movptr(val, 0);
       }
-      oop_replace_at(masm, decorators, base, addr, val, tmp1, tmp2, noreg, noreg);
+      oop_replace_at(masm, decorators, base, addr, val, ReplaceType::Store, noreg);
       return;
     } 
     // else {

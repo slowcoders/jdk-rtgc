@@ -220,7 +220,6 @@ OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &c->_data[c->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&c->_size, c->_size + 1);
-  RTGC_ONLY(postcond(!EnableRTGC || rtHeap::ensure_weak_reachable(o));)
 
   return OopHandle(handle);
 }
@@ -886,8 +885,6 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
-    RTGC_ONLY(assert(*ptr == NULL || rtHeap::ensure_weak_reachable(*ptr), 
-        "Illegal Object%p\n", (void*)*ptr);)
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
 }
