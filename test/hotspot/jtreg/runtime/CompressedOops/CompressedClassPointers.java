@@ -114,10 +114,11 @@ public class CompressedClassPointers {
     // for compressed oops.
     // We expect a zerobased ccs.
     public static void largeHeapAbove32GTest() throws Exception {
+        boolean IN_RTGC = true;
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+UnlockExperimentalVMOptions",
-            "-Xmx31g",
+            IN_RTGC ? "-Xmx15g" : "-Xmx31g",
             logging_option,
             "-Xshare:off",
             "-XX:+VerifyBeforeGC", "-version");
