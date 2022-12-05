@@ -197,6 +197,9 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   }
 
   __ bind(L_add_modify_log); {
+    if (type == ReplaceType::CmpXchg) {
+      __ movl(val, cmp_v);
+    }
     __ shlq(val, 32);
     __ subptr(addr, base);
     __ addptr(val, addr); 
