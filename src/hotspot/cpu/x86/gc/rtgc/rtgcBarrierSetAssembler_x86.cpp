@@ -152,15 +152,19 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   
-  Label L_raw_access, L_done, L_decode_xchg_result, L_no_modify_access, L_slowAccess;
+  Label L_raw_access, L_done, L_add_modify_log, L_cmpxchg_success, L_cmpxchg_fail;
+  Label L_decode_xchg_result, L_no_modify_access, L_slowAccess;
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   const int32_t modified_null = 1;
-  assert_different_registers(val, base, addr, thread, rscratch1);
+  assert_different_registers(val, base, addr, thread, rscratch1, cmp_v);
 
   if (is_not_null) {
     __ encode_heap_oop_not_null(val);
   } else {
     __ encode_heap_oop(val);
+  }
+  if (type == ReplaceType::CmpXchg) {
+    __ encode_heap_oop(cmp_v);
   }
 
   if (!dbg_trace) {
@@ -169,40 +173,54 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
     __checkTrackable(masm, base, L_no_modify_access, rscratch1);
   }
 
-  {
-    // mark modified; 
-    __ orl(val, 1);
-  }
+  // set modified-bit; 
+  __ orl(val, 1); 
 
   __ bind(L_no_modify_access);
-  // xchg 에는 lock prefix 불필요.
-  __ xchgl(val, Address(addr, 0));
+  if (type == ReplaceType::CmpXchg) {
+    __ movl(rscratch1, cmp_v);
+    __ lock();
+    __ cmpxchgl(val, Address(addr, 0)); // cmp_v = rax
+    __ jcc(Assembler::equal, L_add_modify_log);
 
-  if (!dbg_trace) {
-    __ testl(val, 1);
-    __ jcc(Assembler::notZero, L_done);
+    __ movl(cmp_v, rscratch1);
+    __ orl(cmp_v, 1); // set modified bit
+    __ jcc(Assembler::notEqual, L_raw_access);
+  } else {
+    // xchg 는 lock prefix 불필요.
+    __ xchgl(val, Address(addr, 0));
+
+    if (!dbg_trace) {
+      __ testl(val, 1);
+      __ jcc(Assembler::notZero, L_done);
+    }
   }
 
-  __ shlq(val, 32);
-  __ subptr(addr, base);
-  __ addptr(val, addr); // movl 사용시 high-bits 가 모두 clear됨.
+  __ bind(L_add_modify_log); {
+    __ shlq(val, 32);
+    __ subptr(addr, base);
+    __ addptr(val, addr); 
 
-  const Register log = addr;
+    const Register log = addr;
 
-  __ movptr(rscratch1, Address(thread, RtThreadLocalData::log_sp_offset()));
-  __ movptr(log, Address(rscratch1, 0));
-  __ subptr(log, sizeof(FieldUpdateLog));
-  if (!dbg_trace) {
-    __ cmpptr(log, rscratch1);
-    __ jcc(Assembler::lessEqual, L_slowAccess);
-    __ movptr(Address(rscratch1, 0), log);
-    __ movptr(Address(log, ByteSize(0)), base);
-    __ movq(Address(log, ByteSize(8)), val);
-    if (type == ReplaceType::Xchg) {
-      __ shrq(val, 32);
-      __ jmp(L_decode_xchg_result);
-    } else {
-      __ jmp(L_done);
+    __ movptr(rscratch1, Address(thread, RtThreadLocalData::log_sp_offset()));
+    __ movptr(log, Address(rscratch1, 0));
+    __ subptr(log, sizeof(FieldUpdateLog));
+    if (!dbg_trace) {
+      __ cmpptr(log, rscratch1);
+      __ jcc(Assembler::lessEqual, L_slowAccess);
+      __ movptr(Address(rscratch1, 0), log);
+      __ movptr(Address(log, ByteSize(0)), base);
+      __ movq(Address(log, ByteSize(8)), val);
+      
+      if (type == ReplaceType::Xchg) {
+        __ shrq(val, 32);
+        __ jmp(L_decode_xchg_result);
+      } else if (type == ReplaceType::CmpXchg) {
+        __ jmp(L_cmpxchg_success);
+      } else {
+        __ jmp(L_done);
+      }
     }
   }
 
@@ -210,7 +228,11 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   __ bind(L_slowAccess); {
     push_registers(masm, true, false);
     set_args_2(masm, base, val);
-    __ leaq(c_rarg2, Address(thread, Thread::gc_data_offset()));
+    if (type == ReplaceType::CmpXchg) {
+      __ movl(c_rarg2, cmp_v);
+    } else {
+      __ leaq(c_rarg2, Address(thread, Thread::gc_data_offset()));
+    }
 
     address fn;
     if (dbg_trace) {
@@ -222,8 +244,17 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
     }
     __ MacroAssembler::call_VM_leaf_base(fn, 3);
     pop_registers(masm, true, false);
-    __ jmp(L_done);
-  }  
+
+    if (type == ReplaceType::Xchg) {
+      __ shrq(val, 32);
+      __ jmp(L_decode_xchg_result);
+    } else if (type == ReplaceType::CmpXchg) {
+      __ jmp(L_cmpxchg_success);
+    } else {
+      __ jmp(L_done);
+    }
+  }
+
 
   //====================
   __ bind(L_raw_access); {
@@ -235,18 +266,33 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
         break;
       case ReplaceType::Xchg:
         __ xchgl(val, dst);
-        __ bind(L_decode_xchg_result);
-        __ decode_heap_oop(val);
+        __ bind(L_decode_xchg_result); {
+          __ decode_heap_oop(val);
+        }
         break;
       case ReplaceType::CmpXchg:
-        // cmpxchg
-        fatal("not impl");
+        __ lock();
+        __ cmpxchgl(val, Address(addr, 0));
+        __ jcc(Assembler::equal, L_cmpxchg_success);
+
+        // __ bind(L_cmpxchg_2nd); {
+        //   __ movl(val, rscratch1);
+        //   __ orl(cmp_v, 1); 
+        //   __ cmpxchgl(val, Address(addr, 0));
+        //   __ jcc(Assembler::equal, L_cmpxchg_success);
+        // }
+        /*cmpxchg failed*/ {
+          __ xorl(val, val);
+          __ jmp(L_done);
+        }
+        __ bind(L_cmpxchg_success); {
+          __ movl(val, 1);
+        }
         break;
     }
-  }
-  
-  //====================
+  }  
   __ bind(L_done);
+  //====================
 }
 
 void RtgcBarrierSetAssembler::oop_replace_at_not_in_heap(MacroAssembler* masm, DecoratorSet decorators,

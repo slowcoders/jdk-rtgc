@@ -169,7 +169,8 @@ void FieldUpdateLog::updateAnchorList() {
       _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
   assert(rtHeap::is_modified(new_p), "%p(%s) [%d] v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), offset(), (int32_t)new_p);
-  precond(!rtHeap::is_modified(erased()));
+  assert(!rtHeap::is_modified(erased()), "%p(%s) [%d] v=%x/n", 
+      _anchor, RTGC::getClassName(_anchor), offset(), (int32_t)erased());
 
   new_p = rtHeap::to_unmodified(new_p);
   *pField = new_p;

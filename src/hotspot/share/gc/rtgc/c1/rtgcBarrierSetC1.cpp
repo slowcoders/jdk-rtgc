@@ -103,9 +103,8 @@ public:
       _type = RtgcBarrierSetAssembler::ReplaceType::Xchg;
     } else {
       _type = RtgcBarrierSetAssembler::ReplaceType::CmpXchg;
-      cmp_item->load_item();
-      _cmp_v = gen->new_register(T_ADDRESS);
-      gen->lir()->move(cmp_item->result(), _cmp_v);
+      cmp_item->load_item_force(FrameMap::rax_oop_opr);
+      _cmp_v = cmp_item->result();
     }
     return _phys_reg;
   }
@@ -127,8 +126,10 @@ public:
     }
     visitor->do_input(_addr);
     visitor->do_temp(_addr);
-    // visitor->do_input(_tmp1);
-    // visitor->do_temp(_tmp1);
+    if (_cmp_v != NULL) {
+      visitor->do_input(_cmp_v);
+      visitor->do_temp(_cmp_v);
+    }
     if (_phys_reg != NULL) {
       visitor->do_output(_phys_reg);
     }
@@ -426,19 +427,25 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
 
   LIRGenerator* gen = access.gen();
   new_value.load_item();
-  cmp_value.load_item();
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (1 || !in_heap) {
+  if (!UseCompressedOops || !in_heap) {
     address fn = RtgcBarrier::getCmpSetFunction(access.decorators() | AS_RAW);
+    cmp_value.load_item();
     LIR_Opr result = call_barrier(fn, access, new_value.result(), objectType, cmp_value.result());
     __ cmp(lir_cond_equal, cmp_value.result(), result);
     __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
             result, T_INT);
     return result;
   } else {
-    fatal("atomic_cmpxchg_at_resolved");
-    return NULL;
+    LIRGenerator* gen = access.gen();
+    OopStoreStub* stub = new OopStoreStub(access, new_value.result());
+    LIR_Opr phys_reg = stub->prepare_atomic_result(gen, &cmp_value);
+    __ branch(lir_cond_always, stub);
+    __ branch_destination(stub->continuation());
+    LIR_Opr result = gen->new_register(T_INT);
+    __ move(phys_reg, result);
+    return result;
   }
 
   // new_value.load_item();
