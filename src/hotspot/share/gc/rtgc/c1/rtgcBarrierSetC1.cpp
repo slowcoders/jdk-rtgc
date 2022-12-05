@@ -238,8 +238,17 @@ bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access, bool op_
   if ((access.decorators() & IS_ARRAY) == 0) {
     LIR_Opr offset = access.offset().opr();
     if (offset->is_constant()) {
-      assert(offset->as_jint() < 0 || offset->as_jint() > oopDesc::klass_offset_in_bytes(), "just checking");
-      return offset->as_jint() < 0 || offset->as_jint() > oopDesc::klass_offset_in_bytes();
+      LIR_Const* const_opr = offset->as_constant_ptr();
+      jlong disp;
+      if (const_opr->type() == T_INT) {
+        disp = const_opr->as_jint();
+      } else if (const_opr->type() == T_LONG) {
+        disp = const_opr->as_jlong();
+      } else {
+        assert(const_opr->type() == T_INT, "const type = %d\n", const_opr->type());
+      }
+      assert(disp < 0 || disp > oopDesc::klass_offset_in_bytes(), "just checking");
+      return disp < 0 || disp > oopDesc::klass_offset_in_bytes();
     }
   }
   return true;
@@ -334,7 +343,6 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     return;
   }
 
-  rtgc_log(LOG_OPT(11), "store_at_resolved\n");
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
   if (0 || !in_heap) {
     address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
@@ -367,10 +375,12 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   }
 
   value.load_item();
-  if (true) {
+  bool in_heap = (access.decorators() & IN_HEAP) != 0;
+  if (0 || !in_heap) {
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   } else {
+    fatal("atomic_xchg_at_resolved");
     LIRGenerator* gen = access.gen();
     OopStoreStub* stub = new OopStoreStub(access, value.result());
     LIR_Opr phys_reg = stub->prepare_atomic_result(gen, NULL);
@@ -415,17 +425,22 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   }
 
   LIRGenerator* gen = access.gen();
-  if (true) {
-    new_value.load_item();
-    cmp_value.load_item();
+  new_value.load_item();
+  cmp_value.load_item();
+
+  bool in_heap = (access.decorators() & IN_HEAP) != 0;
+  if (1 || !in_heap) {
     address fn = RtgcBarrier::getCmpSetFunction(access.decorators() | AS_RAW);
     LIR_Opr result = call_barrier(fn, access, new_value.result(), objectType, cmp_value.result());
     __ cmp(lir_cond_equal, cmp_value.result(), result);
     __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
             result, T_INT);
     return result;
+  } else {
+    fatal("atomic_cmpxchg_at_resolved");
+    return NULL;
   }
-  
+
   // new_value.load_item();
   // LIR_Opr result = gen->new_register(intType);
   

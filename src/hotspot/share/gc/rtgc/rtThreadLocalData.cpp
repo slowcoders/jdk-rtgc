@@ -89,7 +89,7 @@ FieldUpdateReport* FieldUpdateReport::allocate() {
     }
   }
 
-  fatal("allocation fail %p, %p\n", g_report_area, g_last_report);
+  // fatal("allocation fail %p, %p\n", g_report_area, g_last_report);
   if (false) {
     int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
     ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 

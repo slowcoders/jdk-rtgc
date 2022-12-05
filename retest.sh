@@ -44,6 +44,8 @@
 # sh exec_test.sh jdk/jshell/ToolLocalSimpleTest
 # sh exec_test.sh runtime/ClassUnload/DictionaryDependsTest
 # sh exec_test.sh java/lang/invoke/defineHiddenClass/UnloadingTest
+# sh exec_test.sh  tools/javac/newlines/NewLineTest # allocation fail
+# sh exec_test.sh  tools/javac/Paths/MineField # allocation fail
 
 #        "-XX:+UnlockExperimentalVMOptions",
 #        "-XX:AbortVMOnExceptionMessage=#",
