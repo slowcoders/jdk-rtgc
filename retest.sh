@@ -46,6 +46,9 @@
 # sh exec_test.sh java/lang/invoke/defineHiddenClass/UnloadingTest
 # sh exec_test.sh  tools/javac/newlines/NewLineTest # allocation fail
 # sh exec_test.sh  tools/javac/Paths/MineField # allocation fail
+# sh exec_test.sh  compiler/codegen/C1NullCheckOfNullStore #  assert(UseCompressedOops) failed: should be compressed
+# sh exec_test.sh  gc/TestAllocateHeapAtMultiple #  assert(UseCompressedOops) failed: should be compressed
+# sh exec_test.sh  runtime/CompressedOops/CompressedClassPointers #  assert(UseCompressedOops) failed: should be compressed
 
 #        "-XX:+UnlockExperimentalVMOptions",
 #        "-XX:AbortVMOnExceptionMessage=#",

@@ -135,7 +135,11 @@ jint init_globals() {
   VMRegImpl::set_regName(); // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
-  RTGC_ONLY(RTGC::initialize();)
+#if INCLUDE_RTGC  
+  if (EnableRTGC) {
+    RTGC::initialize();
+  }
+#endif
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
   interpreter_init_code();  // after javaClasses_init and before any method gets linked
   referenceProcessor_init();

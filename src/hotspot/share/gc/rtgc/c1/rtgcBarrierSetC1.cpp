@@ -344,7 +344,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (0 || !in_heap) {
+  if (!UseCompressedOops || !in_heap) {
     address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
     call_barrier(fn, access, value, voidType);
     return;
@@ -376,7 +376,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
   value.load_item();
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (0 || !in_heap) {
+  if (!UseCompressedOops || !in_heap) {
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   } else {
