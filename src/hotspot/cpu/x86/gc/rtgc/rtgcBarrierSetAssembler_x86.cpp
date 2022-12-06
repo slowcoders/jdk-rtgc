@@ -145,7 +145,7 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   precond((decorators & ON_PHANTOM_OOP_REF) == 0);
   precond(val != noreg);
 
-  bool dbg_trace = (decorators & C1_NEEDS_PATCHING) != 0;
+  bool dbg_trace = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
   bool check_log = 0;//(decorators & C1_NEEDS_PATCHING) != 0;
   // decorators &= ~C1_NEEDS_PATCHING;
 
@@ -183,9 +183,11 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
     __ cmpxchgl(val, Address(addr, 0)); // cmp_v = rax
     __ jcc(Assembler::equal, L_add_modify_log);
 
+    __ orl(rscratch1, 1); // set modified bit
+    __ cmpl(cmp_v, rscratch1); // *addr == (new_v | modified)
+    __ jcc(Assembler::notEqual, L_cmpxchg_fail);
     __ movl(cmp_v, rscratch1);
-    __ orl(cmp_v, 1); // set modified bit
-    __ jcc(Assembler::notEqual, L_raw_access);
+    __ jmp(L_raw_access); // 재시도.
   } else {
     // xchg 는 lock prefix 불필요.
     __ xchgl(val, Address(addr, 0));
@@ -231,11 +233,7 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   __ bind(L_slowAccess); {
     push_registers(masm, true, false);
     set_args_2(masm, base, val);
-    if (type == ReplaceType::CmpXchg) {
-      __ movl(c_rarg2, cmp_v);
-    } else {
-      __ leaq(c_rarg2, Address(thread, Thread::gc_data_offset()));
-    }
+    __ leaq(c_rarg2, Address(thread, Thread::gc_data_offset()));
 
     address fn;
     if (dbg_trace) {
@@ -274,17 +272,19 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
         }
         break;
       case ReplaceType::CmpXchg:
+        // __ movl(rscratch1, cmp_v);
         __ lock();
         __ cmpxchgl(val, Address(addr, 0));
         __ jcc(Assembler::equal, L_cmpxchg_success);
 
-        // __ bind(L_cmpxchg_2nd); {
-        //   __ movl(val, rscratch1);
+        //__ bind(L_cmpxchg_2nd); 
+        // {
+        //   __ movl(cmp_v, rscratch1);
         //   __ orl(cmp_v, 1); 
         //   __ cmpxchgl(val, Address(addr, 0));
         //   __ jcc(Assembler::equal, L_cmpxchg_success);
         // }
-        /*cmpxchg failed*/ {
+        __ bind(L_cmpxchg_fail); {
           __ xorl(val, val);
           __ jmp(L_done);
         }

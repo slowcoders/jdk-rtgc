@@ -50,6 +50,14 @@
 # sh exec_test.sh  gc/TestAllocateHeapAtMultiple #  assert(UseCompressedOops) failed: should be compressed
 # sh exec_test.sh  runtime/CompressedOops/CompressedClassPointers #  assert(UseCompressedOops) failed: should be compressed
 
+# sh exec_test.sh  compiler/c2/Test8007722 # atomix_exchange !!
+# sh exec_test.sh  runtime/Safepoint/TestAbortOnVMOperationTimeout #  assert(oldValue != newValue) failed: precond
+# sh exec_test.sh  gc/metaspace/TestMetaspacePerfCounters_id0 #  assert(Universe::heap()->is_in_or_null(r)) failed: bad receiver: 0x000000011d138540 (4782785856)
+# sh exec_test.sh  compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject # 1.266 Thread 0x00007f9e82811820  453             org.testng.Assert::assertEquals (13 bytes)
+# sh exec_test.sh  compiler/unsafe/SunMiscUnsafeAccessTestObject # 1.167 Thread 0x00007f9b7d815a20  437             org.testng.Assert::assertEquals (13 bytes)
+# sh exec_test.sh  compiler/blackhole/BlackholeIntrinsicTest #  assert(offset != 0) failed: precond
+
+
 #        "-XX:+UnlockExperimentalVMOptions",
 #        "-XX:AbortVMOnExceptionMessage=#",
 
