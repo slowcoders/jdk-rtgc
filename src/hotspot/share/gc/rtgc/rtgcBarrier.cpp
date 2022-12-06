@@ -36,7 +36,7 @@ static void lock_barrier() {
 }
 
 static void unlock_barrier() {
-  if (ENABLE_BARRIER_LOCK) RTGC::unlock_heap(true);
+  if (ENABLE_BARRIER_LOCK) RTGC::unlock_heap();
 }
 
 static bool is_barrier_locked() {
@@ -222,7 +222,7 @@ void rtgc_store_not_in_heap(T* addr, oopDesc* new_v) {
       RTGC::debugOptions[2] >= 16 && new_v->klass() == vmClasses::String_klass()), 
         "rtgc_store_not_in_heap %p\n", (void*)new_v);
   RTGC::on_root_changed(old, new_v, addr, "stor");
-  RTGC::unlock_heap(true);
+  RTGC::unlock_heap();
 }
 
 void (*RtgcBarrier::rt_store)(void* addr, oopDesc* new_v, oopDesc* base) = 0;
@@ -369,7 +369,7 @@ oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_v) {
   // oop old = RawAccess<>::oop_load(addr);
   // raw_set_volatile_field(addr, new_v);
   RTGC::on_root_changed(old, new_v, addr, "xchg");
-  RTGC::unlock_heap(true);
+  RTGC::unlock_heap();
   return old;
 }
 
@@ -493,7 +493,7 @@ oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_v, oopDesc* new
     // raw_set_volatile_field(addr, new_v);
     RTGC::on_root_changed(old_value, new_v, addr, "cmpx");
   }
-  RTGC::unlock_heap(true);
+  RTGC::unlock_heap();
   return old_value;
 }
 

@@ -1008,7 +1008,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     // rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
     RTGC::lock_heap();
     RTGC::add_referrer_ex(referent_p, ref, true);
-    RTGC::unlock_heap(true);
+    RTGC::unlock_heap();
   }
 
   return;

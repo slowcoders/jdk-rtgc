@@ -305,7 +305,7 @@ oopDesc* __rtgc_load(narrowOop* addr) {
   rtgc_log(LOG_OPT(1), "load (%p) => (%p:%s) th=%p\n",
       addr, result, 
       result ? result->klass()->name()->bytes() : NULL, JavaThread::current());
-  RTGC::unlock_heap(true);
+  RTGC::unlock_heap();
   return result;
 }
 

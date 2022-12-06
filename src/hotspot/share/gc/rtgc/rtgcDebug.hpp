@@ -24,11 +24,11 @@ namespace RTGC {
   const char* baseFileName(const char* filePath);
   const void* currentThreadId();
 
-  extern volatile int* logOptions;
-  extern volatile int* debugOptions;
+  extern int*  logOptions;
+  extern int*  debugOptions;
   extern void* debug_obj;
   extern void* debug_obj2;
-  extern bool REF_LINK_ENABLED;
+  extern bool  REF_LINK_ENABLED;
 
   bool is_debug_pointer(void* obj);
   void adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node);

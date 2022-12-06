@@ -71,7 +71,7 @@ void GCRuntime::onAssignRootVariable(GCObject* assigned) {
     if (assigned == nullptr) return;
     bool isPublished = RTGC::lock_if_published(assigned);
     onAssignRootVariable_internal(assigned);
-    RTGC::unlock_heap(isPublished);
+    if (isPublished) RTGC::unlock_heap();
 }
 
 void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
@@ -94,7 +94,7 @@ void GCRuntime::onEraseRootVariable(GCObject* erased) {
 
     bool isPublished = RTGC::lock_if_published(erased);
     onEraseRootVariable_internal(erased);
-    RTGC::unlock_heap(isPublished);
+    if (isPublished) RTGC::unlock_heap();
 }
 
 void GCRuntime::replaceStaticVariable(
@@ -112,7 +112,7 @@ void GCRuntime::replaceStaticVariable(
             onEraseRootVariable_internal(erased);
         }
     }
-    RTGC::unlock_heap(true);
+    RTGC::unlock_heap();
 }
 
 void GCRuntime::onReplaceRootVariable(
@@ -123,7 +123,7 @@ void GCRuntime::onReplaceRootVariable(
     RTGC::lock_heap();
     if (assigned != NULL) onAssignRootVariable_internal(assigned);
     if (erased   != NULL) onEraseRootVariable_internal(erased);
-    RTGC::unlock_heap(true);
+    RTGC::unlock_heap();
 }
 
 #if 0
@@ -147,7 +147,7 @@ void GCRuntime::replaceMemberVariable(
     if (erased != nullptr && erased != owner) {
         disconnectReferenceLink(erased, owner);
     }
-    RTGC::unlock_heap(true);
+    RTGC::unlock_heap();
 }
 #endif 
 

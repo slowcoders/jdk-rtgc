@@ -16,10 +16,21 @@ static const int LOG_OPT(int function) {
 bool rtHeapEx__OptStoreOop = rtHeapEx::OptStoreOop;
 static int _logOptions[256];
 static int _debugOptions[256];
+
+#ifdef ASSERT
+#define LIGHT_LOCK        ((heap_lock_t)Thread::current())
+#else
+#define LIGHT_LOCK        ((heap_lock_t)1)
+#endif
+#define HEAVY_LOCK        -LIGHT_LOCK
+#define UNLOCKED          ((heap_lock_t)0)
+#define IS_HEAVY_LOCK(v)  (v < 0)
+
 namespace RTGC {
-  Thread* g_mv_lock = 0;
-  volatile int* logOptions = _logOptions;
-  volatile int* debugOptions = _debugOptions;
+  typedef intptr_t heap_lock_t;
+  alignas(128) volatile heap_lock_t g_mv_lock = 0;
+  int* logOptions = _logOptions;
+  int* debugOptions = _debugOptions;
   void* debug_obj = NULL;
   void* debug_obj2 = NULL;
   bool REF_LINK_ENABLED = true;
@@ -43,22 +54,38 @@ bool RTGC::isPublished(GCObject* obj) {
   return obj->isPublished();
 }
 
-void RTGC::lock_heap() {
-#ifdef ASSERT
-  Thread* self = Thread::current();
-#else 
-  Thread* self = (Thread*)1;
-#endif
-  while (Atomic::cmpxchg(&g_mv_lock, (Thread*)NULL, self) != 0) { /* do spin. */ }
+void RTGC::lock_heap(bool heavy) {
+  heap_lock_t lock_v = heavy ? HEAVY_LOCK : LIGHT_LOCK;
+  while (true) {
+    heap_lock_t old_v = Atomic::cmpxchg(&g_mv_lock, UNLOCKED, lock_v);
+    if (old_v == UNLOCKED) break;
+    if (IS_HEAVY_LOCK(old_v)) {
+      // do not waste spin lock
+      // lock_semaphore
+      // unlock_semaphore
+    }
+  }
+  if (heavy) {
+    // lock_semaphore
+  }
+}
+
+void RTGC::promote_heavy_lock() {
+  precond(g_mv_lock == LIGHT_LOCK);
+  g_mv_lock = HEAVY_LOCK;
+  // lock_semaphore
+}
+
+void RTGC::unlock_heap() {
+  precond(heap_locked_bySelf());
+  if (IS_HEAVY_LOCK(g_mv_lock)) {
+    // unlock semaphore;
+  }
+  Atomic::release_store(&g_mv_lock, UNLOCKED);
 }
 
 bool RTGC::heap_locked_bySelf() {
-#ifdef ASSERT
-  Thread* self = Thread::current();
-#else 
-  Thread* self = (Thread*)1;
-#endif
-  return g_mv_lock == self;
+  return g_mv_lock == LIGHT_LOCK || g_mv_lock == HEAVY_LOCK;
 }
 
 bool RTGC::lock_if_published(GCObject* obj) {
@@ -75,16 +102,6 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
   lock_heap();
 }
 
-void RTGC::unlock_heap(bool locked) {
-  if (locked) {
-#ifdef ASSERT
-    Thread* self = Thread::current();
-    precond(g_mv_lock == self);
-#endif
-
-    Atomic::release_store(&g_mv_lock, (Thread*)NULL);
-  }
-}
 
 bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();

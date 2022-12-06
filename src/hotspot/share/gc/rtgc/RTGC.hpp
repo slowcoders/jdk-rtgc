@@ -41,9 +41,11 @@ namespace RTGC {
 
   bool lock_if_published(GCObject* obj);
 
-  void lock_heap();
+  void lock_heap(bool heavy = false);
 
-  void unlock_heap(bool locked);
+  void unlock_heap();
+
+  void promote_heavy_lock();
 
   bool heap_locked_bySelf();
 
