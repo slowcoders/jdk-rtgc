@@ -152,7 +152,7 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   
-  Label L_raw_access, L_done, L_add_modify_log, L_cmpxchg_success, L_cmpxchg_fail;
+  Label L_raw_access, L_done, L_add_modify_log, L_cmpxchg_2nd, L_cmpxchg_success, L_cmpxchg_fail;
   Label L_decode_xchg_result, L_no_modify_access, L_slowAccess;
   const Register thread = NOT_LP64(rdi) LP64_ONLY(r15_thread); // is callee-saved register (Visual C++ calling conventions)
   const int32_t modified_null = 1;
@@ -181,13 +181,7 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
     __ movl(rscratch1, cmp_v);
     __ lock();
     __ cmpxchgl(val, Address(addr, 0)); // cmp_v = rax
-    __ jcc(Assembler::equal, L_add_modify_log);
-
-    __ orl(rscratch1, 1); // set modified bit
-    __ cmpl(cmp_v, rscratch1); // *addr == (new_v | modified)
-    __ jcc(Assembler::notEqual, L_cmpxchg_fail);
-    __ movl(cmp_v, rscratch1);
-    __ jmp(L_raw_access); // 재시도.
+    __ jcc(Assembler::notEqual, L_cmpxchg_2nd); 
   } else {
     // xchg 는 lock prefix 불필요.
     __ xchgl(val, Address(addr, 0));
@@ -272,18 +266,21 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
         }
         break;
       case ReplaceType::CmpXchg:
-        // __ movl(rscratch1, cmp_v);
+        __ movl(rscratch1, cmp_v);
         __ lock();
         __ cmpxchgl(val, Address(addr, 0));
         __ jcc(Assembler::equal, L_cmpxchg_success);
 
-        //__ bind(L_cmpxchg_2nd); 
-        // {
-        //   __ movl(cmp_v, rscratch1);
-        //   __ orl(cmp_v, 1); 
-        //   __ cmpxchgl(val, Address(addr, 0));
-        //   __ jcc(Assembler::equal, L_cmpxchg_success);
-        // }
+        // clone 하거나, array item 을 young array 로 복사하는 경우, modified-bit 가 clear 되지 않는다.
+        __ bind(L_cmpxchg_2nd); {
+          __ orl(rscratch1, 1); // set modified bit
+          __ cmpl(cmp_v, rscratch1); // *addr == (new_v | modified)
+          __ jcc(Assembler::notEqual, L_cmpxchg_fail);
+
+          __ movl(cmp_v, rscratch1);
+          __ cmpxchgl(val, Address(addr, 0));
+          __ jcc(Assembler::equal, L_cmpxchg_success);
+        }
         __ bind(L_cmpxchg_fail); {
           __ xorl(val, val);
           __ jmp(L_done);
