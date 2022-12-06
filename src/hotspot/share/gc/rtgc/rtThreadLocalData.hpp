@@ -44,6 +44,7 @@ class UpdateLogBuffer : public UpdateLogBufferHeader {
 
   static UpdateLogBuffer* g_free_buffer_q;
   static UpdateLogBuffer* g_active_buffer_q;
+  static UpdateLogBuffer* g_inactive_buffer_q;
 
 public:
 
@@ -60,7 +61,7 @@ public:
   UpdateLogBuffer* next() { return _next; }
 
   template <bool _atomic>
-  void flushPendingLogs();
+  void flush_pending_logs();
 
   static UpdateLogBuffer* allocate();
 
@@ -75,7 +76,7 @@ class RtThreadLocalData {
   UpdateLogBuffer* _log_buffer;
   void* _trackable_heap_start;
 
-  static UpdateLogBuffer*  g_dummy_buffer;
+  static UpdateLogBuffer* const g_dummy_buffer;
 
 public:
 

@@ -41,7 +41,8 @@ namespace RTGC {
 
 UpdateLogBuffer* UpdateLogBuffer::g_free_buffer_q = NULL;
 UpdateLogBuffer* UpdateLogBuffer::g_active_buffer_q = NULL;
-UpdateLogBuffer* RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_buffer_header;
+UpdateLogBuffer* UpdateLogBuffer::g_inactive_buffer_q = NULL;
+UpdateLogBuffer* const RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_buffer_header;
 
 template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
@@ -121,6 +122,7 @@ void UpdateLogBuffer::reset_gc_context() {
 #endif    
 
   g_active_buffer_q = NULL;
+  g_inactive_buffer_q = NULL;
   g_free_buffer_q = (UpdateLogBuffer*)g_buffer_area_start;
   UpdateLogBuffer* buffer = g_free_buffer_q;
   for (; buffer + 1 <= (void*)g_buffer_area_end; buffer++) {
@@ -137,14 +139,22 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
   precond(!g_in_gc_termination);
   precond(rtHeapEx::OptStoreOop);
 
+  UpdateLogBuffer* buffer;
+  
   RTGC::lock_heap();
-  UpdateLogBuffer* buffer = g_free_buffer_q;
-  if (buffer != NULL) {
+  if ((buffer = g_free_buffer_q) != NULL) {
     g_free_buffer_q = buffer->_next;
+
     buffer->_next = g_active_buffer_q;
     g_active_buffer_q = buffer;
+  } 
+  else if ((buffer = g_inactive_buffer_q) != NULL) {
+    g_inactive_buffer_q = buffer->_next;
+    RTGC::promote_heavy_lock();
+    buffer->flush_pending_logs<true>();
   }
-  RTGC::unlock_heap(true);
+  RTGC::unlock_heap();
+  return buffer;
 
   if (false) {
     int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
@@ -156,28 +166,17 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 }
 
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
-  precond(RTGC::heap_locked_bySelf());
-  rtgc_log(true, "UpdateLogBuffer::recycle %p\n", buffer);
-  UpdateLogBuffer* prev = g_active_buffer_q;
-  if (prev != buffer) {
-    while (prev->_next != buffer) {
-      prev = prev->_next;
-      postcond(prev != NULL);
-    }
-    prev->_next = buffer->_next;
-  } else {
-    g_active_buffer_q = buffer->_next;
-  }
-
-  buffer->_next = g_free_buffer_q;
-  g_free_buffer_q = buffer;
+  RTGC::lock_heap();
+  buffer->_next = g_inactive_buffer_q;
+  g_inactive_buffer_q = buffer;
+  RTGC::unlock_heap();
 }
 
 template <bool _atomic>
-void UpdateLogBuffer::flushPendingLogs() {
+void UpdateLogBuffer::flush_pending_logs() {
   FieldUpdateLog* log = first_log();
   FieldUpdateLog* end = end_of_log();
-  rtgc_log(_atomic, "flushPendingLogs %p -> %p\n", log, end);
+  rtgc_log(_atomic, "flush_pending_logs %p -> %p\n", log, end);
   for (; log < end; log++) {
     log->updateAnchorList<_atomic>();
   }
@@ -195,16 +194,16 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
       rtData->_log_buffer = curr_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
       rtgc_log(true, "Reusing LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
-      RTGC::lock_heap();
-      curr_buffer->flushPendingLogs<true>();
-      RTGC::unlock_heap(true);
+      RTGC::lock_heap(true);
+      curr_buffer->flush_pending_logs<true>();
+      RTGC::unlock_heap();
     } else {
       rtgc_log(true, "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();
       tmp.updateAnchorList<true>();
-      RTGC::unlock_heap(true);
+      RTGC::unlock_heap();
       return;
     }
     log = curr_buffer->pop();
@@ -223,10 +222,7 @@ RtThreadLocalData::RtThreadLocalData() {
 
 RtThreadLocalData::~RtThreadLocalData() {
   if (_log_buffer != g_dummy_buffer) {
-    RTGC::lock_heap();
-    _log_buffer->flushPendingLogs<true>();
     UpdateLogBuffer::recycle(_log_buffer);
-    RTGC::unlock_heap(true);
   }
 }
 
@@ -234,14 +230,12 @@ RtThreadLocalData::~RtThreadLocalData() {
 void UpdateLogBuffer::process_update_logs() {
   Klass* intArrayKlass = Universe::intArrayKlassObj();
   for (UpdateLogBuffer* buffer = g_active_buffer_q; buffer != NULL; buffer = buffer->_next) {
-    buffer->flushPendingLogs<false>();
-    if (false) {
-      int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
-      to_obj(buffer)->markGarbage(NULL);
-      to_obj(buffer)->markDestroyed();
-      CollectedHeap::fill_with_object((HeapWord*)buffer, STACK_CHUNK_SIZE >> LogHeapWordSize, false);
-    }
+    buffer->flush_pending_logs<false>();
+  }
+  for (UpdateLogBuffer* buffer = g_inactive_buffer_q; buffer != NULL; buffer = buffer->_next) {
+    buffer->flush_pending_logs<false>();
   }
   g_free_buffer_q = NULL;
   g_active_buffer_q = NULL;
+  g_inactive_buffer_q = NULL;
 }

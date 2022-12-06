@@ -381,7 +381,6 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   } else {
-    fatal("atomic_xchg_at_resolved");
     LIRGenerator* gen = access.gen();
     OopStoreStub* stub = new OopStoreStub(access, value.result());
     LIR_Opr phys_reg = stub->prepare_atomic_result(gen, NULL);
