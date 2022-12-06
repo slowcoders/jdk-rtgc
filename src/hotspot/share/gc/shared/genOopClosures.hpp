@@ -158,7 +158,7 @@ public:
 // Closure for scanning DefNewGeneration when *not* iterating over the old generation.
 //
 // This closures records changes to oops in CLDs.
-class DefNewScanClosure : public FastScanClosure<DefNewScanClosure> {
+class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, true> {
   ClassLoaderData* _scanned_cld;
 public:
   DefNewScanClosure(DefNewGeneration* g);

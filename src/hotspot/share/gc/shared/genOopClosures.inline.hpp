@@ -163,7 +163,7 @@ void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
 #endif
 
 inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
-    FastScanClosure<DefNewScanClosure>(g), _scanned_cld(NULL) {}
+    FastScanClosure<DefNewScanClosure, true>(g), _scanned_cld(NULL) {}
 
 template <class T>
 void DefNewScanClosure::barrier(T* p, oop new_p) {
