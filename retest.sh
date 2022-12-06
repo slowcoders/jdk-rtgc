@@ -51,11 +51,14 @@
 # sh exec_test.sh  runtime/CompressedOops/CompressedClassPointers #  assert(UseCompressedOops) failed: should be compressed
 
 # sh exec_test.sh  compiler/c2/Test8007722 # atomix_exchange !!
-# sh exec_test.sh  runtime/Safepoint/TestAbortOnVMOperationTimeout #  assert(oldValue != newValue) failed: precond
+# sh exec_test.sh  compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject # atomix_exchange !!
+# sh exec_test.sh  runtime/Safepoint/TestAbortOnVMOperationTimeout #  assert(oldValue != newValue) -> updateLog allocation failed
 # sh exec_test.sh  gc/metaspace/TestMetaspacePerfCounters_id0 #  assert(Universe::heap()->is_in_or_null(r)) failed: bad receiver: 0x000000011d138540 (4782785856)
 # sh exec_test.sh  compiler/unsafe/JdkInternalMiscUnsafeAccessTestObject # 1.266 Thread 0x00007f9e82811820  453             org.testng.Assert::assertEquals (13 bytes)
 # sh exec_test.sh  compiler/unsafe/SunMiscUnsafeAccessTestObject # 1.167 Thread 0x00007f9b7d815a20  437             org.testng.Assert::assertEquals (13 bytes)
 # sh exec_test.sh  compiler/blackhole/BlackholeIntrinsicTest #  assert(offset != 0) failed: precond
+# sh exec_test.sh  runtime/Safepoint/TestAbortOnVMOperationTimeout # assert(oldValue != newValue) RTGC.cpp:126
+# sh exec_test.sh runtime/modules/ModulesSymLink  # is_modified (array_item)
 
 
 #        "-XX:+UnlockExperimentalVMOptions",
@@ -64,8 +67,7 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-# sh exec_test.sh runtime/modules/ModulesSymLink  # is_modified (array_item)
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
@@ -73,10 +75,8 @@ LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-       -XX:+UnlockExperimentalVMOptions \
-       -XX:AbortVMOnExceptionMessage='#' \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/tmp' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
@@ -84,12 +84,13 @@ TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastd
         -Dtest.timeout.factor=4.0 \
         -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
         -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=runtime/Throwable/TestCatchThrowableOOM.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable/TestCatchThrowableOOM.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib \
-        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/runtime/Throwable/TestCatchThrowableOOM.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Throwable:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Throwable_TestCatchThrowableOOM_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
-        TestCatchThrowableOOM
+        -Dtest.name=runtime/Safepoint/TestAbortOnVMOperationTimeout.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint/TestAbortOnVMOperationTimeout.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib \
+        -Dtest.modules='java.base/jdk.internal.misc java.management' \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/runtime/Safepoint/TestAbortOnVMOperationTimeout.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/Safepoint:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_Safepoint_TestAbortOnVMOperationTimeout_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        TestAbortOnVMOperationTimeout

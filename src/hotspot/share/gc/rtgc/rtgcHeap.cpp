@@ -641,7 +641,7 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     rtHeap__processUntrackedTenuredObjects();
     precond(g_stack_roots.size() == 0);
     if (rtHeapEx::OptStoreOop) {
-      FieldUpdateReport::process_update_logs();
+      UpdateLogBuffer::process_update_logs();
     }
     g_saved_young_root_count = g_young_roots.size();
   } else {
@@ -666,7 +666,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
     rtHeap__clearStack<false>();
   }
   if (rtHeapEx::OptStoreOop) {
-    FieldUpdateReport::reset_gc_context();
+    UpdateLogBuffer::reset_gc_context();
   }
   rtHeapEx::g_lock_unsafe_list = false;
   postcond(g_stack_roots.size() == 0);
@@ -757,7 +757,7 @@ void rtHeap__initialize() {
   g_stack_roots.initialize();
   g_resurrected.initialize();
   rtCLDCleaner::initialize();
-  FieldUpdateReport::reset_gc_context();
+  UpdateLogBuffer::reset_gc_context();
 
 }
 

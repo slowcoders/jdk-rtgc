@@ -120,7 +120,7 @@ static void __checkTrackable(MacroAssembler* masm, Register base, Label& rawAcce
 }
 
 static int cnt_log = 0;
-static void __trace_update_log(oopDesc* anchor, ErasedField erasedField, void* rtData) {  
+static void __trace_update_log(oopDesc* anchor, ErasedSlot erasedField, void* rtData) {  
   printf("trace update log %p[%d] v= %x rtData=%p thread=%p\n", 
     anchor, erasedField._offset, (int32_t)erasedField._obj, rtData, Thread::current());
   if (to_obj(anchor)->isTrackable() && !rtHeap::is_modified(erasedField._obj)) {

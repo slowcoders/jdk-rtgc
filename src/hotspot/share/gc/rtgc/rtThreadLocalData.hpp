@@ -3,7 +3,7 @@
 
 namespace RTGC {
 
-struct ErasedField {
+struct ErasedSlot {
   int32_t   _offset;
   narrowOop _obj;
 };
@@ -11,40 +11,60 @@ struct ErasedField {
 class FieldUpdateLog {
 public:
   address   _anchor;
-  ErasedField _erased;
+  ErasedSlot _erased;
 
-  void init(oopDesc* anchor, ErasedField erased);
+  void init(oopDesc* anchor, ErasedSlot erased);
+  
+  template <bool _atomic>
   void updateAnchorList();
+  
   int32_t offset()    { return _erased._offset; }
   narrowOop erased()  { return _erased._obj; }
   narrowOop* field()  { return (narrowOop*)(_anchor + offset()); }
   static void add(oopDesc* anchor, volatile narrowOop* field, narrowOop erased);
 };
 
-class FieldUpdateReport {
-  FieldUpdateReport* _next;
-  FieldUpdateLog* _end;
-  FieldUpdateLog* _sp;
+class UpdateLogBuffer;
 
-  static FieldUpdateReport* g_report_q;
+class UpdateLogBufferHeader {
+protected:  
+  FieldUpdateLog* _sp;
+  UpdateLogBuffer* _next;
+
+public:  
+  UpdateLogBufferHeader() {
+    _next = NULL; 
+    _sp = (FieldUpdateLog*)this;
+  }
+};
+
+class UpdateLogBuffer : public UpdateLogBufferHeader {
+  static const int MAX_LOGS = (4*1024 - sizeof(UpdateLogBufferHeader)) / sizeof(FieldUpdateLog);
+  FieldUpdateLog  _logs[MAX_LOGS];
+
+  static UpdateLogBuffer* g_free_buffer_q;
+  static UpdateLogBuffer* g_active_buffer_q;
 
 public:
-  FieldUpdateReport() {
-    _next = NULL; 
-    _end = _sp = (FieldUpdateLog*)this;
-  }
 
-  FieldUpdateLog** stack_pointer() { return &_sp; }
+  FieldUpdateLog* pop() { return --_sp; }
 
-  bool is_full() { return _sp <= (void*)&_sp; }
+  FieldUpdateLog* peek() { return _sp; }
 
-  FieldUpdateLog* first_log() { return is_full() ? (FieldUpdateLog*)&_sp + 1 : _sp; }
+  bool is_full() { return _sp <= _logs; }
 
-  FieldUpdateLog* end_of_log() { return _end; }
+  FieldUpdateLog* first_log() { return is_full() ? _logs : _sp; }
 
-  FieldUpdateReport* next() { return _next; }
+  FieldUpdateLog* end_of_log() { return _logs + MAX_LOGS; }
 
-  static FieldUpdateReport* allocate();
+  UpdateLogBuffer* next() { return _next; }
+
+  template <bool _atomic>
+  void flushPendingLogs();
+
+  static UpdateLogBuffer* allocate();
+
+  static void recycle(UpdateLogBuffer* retiree);
 
   static void process_update_logs();
 
@@ -52,13 +72,15 @@ public:
 };
 
 class RtThreadLocalData {    
-  FieldUpdateLog** _log_sp;
+  UpdateLogBuffer* _log_buffer;
   void* _trackable_heap_start;
-  static FieldUpdateReport  g_dummy_report;
+
+  static UpdateLogBuffer*  g_dummy_buffer;
 
 public:
 
   RtThreadLocalData();
+  ~RtThreadLocalData();
 
   static RtThreadLocalData* data(Thread* thread) {
     return thread->gc_data<RtThreadLocalData>();
@@ -77,19 +99,19 @@ public:
   }
 
   static ByteSize log_sp_offset() {
-    return Thread::gc_data_offset() + byte_offset_of(RtThreadLocalData, _log_sp);
+    return Thread::gc_data_offset() + byte_offset_of(RtThreadLocalData, _log_buffer);
   }
 
-  void reset_field_update_log_sp() {
-    _log_sp = g_dummy_report.stack_pointer();
+  void reset_field_update_log_buffer() {
+    _log_buffer = g_dummy_buffer;
   }
 
-  static void addUpdateLog(oopDesc* anchor, ErasedField erasedField, RtThreadLocalData* rtData);
+  static void addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData);
 
 #ifdef ASSERT
   void checkLastLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
-    FieldUpdateLog* log = _log_sp[0];
-    printf("log sp  %p start=%p\n", log, _log_sp);
+    FieldUpdateLog* log = _log_buffer->peek();
+    printf("log sp  %p start=%p\n", log, _log_buffer);
     assert(log->_anchor == (void*)anchor, " %p %p\n", log->_anchor, anchor);
     assert(log->offset() == (int32_t)(intptr_t)field, " %d %d\n", 
         log->offset(), (int32_t)(intptr_t)field);
