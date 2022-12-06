@@ -45,7 +45,7 @@ UpdateLogBuffer* RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_
 
 template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
-  rtgc_log(_atomic, "updateAnchorList %p[%d] = %x\n", _anchor, offset(), (int32_t)erased());
+  // rtgc_log(_atomic, "updateAnchorList %p[%d] = %x\n", _anchor, offset(), (int32_t)erased());
 
   precond(to_obj(_anchor)->isTrackable());
   assert(!rtHeap::is_modified(erased()), "%p(%s) [%d] v=%x/n", 
@@ -156,7 +156,8 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 }
 
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
-  RTGC::lock_heap();
+  precond(RTGC::heap_locked_bySelf());
+  rtgc_log(true, "UpdateLogBuffer::recycle %p\n", buffer);
   UpdateLogBuffer* prev = g_active_buffer_q;
   if (prev != buffer) {
     while (prev->_next != buffer) {
@@ -170,7 +171,6 @@ void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
 
   buffer->_next = g_free_buffer_q;
   g_free_buffer_q = buffer;
-  RTGC::unlock_heap(true);
 }
 
 template <bool _atomic>
@@ -224,9 +224,9 @@ RtThreadLocalData::RtThreadLocalData() {
 RtThreadLocalData::~RtThreadLocalData() {
   if (_log_buffer != g_dummy_buffer) {
     RTGC::lock_heap();
-    //_log_buffer->flushPendingLogs<true>();
+    _log_buffer->flushPendingLogs<true>();
+    UpdateLogBuffer::recycle(_log_buffer);
     RTGC::unlock_heap(true);
-    // UpdateLogBuffer::recycle(_log_buffer);
   }
 }
 
