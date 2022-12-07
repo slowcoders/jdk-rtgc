@@ -100,6 +100,7 @@
 #include "utilities/utf8.hpp"
 #if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
+#include "gc/rtgc/impl/GCObject.hpp"
 #endif
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
@@ -3197,6 +3198,16 @@ JVM_ENTRY(jobject, JVM_GetAndClearReferencePendingList(JNIEnv* env))
   if (ref != NULL) {
     Universe::clear_reference_pending_list();
   }
+#ifdef ASSERT
+    rtgc_log(true, "start--\n");
+  for (oop p = ref; p != NULL; ) {
+    // rtgc_log(true, PTR_DBG_SIG, PTR_DBG_INFO(p));
+    oop p2 = java_lang_ref_Reference::discovered(p);
+    assert(Universe::heap()->is_in_or_null(p2), "wrong discovered %p\n" PTR_DBG_SIG, (void*)p2, PTR_DBG_INFO(p));
+    p = p2;
+  }
+    rtgc_log(true, "done--\n");
+#endif  
   return JNIHandles::make_local(THREAD, ref);
 JVM_END
 

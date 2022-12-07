@@ -32,15 +32,15 @@ static const int LOG_OPT(int function) {
 using namespace RTGC;
 
 static void lock_barrier() {
-  if (ENABLE_BARRIER_LOCK) RTGC::lock_heap();
+  if (!rtHeapEx::OptStoreOop) RTGC::lock_heap();
 }
 
 static void unlock_barrier() {
-  if (ENABLE_BARRIER_LOCK) RTGC::unlock_heap();
+  if (!rtHeapEx::OptStoreOop) RTGC::unlock_heap();
 }
 
 static bool is_barrier_locked() {
-  return !ENABLE_BARRIER_LOCK || RTGC::heap_locked_bySelf();
+  return rtHeapEx::OptStoreOop || RTGC::heap_locked_bySelf();
 }
 
 static bool is_strong_ref(volatile void* addr, oopDesc* base) {
@@ -117,6 +117,7 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
   narrowOop new_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::OptStoreOop) {
     new_v = rtHeap::to_modified(new_v);
+    precond(!rtHeap::in_full_gc);
     //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
@@ -143,6 +144,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   narrowOop n_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::OptStoreOop) {
     n_v = rtHeap::to_modified(n_v);
+    precond(!rtHeap::in_full_gc);
     //rtgc_debug_log(base, "raw_atomic_cmpxchg(%p)[%p] -> %p\n", base, addr, (void*)n_v);
   }
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
@@ -723,6 +725,8 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     precond(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
   }
 
+  precond(sizeof(ITEM_T) == sizeof(narrowOop));
+  const bool UseModifyFlag = rtHeapEx::OptStoreOop;
   lock_barrier();  
   size_t reverse_i = length;                    
   for (size_t k = 0; k < length; k++) {
@@ -733,14 +737,14 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     if (checkcast && new_v != NULL) {
       Klass* stype = new_v->klass();
       if (stype != bound && !stype->is_subtype_of(bound)) {
-        if (!rtHeapEx::OptStoreOop) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
+        if (!UseModifyFlag) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*i);
         unlock_barrier();
         rtgc_log(LOG_OPT(5), "arraycopy fail (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)i);
         return i;
       }
     }
     oopDesc* old_v;
-    if (rtHeapEx::OptStoreOop) {
+    if (UseModifyFlag) {
       precond(!dest_uninitialized); 
       old_v = raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
     } else {
@@ -749,7 +753,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     rtgc_update_inverse_graph(dst_array, old_v, new_v);
   } 
 
-  if (!rtHeapEx::OptStoreOop) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
+  if (!UseModifyFlag) memmove((void*)dst_p, (void*)src_p, sizeof(ITEM_T)*length);
   unlock_barrier();
   rtgc_log(LOG_OPT(5), "arraycopy done (%p)->%p(%p): %d)\n", src_p, dst_array, dst_p, (int)length);
   return length;

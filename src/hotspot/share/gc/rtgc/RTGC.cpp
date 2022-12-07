@@ -270,7 +270,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj2) return true;
 
-  // if (((uintptr_t)ptr & ~0xFFF) != 0x7f5643000) return false;
+  if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {

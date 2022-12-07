@@ -49,6 +49,7 @@ inline oop CompressedOops::decode_raw_not_null(narrowOop v) {
 
 inline oop CompressedOops::decode_raw(narrowOop v) {
   extern bool rtHeapEx__OptStoreOop;
+  precond(!is_null(v));
 #if INCLUDE_RTGC      
   if (EnableRTGC && rtHeapEx__OptStoreOop) {
     // remove sign bit

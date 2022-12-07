@@ -57,7 +57,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // OptStoreOop
-    if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop && sizeof(T) == sizeof(narrowOop)) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -86,7 +86,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
-      if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (clear_modified_flag && EnableRTGC && RTGC::rtHeapEx::OptStoreOop && sizeof(T) == sizeof(narrowOop)) {
         if (rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_unmodified(heap_oop);
         }

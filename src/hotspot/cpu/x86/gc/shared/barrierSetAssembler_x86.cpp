@@ -110,7 +110,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   bool atomic = (decorators & MO_RELAXED) != 0;
 
-#ifdef INCLUDE_RTGC
+#if 0 //def INCLUDE_RTGC
   const int32_t MODIFIED_NULL = (EnableRTGC && RTGC::rtHeapEx::OptStoreOop && in_heap) ? 1 : 0;
 #else
   const int32_t MODIFIED_NULL = 0;

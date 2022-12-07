@@ -19,8 +19,6 @@ namespace RTGC {
   static const int LOG_CLD        = 10;
   static const int LOG_SPACE      = 11;
 
-  static const bool ENABLE_BARRIER_LOCK = false;
-
   extern Klass* g_dead_array_klass;
   extern Klass* g_dead_object_klass;
   extern int g_cnt_update;

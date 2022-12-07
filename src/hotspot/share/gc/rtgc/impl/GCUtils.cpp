@@ -99,6 +99,7 @@ void ReferrerList::add(ShortOOP item) {
 static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
     while (iter.hasNext()) {
         const ShortOOP* ptr = iter.getAndNext();
+        // precond(ptr != NULL && ptr->getOffset() != 0);
         if (*ptr == item) {
             return ptr;
         }

@@ -381,7 +381,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   } 
   
   bool in_heap = (decorators & IN_HEAP) != 0;
-  if (rtHeapEx::OptStoreOop && UseCompressedOops) {
+  if (false && rtHeapEx::OptStoreOop && UseCompressedOops) {
     if (in_heap) {
       const Register addr = LP64_ONLY(r8) NOT_LP64(rsi);
       const Register base = dst.base();

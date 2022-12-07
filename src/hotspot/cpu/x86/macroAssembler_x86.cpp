@@ -4929,7 +4929,7 @@ void  MacroAssembler::decode_heap_oop(Register r) {
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
   if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
-    andl(r, ~1); // clear unmodified flag
+    andl(r, ~1); // clear modified flag
   }
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
@@ -4968,7 +4968,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Also do not verify_oop as this is called by verify_oop.
 #if INCLUDE_RTGC      
   if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
-    andl(r, ~1); // clear unmodified flag
+    andl(r, ~1); // clear modified flag
   }
 #endif
 
@@ -5029,7 +5029,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   }
 #if INCLUDE_RTGC      
   if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
-    andl(dst, ~7); // clear unmodified flag
+    andl(dst, ~7); // clear modified flag
   }
 #endif
 

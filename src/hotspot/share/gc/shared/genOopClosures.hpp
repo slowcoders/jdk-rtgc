@@ -146,9 +146,10 @@ public:
 
   template <typename T>
   void trackable_barrier(T* p, oop new_p) {
-    precond(!EnableRTGC || !RTGC::rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p));
-    rtgc_debug_log(_current_anchor, "yg-barrier %p[%p] = %p\n", 
-        (void*)_current_anchor, p, (void*)new_p);
+    assert(!EnableRTGC || !RTGC::rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p),
+        "yg-barrier %p(%s)[%d] = %x\n", 
+        (void*)_current_anchor, _current_anchor->klass()->name()->bytes(),
+        (int)((address)p - (address)_current_anchor), (int32_t)(intptr_t)(void*)*p);
     void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
     rtHeap__ensure_trackable_link(_current_anchor, new_p);
   }

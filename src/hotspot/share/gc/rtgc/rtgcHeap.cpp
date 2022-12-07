@@ -53,6 +53,7 @@ namespace RTGC {
     bool _has_young_ref;
     HeapWord* _old_gen_start;
     bool _is_trackable_forwardee;
+    bool _trackable_old_anchor;
   private:
     oopDesc* _old_anchor_p;
     oopDesc* _new_anchor_p;    
@@ -409,8 +410,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   assert(!rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || 
-      _new_anchor_p != NULL || !_is_trackable_forwardee ||
-      (void*)CompressedOops::decode(*p) == _old_anchor_p || !rtHeap::is_modified(*p), 
+      !_trackable_old_anchor || !rtHeap::is_modified(*p), 
       "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
       (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
       RTGC::getClassName(CompressedOops::decode(*p)),
@@ -418,7 +418,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (rtHeapEx::OptStoreOop && _is_trackable_forwardee) {
+  if (rtHeapEx::OptStoreOop && _is_trackable_forwardee && sizeof(T) == sizeof(narrowOop)) {
     *p = rtHeap::to_unmodified(*p);
   }
   if (old_p == NULL || old_p == _old_anchor_p) return;
@@ -467,6 +467,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   GCObject* node = to_obj(old_p);
   oopDesc* new_anchor_p = NULL;
   bool is_trackable_forwardee = node->isTrackable();
+  g_adjust_pointer_closure._trackable_old_anchor = is_trackable_forwardee;
   if (!is_trackable_forwardee) {
     oopDesc* new_p = old_p->forwardee();
     if (new_p == NULL) new_p = old_p;
