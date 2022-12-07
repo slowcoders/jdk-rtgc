@@ -72,7 +72,7 @@ void FieldUpdateLog::updateAnchorList() {
   rtgc_log(LOG_OPT(10), "updateAnchorList %p[%d] = %p -> %p\n", 
       _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
 
-  if (rtHeapEx::OptStoreOop && new_p != erased()) {
+  if (rtHeapEx::useModifyFlag() && new_p != erased()) {
     RTGC::on_field_changed((oopDesc*)_anchor, CompressedOops::decode(erased()), CompressedOops::decode(new_p), NULL, NULL);
   }
 }
@@ -137,7 +137,7 @@ void UpdateLogBuffer::reset_gc_context() {
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {
   precond(!g_in_gc_termination);
-  precond(rtHeapEx::OptStoreOop);
+  precond(rtHeapEx::useModifyFlag());
 
   UpdateLogBuffer* buffer;
   

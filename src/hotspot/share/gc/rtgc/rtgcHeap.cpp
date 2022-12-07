@@ -409,7 +409,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
-  assert(!rtHeapEx::OptStoreOop || sizeof(T) == sizeof(oop) || 
+  assert(!rtHeapEx::useModifyFlag() || sizeof(T) == sizeof(oop) || 
       !_trackable_old_anchor || !rtHeap::is_modified(*p), 
       "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
       (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
@@ -418,7 +418,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (rtHeapEx::OptStoreOop && _is_trackable_forwardee && sizeof(T) == sizeof(narrowOop)) {
+  if (rtHeapEx::useModifyFlag() && _is_trackable_forwardee && sizeof(T) == sizeof(narrowOop)) {
     *p = rtHeap::to_unmodified(*p);
   }
   if (old_p == NULL || old_p == _old_anchor_p) return;
@@ -641,7 +641,7 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     is_gc_started = true;
     rtHeap__processUntrackedTenuredObjects();
     precond(g_stack_roots.size() == 0);
-    if (rtHeapEx::OptStoreOop) {
+    if (rtHeapEx::useModifyFlag()) {
       UpdateLogBuffer::process_update_logs();
     }
     g_saved_young_root_count = g_young_roots.size();
@@ -666,7 +666,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
-  if (rtHeapEx::OptStoreOop) {
+  if (rtHeapEx::useModifyFlag()) {
     UpdateLogBuffer::reset_gc_context();
   }
   rtHeapEx::g_lock_unsafe_list = false;

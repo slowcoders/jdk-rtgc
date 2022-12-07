@@ -110,11 +110,6 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   bool atomic = (decorators & MO_RELAXED) != 0;
 
-#if 0 //def INCLUDE_RTGC
-  const int32_t MODIFIED_NULL = (EnableRTGC && RTGC::rtHeapEx::OptStoreOop && in_heap) ? 1 : 0;
-#else
-  const int32_t MODIFIED_NULL = 0;
-#endif  
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
@@ -123,7 +118,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
         assert(!is_not_null, "inconsistent access");
 #ifdef _LP64
         if (UseCompressedOops) {
-          __ movl(dst, MODIFIED_NULL);
+          __ movl(dst, 0);
         } else {
           __ movslq(dst, (int32_t)NULL_WORD);
         }

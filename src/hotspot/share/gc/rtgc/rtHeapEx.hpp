@@ -5,13 +5,16 @@
 
 class RefProcProxyTask;
 
+extern bool rtHeapEx__useModifyFlag;
+
 namespace RTGC {
 
 class GCObject;
 
 class rtHeapEx {
 public:  
-  static const bool OptStoreOop = true;
+
+  static bool useModifyFlag();
 
   static void adjust_ref_q_pointers(bool is_full_gc);
 

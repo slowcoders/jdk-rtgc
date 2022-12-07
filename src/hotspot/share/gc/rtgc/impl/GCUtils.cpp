@@ -8,21 +8,26 @@
 using namespace RTGC;
 
 namespace RTGC {
-    static const int OBJ_ALIGN = rtHeapEx::OptStoreOop ? 4 : 8;
-
-    uint32_t _pointer2offset(void* ref) {
-        precond(ref != nullptr);
-        assert(((uintptr_t)ref & (OBJ_ALIGN-1)) == 0, "invalid_short_oop %p\n", ref);
-        precond((address)ref > CompressedOops::base());
-        uintptr_t offset = ((address)ref - CompressedOops::base()) / OBJ_ALIGN;
-        assert(offset == (uint32_t)offset, "invalid_short_oop %p\n", ref);
-        return (uint32_t)offset;
-    }
 
     void* _offset2Pointer(uint32_t offset) {
         precond(offset != 0);
-		return (void*)(CompressedOops::base() + (uintptr_t)offset * OBJ_ALIGN);
+        uintptr_t base = (uintptr_t)CompressedOops::base();
+        int shift = UseCompressedOops ? CompressedOops::shift() : 3;
+        return (void*)(base + ((uintptr_t)offset << shift));
     }
+
+    uint32_t _pointer2offset(void* ptr) {
+        uintptr_t ref = (uintptr_t)ptr; 
+        uintptr_t base = (uintptr_t)CompressedOops::base();
+        precond(ref > base);
+        precond(ref < base + OopEncodingHeapMax);
+        int shift = UseCompressedOops ? CompressedOops::shift() : 3;
+        uint32_t result = (uint32_t)((ref - base) >> shift);
+        assert(_offset2Pointer(result) == ptr, "reversibility %p >> %d -> %x : %p\n", 
+            ptr, shift, result, _offset2Pointer(result));
+        return result;
+    }
+
 
     class TailNodeIterator : public NodeIterator<true> {
     public:    

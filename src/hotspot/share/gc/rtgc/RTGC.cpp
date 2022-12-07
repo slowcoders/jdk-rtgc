@@ -13,9 +13,13 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
 
-bool rtHeapEx__OptStoreOop = rtHeapEx::OptStoreOop;
 static int _logOptions[256];
 static int _debugOptions[256];
+
+bool rtHeapEx__useModifyFlag = true;
+bool rtHeapEx::useModifyFlag() {
+  return rtHeapEx__useModifyFlag && EnableRTGC && UseCompressedOops;
+}
 
 #ifdef ASSERT
 #define LIGHT_LOCK        ((heap_lock_t)Thread::current())
@@ -344,7 +348,7 @@ void RTGC::initialize() {
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
   RTGC_DEBUG = 1;
   logOptions[0] = -1;
-  // printf("init rtgc %d, %s\n", UnlockExperimentalVMOptions, AbortVMOnExceptionMessage);
+  printf("init rtgc narrowOop=%d  %s\n", rtHeapEx__useModifyFlag,  AbortVMOnExceptionMessage);
 #endif
 
   ReferrerList::initialize();

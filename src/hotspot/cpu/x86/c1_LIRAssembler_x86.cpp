@@ -744,7 +744,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     case T_ARRAY:
       if (c->as_jobject() == NULL) {
         if (UseCompressedOops && !wide) {
-          precond(!EnableRTGC || !RTGC::rtHeapEx::OptStoreOop);
+          precond(!RTGC::rtHeapEx::useModifyFlag());
           __ movl(as_Address(addr), 0); // RTGC_MODIFIED_NULL);
         } else {
 #ifdef _LP64

@@ -4842,7 +4842,7 @@ void MacroAssembler::encode_heap_oop(Register r) {
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
-      if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (RTGC::rtHeapEx::useModifyFlag()) {
         shrq(r, CompressedOops::shift());
       } else 
 #endif
@@ -4857,7 +4857,7 @@ void MacroAssembler::encode_heap_oop(Register r) {
   cmovq(Assembler::equal, r, r12_heapbase);
   subq(r, r12_heapbase);
 #if INCLUDE_RTGC      
-  if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+  if (RTGC::rtHeapEx::useModifyFlag()) {
     shrq(r, CompressedOops::shift());
   } else 
 #endif
@@ -4882,7 +4882,7 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
   
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
-    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (RTGC::rtHeapEx::useModifyFlag()) {
       shrq(r, CompressedOops::shift());
     } else 
 #endif
@@ -4913,7 +4913,7 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
   }
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
-    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (RTGC::rtHeapEx::useModifyFlag()) {
       shrq(dst, CompressedOops::shift());
     } else 
 #endif
@@ -4928,13 +4928,13 @@ void  MacroAssembler::decode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
-  if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+  if (RTGC::rtHeapEx::useModifyFlag()) {
     andl(r, ~1); // clear modified flag
   }
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
-      if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (RTGC::rtHeapEx::useModifyFlag()) {
         shlq(r, CompressedOops::shift());
       } else 
 #endif
@@ -4946,7 +4946,7 @@ void  MacroAssembler::decode_heap_oop(Register r) {
   } else {
     Label done;
 #if INCLUDE_RTGC      
-    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (RTGC::rtHeapEx::useModifyFlag()) {
       shlq(r, CompressedOops::shift());
     } else 
 #endif
@@ -4967,14 +4967,14 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
 #if INCLUDE_RTGC      
-  if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+  if (RTGC::rtHeapEx::useModifyFlag()) {
     andl(r, ~1); // clear modified flag
   }
 #endif
 
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
-    if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+    if (RTGC::rtHeapEx::useModifyFlag()) {
       shlq(r, CompressedOops::shift());
     } else 
 #endif
@@ -4998,10 +4998,10 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
   if (CompressedOops::shift() != 0) {
-    assert(RTGC_ONLY(EnableRTGC && RTGC::rtHeapEx::OptStoreOop ||) LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
+    assert(RTGC_ONLY(RTGC::rtHeapEx::useModifyFlag() ||) LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
     if (LogMinObjAlignmentInBytes == Address::times_8) {
 #if INCLUDE_RTGC      
-      if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (RTGC::rtHeapEx::useModifyFlag()) {
         leaq(dst, Address(r12_heapbase, src, Address::times_4, 0));
       } else
 #endif      
@@ -5011,7 +5011,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
         movq(dst, src);
       }
 #if INCLUDE_RTGC      
-      if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+      if (RTGC::rtHeapEx::useModifyFlag()) {
         shlq(dst, CompressedOops::shift());
       } else 
 #endif
@@ -5028,7 +5028,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
     }
   }
 #if INCLUDE_RTGC      
-  if (EnableRTGC && RTGC::rtHeapEx::OptStoreOop) {
+  if (RTGC::rtHeapEx::useModifyFlag()) {
     andl(dst, ~7); // clear modified flag
   }
 #endif
