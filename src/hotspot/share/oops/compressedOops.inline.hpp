@@ -51,6 +51,7 @@ inline oop CompressedOops::decode_raw(narrowOop v) {
   extern bool rtHeapEx__useModifyFlag;
   precond(!is_null(v));
 #if INCLUDE_RTGC      
+  precond(UseCompressedOops);
   if (EnableRTGC && rtHeapEx__useModifyFlag) {
     // remove sign bit
     uint32_t p = (uint32_t)v & ~1;
