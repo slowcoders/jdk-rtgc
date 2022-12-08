@@ -725,7 +725,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     precond(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
   }
 
-  precond(sizeof(ITEM_T) == sizeof(narrowOop));
+  precond(sizeof(ITEM_T) == sizeof(narrowOop) || !UseCompressedOops);
   const bool UseModifyFlag = rtHeapEx::useModifyFlag();
   lock_barrier();  
   size_t reverse_i = length;                    
