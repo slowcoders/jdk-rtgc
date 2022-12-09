@@ -727,8 +727,8 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
     assert(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
     assert(to_obj(obj)->hasReferrer(to_obj(anchor)), 
-        "invalid link %d\n anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
-        rtHeapEx::print_ghost_anchors(to_obj(obj)), PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
+        "invalid link anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
+        PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
   }
 }
 

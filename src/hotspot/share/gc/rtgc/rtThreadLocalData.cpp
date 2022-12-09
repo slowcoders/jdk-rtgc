@@ -149,6 +149,7 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
     g_active_buffer_q = buffer;
   } 
   else if ((buffer = g_inactive_buffer_q) != NULL) {
+    rtgc_log(LOG_OPT(1), "Cleaning up inactive LogBuffer %p\n", buffer);
     g_inactive_buffer_q = buffer->_next;
     RTGC::promote_heavy_lock();
     buffer->flush_pending_logs<true>();
@@ -193,12 +194,12 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     if (new_buffer != NULL) {
       rtData->_log_buffer = curr_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
-      rtgc_log(true, "Reusing LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "Reusing LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
-      rtgc_log(true, "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();

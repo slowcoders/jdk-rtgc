@@ -19,18 +19,20 @@
       (promotion 처리 : modified history 로 구현하려면, 별도 heap 필요.
           -> iterate_young_gen_roots() 전에 history-clean)
       (anchorList memory compression)
-   * icrease/decreaseRottRefCount 최적화 -> ROOT_RTEF_COUNT(n) 
-      -> isStringRootReachable() { return _flags < ROOT_RTEF_COUNT(1); }
+   * icrease/decreaseRootRefCount 다듬기 -> ROOT_REF_COUNT(n) 
+      -> isStrongRootReachable() { return _flags < ROOT_REF_COUNT(1); }
    * rt_node 데이터 최적화
-      -> is_trackable() -> is_tenured() ?? <br>
-      -> tenured_heap 에 allocate 되는 것은 대부분 huge-primitive-array 들이다??
    * isAcyclic()!!
    * detectGarbageFast()
    * add/removeReferrer(ShortOOP)
    * vmClass::deadSpaceKlass()
    * findSurvivalPath() in_tracing flag 처리. 순환 참조 처리 최적화.
-   * 특정 크기 이상의 TypedArray 는 old-heap 에 allocate 한다. (RTGC 에 맞춰 allocation policy 최적화)
+   * 특정 크기 이상의 TypedArray 는 old-heap 에 allocate 한다. 
    * AnchorList -> doubly link list 변경 (31bit offset)
+   * final static ref 최적화. (isImmortal())
+     class_loader_holder 만을 anchor 로 등록 -> CLD 자동 등록 여부 확인 (cf. ReferenceQueue$Null)
+   * 주소로 trackalble 여부 판별. is_trackable() -> is_tenured() ??  <br>
+      -> tenured_heap 에 allocate 되는 것은 대부분 huge-primitive-array 들이다??
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
    * Array-Item 은 64bit 로??
 
