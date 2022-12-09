@@ -25,6 +25,7 @@ static const int MAX_OBJ_SIZE = 256*1024*1024;
 static const bool SKIP_UNTRACKABLE = false;
 namespace RTGC {
   extern bool REF_LINK_ENABLED;
+  extern bool is_gc_started;
 }
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_BARRIER, function);
@@ -112,8 +113,11 @@ static void raw_set_field(oop* addr, oopDesc* value) {
   RawAccess<>::oop_store(addr, value);
 }
 
+extern int RTGC__is_debug_pointer(void* ptr);
+
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
+  precond(!is_gc_started);
   narrowOop new_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
@@ -121,8 +125,15 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
     //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
-  if (in_heap && rtHeapEx::useModifyFlag() && !rtHeap::is_modified(old_v)) {
-    FieldUpdateLog::add(base, addr, old_v);
+  if (in_heap && rtHeapEx::useModifyFlag()) {
+    if (!rtHeap::is_modified(old_v)) {
+      FieldUpdateLog::add(base, addr, old_v);
+      rtgc_log(RTGC__is_debug_pointer(to_obj(value)), 
+          "raw_atomic_xchg ++ anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
+    } else {
+      rtgc_log(RTGC__is_debug_pointer(to_obj(value)), 
+          "raw_atomic_xchg -- anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
+    }
   }
   return CompressedOops::decode(old_v);
 }
@@ -136,17 +147,14 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile oop* addr, oopDesc* valu
 
 template <bool in_heap>
 static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare, oopDesc* value) {
+  precond(!is_gc_started);
   narrowOop c_v = CompressedOops::encode(compare);
-  if (in_heap && rtHeapEx::useModifyFlag()) {
-    c_v = rtHeap::to_unmodified(c_v);
-  } 
-
   narrowOop n_v = CompressedOops::encode(value);
   if (in_heap && rtHeapEx::useModifyFlag()) {
+    precond(!rtHeap::is_modified(c_v));
     n_v = rtHeap::to_modified(n_v);
-    precond(!rtHeap::in_full_gc);
-    //rtgc_debug_log(base, "raw_atomic_cmpxchg(%p)[%p] -> %p\n", base, addr, (void*)n_v);
   }
+
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
   if (in_heap && rtHeapEx::useModifyFlag()) {
     if (res == c_v) {

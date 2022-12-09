@@ -421,6 +421,8 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
 
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   if (!needBarrier_onResolvedAddress(access, true)) {
+    bool in_heap = (access.decorators() & IN_HEAP) != 0;
+    precond(!in_heap || !access.is_oop());
     return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 

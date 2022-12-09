@@ -268,13 +268,13 @@ int cntDbgObj = 0;
 //   //   debugKlass[i] = NULL;
 //   // }
 // }
-bool RTGC__is_debug_pointer(void* ptr) {
+int RTGC__is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
-  if (!RTGC_DEBUG || obj == NULL) return false;
+  if (!RTGC_DEBUG || obj == NULL) return 0;
 
-  if (ptr == debug_obj) return true;
+  if (ptr == debug_obj) return -1;
 
-  if (ptr == debug_obj2) return true;
+  if (ptr == debug_obj2) return -1;
 
   // if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
 
@@ -295,13 +295,13 @@ bool RTGC__is_debug_pointer(void* ptr) {
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
-        return true;
+        return i+1;
       }
     } else if (klass == debugKlass[i]) {
-      return true;
+      return i+1;
     }
   }
-  return false;
+  return 0;
 }
 
 bool RTGC::is_debug_pointer(void* ptr) {
@@ -316,6 +316,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
   
+  int type;
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
@@ -326,9 +327,9 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
-  else if (RTGC__is_debug_pointer(old_p)) {
-    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  else if ((type = RTGC__is_debug_pointer(old_p)) != 0) {
+    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
+      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
     rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
@@ -373,7 +374,7 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x3e0013510;
+    debug_obj = (void*)-1;//0x3e0013510;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

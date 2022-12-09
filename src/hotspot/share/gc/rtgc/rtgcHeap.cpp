@@ -374,6 +374,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 
 }
 
+extern int RTGC__is_debug_pointer(void* ptr);
 
 void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   if (anchor == link) return;
@@ -391,7 +392,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
     rtHeapUtil::resurrect_young_root(node);
   }
 
-  rtgc_log(LOG_OPT(7), "trackable_barrier anchor %p link: %p\n", anchor, link);
+  // rtgc_log(RTGC__is_debug_pointer(link), "trackable_barrier anchor %p link: %p\n", anchor, link);
 
   precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
   RTGC::add_referrer_ex(link, anchor, false);
