@@ -155,6 +155,7 @@ void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
   _is_young_root = false;
   obj->oop_iterate(this);
   if (_is_young_root) {
+    rtgc_log(true, "add_young_root in ScanTrackableClosure<%d> %p\n", is_promoted, (void*)_trackable_anchor);
     rtHeap::add_young_root(obj, obj);
   }
   debug_only(_trackable_anchor = NULL;)

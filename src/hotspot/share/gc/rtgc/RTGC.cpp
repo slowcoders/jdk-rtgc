@@ -156,8 +156,10 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
-    fn, base, (int)((address)addr - (address)base), oldValue, newValue);
+      fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
+    rtgc_log(true, "add yg-root field_changed(%s) %p[%d] : %p -> %p\n", 
+        fn, base, (int)((address)addr - (address)base), oldValue, newValue);//, getClassName(newValue));
     add_referrer_ex(newValue, base, true);
   }
   if (!REF_LINK_ENABLED) return;
@@ -238,7 +240,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/nio/file/FileTreeIterator",
+  "java/lang/ref/ReferenceQueue$Null", //  why this make crash ???
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -266,7 +268,7 @@ int cntDbgObj = 0;
 //   //   debugKlass[i] = NULL;
 //   // }
 // }
-bool RTGC::is_debug_pointer(void* ptr) {
+bool RTGC__is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (!RTGC_DEBUG || obj == NULL) return false;
 
@@ -274,7 +276,7 @@ bool RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj2) return true;
 
-  if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
+  // if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -302,6 +304,10 @@ bool RTGC::is_debug_pointer(void* ptr) {
   return false;
 }
 
+bool RTGC::is_debug_pointer(void* ptr) {
+  return false;
+}
+
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
   if (!RTGC_DEBUG) return;
   if (destroy_old_node) {
@@ -320,7 +326,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
-  else if (is_debug_pointer(old_p)) {
+  else if (RTGC__is_debug_pointer(old_p)) {
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
@@ -371,8 +377,8 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 1);
-    enableLog(LOG_REF, 0);
+    enableLog(LOG_HEAP, 7);
+    enableLog(LOG_REF, 2);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

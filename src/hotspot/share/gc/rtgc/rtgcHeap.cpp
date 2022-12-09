@@ -121,6 +121,7 @@ void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
   // precond(g_young_roots.indexOf(new_p) < 0);
   node->markYoungRoot();
   g_young_roots.push_back(new_p);
+  rtgc_log(LOG_OPT(7), "mark YG Root (%p)->%p idx=%d\n", old_p, new_p, g_young_roots.size());
   rtgc_debug_log(old_p, "mark YG Root (%p)->%p idx=%d\n", old_p, new_p, g_young_roots.size());
 }
 
@@ -183,7 +184,7 @@ void rtHeapUtil::resurrect_young_root(GCObject* node) {
   } else {
     node->invalidateSafeAnchor();
   }
-  rtgc_log(LOG_OPT(11), "resurrect obj %p(%s) -> %p(%s YR=%d)\n", 
+  rtgc_log(LOG_OPT(7), "resurrect obj %p(%s) -> %p(%s YR=%d)\n", 
       (void*)anchor, getClassName(anchor), node, getClassName(node), node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
@@ -352,11 +353,11 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       // -> FieldIterator 에서 yg-root garbage 의 field 가 forwarded 값인 가를 확인하기 위하여 사용한다.
       node->markDirtyReferrerPoints();
       garbages->push_back(node);
-      rtgc_log(false, "skip garbage yg-root %p\n", node);
+      // rtgc_log(LOG_OPT(7), "skip garbage yg-root %p\n", node);
       continue;
     }
 
-    rtgc_log(LOG_OPT(8), "iterate yg root %p\n", (void*)node);
+    // rtgc_log(LOG_OPT(7), "iterate yg root %p\n", (void*)node);
     bool is_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
     closure->do_complete();
     if (!is_root) {
@@ -389,6 +390,8 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
         node, RTGC::getClassName(node));
     rtHeapUtil::resurrect_young_root(node);
   }
+
+  rtgc_log(LOG_OPT(7), "trackable_barrier anchor %p link: %p\n", anchor, link);
 
   precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
   RTGC::add_referrer_ex(link, anchor, false);
@@ -488,7 +491,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       old_p, getClassName(node));
   }
 
-  rtgc_log(LOG_OPT(8), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
+  rtgc_log(LOG_OPT(11), "adjust_pointers %p->%p\n", old_p, new_anchor_p);
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_trackable_forwardee);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
@@ -496,6 +499,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   if (is_young_root) {
     oopDesc* forwardee = old_p->forwardee();
     if (forwardee == NULL) forwardee = old_p;
+    rtgc_log(LOG_OPT(7), "add adjusted young root %p -> %p\n", old_p, forwardee);
     add_young_root(old_p, forwardee);
   }
 
@@ -727,8 +731,8 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
     assert(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
     assert(to_obj(obj)->hasReferrer(to_obj(anchor)), 
-        "invalid link %d\n anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
-        rtHeapEx::print_ghost_anchors(to_obj(obj)), PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
+        "anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
+        PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
   }
 }
 
@@ -740,7 +744,7 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
     for (int idx = 0; idx < g_resurrected.size(); idx++) {
       GCObject* node = g_resurrected.at(idx);
       // rtgc_debug_log(node, "oop_recycled_iterate %p\n", node);
-      // rtgc_log(true, "oop_recycled_iterate %p\n", node);
+      rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p\n", node);
       closure->do_object(cast_to_oop(node));
     }
     g_resurrected.resize(0); 
