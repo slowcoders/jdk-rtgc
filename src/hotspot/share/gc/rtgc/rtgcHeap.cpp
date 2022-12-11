@@ -205,7 +205,6 @@ void rtHeap__addRootStack_unsafe(GCObject* node) {
 void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled) {
   precond(!is_gc_started || !rtHeap::in_full_gc);
   if (!is_gc_started || is_recycled) {
-    rtgc_debug_log(node, "rtHeap__addUntrackedTenuredObject %p, recycled=%d \n", node, is_recycled);
     g_resurrected.push_back(node);
   }
 }
@@ -638,19 +637,19 @@ class ClearWeakHandleRef: public OopClosure {
   virtual void do_oop(narrowOop* o) { fatal("It should not be here"); }
 } clear_weak_handle_ref;
 
-void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
-  rtgc_log(LOG_OPT(1), "prepare_rtgc %p\n", policy);
-  if (policy == NULL) {
-    is_gc_started = true;
-    rtHeap__processUntrackedTenuredObjects();
-    precond(g_stack_roots.size() == 0);
-    if (rtHeap::useModifyFlag()) {
-      UpdateLogBuffer::process_update_logs();
-    }
-    g_saved_young_root_count = g_young_roots.size();
-  } else {
-    // yg_root_locked = true;
-    rtHeapEx::validate_trackable_refs();
+void rtHeap::prepare_rtgc() {
+  is_gc_started = true;
+  precond(g_stack_roots.size() == 0);
+  if (rtHeap::useModifyFlag()) {
+    UpdateLogBuffer::process_update_logs();
+  }
+  g_saved_young_root_count = g_young_roots.size();
+}
+
+void rtHeap::init_reference_processor(ReferencePolicy* policy) {
+  precond(is_gc_started);
+  rtgc_log(LOG_OPT(1), "init_reference_processor %p\n", policy);
+  if (policy != NULL) {
     FreeMemStore::clearStore();
     if (RtLazyClearWeakHandle) {
       WeakProcessor::oops_do(&clear_weak_handle_ref);
@@ -658,6 +657,7 @@ void rtHeap::prepare_rtgc(ReferencePolicy* policy) {
     in_full_gc = 1;
     rtHeapEx::break_reference_links(policy);
   }
+  rtHeap__processUntrackedTenuredObjects();
 }
 
 

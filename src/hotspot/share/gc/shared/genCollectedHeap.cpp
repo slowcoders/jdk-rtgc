@@ -579,7 +579,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
 #if INCLUDE_RTGC
   if (EnableRTGC) { 
-    rtHeap::prepare_rtgc(NULL);
+    rtHeap::prepare_rtgc();
   }
 #endif
   if (do_young_collection) {

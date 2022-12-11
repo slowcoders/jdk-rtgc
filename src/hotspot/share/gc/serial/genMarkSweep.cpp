@@ -96,7 +96,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #if INCLUDE_RTGC 
   if (EnableRTGC) {
     precond(ref_policy != NULL);
-    rtHeap::prepare_rtgc(ref_policy);
+    rtHeap::init_reference_processor(ref_policy);
   }
 #endif
 

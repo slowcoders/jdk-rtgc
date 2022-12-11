@@ -362,7 +362,7 @@ void RTGC::initialize() {
 
     // -XX:AbortVMOnExceptionMessage='#compiler/c2/Test7190310$1'
     ccstr s = AbortVMOnExceptionMessage;
-    debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
+    debugClassNames[0] = (s == NULL || s[1] == 0) ? NULL : s + 1;
     debugOptions[0] = 1;
     debug_obj = (void*)-1;//0x3e0013510;
 

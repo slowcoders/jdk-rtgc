@@ -906,20 +906,6 @@ void rtHeap__ensure_garbage_referent(oopDesc* ref_p, oopDesc* referent_p, bool c
   g_enqued_referents.removeFast(idx);
 }
 
-static void __validate_trackable_refs(HugeArray<oop>* _refs) {
-  int cntTrackable = 0;
-  for (int i = _refs->size(); --i >= 0; ) {
-    GCObject* node = to_obj(_refs->at(i));
-    if (node->isTrackable()) cntTrackable ++;
-  }
-}
-
-void rtHeapEx::validate_trackable_refs() {
-#ifdef ASSERT  
-  __validate_trackable_refs(&g_softList._refs);
-  __validate_trackable_refs(&g_weakList._refs);
-#endif
-}
 
 bool rtHeap::is_referent_reachable(oopDesc* ref, ReferenceType type) {
   switch (type) {

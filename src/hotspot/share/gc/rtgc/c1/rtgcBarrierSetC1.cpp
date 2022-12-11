@@ -428,7 +428,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   new_value.load_item();
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (true || !rtHeap::useModifyFlag() || !in_heap) {
+  if (!rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getCmpSetFunction(access.decorators() | AS_RAW);
     cmp_value.load_item();
     LIR_Opr result = call_barrier(fn, access, new_value.result(), objectType, cmp_value.result());

@@ -39,7 +39,8 @@ public:
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);
 
-  static void prepare_rtgc(ReferencePolicy* policy);
+  static void prepare_rtgc();
+  static void init_reference_processor(ReferencePolicy* policy);
   static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc(bool is_full_gc, bool promotion_finished);
 
