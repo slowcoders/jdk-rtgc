@@ -6,9 +6,6 @@
 #        --add-exports jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.sjavac=ALL-UNNAMED \
 #        --add-exports jdk.compiler/com.sun.tools.sjavac.server=ALL-UNNAMED \
-#        -XX:+UnlockExperimentalVMOptions \
-#        -XX:AbortVMOnExceptionMessage='#[B' \
-#        -XX:AbortVMOnExceptionMessage='compiler/c2/Test7190310$1' \
 #        --patch-module java.base=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_gc_logging_TestMetaSpaceLog_java/patches/java.base \
 
 # runtime/ErrorHandling/TestGZippedHeapDumpOnOutOfMemoryError
@@ -65,31 +62,39 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
+CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/classes/0/java/lang/ref/SoftReference/Pin.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/ref/SoftReference:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
        -XX:+UnlockExperimentalVMOptions \
-       -XX:AbortVMOnExceptionMessage='jdk/internal/ref/CleanerImpl$PhantomCleanableRef' \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/tmp' \
+       -XX:AbortVMOnExceptionMessage='#java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry' \
+        -Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/tmp -ea -esa' \
+        -Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/tmp -J-ea -J-esa' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
         -Dtest.timeout.factor=4.0 \
-        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
-        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=compiler/blackhole/BlackholeIntrinsicTest.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole/BlackholeIntrinsicTest.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0 \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0 \
-        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
-        compiler.blackhole.BlackholeIntrinsicTest
+        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native \
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk \
+        -Dtest.name=java/lang/ref/SoftReference/Pin.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/ref/SoftReference/Pin.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/ref/SoftReference \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/ref/SoftReference \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/classes/0/java/lang/ref/SoftReference/Pin.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/classes/0/java/lang/ref/SoftReference/Pin.d \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/classes/0/java/lang/ref/SoftReference/Pin.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/ref/SoftReference \
+        -Xmx768m \
+        -XX:MaxRAMPercentage=6.25 \
+        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/tmp \
+        -ea \
+        -esa \
+        -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native \
+        -ms16m \
+        -mx16m \
+        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_ref_SoftReference_Pin_java/java/lang/ref/SoftReference/Pin.d/main.0.jta

@@ -16,11 +16,6 @@ static const int LOG_OPT(int function) {
 static int _logOptions[256];
 static int _debugOptions[256];
 
-bool rtHeapEx__useModifyFlag = true;
-bool rtHeapEx::useModifyFlag() {
-  return rtHeapEx__useModifyFlag && EnableRTGC && UseCompressedOops;
-}
-
 #ifdef ASSERT
 #define LIGHT_LOCK        ((heap_lock_t)Thread::current())
 #else
@@ -156,7 +151,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
 
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
-    fn, base, (int)((address)addr - (address)base), oldValue, newValue);
+      fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
     add_referrer_ex(newValue, base, true);
   }
@@ -238,7 +233,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/nio/file/FileTreeIterator",
+  // "java/lang/ref/ReferenceQueue$Null", //  why this make crash ???
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -266,15 +261,15 @@ int cntDbgObj = 0;
 //   //   debugKlass[i] = NULL;
 //   // }
 // }
-bool RTGC::is_debug_pointer(void* ptr) {
+int RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
-  if (!RTGC_DEBUG || obj == NULL) return false;
+  if (!RTGC_DEBUG || obj == NULL) return 0;
 
-  if (ptr == debug_obj) return true;
+  if (ptr == debug_obj) return -1;
 
-  if (ptr == debug_obj2) return true;
+  if (ptr == debug_obj2) return -1;
 
-  if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
+  // if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -293,14 +288,15 @@ bool RTGC::is_debug_pointer(void* ptr) {
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
         rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
         debugKlass[i] = klass;
-        return true;
+        return i+1;
       }
     } else if (klass == debugKlass[i]) {
-      return true;
+      return i+1;
     }
   }
-  return false;
+  return 0;
 }
+
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
   if (!RTGC_DEBUG) return;
@@ -310,6 +306,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;
   
+  int type;
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
@@ -320,9 +317,9 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
-  else if (is_debug_pointer(old_p)) {
-    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  else if ((type = is_debug_pointer(old_p)) != 0) {
+    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
+      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
     rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
@@ -346,9 +343,9 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
-  printf("init rtgc narrowOop=%d  %s\n", rtHeapEx__useModifyFlag,  AbortVMOnExceptionMessage);
+  // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
 
   ReferrerList::initialize();
@@ -365,14 +362,14 @@ void RTGC::initialize() {
 
     // -XX:AbortVMOnExceptionMessage='#compiler/c2/Test7190310$1'
     ccstr s = AbortVMOnExceptionMessage;
-    debugClassNames[0] = s == NULL || s[1] == 0 ? NULL : s + 1;
+    debugClassNames[0] = (s == NULL || s[1] == 0) ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = (void*)0x3e0013510;
+    debug_obj = (void*)-1;//0x3e0013510;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 1);
-    enableLog(LOG_REF, 0);
+    // enableLog(LOG_HEAP, 7);
+    // enableLog(LOG_REF, 2);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

@@ -11,7 +11,7 @@ namespace RTGC {
 
     void* _offset2Pointer(uint32_t offset) {
         precond(offset != 0);
-        precond(!rtHeapEx::useModifyFlag() || (offset & 1) == 0); 
+        precond(!rtHeap::useModifyFlag() || (offset & 1) == 0); 
         uintptr_t base = (uintptr_t)CompressedOops::base();
         int shift = UseCompressedOops ? CompressedOops::shift() : 3;
         return (void*)(base + ((uintptr_t)offset << shift));
@@ -105,7 +105,7 @@ void ReferrerList::add(ShortOOP item) {
 static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
     while (iter.hasNext()) {
         const ShortOOP* ptr = iter.getAndNext();
-        precond(!rtHeapEx::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
+        precond(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
         precond(ptr != NULL && ptr->getOffset() != 0);
         if (*ptr == item) {
             return ptr;

@@ -146,7 +146,7 @@ public:
 
   template <typename T>
   void trackable_barrier(T* p, oop new_p) {
-    assert(!RTGC::rtHeapEx::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p),
+    assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p),
         "yg-barrier %p(%s)[%d] = %x\n", 
         (void*)_current_anchor, _current_anchor->klass()->name()->bytes(),
         (int)((address)p - (address)_current_anchor), (int32_t)(intptr_t)(void*)*p);

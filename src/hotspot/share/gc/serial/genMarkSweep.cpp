@@ -96,7 +96,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 #if INCLUDE_RTGC 
   if (EnableRTGC) {
     precond(ref_policy != NULL);
-    rtHeap::prepare_rtgc(ref_policy);
+    rtHeap::init_reference_processor(ref_policy);
   }
 #endif
 
@@ -224,6 +224,14 @@ public:
   template <typename T>
   void do_oop_work(T* p) {
     T heap_oop = RawAccess<>::oop_load(p);
+    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+      if (is_tracked) {
+        precond(!rtHeap::is_modified(heap_oop));
+      } else if (rtHeap::is_modified(heap_oop)) {
+        // rtgc_log(true, "clear modify flag in untracked %p\n", (void*)_current_anchor);
+        *p = rtHeap::to_unmodified(heap_oop);
+      }
+    }
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {

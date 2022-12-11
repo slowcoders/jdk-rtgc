@@ -345,7 +345,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (true || !RTGC::rtHeapEx::useModifyFlag() || !in_heap) {
+  if (!rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
     call_barrier(fn, access, value, voidType);
     return;
@@ -377,17 +377,15 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
   value.load_item();
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (true || !RTGC::rtHeapEx::useModifyFlag() || !in_heap) {
+  if (!rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   } else {
     LIRGenerator* gen = access.gen();
     OopStoreStub* stub = new OopStoreStub(access, value.result());
-    LIR_Opr phys_reg = stub->prepare_atomic_result(gen, NULL);
+    LIR_Opr result = stub->prepare_atomic_result(gen, NULL);
     __ branch(lir_cond_always, stub);
     __ branch_destination(stub->continuation());
-    LIR_Opr result = gen->new_register(T_OBJECT);
-    __ move(phys_reg, result);
     return result;
   }
 
@@ -421,6 +419,8 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
 
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   if (!needBarrier_onResolvedAddress(access, true)) {
+    bool in_heap = (access.decorators() & IN_HEAP) != 0;
+    precond(!in_heap || !access.is_oop());
     return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 
@@ -428,7 +428,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   new_value.load_item();
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (true || !RTGC::rtHeapEx::useModifyFlag() || !in_heap) {
+  if (!rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getCmpSetFunction(access.decorators() | AS_RAW);
     cmp_value.load_item();
     LIR_Opr result = call_barrier(fn, access, new_value.result(), objectType, cmp_value.result());

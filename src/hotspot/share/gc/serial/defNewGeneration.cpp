@@ -582,15 +582,13 @@ void DefNewGeneration::collect(bool   full,
   _preserved_marks_set.init(1);
 
 #if INCLUDE_RTGC  
-  // if (EnableRTGC) { 
-  //   assert(this->no_allocs_since_save_marks(),
-  //        "save marks have not been newly set.");
-  // } else
-#endif
-  {
-    assert(heap->no_allocs_since_save_marks(),
-         "save marks have not been newly set.");
+  if (EnableRTGC) { 
+    rtHeap::init_reference_processor(NULL);
   }
+#endif
+  assert(heap->no_allocs_since_save_marks(),
+        "save marks have not been newly set.");
+
   DefNewScanClosure       scan_closure(this);
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
 
@@ -601,19 +599,8 @@ void DefNewGeneration::collect(bool   full,
                                                   &scan_closure,
                                                   &younger_gen_closure);
 
-#if INCLUDE_RTGC  // RTGC_OPT_YOUNG_ROOTS
-  YoungRootClosure        young_root_closure(this, &evacuate_followers);
-  // if (EnableRTGC) {
-  //   assert(this->no_allocs_since_save_marks(),
-  //       "save marks have not been newly set.");
-  //   OldTrackableClosure old_closure(this, _old_gen);
-  //   static_cast<TenuredGeneration*>(_old_gen)->oop_since_save_marks_iterate(&old_closure);
-  // } else 
-#endif
-  {
-    assert(heap->no_allocs_since_save_marks(),
-        "save marks have not been newly set.");
-  }
+  assert(heap->no_allocs_since_save_marks(),
+      "save marks have not been newly set.");
 
   {
     StrongRootsScope srs(0);
@@ -628,6 +615,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (RtNoDirtyCardMarking) {
+    YoungRootClosure        young_root_closure(this, &evacuate_followers);
     rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
   }
 #endif

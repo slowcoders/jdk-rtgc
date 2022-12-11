@@ -188,7 +188,11 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
 
     if (!dbg_trace) {
       __ testl(val, 1);
-      __ jcc(Assembler::notZero, L_done);
+      if (type == ReplaceType::Xchg) {
+        __ jcc(Assembler::notZero, L_decode_xchg_result);
+      } else {
+        __ jcc(Assembler::notZero, L_done);
+      }
     }
   }
 
@@ -381,7 +385,7 @@ void RtgcBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet de
   } 
   
   bool in_heap = (decorators & IN_HEAP) != 0;
-  if (false && rtHeapEx::useModifyFlag()) {
+  if (rtHeap::useModifyFlag()) {
     if (in_heap) {
       const Register addr = LP64_ONLY(r8) NOT_LP64(rsi);
       const Register base = dst.base();

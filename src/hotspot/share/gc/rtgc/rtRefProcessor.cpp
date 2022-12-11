@@ -93,7 +93,7 @@ namespace RTGC {
     }
 
     static bool link_pending_reference(oop anchor, oop link) {
-      // rtgc_log(LOG_OPT(3), "link_pending_reference %p -> %p\n", (void*)anchor, (void*)link);
+      rtgc_log(LOG_OPT(2), "link_pending_reference %p -> %p\n", (void*)anchor, (void*)link);
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(anchor, RefList::_discovered_off, link);
       precond(link == RawAccess<>::oop_load_at(anchor, RefList::_discovered_off));
       if (link == NULL) return false;
@@ -531,7 +531,7 @@ void rtHeapEx::update_soft_ref_master_clock() {
 
 
 void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
-  rtgc_log(LOG_OPT(3), "link_discovered_pending_reference from %p to %p\n", (void*)ref_q, end);
+  rtgc_log(LOG_OPT(2), "link_discovered_pending_reference from %p to %p\n", (void*)ref_q, end);
   oopDesc* discovered;
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
@@ -702,7 +702,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
         postcond(cast_to_oop(old_referent)->is_gc_marked() || (!is_full_gc && old_referent->isTrackable()));
       }
       postcond(!referent->isActiveFinalizerReachable());
-      rtgc_log(LOG_OPT(3), "final ref cleared 1 %p -> %p(%p)(%s)\n", 
+      rtgc_log(LOG_OPT(2), "final ref cleared 1 %p -> %p(%p)(%s)\n", 
           (void*)ref, old_referent, referent, RTGC::getClassName(old_referent));
       if (ref->isTrackable()) {
         RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
@@ -906,20 +906,6 @@ void rtHeap__ensure_garbage_referent(oopDesc* ref_p, oopDesc* referent_p, bool c
   g_enqued_referents.removeFast(idx);
 }
 
-static void __validate_trackable_refs(HugeArray<oop>* _refs) {
-  int cntTrackable = 0;
-  for (int i = _refs->size(); --i >= 0; ) {
-    GCObject* node = to_obj(_refs->at(i));
-    if (node->isTrackable()) cntTrackable ++;
-  }
-}
-
-void rtHeapEx::validate_trackable_refs() {
-#ifdef ASSERT  
-  __validate_trackable_refs(&g_softList._refs);
-  __validate_trackable_refs(&g_weakList._refs);
-#endif
-}
 
 bool rtHeap::is_referent_reachable(oopDesc* ref, ReferenceType type) {
   switch (type) {
@@ -987,14 +973,10 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
       return;
 
     case REF_WEAK:
-      // ref->set_mark(ref->mark().set_age(markWord::max_age));
       g_weakList.register_ref(ref, referent_p);
       break;
     
     case REF_SOFT:
-      // TODO -> age 변경 시점을 늦춘다(?).
-      // rtgc_log(true, "soft ref created %p\n", ref);
-      // ref->set_mark(ref->mark().set_age(markWord::max_age));
       g_softList.register_ref(ref, referent_p);
       break;
 
@@ -1005,7 +987,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
   GCObject* ref_node = to_obj(ref);
   if (ref_node->isTrackable()) {
     // 참고) JNI 함수 호출 도중에 GC가 발생한 경우, ref 가 trackble 상태일 수 있다.
-    // rtgc_log(true, "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
+    rtgc_log(LOG_OPT(2), "weird ref %p of %p\n", (void*)ref, (void*)referent_p);
     RTGC::lock_heap();
     RTGC::add_referrer_ex(referent_p, ref, true);
     RTGC::unlock_heap();
