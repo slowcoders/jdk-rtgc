@@ -88,6 +88,17 @@ bash configure --with-jvm-variants=client \
   ENABLE_RTGC_STORE_HOOK = 1 (RTGC_HOOK enable)
   ENABLE_RTGC_STORE_TEST = 1 ( TEST Log 출력)
 
+Test summary 2022 12/11 UseModiyFlag
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1582    22     6 <<
+>> jtreg:test/jdk:tier1                               2062  2026    26    10 <<
+>> jtreg:test/langtools:tier1                         4215  4186     1    28 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+TEST FAILURE
+
 ==============================
 Test summary 2022 11/12 Opt Anchor List
 ==============================

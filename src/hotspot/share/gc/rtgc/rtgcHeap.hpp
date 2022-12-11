@@ -77,6 +77,8 @@ public:
   static void print_heap_after_gc(bool full_gc);
   static HeapWord* allocate_tlab(Thread* thread, const size_t word_size);
 
+  static bool useModifyFlag();
+
   static inline bool is_modified(narrowOop p) {
     return (((uint32_t)p) & 1) != 0;
   }

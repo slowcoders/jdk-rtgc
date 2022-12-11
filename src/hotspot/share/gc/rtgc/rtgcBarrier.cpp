@@ -33,15 +33,15 @@ static const int LOG_OPT(int function) {
 using namespace RTGC;
 
 static void lock_barrier() {
-  if (!rtHeapEx::useModifyFlag()) RTGC::lock_heap();
+  if (!rtHeap::useModifyFlag()) RTGC::lock_heap();
 }
 
 static void unlock_barrier() {
-  if (!rtHeapEx::useModifyFlag()) RTGC::unlock_heap();
+  if (!rtHeap::useModifyFlag()) RTGC::unlock_heap();
 }
 
 static bool is_barrier_locked() {
-  return rtHeapEx::useModifyFlag() || RTGC::heap_locked_bySelf();
+  return rtHeap::useModifyFlag() || RTGC::heap_locked_bySelf();
 }
 
 static bool is_strong_ref(volatile void* addr, oopDesc* base) {
@@ -113,26 +113,24 @@ static void raw_set_field(oop* addr, oopDesc* value) {
   RawAccess<>::oop_store(addr, value);
 }
 
-extern int RTGC__is_debug_pointer(void* ptr);
-
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
   precond(!is_gc_started);
   narrowOop new_v = CompressedOops::encode(value);
-  if (in_heap && rtHeapEx::useModifyFlag()) {
+  if (in_heap && rtHeap::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
     precond(!rtHeap::in_full_gc);
     //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
-  if (in_heap && rtHeapEx::useModifyFlag()) {
+  if (in_heap && rtHeap::useModifyFlag()) {
     if (!rtHeap::is_modified(old_v)) {
       FieldUpdateLog::add(base, addr, old_v);
-      rtgc_log(RTGC__is_debug_pointer(to_obj(value)), 
-          "raw_atomic_xchg ++ anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
+      // rtgc_log(RTGC::is_debug_pointer(to_obj(value)), 
+      //     "raw_atomic_xchg ++ anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
     } else {
-      rtgc_log(RTGC__is_debug_pointer(to_obj(value)), 
-          "raw_atomic_xchg -- anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
+      // rtgc_log(RTGC::is_debug_pointer(to_obj(value)), 
+      //     "raw_atomic_xchg -- anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
     }
   }
   return CompressedOops::decode(old_v);
@@ -150,13 +148,13 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   precond(!is_gc_started);
   narrowOop c_v = CompressedOops::encode(compare);
   narrowOop n_v = CompressedOops::encode(value);
-  if (in_heap && rtHeapEx::useModifyFlag()) {
+  if (in_heap && rtHeap::useModifyFlag()) {
     precond(!rtHeap::is_modified(c_v));
     n_v = rtHeap::to_modified(n_v);
   }
 
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
-  if (in_heap && rtHeapEx::useModifyFlag()) {
+  if (in_heap && rtHeap::useModifyFlag()) {
     if (res == c_v) {
       FieldUpdateLog::add(base, addr, c_v);
     } else {
@@ -177,7 +175,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* c
 void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
   precond(is_barrier_locked());
 
-  if (rtHeapEx::useModifyFlag()) return;
+  if (rtHeap::useModifyFlag()) return;
   if (old_v == new_v) return;
 
   if (new_v != NULL && new_v != base) {
@@ -734,7 +732,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
   }
 
   precond(sizeof(ITEM_T) == sizeof(narrowOop) || !UseCompressedOops);
-  const bool UseModifyFlag = rtHeapEx::useModifyFlag();
+  const bool UseModifyFlag = rtHeap::useModifyFlag();
   lock_barrier();  
   size_t reverse_i = length;                    
   for (size_t k = 0; k < length; k++) {
@@ -820,7 +818,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
   void do_work(T* p) {
-    precond(rtHeapEx::useModifyFlag());
+    precond(rtHeap::useModifyFlag());
     T heap_oop = *p;
     if (rtHeap::is_modified(heap_oop)) {
       *p = rtHeap::to_unmodified(heap_oop);
@@ -850,7 +848,7 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
   rtgc_debug_log(new_obj, "clone_post_barrier %p\n", new_obj); 
   rtgc_log(to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, to_obj(new_obj)->getRootRefCount());
-  if (false && rtHeapEx::useModifyFlag() && to_node(src)->isTrackable()) {
+  if (false && rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC_CloneClosure c(new_obj);
     new_obj->oop_iterate(&c);

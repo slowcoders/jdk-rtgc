@@ -16,11 +16,6 @@ static const int LOG_OPT(int function) {
 static int _logOptions[256];
 static int _debugOptions[256];
 
-bool rtHeapEx__useModifyFlag = true;
-bool rtHeapEx::useModifyFlag() {
-  return rtHeapEx__useModifyFlag && EnableRTGC && UseCompressedOops;
-}
-
 #ifdef ASSERT
 #define LIGHT_LOCK        ((heap_lock_t)Thread::current())
 #else
@@ -158,8 +153,6 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
       fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
-    rtgc_log(true, "add yg-root field_changed(%s) %p[%d] : %p -> %p\n", 
-        fn, base, (int)((address)addr - (address)base), oldValue, newValue);//, getClassName(newValue));
     add_referrer_ex(newValue, base, true);
   }
   if (!REF_LINK_ENABLED) return;
@@ -240,7 +233,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "java/lang/ref/ReferenceQueue$Null", //  why this make crash ???
+  // "java/lang/ref/ReferenceQueue$Null", //  why this make crash ???
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -268,7 +261,7 @@ int cntDbgObj = 0;
 //   //   debugKlass[i] = NULL;
 //   // }
 // }
-int RTGC__is_debug_pointer(void* ptr) {
+int RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (!RTGC_DEBUG || obj == NULL) return 0;
 
@@ -304,9 +297,6 @@ int RTGC__is_debug_pointer(void* ptr) {
   return 0;
 }
 
-bool RTGC::is_debug_pointer(void* ptr) {
-  return false;
-}
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
   if (!RTGC_DEBUG) return;
@@ -327,7 +317,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
-  else if ((type = RTGC__is_debug_pointer(old_p)) != 0) {
+  else if ((type = is_debug_pointer(old_p)) != 0) {
     rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
       type, old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
@@ -353,9 +343,9 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
-  printf("init rtgc narrowOop=%d  %s\n", rtHeapEx__useModifyFlag,  AbortVMOnExceptionMessage);
+  // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
 
   ReferrerList::initialize();
@@ -378,8 +368,8 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    enableLog(LOG_HEAP, 7);
-    enableLog(LOG_REF, 2);
+    // enableLog(LOG_HEAP, 7);
+    // enableLog(LOG_REF, 2);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);

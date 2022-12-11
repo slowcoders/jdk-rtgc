@@ -14,8 +14,6 @@ class GCObject;
 class rtHeapEx {
 public:  
 
-  static bool useModifyFlag();
-
   static void adjust_ref_q_pointers(bool is_full_gc);
 
   static void initializeRefProcessor();

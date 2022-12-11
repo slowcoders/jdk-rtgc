@@ -224,11 +224,11 @@ public:
   template <typename T>
   void do_oop_work(T* p) {
     T heap_oop = RawAccess<>::oop_load(p);
-    if (RTGC::rtHeapEx::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
       if (is_tracked) {
         precond(!rtHeap::is_modified(heap_oop));
       } else if (rtHeap::is_modified(heap_oop)) {
-        rtgc_log(true, "clear modify flag in untracked %p\n", (void*)_current_anchor);
+        // rtgc_log(true, "clear modify flag in untracked %p\n", (void*)_current_anchor);
         *p = rtHeap::to_unmodified(heap_oop);
       }
     }

@@ -57,7 +57,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // useModifyFlag()
-    if (clear_modified_flag && RTGC::rtHeapEx::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -86,7 +86,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
-      if (clear_modified_flag && RTGC::rtHeapEx::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+      if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
         if (rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_unmodified(heap_oop);
         }
@@ -135,7 +135,7 @@ template <bool is_promoted>
 template <typename T>
 void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
-  assert(!RTGC::rtHeapEx::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
+  assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
       "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
       (void*)_trackable_anchor, _trackable_anchor->klass()->name()->bytes(), p, *(int32_t*)p);
   // rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%p] = %p\n", 
@@ -155,7 +155,6 @@ void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
   _is_young_root = false;
   obj->oop_iterate(this);
   if (_is_young_root) {
-    rtgc_log(true, "add_young_root in ScanTrackableClosure<%d> %p\n", is_promoted, (void*)_trackable_anchor);
     rtHeap::add_young_root(obj, obj);
   }
   debug_only(_trackable_anchor = NULL;)

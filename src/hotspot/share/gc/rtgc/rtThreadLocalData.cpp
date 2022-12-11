@@ -20,6 +20,12 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_TLS, function);
 }
 
+bool rtHeapEx__useModifyFlag = true;
+bool rtHeap::useModifyFlag() {
+  return rtHeapEx__useModifyFlag && EnableRTGC && UseCompressedOops;
+}
+
+
 namespace RTGC {
   class ThreadLocalDataClosure : public ThreadClosure {
   public:  
@@ -43,8 +49,6 @@ UpdateLogBuffer* UpdateLogBuffer::g_free_buffer_q = NULL;
 UpdateLogBuffer* UpdateLogBuffer::g_active_buffer_q = NULL;
 UpdateLogBuffer* UpdateLogBuffer::g_inactive_buffer_q = NULL;
 UpdateLogBuffer* const RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_buffer_header;
-
-extern int RTGC__is_debug_pointer(void* ptr);
 
 
 template <bool _atomic>
@@ -73,11 +77,11 @@ void FieldUpdateLog::updateAnchorList() {
     }
   }
 
-  rtgc_log(RTGC__is_debug_pointer(to_obj(CompressedOops::decode(erased()))), 
+  rtgc_debug_log(to_obj(CompressedOops::decode(erased())), 
       "updateAnchorList %p[%d] = %p -> %p\n", 
       _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
 
-  if (rtHeapEx::useModifyFlag() && new_p != erased()) {
+  if (rtHeap::useModifyFlag() && new_p != erased()) {
     RTGC::on_field_changed((oopDesc*)_anchor, CompressedOops::decode(erased()), CompressedOops::decode(new_p), NULL, NULL);
   }
 }
@@ -142,21 +146,18 @@ void UpdateLogBuffer::reset_gc_context() {
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {
   precond(!g_in_gc_termination);
-  precond(rtHeapEx::useModifyFlag());
+  precond(rtHeap::useModifyFlag());
 
   UpdateLogBuffer* buffer;
   
-  rtgc_log(true, "Allocate LogBuffer %p s=%p e=%p\n", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
   RTGC::lock_heap();
-  if ((buffer = g_free_buffer_q) != NULL) {
+  if ((buffer = g_inactive_buffer_q) != NULL) {
+    rtgc_log(LOG_OPT(1), "recycle inactive LogBuffer %p s=%p e=%p\n", buffer, g_buffer_area_start, g_buffer_area_end);
+    g_inactive_buffer_q = buffer->_next;
+  } else if ((buffer = g_free_buffer_q) != NULL) {
+    rtgc_log(LOG_OPT(1), "Allocate LogBuffer %p s=%p e=%p\n", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
     g_free_buffer_q = buffer->_next;
   } 
-  else if ((buffer = g_inactive_buffer_q) != NULL) {
-    rtgc_log(true, "recycle inactive LogBuffer %p s=%p e=%p\n", buffer, g_buffer_area_start, g_buffer_area_end);
-    g_inactive_buffer_q = buffer->_next;
-    RTGC::promote_heavy_lock();
-    buffer->flush_pending_logs<true>();
-  }
   if (buffer != NULL) {
     buffer->_next = g_active_buffer_q;
     g_active_buffer_q = buffer;
@@ -174,7 +175,7 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 }
 
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
-  rtgc_log(true, "add inactive buffer %p\n", buffer);
+  rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
 
   RTGC::lock_heap();
   UpdateLogBuffer* prev = g_active_buffer_q; 
@@ -196,7 +197,7 @@ template <bool _atomic>
 void UpdateLogBuffer::flush_pending_logs() {
   FieldUpdateLog* log = first_log();
   FieldUpdateLog* end = end_of_log();
-  rtgc_log(true, "flush_pending_logs %p -> %p cnt:%ld\n", this, log, end-log);
+  rtgc_log(LOG_OPT(1), "flush_pending_logs atomic=%d buffer:%p cnt:%ld\n", _atomic, this, end-log);
   for (; log < end; log++) {
     log->updateAnchorList<_atomic>();
   }
@@ -213,12 +214,12 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     if (new_buffer != NULL) {
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
-      rtgc_log(true, "Reusing LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "Recycling LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
-      rtgc_log(true, "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();
@@ -248,7 +249,7 @@ RtThreadLocalData::~RtThreadLocalData() {
 
 
 void UpdateLogBuffer::process_update_logs() {
-  rtgc_log(true, "process_update_logs %p, %p, %p\n", 
+  rtgc_log(LOG_OPT(1), "process_update_logs %p, %p, %p\n", 
       g_free_buffer_q, g_active_buffer_q, g_inactive_buffer_q);
   Klass* intArrayKlass = Universe::intArrayKlassObj();
   for (UpdateLogBuffer* buffer = g_active_buffer_q; buffer != NULL; buffer = buffer->_next) {
