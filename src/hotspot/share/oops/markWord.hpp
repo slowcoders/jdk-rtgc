@@ -140,8 +140,13 @@ class markWord {
   static const int biased_lock_shift              = lock_bits;
   static const int age_shift                      = lock_bits + biased_lock_bits;
   static const int unused_gap_shift               = age_shift + age_bits;
+#ifdef INCLUDE_RTGC
+  static const int hash_shift                     = 32;
+  static const int epoch_shift                    = unused_gap_shift + unused_gap_bits;
+#else  
   static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
   static const int epoch_shift                    = hash_shift;
+#endif
 
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;

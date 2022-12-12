@@ -13,6 +13,15 @@ namespace RTGC {
 
 static const int 	TRACKABLE_BIT = 1;
 
+struct AnchorFlags {
+	struct {
+		uint32_t _jvmFlags: 7;
+		uint32_t _hasMultiRef: 1;
+		uint32_t _shortCutId: 24;
+	}; 
+	uint32_t _refs;
+};
+
 struct GCFlags {
 	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;

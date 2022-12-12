@@ -880,6 +880,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       if (hash != 0) {                     // if it has a hash, just return it
         return hash;
       }
+      // zee RTGC-HASH
       hash = get_next_hash(current, obj);  // get a new hash
       temp = mark.copy_set_hash(hash);     // merge the hash into header
                                            // try to install the hash

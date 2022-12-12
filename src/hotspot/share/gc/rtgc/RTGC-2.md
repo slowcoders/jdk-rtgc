@@ -36,6 +36,16 @@
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
    * Array-Item 은 64bit 로??
 
+
+객체 상태별 lock 정보 https://taes-k.github.io/2021/08/29/java-biased-lock/
+- lock_mask_in_place          0x__3
+- biased_lock_bit_in_place    0x__4
+- biased_lock_mask_in_place   0x__7
+- age_mask_in_place           0x_78
+- unused_gap_bits_in_place    0x_80
+- epoch_mask_in_place         0x300
+- hash_mask_in_place   0x7fffffff00
+
 1) Flags
 2) RootRefCount
 3) ShortcutId
