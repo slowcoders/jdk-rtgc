@@ -30,50 +30,13 @@ public:
 		// _nodeType = (int)type;
 	} 
 
-	ReferrerList* getReferrerList();
-
 	int getReferrerCount();
 
-	SafeShortcut* getShortcut();
-
-	GCObject* getSafeAnchor();
-
-	void setSafeAnchor(GCObject* anchor);
-
-	int getShortcutId() {
-		return this->_shortcutId;
-	}
-
-	void setShortcutId_unsafe(int shortcutId) {
-		this->_shortcutId = shortcutId;
-	}
-
-	void invalidateSafeAnchor() {
-		// no-shortcut. no safe-anchor.
-		setShortcutId_unsafe(NO_SAFE_ANCHOR);
-	}
-
 	bool hasReferrer(GCObject* referrer);
-
-	bool hasSafeAnchor() {
-		return getShortcutId() > NO_SAFE_ANCHOR;
-	}
 
 	bool isUnsafeTrackable() {
 		return isTrackable() && getRootRefCount() <= 1 && !hasSafeAnchor();
 	}
-
-	void invalidateShortcutId() {
-		precond(hasSafeAnchor());
-		// no-shortcut. but this has valid safe-anchor.
-		setShortcutId_unsafe(INVALID_SHORTCUT);
-	}
-
-	bool hasShortcut() {
-		return getShortcutId() > INVALID_SHORTCUT;
-	}
-
-	GCObject* getSingleAnchor();
 
 	void invaliateSurvivalPath(GCObject* newTail);
 

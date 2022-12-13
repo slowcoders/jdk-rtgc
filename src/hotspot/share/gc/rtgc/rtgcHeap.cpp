@@ -380,7 +380,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "must trackable %p(%s)\n", node, RTGC::getClassName(node));
 
-    assert(node->isAnchored() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
+    assert(nx.isAnchored() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
         "invalid link %p(%s) -> %p(%s)\n", 
         anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
 
@@ -401,7 +401,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   precond(!node->isGarbageMarked());
   
   assert(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
-    node->isStrongRootReachable() || node->isAnchored() || node->isUnstableMarked(),
+    node->isStrongRootReachable() || nx.isAnchored() || node->isUnstableMarked(),
       " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
@@ -501,9 +501,9 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     add_young_root(old_p, forwardee);
   }
 
-  if (node->isAnchored()) {
+  if (nx.isAnchored()) {
     if (node->hasMultiRef()) {
-      ReferrerList* referrers = node->getReferrerList();
+      ReferrerList* referrers = node->getAnchorList();
       assert(!referrers->isTooSmall(), "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
       for (ReverseIterator it(referrers); it.hasNext(); ) {
         ShortOOP* ptr = (ShortOOP*)it.getAndNext();
@@ -602,15 +602,15 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p, false) || (node->isTrackable() ? !node->isUnreachable() : node->isAnchored())) {
+  if (is_alive(p, false) || (node->isTrackable() ? !node->isUnreachable() : nx.isAnchored())) {
     rtHeapEx::print_ghost_anchors(to_obj(p));
   }
 
   assert(is_destroyed(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d ghost=%d\n", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->isAnchored(), node->isUnstableMarked(),
+        node->isTrackable(), node->getRootRefCount(), nx.isAnchored(), node->isUnstableMarked(),
         rtHeapEx::print_ghost_anchors(to_obj(p)));
-  precond(node->isTrackable() ? node->isUnreachable() : !node->isAnchored());
+  precond(node->isTrackable() ? node->isUnreachable() : !nx.isAnchored());
   return;
 }
 

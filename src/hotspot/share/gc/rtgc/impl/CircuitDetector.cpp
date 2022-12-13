@@ -99,7 +99,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
 
                 SafeShortcut* shortcut = top->getShortcut();
                 precond(shortcut->inTracing());
-                precond(top->isAnchored());
+                precond(top->getReferrerCount() > 0);
                 //postcond(!_visitedNodes.contains(top));
 
                 shortcut->unmarkInTracing();
@@ -131,7 +131,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         rtgc_log(LOG_OPT(7), "findSurvivalPath %p:%d[%d] vn=%d\n", 
             R, R->getShortcutId(), _trackers.size(), _visitedNodes.size());
 
-        if (R->isAnchored()) {
+        if (nx.isAnchored()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
                 debug_only(shortcut->vailidateShortcut();)
@@ -179,7 +179,7 @@ void GarbageProcessor::constructShortcut() {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
         if (link != NULL) {
-            assert(link->isAnchored(),
+            assert(link->getReferrerCount() > 0,
                 "link has no anchor %p:%d\n", obj, obj->getShortcutId());
             link->setSafeAnchor(obj);
         } else {

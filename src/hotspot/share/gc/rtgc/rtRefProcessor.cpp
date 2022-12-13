@@ -260,10 +260,10 @@ namespace RTGC {
           rtgc_log(false && _refList.ref_type() == REF_SOFT, 
               "garbage soft ref %p\n", (void*)_curr_ref);
           assert(!_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
-              "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d hasReferrer=%d ghost=%d\n", 
+              "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d ac=%d ghost=%d\n", 
               (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)), policy, 
               GenCollectedHeap::heap()->old_gen()->reserved().start(),
-              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->isAnchored(), 
+              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->getReferrerCount(), 
               rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
           this->remove_curr_ref(false);
           continue;
@@ -665,10 +665,10 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       bool is_gc_marked = cast_to_oop(referent)->is_gc_marked();
       precond(CLEAR_FINALIZE_REF || !referent->isGarbageMarked());
       assert(is_gc_marked == is_alive, 
-          "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d hasReferer=%d garbage=%d ghost=%d\n", 
+          "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d ac=%d garbage=%d ghost=%d\n", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
           referent->isUnstableMarked(), 
-          referent->isAnchored(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
+          referent->getReferrerCount(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
     }
     
     if (!is_alive) {
@@ -812,35 +812,6 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
   }
 }
 
-// void  __check_garbage_referents() {
-//   for (int i = 0; i < g_enqued_referents.size(); ) {
-//     oopDesc* ref_p = g_enqued_referents.at(i++);
-//     oopDesc* referent_p = g_enqued_referents.at(i++);
-
-//     ReferenceType refType = InstanceKlass::cast(ref_p->klass())->reference_type();
-//     precond(refType != REF_PHANTOM);
-
-//     GCObject* referent_node = to_obj(referent_p);
-//     g_cntGarbageRef ++;
-//     if (java_lang_ref_Reference::is_final(ref_p)) {
-//       rtgc_log(LOG_OPT(3), "final referent cleared * %p -> %p\n", (void*)ref_p, referent_node);
-//       precond(!referent_node->isGarbageMarked());
-//       assert(referent_node->getRootRefCount() == 0, "final refrent %p rc=%d\n",
-//           referent_node, referent_node->getRootRefCount());
-//     }
-//     else if (rtHeap::is_alive(referent_p)) {
-//       g_cntMisRef ++;
-//       rtgc_log(1, "++g_cntMisRef %s %p -> %p(%s) tr=%d, rc=%d, hasReferer=%d isClass=%d\n", 
-//           reference_type_to_string(refType), ref_p, referent_node, 
-//           RTGC::getClassName(referent_node),
-//           referent_node->isTrackable(), referent_node->getRootRefCount(),
-//           referent_node->isAnchored(), cast_to_oop(referent_node)->klass() == vmClasses::Class_klass());
-//     }
-//   }
-//   g_enqued_referents.resize(0);
-//   assert(g_cntMisRef == 0, "g_cntMisRef %d/%d\n", g_cntMisRef, g_cntGarbageRef);
-//   g_cntMisRef = g_cntGarbageRef = 0;
-// }
 
 
 

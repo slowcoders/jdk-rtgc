@@ -194,7 +194,7 @@ void AnchorIterator::initialize(GCObject* obj) {
         this->initSingleIterator((ShortOOP*)(void*)&obj->_refs);
     }
     else {
-        ReferrerList* referrers = obj->getReferrerList();
+        ReferrerList* referrers = obj->getAnchorList();
         this->initIterator(referrers);
     }
     // obj->initIterator(this);
