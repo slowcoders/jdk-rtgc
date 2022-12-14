@@ -707,8 +707,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       if (ref->isTrackable()) {
         RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
         if (referent->isTrackable() && !referent->hasSafeAnchor()) {
-          referent->setSafeAnchor(ref);
-          referent->setShortcutId_unsafe(INVALID_SHORTCUT);
+          MutableNode nx(referent);
+          nx.setSafeAnchor(ref);
+          nx.setShortcutId_unsafe(INVALID_SHORTCUT);
         }
       } else if (referent->isTrackable()) {
         // gc 종료 후 Unsafe List 등록되도록 한다.

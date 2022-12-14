@@ -1,4 +1,7 @@
 
+#ifndef SHARE_GC_RTGC_IMPL_RTGC_POINTER_HPP
+#define SHARE_GC_RTGC_IMPL_RTGC_POINTER_HPP
+
 #include <memory.h>
 #include "utilities/globalDefinitions_gcc.hpp"
 
@@ -17,12 +20,6 @@
 namespace RTGC {
 
 class GCObject;
-
-template <class T> 
-class GCObjectArray;
-
-template <class T> 
-class GCPrimitiveArray;
 
 uint32_t _pointer2offset(void* ref);
 
@@ -85,3 +82,4 @@ public:
 };
 
 }
+#endif // SHARE_GC_RTGC_IMPL_RTGC_POINTER_HPP

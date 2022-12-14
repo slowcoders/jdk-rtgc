@@ -37,7 +37,7 @@ namespace RTGC {
 #define PTR_DBG_SIG "%p(%s) tr=%d rc=%d ac=%d g=%d sc=[%d] cls=%d u=%d m=%d\n"
 #define PTR_DBG_INFO(obj) (void*)obj, RTGC::getClassName(obj), \
   RTGC::to_obj(obj)->isTrackable(), RTGC::to_obj(obj)->getRootRefCount(), RTGC::to_obj(obj)->getReferrerCount(), \
-  RTGC::to_obj(obj)->isGarbageMarked(), RTGC::to_obj(obj)->getShortcutId(), \
+  RTGC::to_obj(obj)->isGarbageMarked(), RTGC::to_obj(obj)->getNodeInfo().getShortcutId(), \
    cast_to_oop(obj)->klass() == vmClasses::Class_klass(), \
   RTGC::to_obj(obj)->isUnstableMarked(), cast_to_oop(obj)->is_gc_marked()
 

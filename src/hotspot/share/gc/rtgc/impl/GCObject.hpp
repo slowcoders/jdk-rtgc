@@ -30,12 +30,10 @@ public:
 		// _nodeType = (int)type;
 	} 
 
-	int getReferrerCount();
-
 	bool hasReferrer(GCObject* referrer);
 
 	bool isUnsafeTrackable() {
-		return isTrackable() && getRootRefCount() <= 1 && !hasSafeAnchor();
+		return isTrackable() && getRootRefCount() <= 1 && !getNodeInfo().hasSafeAnchor();
 	}
 
 	void invaliateSurvivalPath(GCObject* newTail);
@@ -61,6 +59,10 @@ public:
 	void clearAnchorList();
 
 	bool clearEmptyAnchorList();
+
+	void invalidateAnchorList_unsafe();
+
+
 
 private:
 	// return true if safe_anchor removed;
@@ -95,10 +97,13 @@ public:
 			s_id = getIndex(shortcut);
 		}
 		int cc = 0;
-		for (GCObject* node = tail; node != anchor; node = node->getSafeAnchor()) {
+		GCObject* next;
+		for (GCObject* node = tail; node != anchor; node = next) {
 			debug_only(precond(++cc < 10000));
-			precond(replace_shorcut || node->getShortcutId() <= INVALID_SHORTCUT);
-			node->setShortcutId_unsafe(s_id);
+			MutableNode nx(node);
+			precond(replace_shorcut || nx.getShortcutId() <= INVALID_SHORTCUT);
+			nx.setShortcutId_unsafe(s_id);
+			next = nx.getSafeAnchor();
 		}
 		if (shortcut != NULL) {
 	        // rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 

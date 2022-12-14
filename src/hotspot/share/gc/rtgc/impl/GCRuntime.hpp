@@ -77,8 +77,9 @@ public:
 	static void NO_INLINE dumpDebugInfos();
 
 	static bool markPublished(GCObject* obj) {
+		fatal("not implemented");
 		if (!obj->isPublished()) {
-			obj->_flags.isPublished = true;
+			// obj->_flags.isPublished = true;
 			return true;
 		}
 		return false;

@@ -177,13 +177,11 @@ void rtHeapUtil::resurrect_young_root(GCObject* node) {
   node->unmarkDirtyReferrerPoints();  
   oop anchor = g_young_root_closure->current_anchor();
   precond(rtHeap::in_full_gc || anchor == NULL);
-  if (false && anchor != NULL) {
-    precond(!node->hasSafeAnchor());
-    node->setSafeAnchor(to_obj(anchor));
-    node->setShortcutId_unsafe(INVALID_SHORTCUT);
-  } else {
-    node->invalidateSafeAnchor();
+  {
+    MutableNode nx(node);
+    nx.invalidateSafeAnchor();
   }
+
   rtgc_log(LOG_OPT(7), "resurrect obj %p(%s) -> %p(%s YR=%d)\n", 
       (void*)anchor, getClassName(anchor), node, getClassName(node), node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {

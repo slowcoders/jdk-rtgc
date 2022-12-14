@@ -301,7 +301,7 @@ int RTGC::is_debug_pointer(void* ptr) {
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
   if (!RTGC_DEBUG) return;
   if (destroy_old_node) {
-    to_node(old_p)->invalidateAnchorList_unsafe();
+    to_obj(old_p)->invalidateAnchorList_unsafe();
   }
   if (!REF_LINK_ENABLED) return;
   if (old_p == new_p) return;

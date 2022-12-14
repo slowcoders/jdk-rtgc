@@ -22,19 +22,14 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
 
 ReferrerList* NodeInfo::getAnchorList() {
     precond(_hasMultiRef);
-    return ReferrerList::getPointer(_refs.getOffset());
+    return ReferrerList::getPointer(_refs);
 }
 
-void NodeInfo::setAnchorList(ReferrerList* anchors) {
+void MutableNode::setAnchorList(ReferrerList* anchors) {
     precond(!_hasMultiRef);
     _refs = ReferrerList::getIndex(anchors);
     _hasMultiRef = true;
 	debug_only(_isModified = true;)
-}
-
-void NodeInfo::setSingleAnchor(GCObject* anchor) {
-    precond(!_hasMultiRef);
-    _refs = _pointer2offset(anchor);
 }
 
 GCObject* NodeInfo::getSafeAnchor() {
@@ -50,7 +45,7 @@ GCObject* NodeInfo::getSafeAnchor() {
     return front;
 }
 
-void NodeInfo::setSafeAnchor(GCObject* anchor) {
+void MutableNode::setSafeAnchor(GCObject* anchor) {
     // assert(isAnchored() && SafeShortcut::isValidIndex(this->getShortcutId()), 
     //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
@@ -61,7 +56,7 @@ void NodeInfo::setSafeAnchor(GCObject* anchor) {
     }
     else {
         assert(getSingleAnchor() == anchor, "incorrect safe anchor(%p) for this(%p). it must be (%p)",
-            anchor, this, front);
+            anchor, this, (GCObject*)getSingleAnchor());
     }
     // this->setShortcutId_unsafe(INVALID_SHORTCUT);
 }
@@ -72,10 +67,11 @@ SafeShortcut* NodeInfo::getShortcut() {
 }
 
 
-int GCObject::getReferrerCount() {
-    if (!getNodeInfo().isAnchored()) return 0;
-    if (!this->hasMultiRef()) return 1;
-    ReferrerList* referrers = getAnchorList();
+int GCNode::getReferrerCount() {
+    NodeInfo nx = this->getNodeInfo();
+    if (!nx.isAnchored()) return 0;
+    if (!nx.hasMultiRef()) return 1;
+    ReferrerList* referrers = nx.getAnchorList();
     return referrers->approximated_item_count();
 }
 
@@ -85,22 +81,22 @@ void GCObject::addReferrer(GCObject* referrer) {
      */
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
-    NodeInfo nx = this->getNodeInfo();
-    if (!nx.isAnchored()) {
+    NodeInfo rt(this);
+    if (!rt.isAnchored()) {
+        MutableNode nx(this, rt);
         nx.setSingleAnchor(referrer);
         postcond(referrer == nx.getSingleAnchor());
-        this->setNodeInfo(nx);
     }
     else {
         ReferrerList* referrers;
-        if (!nx.hasMultiRef()) {
+        if (!rt.hasMultiRef()) {
             referrers = ReferrerList::allocate();
-            referrers->init(nx.getSingleAnchor(), referrer);
+            referrers->init(rt.getSingleAnchor(), referrer);
+            MutableNode nx(this, rt);
             nx.setAnchorList(referrers);
-            this->setNodeInfo(nx);
         }
         else {
-            referrers = nx.getAnchorList();
+            referrers = rt.getAnchorList();
             referrers->push_back(referrer);
         }
     }
@@ -123,30 +119,32 @@ bool GCObject::hasReferrer(GCObject* referrer) {
 template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
     precond(referrer != this);
-    NodeInfo nx = this->getNodeInfo();
-    if (!must_exist && !nx.isAnchored()) return -1;
 
-    assert(nx.isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
+    NodeInfo rt(this);
+    if (!must_exist && !rt.isAnchored()) return -1;
+
+    assert(rt.isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
     rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from " PTR_DBG_SIG, 
             referrer, RTGC::getClassName(referrer), 
             cast_to_oop(referrer)->is_gc_marked(), PTR_DBG_INFO(this)); 
 
-    if (!hasMultiRef()) {
-        if (!must_exist && nx.getSingleAnchor() != referrer) return -1;
+    if (!rt.hasMultiRef()) {
+        if (!must_exist && rt.getSingleAnchor() != referrer) return -1;
 
-        assert(_refs == _pointer2offset(referrer), 
+        assert(rt.getSingleAnchor() == referrer, 
             "referrer %p(%s) != %p in %p(%s) \n", 
             referrer, RTGC::getClassName(referrer),
-            _offset2Object(_refs),
+            (GCObject*)rt.getSingleAnchor(),
             this, RTGC::getClassName(this));
+        MutableNode nx(this, rt);
         nx.removeSingleAnchor();
-        this->setNodeInfo(nx);
+        rt = nx;
         rtgc_debug_log(this, "anchor-list cleared by removeReferrer %p\n", this);
     }
     else {
-        ReferrerList* referrers = getAnchorList();
+        ReferrerList* referrers = rt.getAnchorList();
         const void* removed;
         if (remove_mutiple_items) {
             removed = referrers->removeMatchedItems(referrer);
@@ -171,10 +169,15 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
             this, RTGC::getClassName(this));
 
         bool first_item_removed = removed == referrers->firstItemPtr();
+        MutableNode nx(this, rt);
         if (reallocReferrerList && referrers->isTooSmall()) {
-            this->_refs = referrers->empty() ? 0 : referrers->front().getOffset();
+            nx.setHasMultiRef(false);
+            if (referrers->empty()) {
+                nx.removeSingleAnchor();
+            } else {
+                nx.setSingleAnchor(referrers->front());
+            }
             ReferrerList::delete_(referrers);
-            setHasMultiRef(false);
         } else {
             postcond(!reallocReferrerList || !referrers->empty());
         }
@@ -182,17 +185,19 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         if (!first_item_removed) {
             return +1;
         }
+        rt = nx;
     }
 
-    if (!nx.hasSafeAnchor()) {
-        return nx.isAnchored() ? 1 : 0;
+    if (!rt.hasSafeAnchor()) {
+        return rt.isAnchored() ? 1 : 0;
     }
 
-    if (nx.hasShortcut()) {
-		SafeShortcut* shortcut = this->getShortcut();
+    if (rt.hasShortcut()) {
+		SafeShortcut* shortcut = rt.getShortcut();
         shortcut->split(referrer, this);
     } 
-    else {
+    else if (rt.hasSafeAnchor()) {
+        MutableNode nx(this, rt);
         nx.invalidateSafeAnchor();
     }
 
@@ -237,36 +242,41 @@ bool GCObject::containsReferrer(GCObject* referrer) {
     }
 }
 
+void GCObject::invalidateAnchorList_unsafe() {
+    MutableNode nx(this);
+    nx.setHasMultiRef(false);
+	nx.removeSingleAnchor();
+}
+
 void GCObject::clearAnchorList() {
     rtgc_debug_log(this, "all anchor removed from " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    NodeInfo nx = getNodeInfo();
+    MutableNode nx(this);
     precond(!nx.hasShortcut());
     if (nx.hasMultiRef()) {
         ReferrerList* referrers = nx.getAnchorList();
         ReferrerList::delete_(referrers);
         nx.setHasMultiRef(false);
-    }    
-    this->_refs = 0;
-    this->setNodeInfo(nx);
+    }
+    nx.removeSingleAnchor();    
 }
 
 bool GCObject::clearEmptyAnchorList() {
-    NodeInfo nx = getNodeInfo();
-    if (nx.hasMultiRef()) {
-        ReferrerList* referrers = nx.getAnchorList();
+    NodeInfo rt(this);
+    if (rt.hasMultiRef()) {
+        ReferrerList* referrers = rt.getAnchorList();
         if (referrers->isTooSmall()) {
+            MutableNode nx(this, rt);
             precond(!nx.hasShortcut());
+            nx.setHasMultiRef(false);
             if (referrers->empty()) {
                 nx.removeSingleAnchor();
             } else {
                 nx.setSingleAnchor(referrers->front());
             }
             ReferrerList::delete_(referrers);
-            nx.setHasMultiRef(false);
-            this->setNodeInfo(nx);
         }
     }    
-    return this->_refs == 0;
+    return !nx.isAnchored();
 }
 
 void GCObject::removeAllAnchors() {
@@ -284,12 +294,12 @@ void GCObject::removeAllAnchors() {
 
 
 void GCObject::invaliateSurvivalPath(GCObject* newTail) {
-    NodeInfo nx = getNodeInfo();
-	if (nx.getShortcutId() > 0) {
-		SafeShortcut* shortcut = nx.getShortcut();
+    NodeInfo rt = getNodeInfo();
+	if (rt.getShortcutId() > 0) {
+		SafeShortcut* shortcut = rt.getShortcut();
         shortcut->split(newTail, this);
+        MutableNode nx(this, rt);
     	nx.setShortcutId_unsafe(0);
-        this->setNodeInfo(nx);
 	}
 }
 

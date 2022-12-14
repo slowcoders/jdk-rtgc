@@ -17,13 +17,13 @@ const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
     assert(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    return (_flags.rootRefCount += 2);
+    return (flags().rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
     assert(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    assert(_flags.rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    return (_flags.rootRefCount -= 2);
+    assert(flags().rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
+    return (flags().rootRefCount -= 2);
 }
 
 bool GCRuntime::detectUnsafeObject(GCObject* erased) {
@@ -164,7 +164,7 @@ void GCRuntime::adjustShortcutPoints() {
         if (p->isValid()) {
 #ifdef ASSERT
             if (!cast_to_oop((GCObject*)p->anchor())->is_gc_marked()) {
-                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
+                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getNodeInfo().getSafeAnchor()) {
                     rtgc_log(1, "node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }
