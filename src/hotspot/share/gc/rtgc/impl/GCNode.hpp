@@ -32,16 +32,11 @@ protected:
 
 	uint32_t _refs;
 
-	GCNode* _obj;
-
 public:
 	NodeInfo(GCNode* obj);
-	~NodeInfo();
-
-	void release();
 
 	void ensureLocked() {
-		precond(_obj != NULL);
+		precond(_refs != (uint32_t)-1);
 	}
 
 	bool isAnchored() {
@@ -83,11 +78,13 @@ public:
 };
 
 class MutableNodeInfo : public NodeInfo {
+	GCNode* _obj;
 public:
-	MutableNodeInfo(GCNode* obj) : NodeInfo(obj) {}
+	MutableNodeInfo(GCNode* obj);
 	~MutableNodeInfo();
 
 	void updateNow();
+	void release();
 
 	void setHasMultiRef(bool multiRef) {
 		_hasMultiRef = multiRef;
@@ -172,6 +169,9 @@ public:
 	}
 
 	void clearFlags() { 
+		if (FAT_OOP) {
+			((int64_t*)this)[1] = 0;
+		}
 		*(uint64_t*)&flags() = 0;
 	}
 
@@ -374,8 +374,7 @@ public:
 };
 
 inline NodeInfo::NodeInfo(GCNode* obj) {
-	debug_only(_obj = obj;)
-	debug_only(obj->lockNodeInfo();)
+	debug_only(!obj->isNodeLocked();)
 
 	markWord& _mark = *(markWord*)this;
 	if (FAT_OOP) {
@@ -387,22 +386,19 @@ inline NodeInfo::NodeInfo(GCNode* obj) {
 	}
 }
 
-inline void NodeInfo::release() {
+inline MutableNodeInfo::MutableNodeInfo(GCNode* obj) : NodeInfo(obj) {
+	_obj = obj;
+	debug_only(obj->lockNodeInfo();)
+}
+
+inline void MutableNodeInfo::release() {
 #ifdef ASSERT
 	ensureLocked();
 	precond(!_isModified);
 	_obj->releaseNodeInfo();
-	_obj = NULL;
+	_refs = -1;
 #endif
 }
-
-inline NodeInfo::~NodeInfo() {
-#ifdef ASSERT
-	if (_obj != NULL) {
-		_obj->releaseNodeInfo();
-	}
-#endif
-};
 
 inline void MutableNodeInfo::updateNow() {
 	debug_only(_isModified = false;)
@@ -419,7 +415,12 @@ inline void MutableNodeInfo::updateNow() {
 }
 
 inline MutableNodeInfo::~MutableNodeInfo() {
+#ifdef ASSERT
 	precond(!_isModified);
+	if (_obj != NULL) {
+		_obj->releaseNodeInfo();
+	}
+#endif
 };
 
 class NodeInfoEditor : public MutableNodeInfo {
@@ -427,7 +428,6 @@ public:
 	NodeInfoEditor(GCNode* obj) : MutableNodeInfo(obj) {}
 	~NodeInfoEditor() { 
 		updateNow();
-		MutableNodeInfo::~MutableNodeInfo();
 	}
 };
 }

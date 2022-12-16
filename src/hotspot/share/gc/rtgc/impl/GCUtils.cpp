@@ -187,7 +187,7 @@ const void* ReferrerList::removeMatchedItems(ShortOOP item) {
 }
 
 void AnchorIterator::initialize(GCObject* obj) {
-    NodeInfo nx = obj->getNodeInfo();
+    NodeInfo nx(obj);
     if (!nx.isAnchored()) {
         this->initEmpty();
     }

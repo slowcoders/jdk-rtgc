@@ -81,6 +81,7 @@ template<bool scanStrongPathOnly>
 bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
     AnchorIterator* it = _trackers.push_empty();
     it->initSingleIterator(&tail);
+    rtgc_log(true, "findSurvivalPath\n");
     while (true) {
         while (!it->hasNext()) {
             _trackers.pop_back();
@@ -115,7 +116,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         GCObject* R = it->next();
-        NodeInfo nx = R->getNodeInfo();
+        MutableNodeInfo nx(R);
         SafeShortcut* shortcut = nx.getShortcut();
 
         if (R->isGarbageMarked() || shortcut->inContiguousTracing(R, &shortcut)) {
@@ -181,9 +182,9 @@ void GarbageProcessor::constructShortcut() {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getNodeInfo().getShortcutId());
         if (link != NULL) {
-            NodeInfoEditor nx(link);
             assert(link->getReferrerCount() > 0,
                 "link has no anchor %p:%d\n", obj, obj->getNodeInfo().getShortcutId());
+            NodeInfoEditor nx(link);
             nx.setSafeAnchor(obj);
         } else {
             precond (lastShortcut == NULL || obj == lastShortcut->anchor());
@@ -400,7 +401,7 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
         return false;
     }
     while (node->getRootRefCount() == 0) {
-        NodeInfo nx = node->getNodeInfo();
+        NodeInfo nx(node);
         if (!nx.hasSafeAnchor()) {
             addUnstable(tail);
             return false;

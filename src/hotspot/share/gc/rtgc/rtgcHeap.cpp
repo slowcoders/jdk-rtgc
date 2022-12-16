@@ -499,7 +499,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
     add_young_root(old_p, forwardee);
   }
 
-  NodeInfo nx(node);
+  MutableNodeInfo nx(node);
   if (nx.isAnchored()) {
     if (nx.hasMultiRef()) {
       ReferrerList* referrers = nx.getAnchorList();
