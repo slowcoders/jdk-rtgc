@@ -270,11 +270,11 @@ LIR_Opr getTrackableMark(LIRAccess& access, BarrierSetC1* c1 = NULL) {
   if (true) {
     LIR_Address* flag_addr =
       new LIR_Address(base.result(),
-                      offset_of(RTGC::GCNode, _flags),
+                      RTGC::GCNode::flags_offset(),
                       T_INT);
     __ load(flag_addr, trMark);
   } else {
-    LIR_Opr flags_offset = LIR_OprFact::intConst(offset_of(RTGC::GCNode, _flags));
+    LIR_Opr flags_offset = LIR_OprFact::intConst(RTGC::GCNode::flags_offset());
     LIRAccess load_flag_access(gen, IN_HEAP, base, flags_offset, T_INT, 
           NULL/*access.patch_emit_info()*/, NULL);//access.access_emit_info());  
     c1->BarrierSetC1::load_at(load_flag_access, trMark);

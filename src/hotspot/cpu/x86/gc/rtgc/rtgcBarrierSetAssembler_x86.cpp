@@ -112,7 +112,7 @@ static void __checkTrackable(MacroAssembler* masm, Register base, Label& rawAcce
     __ cmpptr(base, trackable_start);
     __ jcc(Assembler::less, rawAccess);
   } else {
-    ByteSize offset_gc_flags = in_ByteSize(offset_of(RTGC::GCNode, _flags));
+    ByteSize offset_gc_flags = in_ByteSize(RTGC::GCNode::flags_offset());
     __ movl(tmp3, Address(base, offset_gc_flags));
     __ testl(tmp3, (int32_t)RTGC::TRACKABLE_BIT);
     __ jcc(Assembler::zero, rawAccess);

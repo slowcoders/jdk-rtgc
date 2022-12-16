@@ -32,25 +32,30 @@ protected:
 
 	uint32_t _refs;
 
-	NodeInfo() {}
+	GCNode* _obj;
 
 public:
-	NodeInfo(uint64_t v) {
-		*(uint64_t*)this = v;
-		precond(!_isModified);
+	NodeInfo(GCNode* obj);
+	~NodeInfo();
+
+	void release();
+
+	void ensureLocked() {
+		precond(_obj != NULL);
 	}
 
-	NodeInfo(GCNode* obj);
-
 	bool isAnchored() {
+		ensureLocked();
 		return _refs != 0;
 	}
 
 	bool hasMultiRef() {
+		ensureLocked();
 		return _hasMultiRef != 0;
 	}
 
 	ShortOOP& getSingleAnchor() {
+		ensureLocked();
 		precond(!_hasMultiRef && _refs != 0);
 		return *(ShortOOP*)&_refs;
 	}
@@ -58,43 +63,47 @@ public:
 	ReferrerList* getAnchorList();
 
 	bool hasShortcut() {
+		ensureLocked();
 		return getShortcutId() > INVALID_SHORTCUT;
 	}
 
 	SafeShortcut* getShortcut();
 
 	int getShortcutId() {
+		ensureLocked();
 		return this->_shortcutId;
 	}
 
 	GCObject* getSafeAnchor();
 
 	bool hasSafeAnchor() {
+		ensureLocked();
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}
 };
 
-class MutableNode : public NodeInfo {
-	GCNode* _obj;
+class MutableNodeInfo : public NodeInfo {
 public:
-	MutableNode(GCNode* obj, NodeInfo info);
-	MutableNode(GCNode* obj);
-	~MutableNode();
+	MutableNodeInfo(GCNode* obj) : NodeInfo(obj) {}
+	~MutableNodeInfo();
 
 	void updateNow();
 
 	void setHasMultiRef(bool multiRef) {
 		_hasMultiRef = multiRef;
+		markModified();
 	}
 
 	void setSingleAnchor(ShortOOP anchor) {
 		precond(!_hasMultiRef);
 		_refs = anchor.getOffset();
+		markModified();
 	}
 
 	void removeSingleAnchor() {
 		precond(!_hasMultiRef);
 		_refs = 0;
+		markModified();
 	}
 
 	void setAnchorList(ReferrerList* anchors);
@@ -102,6 +111,7 @@ public:
 
 	void setShortcutId_unsafe(int shortcutId) {
 		this->_shortcutId = shortcutId;
+		markModified();
 	}
 
 	void setSafeAnchor(GCObject* anchor);
@@ -109,12 +119,19 @@ public:
 	void invalidateSafeAnchor() {
 		// no-shortcut. no safe-anchor.
 		setShortcutId_unsafe(NO_SAFE_ANCHOR);
+		markModified();
 	}
 
 	void invalidateShortcutId() {
 		precond(hasSafeAnchor());
 		// no-shortcut. but this has valid safe-anchor.
 		setShortcutId_unsafe(INVALID_SHORTCUT);
+		markModified();
+	}
+
+	void markModified() {
+		ensureLocked();
+		debug_only(_isModified = true;)
 	}
 };
 
@@ -137,51 +154,29 @@ struct GCFlags {
 
 static const bool FAT_OOP = true;
 
-class GCNode : private oopDesc {
-
+class GCNode : public oopDesc {
+friend class MutableNodeInfo;
 	GCFlags& flags() {
-		precond(sizeof(GCFlags) == sizeof(uint64_t));
-		if (FAT_OOP) {
-			return ((GCFlags*)this)[2];
-		}
-		return *(GCFlags*)((uintptr_t)this + oopDesc::klass_gap_offset_in_bytes());
+		return *(GCFlags*)((uintptr_t)this + flags_offset());
 	}
 
 public:
 	static int _cntTrackable;
 	static void* g_trackable_heap_start;
 
+	static int flags_offset() {
+		if (FAT_OOP) {
+			return sizeof(int64_t) * 2;
+		}
+		return oopDesc::klass_gap_offset_in_bytes();
+	}
+
 	void clearFlags() { 
 		*(uint64_t*)&flags() = 0;
 	}
 
 	NodeInfo getNodeInfo() {
-		precond(sizeof(NodeInfo) == sizeof(uint64_t));
-		precond(!flags().isNodeLocked);
-		if (FAT_OOP) {
-			return NodeInfo(((uint64_t*)this)[1]);
-		}
-		markWord m;
-		if (has_displaced_mark()) {
-			m = displaced_mark();
-		} else {
-			m = mark();
-		}
-		return NodeInfo(m.value());
-	}
-
-	void setNodeInfo(NodeInfo* nx) {
-		precond(sizeof(NodeInfo) == sizeof(uint64_t));
-		if (FAT_OOP) {
-			((NodeInfo*)this)[1] = *nx;
-			return;
-		}
-		markWord m = *(markWord*)nx;
-		if (has_displaced_mark()) {
-			set_displaced_mark(m);
-		} else {
-			set_mark(m);
-		}
+		return NodeInfo(this);
 	}
 
 	void markDirtyReferrerPoints() {
@@ -361,6 +356,11 @@ public:
 		flags().contextFlag = false;
 	}
 
+#ifdef ASSERT
+	bool isNodeLocked() {
+		return flags().isNodeLocked;
+	}
+
 	void lockNodeInfo() {
 		precond(!flags().isNodeLocked);
 		debug_only(flags().isNodeLocked = true;)
@@ -370,24 +370,65 @@ public:
 		precond(flags().isNodeLocked);
 		debug_only(flags().isNodeLocked = false;)
 	}
+#endif
 };
 
-NodeInfo::NodeInfo(GCNode* obj) {
-	*(NodeInfo*)this = obj->getNodeInfo();
+inline NodeInfo::NodeInfo(GCNode* obj) {
+	debug_only(_obj = obj;)
+	debug_only(obj->lockNodeInfo();)
+
+	markWord& _mark = *(markWord*)this;
+	if (FAT_OOP) {
+		_mark = ((markWord*)obj)[1];
+	} else if (obj->has_displaced_mark()) {
+		_mark = obj->displaced_mark();
+	} else {
+		_mark = obj->mark();
+	}
 }
 
-MutableNode::MutableNode(GCNode* obj, NodeInfo info) {
-	*(NodeInfo*)this = obj->getNodeInfo();
-	_obj = obj;
-	obj->lockNodeInfo();
-}
-
-MutableNode::MutableNode(GCNode* obj) {
-	MutableNode(obj, obj->getNodeInfo());
-}
-
-MutableNode::~MutableNode() {
+inline void NodeInfo::release() {
+#ifdef ASSERT
+	ensureLocked();
+	precond(!_isModified);
 	_obj->releaseNodeInfo();
+	_obj = NULL;
+#endif
+}
+
+inline NodeInfo::~NodeInfo() {
+#ifdef ASSERT
+	if (_obj != NULL) {
+		_obj->releaseNodeInfo();
+	}
+#endif
+};
+
+inline void MutableNodeInfo::updateNow() {
+	debug_only(_isModified = false;)
+	markWord m = *(markWord*)this;
+	if (FAT_OOP) {
+		((markWord*)_obj)[1] = m;
+	} else {
+		if (_obj->has_displaced_mark()) {
+			_obj->set_displaced_mark(m);
+		} else {
+			_obj->set_mark(m);
+		}
+	}
+}
+
+inline MutableNodeInfo::~MutableNodeInfo() {
+	precond(!_isModified);
+};
+
+class NodeInfoEditor : public MutableNodeInfo {
+public:
+	NodeInfoEditor(GCNode* obj) : MutableNodeInfo(obj) {}
+	~NodeInfoEditor() { 
+		updateNow();
+		MutableNodeInfo::~MutableNodeInfo();
+	}
 };
 }
 #endif // SHARE_GC_RTGC_IMPL_RTGCNODE_HPP

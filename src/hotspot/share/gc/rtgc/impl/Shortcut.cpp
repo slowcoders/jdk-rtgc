@@ -80,7 +80,7 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
         SafeShortcut::create(prev, _tail, MIN_SHORTCUT_LENGTH+1, true);
     }
     {
-        MutableNode nx(prev);
+        NodeInfoEditor nx(prev);
         nx.invalidateShortcutId();
     }
     rtgc_log(LOG_OPT(7), "split circular shortcut %d (%p->%p)\n", 
@@ -117,7 +117,7 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
         this->getIndex(), leftTail, getClassName(leftTail), 
         leftTail->getNodeInfo().getShortcutId(), leftTail->isGarbageMarked());
     {
-        MutableNode nx(rightAnchor);
+        NodeInfoEditor nx(rightAnchor);
         nx.invalidateSafeAnchor();
     }
 
@@ -176,7 +176,7 @@ bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
 
     GCObject* next;
     for (GCObject* obj = tail; obj != anchor; obj = next) {
-        MutableNode nx(obj);
+        NodeInfoEditor nx(obj);
         nx.invalidateShortcutId();
         next = nx.getSafeAnchor();
     }
@@ -190,7 +190,7 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
     GCObject* old_anchor = _anchor;
     GCObject* next;
     for (GCObject* obj = newAnchor; obj != old_anchor; obj = next) {
-        MutableNode nx(obj);
+        NodeInfoEditor nx(obj);
         nx.invalidateShortcutId();
         next = nx.getSafeAnchor();
     }
@@ -210,7 +210,7 @@ void SafeShortcut::shrinkTailTo(GCObject* newTail) {
 
     GCObject* next;
     for (GCObject* obj = _tail; obj != newTail; obj = next) {
-        MutableNode nx(obj);
+        NodeInfoEditor nx(obj);
         nx.invalidateShortcutId();
         next = nx.getSafeAnchor();
     }
@@ -233,7 +233,7 @@ void SafeShortcut::extendTail(GCObject* tail) {
     GCObject* old_tail = _tail;
     GCObject* next;
     for (GCObject* node = tail; node != old_tail; node = next) {
-        MutableNode nx(node);
+        NodeInfoEditor nx(node);
         nx.setShortcutId_unsafe(s_id);
         next = nx.getSafeAnchor();
     }
@@ -250,7 +250,7 @@ void SafeShortcut::extendAnchor(GCObject* anchor) {
 
     GCObject* next;
     for (GCObject* node = _anchor; node != anchor; node = next) {
-        MutableNode nx(node);
+        NodeInfoEditor nx(node);
         nx.setShortcutId_unsafe(s_id);
         next = nx.getSafeAnchor();
     }

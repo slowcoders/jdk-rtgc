@@ -100,7 +100,7 @@ public:
 		GCObject* next;
 		for (GCObject* node = tail; node != anchor; node = next) {
 			debug_only(precond(++cc < 10000));
-			MutableNode nx(node);
+			NodeInfoEditor nx(node);
 			precond(replace_shorcut || nx.getShortcutId() <= INVALID_SHORTCUT);
 			nx.setShortcutId_unsafe(s_id);
 			next = nx.getSafeAnchor();

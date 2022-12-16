@@ -151,6 +151,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
                     shortcut->shrinkAnchorTo(R);
                 }
             }
+            nx.release();
             it->initialize(R);
         }
 
@@ -180,7 +181,7 @@ void GarbageProcessor::constructShortcut() {
         GCObject* obj = ait->peekPrev();        
         rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getNodeInfo().getShortcutId());
         if (link != NULL) {
-            MutableNode nx(link);
+            NodeInfoEditor nx(link);
             assert(link->getReferrerCount() > 0,
                 "link has no anchor %p:%d\n", obj, obj->getNodeInfo().getShortcutId());
             nx.setSafeAnchor(obj);
@@ -233,7 +234,7 @@ void GarbageProcessor::constructShortcut() {
          * 해당 shortcut 이 valid 한 지는 현재 확인되지 않았다. 
          */
         {
-            MutableNode nx(link);
+            NodeInfoEditor nx(link);
             nx.setSafeAnchor(root);
         }
         if (lastShortcut != NULL) {
