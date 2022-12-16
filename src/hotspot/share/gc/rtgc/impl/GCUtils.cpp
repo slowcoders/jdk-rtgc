@@ -1,8 +1,10 @@
-#include "gc/rtgc/rtgcGlobals.hpp"
-#include "oops/compressedOops.hpp"
-#include "GCObject.hpp"
+#include "runtime/globals.hpp"
 #include "memory/virtualspace.hpp"
+#include "oops/oopHandle.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "oops/compressedOops.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
+#include "GCObject.hpp"
 #include "../rtHeapEx.hpp"
 
 using namespace RTGC;
