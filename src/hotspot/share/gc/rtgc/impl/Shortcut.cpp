@@ -70,37 +70,34 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
     GCObject* prev;
     while (true) {
         prev = obj;
-        obj = obj->getNodeInfo().getSafeAnchor();
+        obj = obj->node_()->getSafeAnchor();
         if (obj == anchor) return true;
-        precond(obj->getNodeInfo().getShortcut() == this);
+        precond(obj->node_()->getShortcut() == this);
         if (obj == _inTracing) break;
     }
     bool cut_tail = clearTooShort(prev, _tail);
     if (!cut_tail) {
         SafeShortcut::create(prev, _tail, MIN_SHORTCUT_LENGTH+1, true);
     }
-    {
-        NodeInfoEditor nx(prev);
-        nx.invalidateShortcutId();
-    }
+    prev->getMutableNode()->invalidateShortcutId();
     rtgc_log(LOG_OPT(7), "split circular shortcut %d (%p->%p)\n", 
         (*ppShortcut)->getIndex(*ppShortcut), (void*)_anchor, _inTracing);
-    *ppShortcut = jump_in->getNodeInfo().getShortcut();
+    *ppShortcut = jump_in->node_()->getShortcut();
     this->_tail = _inTracing;
     return false;
 }
 
 
 void SafeShortcut::vailidateShortcut() {
-    precond(_anchor->getNodeInfo().getShortcut() != this);
+    precond(_anchor->node_()->getShortcut() != this);
     GCObject* anchor = _anchor;
     assert(anchor->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
     debug_only(int cnt = 0;)
     GCObject* tail = this->_tail;
-    for (GCObject* obj = _tail; obj != anchor; obj = obj->getNodeInfo().getSafeAnchor()) {
+    for (GCObject* obj = _tail; obj != anchor; obj = obj->node_()->getSafeAnchor()) {
         assert(obj->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(obj));
         //rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
-        assert(obj->getNodeInfo().getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
+        assert(obj->node_()->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
             obj, RTGC::getClassName(obj), getIndex(this));
     }
     //rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
@@ -111,16 +108,13 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
 
     assert(this->isValid(), "shotcut[%d] is invalid\nleftTail=" PTR_DBG_SIG "rightAnchor=" PTR_DBG_SIG "\n", 
         getIndex(this), PTR_DBG_INFO(leftTail), PTR_DBG_INFO(rightAnchor));
-    precond(rightAnchor->getNodeInfo().getShortcut() == this);
-    assert(leftTail->getNodeInfo().getShortcut() == this || leftTail == this->anchor(), 
+    precond(rightAnchor->node_()->getShortcut() == this);
+    assert(leftTail->node_()->getShortcut() == this || leftTail == this->anchor(), 
         "wrong tail [%d] -> %p(%s) [%d] gm = %d\n", 
         this->getIndex(), leftTail, getClassName(leftTail), 
-        leftTail->getNodeInfo().getShortcutId(), leftTail->isGarbageMarked());
-    {
-        NodeInfoEditor nx(rightAnchor);
-        nx.invalidateSafeAnchor();
-    }
+        leftTail->node_()->getShortcutId(), leftTail->isGarbageMarked());
 
+    rightAnchor->getMutableNode()->invalidateSafeAnchor();
     if (leftTail == this->_anchor) {
         if (clearTooShort(rightAnchor, _tail)) {
             rtgc_log(LOG_OPT(10), "split shortcut[%d]: deleted 0\n", s_id);
@@ -169,30 +163,30 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
 
 bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     int len = MIN_SHORTCUT_LENGTH;
-    for (GCObject* obj = tail; obj != anchor; obj = obj->getNodeInfo().getSafeAnchor()) {
-        precond(obj->getNodeInfo().isAnchored());
+    for (GCObject* obj = tail; obj != anchor; obj = obj->node_()->getSafeAnchor()) {
+        precond(obj->node_()->isAnchored());
         if (--len < 0) return false;
     }
 
     GCObject* next;
     for (GCObject* obj = tail; obj != anchor; obj = next) {
-        NodeInfoEditor nx(obj);
-        nx.invalidateShortcutId();
-        next = nx.getSafeAnchor();
+        RtNode* nx = obj->getMutableNode();
+        nx->invalidateShortcutId();
+        next = nx->getSafeAnchor();
     }
 
     return true;
 }
 
 void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
-    assert(newAnchor->getNodeInfo().getShortcut() == this, "invalid anchor %p[%d]\n", newAnchor, this->getIndex(this));
+    assert(newAnchor->node_()->getShortcut() == this, "invalid anchor %p[%d]\n", newAnchor, this->getIndex(this));
     precond(!this->inTracing());
     GCObject* old_anchor = _anchor;
     GCObject* next;
     for (GCObject* obj = newAnchor; obj != old_anchor; obj = next) {
-        NodeInfoEditor nx(obj);
-        nx.invalidateShortcutId();
-        next = nx.getSafeAnchor();
+        RtNode* nx = obj->getMutableNode();
+        nx->invalidateShortcutId();
+        next = nx->getSafeAnchor();
     }
     if (clearTooShort(newAnchor, _tail)) {
         rtgc_log(LOG_OPT(10), "shortcut deleted[%d] %p->%p\n", getIndex(this), (void*)_anchor, (void*)_tail);
@@ -205,14 +199,14 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
 }
 
 void SafeShortcut::shrinkTailTo(GCObject* newTail) {
-    assert(newTail->getNodeInfo().getShortcut() == this || newTail == this->anchor(), "invalid tail %p[%d]\n", newTail, this->getIndex(this));
+    assert(newTail->node_()->getShortcut() == this || newTail == this->anchor(), "invalid tail %p[%d]\n", newTail, this->getIndex(this));
     precond(!this->inTracing());
 
     GCObject* next;
     for (GCObject* obj = _tail; obj != newTail; obj = next) {
-        NodeInfoEditor nx(obj);
-        nx.invalidateShortcutId();
-        next = nx.getSafeAnchor();
+        RtNode* nx = obj->getMutableNode();
+        nx->invalidateShortcutId();
+        next = nx->getSafeAnchor();
     }
 
     if (clearTooShort(_anchor, newTail)) {
@@ -233,9 +227,9 @@ void SafeShortcut::extendTail(GCObject* tail) {
     GCObject* old_tail = _tail;
     GCObject* next;
     for (GCObject* node = tail; node != old_tail; node = next) {
-        NodeInfoEditor nx(node);
-        nx.setShortcutId_unsafe(s_id);
-        next = nx.getSafeAnchor();
+        RtNode* nx = node->getMutableNode();
+        nx->setShortcutId_unsafe(s_id);
+        next = nx->getSafeAnchor();
     }
 
     this->_tail = tail;
@@ -250,9 +244,9 @@ void SafeShortcut::extendAnchor(GCObject* anchor) {
 
     GCObject* next;
     for (GCObject* node = _anchor; node != anchor; node = next) {
-        NodeInfoEditor nx(node);
-        nx.setShortcutId_unsafe(s_id);
-        next = nx.getSafeAnchor();
+        RtNode* nx = node->getMutableNode();
+        nx->setShortcutId_unsafe(s_id);
+        next = nx->getSafeAnchor();
     }
     
     this->_anchor = anchor;

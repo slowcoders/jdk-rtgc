@@ -35,6 +35,13 @@ class BasicLock {
  private:
   volatile markWord _displaced_header;
  public:
+
+ #if INCLUDE_RTGC
+  volatile markWord* displaced_header_addr() const {
+    return (markWord*)&_displaced_header;
+  }
+
+ #endif
   markWord displaced_header() const {
     return Atomic::load(&_displaced_header);
   }

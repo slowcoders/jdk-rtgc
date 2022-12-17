@@ -284,6 +284,9 @@ class markWord {
   bool has_displaced_mark_helper() const {
     return ((value() & unlocked_value) == 0);
   }
+#if INCLUDE_RTGC
+  markWord* displaced_mark_addr_at_safepoint() const;
+#endif
   markWord displaced_mark_helper() const;
   void set_displaced_mark_helper(markWord m) const;
   markWord copy_set_hash(intptr_t hash) const {

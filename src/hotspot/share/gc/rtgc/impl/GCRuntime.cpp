@@ -151,7 +151,6 @@ void GCRuntime::replaceMemberVariable(
 }
 #endif 
 
-
 void GCRuntime::adjustShortcutPoints() {
     int allocSize = _rtgc.g_shortcutPool.size();
     allocSize -= INVALID_SHORTCUT + 1;
@@ -164,7 +163,7 @@ void GCRuntime::adjustShortcutPoints() {
         if (p->isValid()) {
 #ifdef ASSERT
             if (!cast_to_oop((GCObject*)p->anchor())->is_gc_marked()) {
-                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getNodeInfo().getSafeAnchor()) {
+                for (GCObject* node = p->tail(); node != p->anchor(); node = node->node_()->getSafeAnchor()) {
                     rtgc_log(1, "node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }

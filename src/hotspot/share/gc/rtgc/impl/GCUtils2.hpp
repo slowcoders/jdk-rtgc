@@ -81,8 +81,11 @@ public:
 
     const ShortOOP* getItemPtr(ShortOOP item);
 
-    uint32_t approximated_item_count() {
-        uint32_t size = _head._last_item_offset + (MAX_COUNT_IN_CHUNK+1);
+    int approximated_item_count() {
+        int size = _head._last_item_offset + (MAX_COUNT_IN_CHUNK+1);
+        if (size < 0 || size > MAX_COUNT_IN_CHUNK) {
+            size = (MAX_COUNT_IN_CHUNK * 2) - 1;
+        }
         return size;
     }
 
@@ -134,7 +137,7 @@ private:
     void cut_tail_end(ShortOOP* copy_to);
 };
 
-template <bool trace_reverse>
+template <bool trace_forward >
 class NodeIterator {
 protected:    
     const ShortOOP* _ptr;
@@ -151,10 +154,14 @@ public:
     }
 
     bool hasNext() {
-        return _ptr != (trace_reverse ? _end : NULL);
+        return _ptr != (trace_forward ? NULL : _end);
     }
 
-    const ShortOOP* getAndNext() {
+    GCObject* next() {
+        return *next_ptr();
+    }
+
+    const ShortOOP* next_ptr() {
         precond(hasNext());
         const ShortOOP* oop = _ptr ++;
         precond((GCObject*)*oop != NULL);
@@ -162,17 +169,17 @@ public:
             if (ReferrerList::isEndOfChunk(_ptr)) {
                 _ptr = _ptr + *(int32_t*)_ptr;
             }
-            if (!trace_reverse && _ptr == _end) {
+            if (trace_forward && _ptr == _end) {
                 _ptr = NULL;
             } 
-        } else if (!trace_reverse) {
+        } else if (trace_forward ) {
             _ptr = NULL;
         }
         return oop;
     }
 };
 
-class ReverseIterator : public NodeIterator<true> {
+class ReverseIterator : public NodeIterator<false> {
 public:     
     ReverseIterator(ReferrerList* list) {
         precond(!list->isTooSmall());
@@ -187,7 +194,7 @@ public:
     }     
 };
 
-class AnchorIterator : public NodeIterator<false> {
+class AnchorIterator : public NodeIterator<true> {
     GCObject* _current;
 public:    
     AnchorIterator(GCObject* obj) {
@@ -215,13 +222,8 @@ public:
     }
 
     GCObject* next() {
-        this->_current = *getAndNext();
+        this->_current = *NodeIterator<true>::next_ptr();
         return this->_current;
-    }
-
-    const ShortOOP* getAndNext() {
-        this->_current = *_ptr;
-        return NodeIterator<false>::getAndNext();
     }
 };
 

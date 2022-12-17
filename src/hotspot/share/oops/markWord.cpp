@@ -28,6 +28,23 @@
 #include "runtime/objectMonitor.inline.hpp"
 #include "utilities/ostream.hpp"
 
+#if INCLUDE_RTGC
+markWord* markWord::displaced_mark_addr_at_safepoint() const {
+  assert(has_displaced_mark_helper(), "check");
+  if (has_monitor()) {
+    // Has an inflated monitor. Must be checked before has_locker().
+    ObjectMonitor* monitor = this->monitor();
+    return (markWord*)monitor->header_addr();
+  }
+  if (has_locker()) {  // has a stack lock
+    BasicLock* locker = this->locker();
+    return (markWord*)locker->displaced_header_addr();
+  }
+  // This should never happen:
+  fatal("bad header=" INTPTR_FORMAT, value());
+  return NULL;
+}
+#endif
 markWord markWord::displaced_mark_helper() const {
   assert(has_displaced_mark_helper(), "check");
   if (has_monitor()) {

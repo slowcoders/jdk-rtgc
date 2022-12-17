@@ -203,7 +203,7 @@ GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
 }
 
 
-const char* RTGC::getClassName(void* obj, bool showClassInfo) {
+const char* RTGC::getClassName(const void* obj, bool showClassInfo) {
     if (obj == NULL || obj == (void*)-1) return NULL;
     Klass* klass = cast_to_oop(obj)->klass();
     if (vmClasses::Class_klass() == klass) {//} || vmClasses::Class_klass() == (void*)obj) {
@@ -343,7 +343,7 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif

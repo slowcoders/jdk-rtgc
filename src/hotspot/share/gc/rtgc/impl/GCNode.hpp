@@ -17,7 +17,7 @@ class ReferrerList;
 class SafeShortcut;
 static const int 	TRACKABLE_BIT = 1;
 
-class NodeInfo {
+class RtNode {
 protected:	
 	struct {
 		uint32_t _jvmFlags: 7;
@@ -33,82 +33,57 @@ protected:
 	uint32_t _refs;
 
 public:
-	NodeInfo(GCNode* obj);
 
-	void ensureLocked() {
-		precond(_refs != (uint32_t)-1);
-	}
-
-	bool isAnchored() {
-		ensureLocked();
+	bool isAnchored() const {
 		return _refs != 0;
 	}
 
-	bool hasMultiRef() {
-		ensureLocked();
+	bool hasMultiRef() const {
 		return _hasMultiRef != 0;
 	}
 
-	ShortOOP& getSingleAnchor() {
-		ensureLocked();
+	ShortOOP& getSingleAnchor() const {
 		precond(!_hasMultiRef && _refs != 0);
 		return *(ShortOOP*)&_refs;
 	}
 
-	ReferrerList* getAnchorList();
+	ReferrerList* getAnchorList() const;
 
-	bool hasShortcut() {
-		ensureLocked();
+	bool hasShortcut() const {
 		return getShortcutId() > INVALID_SHORTCUT;
 	}
 
-	SafeShortcut* getShortcut();
+	SafeShortcut* getShortcut() const;
 
-	int getShortcutId() {
-		ensureLocked();
+	int getShortcutId() const {
 		return this->_shortcutId;
 	}
 
-	GCObject* getSafeAnchor();
+	GCObject* getSafeAnchor() const;
 
-	bool hasSafeAnchor() {
-		ensureLocked();
+	bool hasSafeAnchor() const {
 		return getShortcutId() > NO_SAFE_ANCHOR;
 	}
-};
-
-class LockedNodeInfo : public NodeInfo {
-	GCNode* _obj;
-public:
-	LockedNodeInfo(GCNode* obj);
-	~LockedNodeInfo();
-
-	void updateNow();
-	void release();
 
 	void setHasMultiRef(bool multiRef) {
 		_hasMultiRef = multiRef;
-		markModified();
 	}
 
 	void setSingleAnchor(ShortOOP anchor) {
 		precond(!_hasMultiRef);
 		_refs = anchor.getOffset();
-		markModified();
+        precond(!rtHeap::useModifyFlag() || (_refs & 1) == 0); 
 	}
 
 	void removeSingleAnchor() {
 		precond(!_hasMultiRef);
 		_refs = 0;
-		markModified();
 	}
 
 	void setAnchorList(ReferrerList* anchors);
 
-
 	void setShortcutId_unsafe(int shortcutId) {
 		this->_shortcutId = shortcutId;
-		markModified();
 	}
 
 	void setSafeAnchor(GCObject* anchor);
@@ -116,19 +91,12 @@ public:
 	void invalidateSafeAnchor() {
 		// no-shortcut. no safe-anchor.
 		setShortcutId_unsafe(NO_SAFE_ANCHOR);
-		markModified();
 	}
 
 	void invalidateShortcutId() {
 		precond(hasSafeAnchor());
 		// no-shortcut. but this has valid safe-anchor.
 		setShortcutId_unsafe(INVALID_SHORTCUT);
-		markModified();
-	}
-
-	void markModified() {
-		ensureLocked();
-		debug_only(_isModified = true;)
 	}
 };
 
@@ -152,7 +120,7 @@ struct GCFlags {
 static const bool FAT_OOP = true;
 
 class GCNode : public oopDesc {
-friend class LockedNodeInfo;
+friend class RtNode;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
 	}
@@ -175,8 +143,19 @@ public:
 		*(uint64_t*)&flags() = 0;
 	}
 
-	NodeInfo getNodeInfo() {
-		return NodeInfo(this);
+	const RtNode* node_() {
+		if (FAT_OOP) {
+			precond(sizeof(RtNode) == sizeof(markWord));
+			return ((RtNode*)this) + 1;
+		} else if (this->has_displaced_mark()) {
+			return reinterpret_cast<RtNode*>(this->mark_addr()->displaced_mark_addr_at_safepoint());
+		} else {
+			return reinterpret_cast<RtNode*>(this->mark_addr());
+		}
+	}
+
+	RtNode* getMutableNode() {
+		return (RtNode*)node_(); 
 	}
 
 	void markDirtyReferrerPoints() {
@@ -317,7 +296,7 @@ public:
 	}
 
 	bool isStrongReachable() {
-		return isStrongRootReachable() || getNodeInfo().isAnchored();
+		return isStrongRootReachable() || node_()->isAnchored();
 	}
 
 	int getRootRefCount() {
@@ -333,7 +312,7 @@ public:
 	}
 
 	bool isUnreachable() {
-		return flags().rootRefCount == ZERO_ROOT_REF && !getNodeInfo().isAnchored();
+		return flags().rootRefCount == ZERO_ROOT_REF && !node_()->isAnchored();
 	}
 
 	bool isPublished() {
@@ -355,80 +334,7 @@ public:
 	void unmarkContextFlag() {
 		flags().contextFlag = false;
 	}
-
-#ifdef ASSERT
-	bool isNodeLocked() {
-		return flags().isNodeLocked;
-	}
-
-	void lockNodeInfo() {
-		precond(!flags().isNodeLocked);
-		debug_only(flags().isNodeLocked = true;)
-	}
-
-	void releaseNodeInfo() {
-		precond(flags().isNodeLocked);
-		debug_only(flags().isNodeLocked = false;)
-	}
-#endif
 };
 
-inline NodeInfo::NodeInfo(GCNode* obj) {
-	debug_only(!obj->isNodeLocked();)
-
-	markWord& _mark = *(markWord*)this;
-	if (FAT_OOP) {
-		_mark = ((markWord*)obj)[1];
-	} else if (obj->has_displaced_mark()) {
-		_mark = obj->displaced_mark();
-	} else {
-		_mark = obj->mark();
-	}
-}
-
-inline LockedNodeInfo::LockedNodeInfo(GCNode* obj) : NodeInfo(obj) {
-	_obj = obj;
-	debug_only(obj->lockNodeInfo();)
-}
-
-inline void LockedNodeInfo::release() {
-#ifdef ASSERT
-	ensureLocked();
-	precond(!_isModified);
-	_obj->releaseNodeInfo();
-	_refs = -1;
-#endif
-}
-
-inline void LockedNodeInfo::updateNow() {
-	debug_only(_isModified = false;)
-	markWord m = *(markWord*)this;
-	if (FAT_OOP) {
-		((markWord*)_obj)[1] = m;
-	} else {
-		if (_obj->has_displaced_mark()) {
-			_obj->set_displaced_mark(m);
-		} else {
-			_obj->set_mark(m);
-		}
-	}
-}
-
-inline LockedNodeInfo::~LockedNodeInfo() {
-#ifdef ASSERT
-	precond(!_isModified);
-	if (_refs != (uint32_t)-1) {
-		_obj->releaseNodeInfo();
-	}
-#endif
-};
-
-class NodeInfoEditor : public LockedNodeInfo {
-public:
-	NodeInfoEditor(GCNode* obj) : LockedNodeInfo(obj) {}
-	~NodeInfoEditor() { 
-		updateNow();
-	}
-};
 }
 #endif // SHARE_GC_RTGC_IMPL_RTGCNODE_HPP

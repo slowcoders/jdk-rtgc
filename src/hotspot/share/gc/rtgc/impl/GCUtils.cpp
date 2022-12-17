@@ -13,7 +13,7 @@ namespace RTGC {
 
     void* _offset2Pointer(uint32_t offset) {
         precond(offset != 0);
-        precond(!rtHeap::useModifyFlag() || (offset & 1) == 0); 
+        assert(!rtHeap::useModifyFlag() || (offset & 1) == 0, "wrong offset %x\n", offset); 
         uintptr_t base = (uintptr_t)CompressedOops::base();
         int shift = UseCompressedOops ? CompressedOops::shift() : 3;
         return (void*)(base + ((uintptr_t)offset << shift));
@@ -26,13 +26,14 @@ namespace RTGC {
         precond(ref < base + OopEncodingHeapMax);
         int shift = UseCompressedOops ? CompressedOops::shift() : 3;
         uint32_t result = (uint32_t)((ref - base) >> shift);
+        precond(!rtHeap::useModifyFlag() || (result & 1) == 0); 
         assert(_offset2Pointer(result) == ptr, "reversibility %p >> %d -> %x : %p\n", 
             ptr, shift, result, _offset2Pointer(result));
         return result;
     }
 
 
-    class TailNodeIterator : public NodeIterator<true> {
+    class TailNodeIterator : public NodeIterator<false> {
     public:    
         TailNodeIterator(ReferrerList* list) {
             _ptr = list->lastItemPtr();
@@ -106,7 +107,7 @@ void ReferrerList::add(ShortOOP item) {
 
 static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
     while (iter.hasNext()) {
-        const ShortOOP* ptr = iter.getAndNext();
+        const ShortOOP* ptr = iter.next_ptr();
         precond(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
         precond(ptr != NULL && ptr->getOffset() != 0);
         if (*ptr == item) {
@@ -189,18 +190,17 @@ const void* ReferrerList::removeMatchedItems(ShortOOP item) {
 }
 
 void AnchorIterator::initialize(GCObject* obj) {
-    NodeInfo nx(obj);
-    if (!nx.isAnchored()) {
+    const RtNode* nx = obj->node_();
+    if (!nx->isAnchored()) {
         this->initEmpty();
     }
-    else if (!nx.hasMultiRef()) {
-        this->initSingleIterator(&nx.getSingleAnchor());
+    else if (!nx->hasMultiRef()) {
+        this->initSingleIterator(&nx->getSingleAnchor());
     }
     else {
-        ReferrerList* referrers = nx.getAnchorList();
+        ReferrerList* referrers = nx->getAnchorList();
         this->initIterator(referrers);
     }
-    // obj->initIterator(this);
 }
 
 
