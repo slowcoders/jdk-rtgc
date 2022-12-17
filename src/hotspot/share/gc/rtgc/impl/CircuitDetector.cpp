@@ -116,7 +116,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         GCObject* R = it->next();
-        MutableNodeInfo nx(R);
+        LockedNodeInfo nx(R);
         SafeShortcut* shortcut = nx.getShortcut();
 
         if (R->isGarbageMarked() || shortcut->inContiguousTracing(R, &shortcut)) {

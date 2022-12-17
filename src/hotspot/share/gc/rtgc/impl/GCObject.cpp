@@ -26,7 +26,7 @@ ReferrerList* NodeInfo::getAnchorList() {
     return ReferrerList::getPointer(_refs);
 }
 
-void MutableNodeInfo::setAnchorList(ReferrerList* anchors) {
+void LockedNodeInfo::setAnchorList(ReferrerList* anchors) {
     precond(!_hasMultiRef);
     _refs = ReferrerList::getIndex(anchors);
     _hasMultiRef = true;
@@ -47,7 +47,7 @@ GCObject* NodeInfo::getSafeAnchor() {
     return front;
 }
 
-void MutableNodeInfo::setSafeAnchor(GCObject* anchor) {
+void LockedNodeInfo::setSafeAnchor(GCObject* anchor) {
     // assert(isAnchored() && SafeShortcut::isValidIndex(this->getShortcutId()), 
     //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
@@ -84,7 +84,7 @@ void GCObject::addReferrer(GCObject* referrer) {
      */
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
-    MutableNodeInfo nx(this);
+    LockedNodeInfo nx(this);
     if (!nx.isAnchored()) {
         nx.setSingleAnchor(referrer);
         nx.updateNow();
@@ -123,7 +123,7 @@ template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
     precond(referrer != this);
 
-    MutableNodeInfo nx(this);
+    LockedNodeInfo nx(this);
     if (!must_exist && !nx.isAnchored()) return -1;
 
     assert(nx.isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
@@ -262,7 +262,7 @@ void GCObject::clearAnchorList() {
 }
 
 bool GCObject::clearEmptyAnchorList() {
-    MutableNodeInfo nx(this);
+    LockedNodeInfo nx(this);
     if (nx.hasMultiRef()) {
         ReferrerList* referrers = nx.getAnchorList();
         if (referrers->isTooSmall()) {
@@ -295,7 +295,7 @@ void GCObject::removeAllAnchors() {
 
 
 void GCObject::invaliateSurvivalPath(GCObject* newTail) {
-    MutableNodeInfo nx(this);
+    LockedNodeInfo nx(this);
     if (nx.getShortcutId() > 0) {
 		SafeShortcut* shortcut = nx.getShortcut();
         shortcut->split(newTail, this);

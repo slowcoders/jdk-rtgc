@@ -1,6 +1,7 @@
 #include "precompiled.hpp"
 
 #include "oops/oop.inline.hpp"
+#include "memory/iterator.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -214,12 +215,12 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     if (new_buffer != NULL) {
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
-      rtgc_log(LOG_OPT(1), "Recycling LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "Recycling LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
-      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, erasedField._obj);
+      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();

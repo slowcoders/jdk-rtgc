@@ -11,6 +11,7 @@
 
 class Thread;
 class oopDesc;
+class ObjectClosure;
 class OopIterateClosure;
 class BoolObjectClosure;
 class OopClosure;

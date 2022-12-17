@@ -77,11 +77,11 @@ public:
 	}
 };
 
-class MutableNodeInfo : public NodeInfo {
+class LockedNodeInfo : public NodeInfo {
 	GCNode* _obj;
 public:
-	MutableNodeInfo(GCNode* obj);
-	~MutableNodeInfo();
+	LockedNodeInfo(GCNode* obj);
+	~LockedNodeInfo();
 
 	void updateNow();
 	void release();
@@ -152,7 +152,7 @@ struct GCFlags {
 static const bool FAT_OOP = true;
 
 class GCNode : public oopDesc {
-friend class MutableNodeInfo;
+friend class LockedNodeInfo;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
 	}
@@ -386,12 +386,12 @@ inline NodeInfo::NodeInfo(GCNode* obj) {
 	}
 }
 
-inline MutableNodeInfo::MutableNodeInfo(GCNode* obj) : NodeInfo(obj) {
+inline LockedNodeInfo::LockedNodeInfo(GCNode* obj) : NodeInfo(obj) {
 	_obj = obj;
 	debug_only(obj->lockNodeInfo();)
 }
 
-inline void MutableNodeInfo::release() {
+inline void LockedNodeInfo::release() {
 #ifdef ASSERT
 	ensureLocked();
 	precond(!_isModified);
@@ -400,7 +400,7 @@ inline void MutableNodeInfo::release() {
 #endif
 }
 
-inline void MutableNodeInfo::updateNow() {
+inline void LockedNodeInfo::updateNow() {
 	debug_only(_isModified = false;)
 	markWord m = *(markWord*)this;
 	if (FAT_OOP) {
@@ -414,18 +414,18 @@ inline void MutableNodeInfo::updateNow() {
 	}
 }
 
-inline MutableNodeInfo::~MutableNodeInfo() {
+inline LockedNodeInfo::~LockedNodeInfo() {
 #ifdef ASSERT
 	precond(!_isModified);
-	if (_obj != NULL) {
+	if (_refs != (uint32_t)-1) {
 		_obj->releaseNodeInfo();
 	}
 #endif
 };
 
-class NodeInfoEditor : public MutableNodeInfo {
+class NodeInfoEditor : public LockedNodeInfo {
 public:
-	NodeInfoEditor(GCNode* obj) : MutableNodeInfo(obj) {}
+	NodeInfoEditor(GCNode* obj) : LockedNodeInfo(obj) {}
 	~NodeInfoEditor() { 
 		updateNow();
 	}

@@ -709,7 +709,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           (void*)ref, old_referent, referent, RTGC::getClassName(old_referent));
       if (ref->isTrackable()) {
         RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
-        MutableNodeInfo nx(referent);
+        LockedNodeInfo nx(referent);
         if (referent->isTrackable() && !nx.hasSafeAnchor()) {
           nx.setSafeAnchor(ref);
           nx.setShortcutId_unsafe(INVALID_SHORTCUT);
