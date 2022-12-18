@@ -138,7 +138,7 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
 #if INCLUDE_RTGC // clear rtNode
 void oopDesc::clear_rt_node(HeapWord* mem) {
   cast_to_oop(mem)->_rtNode[0] = 0;
-  cast_to_oop(mem)->_rtNode[1] = 0;
+  cast_to_oop(mem)->set_klass_gap(0);
 }
 #endif
 

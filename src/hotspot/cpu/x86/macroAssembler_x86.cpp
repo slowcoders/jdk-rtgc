@@ -4754,12 +4754,12 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
     xorptr(tmp, tmp);
 #ifdef _LP64    
     movq(Address(dst, 8), tmp);
-    movq(Address(dst, 16), tmp);
+    // movq(Address(dst, 16), tmp);
 #else
     movl(Address(dst, 8), tmp);
     movl(Address(dst, 12), tmp);
-    movl(Address(dst, 16), tmp);
-    movl(Address(dst, 20), tmp);
+    // movl(Address(dst, 16), tmp);
+    // movl(Address(dst, 20), tmp);
 #endif    
 #endif
 }

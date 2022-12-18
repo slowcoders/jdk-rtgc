@@ -172,7 +172,11 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   if (UseCompressedClassPointers) { // Take care not to kill klass
     movptr(t1, klass);
     encode_klass_not_null(t1, tmp_encode_klass);
+// #if INCLUDE_RTGC  
+//     movptr(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
+// #else
     movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
+// #endif
   } else
 #endif
   {
@@ -183,21 +187,23 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     movl(Address(obj, arrayOopDesc::length_offset_in_bytes()), len);
   }
 #ifdef _LP64
-  else if (UseCompressedClassPointers) {
+// #if !INCLUDE_RTGC  
+  NOT_RTGC(else) if (UseCompressedClassPointers) {
     xorptr(t1, t1);
     store_klass_gap(obj, t1);
   }
+// #endif
 #endif
 #if INCLUDE_RTGC  // clear rtNode in tlab 
     xorptr(t1, t1);
 #ifdef _LP64    
     movq(Address(obj, 8), t1);
-    movq(Address(obj, 16), t1);
+    // movq(Address(obj, 16), t1);
 #else
     movl(Address(obj, 8), t1);
     movl(Address(obj, 12), t1);
-    movl(Address(obj, 16), t1);
-    movl(Address(obj, 20), t1);
+    // movl(Address(obj, 16), t1);
+    // movl(Address(obj, 20), t1);
 #endif    
 #endif
 }

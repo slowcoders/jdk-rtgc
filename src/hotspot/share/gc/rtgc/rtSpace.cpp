@@ -123,7 +123,7 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   // ClassLoaderData* cld = rtHeapUtil::tenured_class_loader_data(cast_to_oop(obj));
   // if (cld != NULL) cld->decrease_holder_ref_count();
   
-  if (true && !rtHeap::in_full_gc) {
+  if (false && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);
   }
   obj->markDestroyed();

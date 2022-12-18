@@ -54,7 +54,7 @@ class oopDesc {
  private:
   volatile markWord _mark;
 #if INCLUDE_RTGC // rtNode
-  int64_t _rtNode[2];
+  int64_t _rtNode[1];
 #endif
   union _metadata {
     Klass*      _klass;

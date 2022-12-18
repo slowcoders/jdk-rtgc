@@ -309,3 +309,31 @@ DefNewGeneration::collect() ...
                      list = ReferenceProcessor::get_discovered_list(ReferenceType rt)
                      list->add(dicovered reference 등록)
                         -> Reference->discovered field 이용.
+
+
+==============================
+Test summary (BarrierSetAssembly)
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/langtools:tier1                         4215  4181     0    34 <<
+==============================
+TEST FAILURE
+
+real    123m10.620s
+user    399m12.700s
+sys     11m43.092s
+
+==============================
+Test summary (rtgcBarrier function calls)
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/langtools:tier1                         4215  4183     0    32 <<
+==============================
+TEST FAILURE
+
+make[1]: *** [main] Error 1
+make: *** [test] Error 2
+
+real    129m40.893s
+user    387m3.703s
+sys     12m12.053s

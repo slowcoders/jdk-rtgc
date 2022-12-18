@@ -130,17 +130,10 @@ public:
 	static void* g_trackable_heap_start;
 
 	static int flags_offset() {
-		if (FAT_OOP) {
+		if (false && FAT_OOP) {
 			return sizeof(int64_t) * 2;
 		}
 		return oopDesc::klass_gap_offset_in_bytes();
-	}
-
-	void clearFlags() { 
-		if (FAT_OOP) {
-			((int64_t*)this)[1] = 0;
-		}
-		*(uint64_t*)&flags() = 0;
 	}
 
 	const RtNode* node_() {

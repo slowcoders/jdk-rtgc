@@ -40,11 +40,9 @@ static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
   assert(obj2 == NULL || !obj2->isGarbageMarked(),
-      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
-      obj2, RTGC::getClassName(obj2), obj2->isGarbageMarked(), obj2->getRootRefCount());
+      "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj2));
   assert(obj1 == NULL || !obj1->isGarbageMarked(),
-      "incorrect garbage mark %p(%s) (garabge=%d rc:%d)\n",   
-      obj1, RTGC::getClassName(obj1), obj1->isGarbageMarked(), obj1->getRootRefCount());
+      "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj1));
 }
 
 int GCNode::_cntTrackable = 0;
@@ -233,7 +231,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/lang/ref/ReferenceQueue$Null", //  why this make crash ???
+  // "sun/nio/fs/NativeBuffers$1", //  why this make java.nio.charset.MalformedInputException ???
   // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
@@ -343,7 +341,7 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
@@ -368,8 +366,9 @@ void RTGC::initialize() {
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 
-    // enableLog(LOG_HEAP, 7);
-    // enableLog(LOG_REF, 2);
+    enableLog(LOG_REF_LINK, 0);
+    enableLog(LOG_HEAP, 0);
+    enableLog(LOG_REF, 0);
     enableLog(LOG_SCANNER, 0);
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
