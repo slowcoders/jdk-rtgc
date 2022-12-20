@@ -86,6 +86,22 @@ bash configure --with-jvm-variants=client \
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
 
+==============================
+Test summary 2022 12/20 using klass_gap as GCFlags.
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1583    21     6 <<
+>> jtreg:test/jdk:tier1                               2062  2033     6    23 <<
+>> jtreg:test/langtools:tier1                         4215  4192     0    23 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+real    126m52.218s
+user    376m33.220s
+sys     13m46.059s
+
+
+==============================
 Test summary 2022 12/11 UseModifyFlag
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   
@@ -95,7 +111,6 @@ Test summary 2022 12/11 UseModifyFlag
    jtreg:test/jaxp:tier1                                 0     0     0     0   
    jtreg:test/lib-test:tier1                             0     0     0     0    
 ==============================
-TEST FAILURE
 
 ==============================
 Test summary 2022 11/12 Opt Anchor List
