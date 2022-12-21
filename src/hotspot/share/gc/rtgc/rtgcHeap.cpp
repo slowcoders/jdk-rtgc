@@ -375,7 +375,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   if (node->isGarbageMarked()) {
     assert(node->isTrackable(), "must trackable %p(%s)\n", node, RTGC::getClassName(node));
 
-    assert(node->node_()->isAnchored() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
+    assert(node->getReferrerCount() > 0 || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
         "invalid link %p(%s) -> %p(%s)\n", 
         anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
 
@@ -396,7 +396,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   precond(!node->isGarbageMarked());
   
   assert(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
-    node->isStrongRootReachable() || node->node_()->isAnchored() || node->isUnstableMarked(),
+    node->isStrongRootReachable() || node->getReferrerCount() > 0 || node->isUnstableMarked(),
       " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
@@ -497,10 +497,11 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
 
   RtNode* nx = node->getMutableNode();
-  if (nx->isAnchored()) {
+  if (nx->mayHaveAnchor()) {
     if (nx->hasMultiRef()) {
       ReferrerList* referrers = nx->getAnchorList();
-      assert(!referrers->isTooSmall(), "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
+      assert(!referrers->isTooSmall() || nx->isAnchorListLocked(), 
+          "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
       for (ReverseIterator it(referrers); it.hasNext(); ) {
         ShortOOP* ptr = (ShortOOP*)it.next_ptr();
         adjust_anchor_pointer(ptr, node);
@@ -599,15 +600,17 @@ bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {
 
 void rtHeap::destroy_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  if (is_alive(p, false) || (node->isTrackable() ? !node->isUnreachable() : node->node_()->isAnchored())) {
+#ifdef ASSERT  
+  if (is_alive(p, false) || (node->isTrackable() ? !node->isUnreachable() : node->getReferrerCount() > 0)) {
     rtHeapEx::print_ghost_anchors(to_obj(p));
   }
+#endif
 
-  assert(is_destroyed(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d hasRef=%d isUnsafe=%d ghost=%d\n", 
+  assert(is_destroyed(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d ac=%d isUnsafe=%d ghost=%d\n", 
         node, node->node_()->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->node_()->isAnchored(), node->isUnstableMarked(),
+        node->isTrackable(), node->getRootRefCount(), node->getReferrerCount(), node->isUnstableMarked(),
         rtHeapEx::print_ghost_anchors(to_obj(p)));
-  precond(node->isTrackable() ? node->isUnreachable() : !node->node_()->isAnchored());
+  precond(node->isTrackable() ? node->isUnreachable() : !node->getReferrerCount() > 0);
   return;
 }
 

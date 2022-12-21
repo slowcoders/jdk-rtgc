@@ -191,7 +191,7 @@ const void* ReferrerList::removeMatchedItems(ShortOOP item) {
 
 void AnchorIterator::initialize(GCObject* obj) {
     const RtNode* nx = obj->node_();
-    if (!nx->isAnchored()) {
+    if (!nx->mayHaveAnchor()) {
         this->initEmpty();
     }
     else if (!nx->hasMultiRef()) {

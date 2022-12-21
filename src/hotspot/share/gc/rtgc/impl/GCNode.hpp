@@ -22,21 +22,20 @@ protected:
 	struct {
 		uint32_t _jvmFlags: 7;
 		uint32_t _hasMultiRef: 1;
-#ifdef ASSERT
-		uint32_t _shortcutId: 23;
-		uint32_t _isModified: 1;
-#else
 		uint32_t _shortcutId: 24;
-#endif
 	}; 
 
-	uint32_t _refs;
+	int32_t _refs;
 
 public:
+	static const int ANCHOR_LIST_LOCK_V = 0x8000 * 0x10000;
+	static const int ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_V - 1;
 
-	bool isAnchored() const {
+	bool mayHaveAnchor() const {
 		return _refs != 0;
 	}
+
+	bool hasAnchor() const;
 
 	bool hasMultiRef() const {
 		return _hasMultiRef != 0;
@@ -57,6 +56,14 @@ public:
 
 	int getShortcutId() const {
 		return this->_shortcutId;
+	}
+
+	bool isAnchorListLocked() {
+		return _refs < 0;
+	}
+
+	void lockAnchorList() {
+		_refs |= ANCHOR_LIST_LOCK_V;
 	}
 
 	GCObject* getSafeAnchor() const;
@@ -119,7 +126,7 @@ struct GCFlags {
 
 static const bool FAT_OOP = true;
 
-class GCNode : public oopDesc {
+class GCNode : private oopDesc {
 friend class RtNode;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
@@ -289,7 +296,7 @@ public:
 	}
 
 	bool isStrongReachable() {
-		return isStrongRootReachable() || node_()->isAnchored();
+		return isStrongRootReachable() || node_()->hasAnchor();
 	}
 
 	int getRootRefCount() {
@@ -305,7 +312,7 @@ public:
 	}
 
 	bool isUnreachable() {
-		return flags().rootRefCount == ZERO_ROOT_REF && !node_()->isAnchored();
+		return flags().rootRefCount == ZERO_ROOT_REF && !node_()->hasAnchor();
 	}
 
 	bool isPublished() {

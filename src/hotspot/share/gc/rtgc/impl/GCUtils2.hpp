@@ -13,6 +13,7 @@ class ReferrerList {
     struct Chunk {
         ShortOOP _items[MAX_COUNT_IN_CHUNK];
         int32_t _last_item_offset;
+        Chunk*  getNextChunk() { return (Chunk*)(&_last_item_offset + _last_item_offset); }
     };
     static const int CHUNK_MASK = (sizeof(Chunk) - 1);
 
@@ -38,7 +39,7 @@ public:
     }
 
     bool empty() {
-        return approximated_item_count() == 0;
+        return _head._last_item_offset + (MAX_COUNT_IN_CHUNK+1) == 0;
     }
 
     bool hasSingleItem() {
@@ -89,7 +90,7 @@ public:
         return size;
     }
 
-    const ShortOOP* getLastItemOffsetPtr() {
+    const ShortOOP* getNextChuckOffsetPtr() {
         return &_head._items[MAX_COUNT_IN_CHUNK];
     }    
 
@@ -113,8 +114,13 @@ public:
         return (ReferrerList*)g_chunkPool.getPointer(idx);
     }
 
-    static void delete_(ReferrerList* referrers) {
-        g_chunkPool.delete_(&referrers->_head);
+    static void delete_(ReferrerList* list) {
+        Chunk* chunk = getContainingChunck(list->getLastItemOffsetPtr());
+        while (true) {
+            g_chunkPool.delete_(chunk);
+            if (chunk == list->_head) break;
+            chunk = chunk->getNextChunk();
+        };
     }
 
     static int getAllocatedItemCount() {
@@ -132,6 +138,10 @@ private:
 
     void set_last_item_ptr(const ShortOOP* pLast) {
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
+    }
+
+    Chunk* getContainingChunck(const ShortOOP* pItem) {
+        return (Chunk*)((uintptr_t)ptr & ~CHUNK_MASK);
     }
 
     void cut_tail_end(ShortOOP* copy_to);
@@ -188,7 +198,7 @@ public:
             _end = list->lastItemPtr() + 1;
         } else {
             _ptr = list->lastItemPtr();
-            _end = list->getLastItemOffsetPtr();
+            _end = list->getNextChuckOffsetPtr();
         }
         postcond(_ptr != _end);
     }     

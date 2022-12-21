@@ -132,7 +132,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         rtgc_log(LOG_OPT(7), "findSurvivalPath %p:%d[%d] vn=%d\n", 
             R, nx->getShortcutId(), _trackers.size(), _visitedNodes.size());
 
-        if (nx->isAnchored()) {
+        if (nx->hasAnchor()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
                 debug_only(shortcut->vailidateShortcut();)

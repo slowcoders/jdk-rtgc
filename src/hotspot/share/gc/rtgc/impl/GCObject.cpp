@@ -22,7 +22,11 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
 
 ReferrerList* RtNode::getAnchorList() const {
 	precond(_hasMultiRef);
-    return ReferrerList::getPointer(_refs);
+    return ReferrerList::getPointer(_refs & ANCHOR_LIST_INDEX_MASK);
+}
+
+bool RtNode::hasAnchor() const {
+    return _refs > 0 || (_refs < 0 && !getAnchorList()->empty());
 }
 
 void RtNode::setAnchorList(ReferrerList* anchors) {
@@ -32,7 +36,7 @@ void RtNode::setAnchorList(ReferrerList* anchors) {
 }
 
 GCObject* RtNode::getSafeAnchor() const {
-	assert(isAnchored(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
+	assert(getReferrerCount() > 0, "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
     GCObject* front;
     if (hasMultiRef()) {
         ReferrerList* referrers = getAnchorList();
@@ -45,7 +49,7 @@ GCObject* RtNode::getSafeAnchor() const {
 }
 
 void RtNode::setSafeAnchor(GCObject* anchor) {
-    // assert(isAnchored() && SafeShortcut::isValidIndex(this->getShortcutId()), 
+    // assert(getReferrerCount() > 0 && SafeShortcut::isValidIndex(this->getShortcutId()), 
     //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
 
@@ -67,7 +71,7 @@ SafeShortcut* RtNode::getShortcut() const {
 
 int GCNode::getReferrerCount() {
     const RtNode* nx = this->node_();
-    if (!nx->isAnchored()) return 0;
+    if (!nx->mayHaveAnchor()) return 0;
     if (!nx->hasMultiRef()) return 1;
     ReferrerList* referrers = nx->getAnchorList();
     int count = referrers->approximated_item_count();
@@ -81,7 +85,7 @@ void GCObject::addReferrer(GCObject* referrer) {
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
     RtNode* nx = this->getMutableNode();
-    if (!nx->isAnchored()) {
+    if (!nx->mayHaveAnchor()) {
         nx->setSingleAnchor(referrer);
         postcond(referrer == nx->getSingleAnchor());
     }
@@ -101,7 +105,7 @@ void GCObject::addReferrer(GCObject* referrer) {
 
 bool GCObject::hasReferrer(GCObject* referrer) {
     const RtNode* nx = this->node_();
-    if (!nx->isAnchored()) return false;
+    if (!nx->mayHaveAnchor()) return false;
 
     if (!nx->hasMultiRef()) {
         return nx->getSingleAnchor() == referrer;
@@ -118,9 +122,9 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     precond(referrer != this);
 
     RtNode* nx = this->getMutableNode();
-    if (!must_exist && !nx->isAnchored()) return -1;
+    if (!must_exist && !nx->mayHaveAnchor()) return -1;
 
-    assert(nx->isAnchored(), "no referrer %p(%s) in empty %p(%s) \n", 
+    assert(nx->mayHaveAnchor(), "no referrer %p(%s) in empty %p(%s) \n", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
     rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from " PTR_DBG_SIG, 
@@ -164,7 +168,7 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
             this, RTGC::getClassName(this));
 
         bool first_item_removed = removed == referrers->firstItemPtr();
-        if (reallocReferrerList && referrers->isTooSmall()) {
+        if (reallocReferrerList && !nx->isAnchorListLocked() && referrers->isTooSmall()) {
             nx->setHasMultiRef(false);
             if (referrers->empty()) {
                 nx->removeSingleAnchor();
@@ -182,14 +186,15 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     }
 
     if (!nx->hasSafeAnchor()) {
-        return nx->isAnchored() ? 1 : 0;
+        return nx->hasAnchor() ? 1 : 0; 
     }
 
     if (nx->hasShortcut()) {
 		SafeShortcut* shortcut = nx->getShortcut();
         shortcut->split(referrer, this);
     } 
-    else if (nx->hasSafeAnchor()) {
+    else {
+        precond(nx->hasSafeAnchor());
         nx->invalidateSafeAnchor();
     }
 
@@ -223,7 +228,7 @@ bool GCObject::removeMatchedReferrers(GCObject* referrer) {
 bool GCObject::containsReferrer(GCObject* referrer) {
     precond(referrer != this);
     const RtNode* nx = this->node_();
-    if (!nx->isAnchored()) return false;
+    if (!nx->mayHaveAnchor()) return false;
 
     if (!nx->hasMultiRef()) {
         return nx->getSingleAnchor() == referrer;
@@ -254,20 +259,23 @@ void GCObject::clearAnchorList() {
 
 bool GCObject::clearEmptyAnchorList() {
     RtNode* nx = this->getMutableNode();
-    if (nx->hasMultiRef()) {
-        ReferrerList* referrers = nx->getAnchorList();
-        if (referrers->isTooSmall()) {
-            precond(!nx->hasShortcut());
-            nx->setHasMultiRef(false);
-            if (referrers->empty()) {
-                nx->removeSingleAnchor();
-            } else {
-                nx->setSingleAnchor(referrers->front());
-            }
-            ReferrerList::delete_(referrers);
+    if (!nx->hasMultiRef()) {
+        return !nx->mayHaveAnchor();
+    }
+
+    ReferrerList* referrers = nx->getAnchorList();
+    int cntAnchor = referrers->approximated_item_count();
+    if (cntAnchor <= (nx->isAnchorListLocked() ? 0 : 1)) {
+        precond(!nx->hasShortcut());
+        nx->setHasMultiRef(false);
+        if (referrers->empty()) {
+            nx->removeSingleAnchor();
+        } else {
+            nx->setSingleAnchor(referrers->front());
         }
-    }    
-    return !nx->isAnchored();
+        ReferrerList::delete_(referrers);
+    }
+    return cntAnchor == 0;
 }
 
 void GCObject::removeAllAnchors() {
