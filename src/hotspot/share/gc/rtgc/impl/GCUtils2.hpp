@@ -115,10 +115,12 @@ public:
     }
 
     static void delete_(ReferrerList* list) {
-        Chunk* chunk = getContainingChunck(list->getLastItemOffsetPtr());
+        g_chunkPool.delete_(&list->_head);
+        return;
+        Chunk* chunk = getContainingChunck(list->lastItemPtr());
         while (true) {
             g_chunkPool.delete_(chunk);
-            if (chunk == list->_head) break;
+            if (chunk == &list->_head) break;
             chunk = chunk->getNextChunk();
         };
     }
@@ -140,8 +142,8 @@ private:
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
     }
 
-    Chunk* getContainingChunck(const ShortOOP* pItem) {
-        return (Chunk*)((uintptr_t)ptr & ~CHUNK_MASK);
+    static Chunk* getContainingChunck(const ShortOOP* pItem) {
+        return (Chunk*)((uintptr_t)pItem & ~CHUNK_MASK);
     }
 
     void cut_tail_end(ShortOOP* copy_to);

@@ -28,8 +28,8 @@ protected:
 	int32_t _refs;
 
 public:
-	static const int ANCHOR_LIST_LOCK_V = 0x8000 * 0x10000;
-	static const int ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_V - 1;
+	static const uint32_t ANCHOR_LIST_LOCK_V = 0x80000000;
+	static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_V - 1;
 
 	bool mayHaveAnchor() const {
 		return _refs != 0;
@@ -59,10 +59,12 @@ public:
 	}
 
 	bool isAnchorListLocked() {
+		precond(_hasMultiRef);
 		return _refs < 0;
 	}
 
 	void lockAnchorList() {
+		precond(_hasMultiRef);
 		_refs |= ANCHOR_LIST_LOCK_V;
 	}
 

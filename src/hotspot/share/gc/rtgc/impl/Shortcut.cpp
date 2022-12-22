@@ -164,7 +164,7 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
 bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     int len = MIN_SHORTCUT_LENGTH;
     for (GCObject* obj = tail; obj != anchor; obj = obj->node_()->getSafeAnchor()) {
-        precond(obj->getReferrerCount() > 0);
+        precond(obj->node_()->hasAnchor());
         if (--len < 0) return false;
     }
 

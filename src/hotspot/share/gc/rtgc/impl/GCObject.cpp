@@ -21,12 +21,13 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
 }
 
 ReferrerList* RtNode::getAnchorList() const {
-	precond(_hasMultiRef);
+	assert(_hasMultiRef, "_refs %x\n", _refs);
     return ReferrerList::getPointer(_refs & ANCHOR_LIST_INDEX_MASK);
 }
 
 bool RtNode::hasAnchor() const {
-    return _refs > 0 || (_refs < 0 && !getAnchorList()->empty());
+    if (_refs == 0) return false;
+    return _refs > 0 || !_hasMultiRef || !getAnchorList()->empty();
 }
 
 void RtNode::setAnchorList(ReferrerList* anchors) {
@@ -36,7 +37,7 @@ void RtNode::setAnchorList(ReferrerList* anchors) {
 }
 
 GCObject* RtNode::getSafeAnchor() const {
-	assert(getReferrerCount() > 0, "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
+	assert(hasAnchor(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
     GCObject* front;
     if (hasMultiRef()) {
         ReferrerList* referrers = getAnchorList();
@@ -49,7 +50,7 @@ GCObject* RtNode::getSafeAnchor() const {
 }
 
 void RtNode::setSafeAnchor(GCObject* anchor) {
-    // assert(getReferrerCount() > 0 && SafeShortcut::isValidIndex(this->getShortcutId()), 
+    // assert(node_()->hasAnchor() && SafeShortcut::isValidIndex(this->getShortcutId()), 
     //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
     precond(!this->getShortcut()->isValid());
 
