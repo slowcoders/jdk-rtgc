@@ -11,6 +11,20 @@ namespace RTGC {
 
 class GCObject;
 
+class RtHashLock {
+  int32_t _hash;
+
+  void releaseHash();
+
+public:
+  RtHashLock() { clearHash(); }
+  ~RtHashLock();
+
+  static bool isLocked(intptr_t hash);
+  intptr_t makeHash(intptr_t hash);
+  void clearHash() { _hash = 0; }
+};
+
 class rtHeapEx {
 public:  
 

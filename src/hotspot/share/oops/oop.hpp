@@ -53,7 +53,7 @@ class oopDesc {
   friend class JVMCIVMStructs;
  private:
   volatile markWord _mark;
-#if INCLUDE_RTGC // rtNode
+#if RTGC_FAT_OOP // rtNode
   int64_t _rtNode[1];
 #endif
   union _metadata {
@@ -88,7 +88,7 @@ class oopDesc {
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
   static inline void set_klass_gap(HeapWord* mem, int z);
-#if INCLUDE_RTGC
+#if RTGC_FAT_OOP
   static inline void clear_rt_node(HeapWord* mem);
 #endif  
 

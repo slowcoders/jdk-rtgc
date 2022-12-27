@@ -364,7 +364,7 @@ oop MemAllocator::allocate() const {
     HeapWord* mem = mem_allocate(allocation);
     if (mem != NULL) {
       obj = initialize(mem);
-#if INCLUDE_RTGC // clear rtNode
+#if RTGC_FAT_OOP 
       if (EnableRTGC) {
         oopDesc::clear_rt_node(mem);
 // #ifdef ASSERT        

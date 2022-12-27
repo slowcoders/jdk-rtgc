@@ -57,6 +57,8 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/preserveException.hpp"
+#include "gc/rtgc/rtHeapEx.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 
 void MonitorList::add(ObjectMonitor* m) {
   ObjectMonitor* head;
@@ -866,6 +868,9 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     }
   }
 
+#if INCLUDE_RTGC
+  RTGC::RtHashLock hashLock;
+#endif
   while (true) {
     ObjectMonitor* monitor = NULL;
     markWord temp, test;
@@ -877,14 +882,25 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 
     if (mark.is_neutral()) {               // if this is a normal header
       hash = mark.hash();
+#if INCLUDE_RTGC
+      if (EnableRTGC && !RTGC_FAT_OOP) {
+        if (RTGC::RtHashLock::isLocked(hash)) return hash;
+      } else
+#endif      
       if (hash != 0) {                     // if it has a hash, just return it
         return hash;
       }
+#if INCLUDE_RTGC
+      if (EnableRTGC && !RTGC_FAT_OOP) {
+        hash = hashLock.makeHash(hash);
+      } else
+#endif      
       hash = get_next_hash(current, obj);  // get a new hash
       temp = mark.copy_set_hash(hash);     // merge the hash into header
                                            // try to install the hash
       test = obj->cas_set_mark(temp, mark);
       if (test == mark) {                  // if the hash was installed, return it
+        hashLock.clearHash();
         return hash;
       }
       // Failed to install the hash. It could be that another thread
@@ -896,6 +912,11 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       temp = monitor->header();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
       hash = temp.hash();
+#if INCLUDE_RTGC
+      if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isLocked(hash)) {
+        // do nothing;
+      } else
+#endif      
       if (hash != 0) {
         // It has a hash.
 
@@ -924,6 +945,11 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       temp = mark.displaced_mark_helper();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
       hash = temp.hash();
+#if INCLUDE_RTGC
+      if (EnableRTGC && !RTGC_FAT_OOP) {
+        if (RTGC::RtHashLock::isLocked(hash)) return hash;
+      } else
+#endif      
       if (hash != 0) {                  // if it has a hash, just return it
         return hash;
       }
@@ -946,7 +972,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     mark = monitor->header();
     assert(mark.is_neutral(), "invariant: header=" INTPTR_FORMAT, mark.value());
     hash = mark.hash();
-    if (hash == 0) {                       // if it does not have a hash
+    if (hash == 0 RTGC_ONLY(|| !EnableRTGC || RTGC_FAT_OOP || !RTGC::RtHashLock::isLocked(hash))) {                       // if it does not have a hash
+#if INCLUDE_RTGC
+      if (EnableRTGC && !RTGC_FAT_OOP) {
+        hash = hashLock.makeHash(hash);
+      } else
+#endif      
       hash = get_next_hash(current, obj);  // get a new hash
       temp = mark.copy_set_hash(hash)   ;  // merge the hash into header
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
@@ -961,7 +992,11 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         hash = test.hash();
         assert(test.is_neutral(), "invariant: header=" INTPTR_FORMAT, test.value());
         assert(hash != 0, "should only have lost the race to a thread that set a non-zero hash");
+#if INCLUDE_RTGC
+        if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isLocked(hash)) continue;
+#endif      
       }
+
       if (monitor->is_being_async_deflated()) {
         // If we detect that async deflation has occurred, then we
         // attempt to restore the header/dmw to the object's header
@@ -971,6 +1006,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         continue;
       }
     }
+
+#if INCLUDE_RTGC      
+    if (EnableRTGC && !RTGC_FAT_OOP) {
+      hashLock.clearHash();
+    }
+#endif      
     // We finally get the hash.
     return hash;
   }

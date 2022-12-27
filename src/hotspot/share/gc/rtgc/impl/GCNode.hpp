@@ -5,6 +5,7 @@
 #include "../rtgcDebug.hpp"
 #include "oops/oop.hpp"
 #include "GCPointer.hpp"
+#include "../rtgcGlobals.hpp"
 
 #define ZERO_ROOT_REF 		0
 static const int NO_SAFE_ANCHOR = 0;
@@ -28,8 +29,8 @@ protected:
 	int32_t _refs;
 
 public:
-	static const uint32_t ANCHOR_LIST_LOCK_V = 0x80000000;
-	static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_V - 1;
+	static const uint32_t ANCHOR_LIST_LOCK_BIT = 0x80000000;
+	static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_BIT - 1;
 
 	bool mayHaveAnchor() const {
 		return _refs != 0;
@@ -65,7 +66,7 @@ public:
 
 	void lockAnchorList() {
 		precond(_hasMultiRef);
-		_refs |= ANCHOR_LIST_LOCK_V;
+		_refs |= ANCHOR_LIST_LOCK_BIT;
 	}
 
 	GCObject* getSafeAnchor() const;
@@ -126,8 +127,6 @@ struct GCFlags {
 #endif
 };
 
-static const bool FAT_OOP = true;
-
 class GCNode : private oopDesc {
 friend class RtNode;
 	GCFlags& flags() {
@@ -139,14 +138,14 @@ public:
 	static void* g_trackable_heap_start;
 
 	static int flags_offset() {
-		if (false && FAT_OOP) {
+		if (false && RTGC_FAT_OOP) {
 			return sizeof(int64_t) * 2;
 		}
 		return oopDesc::klass_gap_offset_in_bytes();
 	}
 
 	const RtNode* node_() {
-		if (FAT_OOP) {
+		if (RTGC_FAT_OOP) {
 			precond(sizeof(RtNode) == sizeof(markWord));
 			return ((RtNode*)this) + 1;
 		} else if (this->has_displaced_mark()) {

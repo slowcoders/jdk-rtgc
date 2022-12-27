@@ -757,6 +757,41 @@ void rtHeapEx::mark_immortal_heap_objects() {
   rtgc_log(true, "immortalMarkClosure %d\n", immortalMarkClosure._cnt);
 }
 
+intptr_t RtHashLock::makeHash(intptr_t hash) {
+  if (hash != 0 && hash != _hash) {
+    precond(!isLocked(hash));
+    releaseHash();
+    return hash | RtNode::ANCHOR_LIST_LOCK_BIT;    
+  }
+  if (_hash == 0) {
+    RTGC::lock_heap();
+    _hash = ReferrerList::getIndex(ReferrerList::allocate());
+    precond(!isLocked(_hash));
+    RTGC::unlock_heap();
+  }
+  return (intptr_t)(_hash | RtNode::ANCHOR_LIST_LOCK_BIT);
+}
+
+bool RtHashLock::isLocked(intptr_t hash) {
+  return (hash & RtNode::ANCHOR_LIST_LOCK_BIT) == 0;
+}
+
+void RtHashLock::releaseHash() {
+  if (_hash != 0) {
+    RTGC::lock_heap();
+    ReferrerList::delete_(ReferrerList::getPointer(_hash));
+    _hash = 0;
+    RTGC::unlock_heap();
+  }
+}
+
+RtHashLock::~RtHashLock() {
+  if (_hash != 0) {
+    RTGC::lock_heap();
+    ReferrerList::delete_(ReferrerList::getPointer(_hash));
+    RTGC::unlock_heap();
+  }
+}
 
 void rtHeapEx::check_immortal_heap_objects() {
   if (!ENABLE_CDS) return;

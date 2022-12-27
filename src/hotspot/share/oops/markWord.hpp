@@ -29,6 +29,7 @@
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "gc/rtgc/rtgcHeap.hpp"
 
 // The markWord describes the header of an object.
 //
@@ -130,7 +131,11 @@ class markWord {
   static const int lock_bits                      = 2;
   static const int biased_lock_bits               = 1;
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - biased_lock_bits;
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+  static const int hash_bits                      = max_hash_bits > 32 ? 32 : max_hash_bits;
+#else
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
+#endif
   static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0);
   static const int epoch_bits                     = 2;
 
@@ -140,9 +145,13 @@ class markWord {
   static const int biased_lock_shift              = lock_bits;
   static const int age_shift                      = lock_bits + biased_lock_bits;
   static const int unused_gap_shift               = age_shift + age_bits;
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+  static const int epoch_shift                    = unused_gap_shift + unused_gap_bits;
+  static const int hash_shift                     = 32;
+#else
   static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
   static const int epoch_shift                    = hash_shift;
-
+#endif
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
   static const uintptr_t biased_lock_mask         = right_n_bits(lock_bits + biased_lock_bits);

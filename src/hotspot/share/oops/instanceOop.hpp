@@ -37,7 +37,7 @@ class instanceOopDesc : public oopDesc {
 
   // If compressed, the offset of the fields of the instance may not be aligned.
   static int base_offset_in_bytes() {
-#if INCLUDE_RTGC // rtNode & flags
+#if INCLUDE_RTGC // RTGC_FAT_OOP
     if (EnableRTGC) {
       return sizeof(instanceOopDesc);
     }

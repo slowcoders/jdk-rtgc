@@ -4750,7 +4750,7 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
 #endif
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 
-#if INCLUDE_RTGC  // clear rtNode in tlab
+#if RTGC_FAT_OOP  
     xorptr(tmp, tmp);
 #ifdef _LP64    
     movq(Address(dst, 8), tmp);

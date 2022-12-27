@@ -1,12 +1,10 @@
-#ifndef SHARE_GC_RTGC_RTGCDEBUG_HPP
-#define SHARE_GC_RTGC_RTGCDEBUG_HPP
-
-#include "gc/rtgc/RTGC.hpp"
-#include "gc/rtgc/rtgcDebug.hpp"
+#ifndef SHARE_GC_RTGC_RTGC_GLOBALS_HPP
+#define SHARE_GC_RTGC_RTGC_GLOBALS_HPP
 
 class Klass;
 
 namespace RTGC {
+
   static const int LOG_BARRIER    = 1;
   static const int LOG_BARRIER_C1 = 2;
   static const int LOG_HEAP       = 3;
@@ -25,4 +23,4 @@ namespace RTGC {
   extern int g_cnt_update_log;
 };
 
-#endif // SHARE_GC_RTGC_RTGCDEBUG_HPP
+#endif // SHARE_GC_RTGC_RTGC_GLOBALS_HPP

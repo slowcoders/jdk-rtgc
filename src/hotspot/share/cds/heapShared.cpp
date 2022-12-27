@@ -251,6 +251,7 @@ void HeapShared::clear_root(int index) {
 
 oop HeapShared::archive_heap_object(oop obj) {
   assert(DumpSharedSpaces, "dump-time only");
+  assert(!EnableRTGC, "archive_heap_objectnot implemented yet in RTGC.");
 
   oop ao = find_archived_heap_object(obj);
   if (ao != NULL) {
