@@ -118,7 +118,7 @@ struct GCFlags {
 
 	uint32_t contextFlag: 1;
 	uint32_t isPublished: 1;
-	uint32_t isNodeLocked: 1;
+	uint32_t immortal: 1;
 #if ZERO_ROOT_REF < 0	
 	int32_t rootRefCount: 24;
 #else
@@ -335,6 +335,14 @@ public:
 
 	void unmarkContextFlag() {
 		flags().contextFlag = false;
+	}
+
+	void markImmortal() {
+		flags().immortal = false;
+	}
+
+	bool isImmortal() {
+		return flags().immortal;
 	}
 };
 

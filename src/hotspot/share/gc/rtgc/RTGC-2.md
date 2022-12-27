@@ -35,6 +35,7 @@
       -> tenured_heap 에 allocate 되는 것은 대부분 huge-primitive-array 들이다??
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
    * Array-Item 은 64bit 로??
+   * CDS 지원 : AnchorList 에 대한 reallocation 필요.
 
 1) Flags
 2) RootRefCount

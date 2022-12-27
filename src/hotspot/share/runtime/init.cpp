@@ -51,6 +51,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_RTGC
   #include "gc/rtgc/RTGC.hpp"
+  #include "gc/rtgc/rtHeapEx.hpp"
 #endif  
 
 
@@ -135,9 +136,11 @@ jint init_globals() {
   VMRegImpl::set_regName(); // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
+
 #if INCLUDE_RTGC  
   if (EnableRTGC) {
     RTGC::initialize();
+    RTGC::rtHeapEx::check_immortal_heap_objects();
   }
 #endif
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init

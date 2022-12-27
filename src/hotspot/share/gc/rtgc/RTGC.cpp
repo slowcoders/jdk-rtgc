@@ -341,7 +341,7 @@ void RTGC::initialize() {
 
 #ifdef ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
@@ -354,8 +354,9 @@ void RTGC::initialize() {
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
 
-  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
   if (RTGC_DEBUG) {
+    rtgc_log(1, "CDS base=%p end=%p\n", 
+        MetaspaceObj::shared_metaspace_base(), MetaspaceObj::shared_metaspace_top());
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
     // -XX:AbortVMOnExceptionMessage='#compiler/c2/Test7190310$1'

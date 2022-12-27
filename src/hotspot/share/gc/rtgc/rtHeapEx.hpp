@@ -30,6 +30,10 @@ public:
 
   static void break_reference_links(ReferencePolicy* policy);
 
+  static void mark_immortal_heap_objects();
+
+  static void check_immortal_heap_objects();
+
   static jlong _soft_ref_timestamp_clock;
 
   static bool g_lock_unsafe_list;

@@ -21,6 +21,7 @@
 #include "rtHeapEx.hpp"
 #include "rtCLDCleaner.hpp"
 #include "rtThreadLocalData.hpp"
+#include "gc/serial/serialHeap.inline.hpp"
 
 int rtHeap::in_full_gc = 0;
 
@@ -735,6 +736,36 @@ void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   }
 }
 
+class ImmortalMarkClosure : public ObjectClosure {
+  public: int _cnt; 
+  ImmortalMarkClosure() { _cnt = 0; }
+  void do_object(oop obj) { _cnt++; to_obj(obj)->markImmortal(); }
+};
+
+class CheckImmortalClosure : public ObjectClosure {
+  public: int _cnt;
+  CheckImmortalClosure() { _cnt = 0; }
+  void do_object(oop obj) { _cnt++; assert(!to_obj(obj)->isImmortal(), "not immortal %p\n", (void*)obj); }
+};
+
+static const bool ENABLE_CDS = false;
+void rtHeapEx::mark_immortal_heap_objects() {
+  if (!ENABLE_CDS) return;
+  ImmortalMarkClosure immortalMarkClosure ;
+  SerialHeap* heap = SerialHeap::heap();
+  heap->old_gen()->object_iterate(&immortalMarkClosure);
+  rtgc_log(true, "immortalMarkClosure %d\n", immortalMarkClosure._cnt);
+}
+
+
+void rtHeapEx::check_immortal_heap_objects() {
+  if (!ENABLE_CDS) return;
+  // rm build/macosx-x86_64-client-fastdebug/images/jdk/lib/client/classes.jsa
+  CheckImmortalClosure checkImmortalClosure ;
+  SerialHeap* heap = SerialHeap::heap();
+  heap->old_gen()->object_iterate(&checkImmortalClosure);
+  rtgc_log(true, "checkImmortalClosure %d\n", checkImmortalClosure._cnt);
+}
 
 void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
   if (USE_EXPLICIT_TRACKABLE_MARK) {

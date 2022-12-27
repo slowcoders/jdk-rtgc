@@ -76,6 +76,7 @@
 #if INCLUDE_G1GC
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #endif
+#include "gc/rtgc/rtHeapEx.hpp"
 
 ReservedSpace MetaspaceShared::_symbol_rs;
 VirtualSpace MetaspaceShared::_symbol_vs;
@@ -477,6 +478,12 @@ char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
 
 void VM_PopulateDumpSharedSpace::doit() {
   HeapShared::run_full_gc_in_vm_thread();
+
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    RTGC::rtHeapEx::mark_immortal_heap_objects();
+  }
+#endif
 
   DEBUG_ONLY(SystemDictionaryShared::NoClassLoadingMark nclm);
 
@@ -893,6 +900,7 @@ void MetaspaceShared::initialize_runtime_shared_and_meta_spaces() {
     bool dynamic_mapped = (dynamic_mapinfo != NULL && dynamic_mapinfo->is_mapped());
     char* cds_base = static_mapinfo->mapped_base();
     char* cds_end =  dynamic_mapped ? dynamic_mapinfo->mapped_end() : static_mapinfo->mapped_end();
+    // RTGC;
     set_shared_metaspace_range(cds_base, static_mapinfo->mapped_end(), cds_end);
     _relocation_delta = static_mapinfo->relocation_delta();
     _requested_base_address = static_mapinfo->requested_base_address();
