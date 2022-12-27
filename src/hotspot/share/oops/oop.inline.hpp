@@ -135,12 +135,12 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
   }
 }
 
-#if RTGC_FAT_OOP 
 void oopDesc::clear_rt_node(HeapWord* mem) {
+#if RTGC_FAT_OOP 
   cast_to_oop(mem)->_rtNode[0] = 0;
+#endif
   cast_to_oop(mem)->set_klass_gap(0);
 }
-#endif
 
 void oopDesc::set_klass_gap(int v) {
   set_klass_gap((HeapWord*)this, v);

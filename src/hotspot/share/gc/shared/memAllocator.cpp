@@ -364,13 +364,9 @@ oop MemAllocator::allocate() const {
     HeapWord* mem = mem_allocate(allocation);
     if (mem != NULL) {
       obj = initialize(mem);
-#if RTGC_FAT_OOP 
+#if INCLUDE_RTGC
       if (EnableRTGC) {
         oopDesc::clear_rt_node(mem);
-// #ifdef ASSERT        
-//         BarrierSet *bs = BarrierSet::barrier_set();
-//         bs->on_slowpath_allocation_exit(NULL, obj);
-// #endif        
       }      
 #endif  
     } else {

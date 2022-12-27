@@ -88,7 +88,7 @@ class oopDesc {
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
   static inline void set_klass_gap(HeapWord* mem, int z);
-#if RTGC_FAT_OOP
+#if INCLUDE_RTGC
   static inline void clear_rt_node(HeapWord* mem);
 #endif  
 

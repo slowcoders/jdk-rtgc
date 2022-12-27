@@ -712,9 +712,7 @@ size_t CollectedHeap::filler_array_min_size() {
 void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   GCObject* obj = to_obj(start);
   // precond(obj->isTrackable());
-#if RTGC_FAT_OOP
   oopDesc::clear_rt_node(start);
-#endif
   obj->markGarbage(NULL);
   obj->markDestroyed();
 
