@@ -128,7 +128,8 @@ void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
 
 bool rtHeap::is_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
-  return obj->isTrackable();
+  bool isTrackable = obj->isTrackable();
+  return isTrackable;
 }
 
 void rtHeap::lock_jni_handle_at_safepoint(oopDesc* p) {

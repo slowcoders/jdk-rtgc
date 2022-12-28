@@ -101,6 +101,7 @@ void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
 
 
 bool RTGC::needTrack(oopDesc* obj) {
+  fatal("obsoleted!");
   return to_obj(obj)->isTrackable();
 }
 
@@ -298,7 +299,7 @@ int RTGC::is_debug_pointer(void* ptr) {
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
   if (!RTGC_DEBUG) return;
-  if (destroy_old_node) {
+  if (RTGC_FAT_OOP && destroy_old_node) {
     to_obj(old_p)->invalidateAnchorList_unsafe();
   }
   if (!REF_LINK_ENABLED) return;

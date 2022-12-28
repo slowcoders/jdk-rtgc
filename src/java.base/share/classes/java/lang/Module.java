@@ -376,10 +376,12 @@ public final class Module implements AnnotatedElement {
     public boolean canRead(Module other) {
         Objects.requireNonNull(other);
 
+        System.err.println("canRead 1");
         // an unnamed module reads all modules
         if (!this.isNamed())
             return true;
 
+        System.err.println("canRead 2");
         // all modules read themselves
         if (other == this)
             return true;
@@ -387,20 +389,24 @@ public final class Module implements AnnotatedElement {
         // check if this module reads other
         if (other.isNamed()) {
             Set<Module> reads = this.reads; // volatile read
+            System.err.println("canRead 3");
             if (reads != null && reads.contains(other))
                 return true;
         }
 
+        System.err.println("canRead 4");
         // check if this module reads the other module reflectively
         if (ReflectionData.reads.containsKeyPair(this, other))
             return true;
 
+        System.err.println("canRead 5");
         // if other is an unnamed module then check if this module reads
         // all unnamed modules
         if (!other.isNamed()
             && ReflectionData.reads.containsKeyPair(this, ALL_UNNAMED_MODULE))
             return true;
 
+        System.err.println("canRead 6");
         return false;
     }
 

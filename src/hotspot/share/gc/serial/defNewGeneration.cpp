@@ -794,6 +794,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
+  // rtgc_log(true, "do_oop %p sig %llx\n", (void*)old, *(uint64_t*)(void*)old);
 
 #ifdef INCLUDE_RTGC
   if (EnableRTGC) {
