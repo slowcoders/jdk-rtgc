@@ -389,7 +389,7 @@ public final class Module implements AnnotatedElement {
         // check if this module reads other
         if (other.isNamed()) {
             Set<Module> reads = this.reads; // volatile read
-            System.err.println("canRead 3");
+            System.err.println("canRead 3 this=" + this + " other=" + other + " reads = " + reads + " hash=" + other.hashCode());
             if (reads != null && reads.contains(other))
                 return true;
         }
