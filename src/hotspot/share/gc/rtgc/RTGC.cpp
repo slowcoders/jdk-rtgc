@@ -120,8 +120,9 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
         base, to_obj(base)->getRootRefCount(), p, RTGC::getClassName(p));
   }
   if (RTGC::is_debug_pointer(p)) {
-     rtgc_log(1, "referrer %p(%s) added to %p(rc=%d)\n", 
-        debug_base, RTGC::getClassName(debug_base), p, to_obj(p)->getRootRefCount());
+     rtgc_log(1, "referrer %p(%s) added to %p(rc=%d refs_=%x)\n", 
+        debug_base, RTGC::getClassName(debug_base), p, 
+        to_obj(p)->getRootRefCount(), to_obj(p)->node_()->debugIdentityHash());
   }
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
@@ -364,7 +365,7 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = (s == NULL || s[1] == 0) ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = (void*)-1;//0x3e0013510;
+    debug_obj = NULL;//0x3e0013510;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

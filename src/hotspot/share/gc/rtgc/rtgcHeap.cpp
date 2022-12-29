@@ -386,7 +386,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
     rtHeapUtil::resurrect_young_root(node);
   }
 
-  rtgc_debug_log(link, "trackable_barrier anchor %p link: %p\n", anchor, link);
+  // rtgc_debug_log(link, "trackable_barrier anchor %p link: %p\n", anchor, link);
 
   precond(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
   RTGC::add_referrer_ex(link, anchor, false);
@@ -761,7 +761,7 @@ intptr_t RtHashLock::makeHash(intptr_t hash) {
   if (hash != 0 && hash != _hash) {
     precond(!isLocked(hash));
     releaseHash();
-    return hash | RtNode::ANCHOR_LIST_LOCK_BIT;    
+    return hash & ~ANCHOR_LIST_UNLOCKED;    
   }
   if (_hash == 0) {
     RTGC::lock_heap();
@@ -769,11 +769,11 @@ intptr_t RtHashLock::makeHash(intptr_t hash) {
     precond(!isLocked(_hash));
     RTGC::unlock_heap();
   }
-  return (intptr_t)(_hash | RtNode::ANCHOR_LIST_LOCK_BIT);
+  return (intptr_t)(_hash & ~ANCHOR_LIST_UNLOCKED);
 }
 
 bool RtHashLock::isLocked(intptr_t hash) {
-  return (hash & RtNode::ANCHOR_LIST_LOCK_BIT) == 0;
+  return (int32_t)hash > 0;
 }
 
 void RtHashLock::releaseHash() {
@@ -786,11 +786,7 @@ void RtHashLock::releaseHash() {
 }
 
 RtHashLock::~RtHashLock() {
-  if (_hash != 0) {
-    RTGC::lock_heap();
-    ReferrerList::delete_(ReferrerList::getPointer(_hash));
-    RTGC::unlock_heap();
-  }
+  releaseHash();
 }
 
 void rtHeapEx::check_immortal_heap_objects() {

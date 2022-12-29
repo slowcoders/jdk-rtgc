@@ -68,19 +68,29 @@ void SharedRuntime::inline_check_hashcode_from_object_header(MacroAssembler* mas
     __ jcc(Assembler::notZero, slowCase);
   }
 
-  // get hash
-#ifdef _LP64
-  // Read the header and build a mask to get its hash field.
-  // Depend on hash_mask being at most 32 bits and avoid the use of hash_mask_in_place
-  // because it could be larger than 32 bits in a 64-bit vm. See markWord.hpp.
-  __ shrptr(result, markWord::hash_shift);
-  __ andptr(result, markWord::hash_mask);
-#else
-  __ andptr(result, markWord::hash_mask_in_place);
-#endif //_LP64
+#if defined(_LP64) && INCLUDE_RTGC
+  if (EnableRTGC && !RTGC_FAT_OOP) {
+    __ shrptr(result, markWord::hash_shift);
+    __ testl(result, 0);
+    __ jcc(Assembler::lessEqual, slowCase);
+  }
+#endif
+  {
+    // get hash
+  #ifdef _LP64
+    // Read the header and build a mask to get its hash field.
+    // Depend on hash_mask being at most 32 bits and avoid the use of hash_mask_in_place
+    // because it could be larger than 32 bits in a 64-bit vm. See markWord.hpp.
+    __ shrptr(result, markWord::hash_shift);
+    __ andptr(result, markWord::hash_mask);
+  #else
+    __ andptr(result, markWord::hash_mask_in_place);
+  #endif //_LP64
 
-  // test if hashCode exists
-  __ jcc(Assembler::zero, slowCase);
+    // test if hashCode exists
+    __ jcc(Assembler::zero, slowCase);
+  }
+
 #ifndef _LP64
   __ shrptr(result, markWord::hash_shift);
 #endif

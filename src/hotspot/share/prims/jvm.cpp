@@ -602,7 +602,15 @@ JVM_END
 
 JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   // as implemented in the classic virtual machine; return 0 if object is NULL
-  return handle == NULL ? 0 : ObjectSynchronizer::FastHashCode (THREAD, JNIHandles::resolve_non_null(handle)) ;
+  if (handle == NULL) return 0;
+  jint hash = ObjectSynchronizer::FastHashCode (THREAD, JNIHandles::resolve_non_null(handle));
+#if INCLUDE_RTGC
+  if (EnableRTGC && !RTGC_FAT_OOP) {
+    //rtgc_log(true, "hash %p %x\n", (void*)JNIHandles::resolve_non_null(handle), hash);
+    assert(hash > 0, "hash %x\n", hash);
+  }
+#endif
+  return hash;
 JVM_END
 
 

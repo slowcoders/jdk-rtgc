@@ -29,8 +29,6 @@ protected:
 	int32_t _refs;
 
 public:
-	static const uint32_t ANCHOR_LIST_LOCK_BIT = 0x80000000;
-	static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_LOCK_BIT - 1;
 
 	bool mayHaveAnchor() const {
 		return _refs != 0;
@@ -61,12 +59,11 @@ public:
 
 	bool isAnchorListLocked() {
 		precond(_hasMultiRef);
-		return _refs < 0;
+		return (int32_t)_refs > 0;
 	}
 
-	void lockAnchorList() {
-		precond(_hasMultiRef);
-		_refs |= ANCHOR_LIST_LOCK_BIT;
+	int32_t debugIdentityHash() const {
+		return _refs;
 	}
 
 	GCObject* getSafeAnchor() const;
@@ -138,9 +135,6 @@ public:
 	static void* g_trackable_heap_start;
 
 	static int flags_offset() {
-		if (false && RTGC_FAT_OOP) {
-			return sizeof(int64_t) * 2;
-		}
 		return oopDesc::klass_gap_offset_in_bytes();
 	}
 

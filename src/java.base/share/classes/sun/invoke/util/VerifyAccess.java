@@ -254,22 +254,22 @@ public class VerifyAccess {
         Module refModule = refc.getModule();
         assert refModule != m1 || refModule != m2;
         int mods = getClassModifiers(refc);
-        System.err.println("isModuleAccessible " + Integer.toHexString(mods) + 
+        System.out.println("isModuleAccessible " + Integer.toHexString(mods) + 
             " ref=" + refModule + " m1=" + m1 + ", m2=" + m2);
         if (isPublic(mods)) {
-            System.err.println("isModuleAccessible read(m1)=" + m1.canRead(refModule)
+            System.out.println("isModuleAccessible read(m1)=" + m1.canRead(refModule)
                 + " read(m2)=" + (m2 == null || m2.canRead(refModule)));
             if (m1.canRead(refModule) && (m2 == null || m2.canRead(refModule))) {
                 String pn = refc.getPackageName();
 
                 // refc is exported package to at least both m1 and m2
-                System.err.println("isModuleAccessible exp(m1)=" + refModule.isExported(pn, m1)
+                System.out.println("isModuleAccessible exp(m1)=" + refModule.isExported(pn, m1)
                     + " exp(m2)=" + (m2 == null || refModule.isExported(pn, m2)));
                 if (refModule.isExported(pn, m1) && (m2 == null || refModule.isExported(pn, m2)))
                     return true;
             }
         }
-        System.err.println("isModuleAccessible false");
+        System.out.println("isModuleAccessible false");
         return false;
     }
 

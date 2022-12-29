@@ -3835,6 +3835,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   // an 'X'-sized hashcode (32 in 32-bit build or 64 in 64-bit build).
   hshifted_header      = ConvX2I(hshifted_header);
   Node *hash_val       = _gvn.transform(new AndINode(hshifted_header, hash_mask));
+  precond(!EnableRTGC); // FAT_OOP
 
   Node *no_hash_val    = _gvn.intcon(markWord::no_hash);
   Node *chk_assigned   = _gvn.transform(new CmpINode( hash_val, no_hash_val));

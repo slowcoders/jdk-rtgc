@@ -6,6 +6,9 @@
 
 namespace RTGC {
 
+static const uint32_t ANCHOR_LIST_UNLOCKED = 0x80000000;
+static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_UNLOCKED - 1;
+
 class ReferrerList {
     friend class ReverseIterator;    
 
@@ -107,11 +110,11 @@ public:
     }
 
     static int getIndex(ReferrerList* referrers) {
-        return g_chunkPool.getIndex(&referrers->_head);
+        return g_chunkPool.getIndex(&referrers->_head) | ANCHOR_LIST_UNLOCKED;
     }
 
     static ReferrerList* getPointer(uint32_t idx) {
-        return (ReferrerList*)g_chunkPool.getPointer(idx);
+        return (ReferrerList*)g_chunkPool.getPointer(idx & ~ANCHOR_LIST_UNLOCKED);
     }
 
     static void delete_(ReferrerList* list) {

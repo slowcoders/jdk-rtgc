@@ -1020,7 +1020,14 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 // Deprecated -- use FastHashCode() instead.
 
 intptr_t ObjectSynchronizer::identity_hash_value_for(Handle obj) {
-  return FastHashCode(Thread::current(), obj());
+  intptr_t hash = FastHashCode(Thread::current(), obj());
+#if INCLUDE_RTGC
+  if (EnableRTGC && !RTGC_FAT_OOP) {
+    // rtgc_log(true, "identity hash %p %x\n", (void*)obj(), (jint)hash);
+    assert((jint)hash > 0, "hash %lx\n", hash);
+  }
+#endif
+  return hash;
 }
 
 

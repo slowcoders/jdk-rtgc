@@ -301,6 +301,11 @@ class markWord {
   markWord copy_set_hash(intptr_t hash) const {
     uintptr_t tmp = value() & (~hash_mask_in_place);
     tmp |= ((hash & hash_mask) << hash_shift);
+#if defined(_LP64) && INCLUDE_RTGC 
+    if (EnableRTGC && !RTGC_FAT_OOP) { 
+      tmp |= 0x80; // psuedo multiAnchor
+    }
+#endif
     return markWord(tmp);
   }
   // it is only used to be stored into BasicLock as the
