@@ -10,19 +10,21 @@ extern bool rtHeapEx__useModifyFlag;
 namespace RTGC {
 
 class GCObject;
+class ShortOOP;
 
 class RtHashLock {
   int32_t _hash;
 
+  static int allocateHashSlot(ShortOOP* first);
   void releaseHash();
 
 public:
-  RtHashLock() { clearHash(); }
+  RtHashLock(oopDesc* obj);
   ~RtHashLock();
 
-  static bool isLocked(intptr_t hash);
-  intptr_t makeHash(intptr_t hash);
-  void clearHash() { _hash = 0; }
+  static bool isValid(markWord hash);
+  intptr_t hash();
+  void consumeHash(intptr_t hash) { if (_hash == hash) _hash = 0; }
 };
 
 class rtHeapEx {

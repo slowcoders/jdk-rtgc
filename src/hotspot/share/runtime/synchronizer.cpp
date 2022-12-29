@@ -869,7 +869,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
   }
 
 #if INCLUDE_RTGC
-  RTGC::RtHashLock hashLock;
+  RTGC::RtHashLock hashLock(obj);
 #endif
   while (true) {
     ObjectMonitor* monitor = NULL;
@@ -884,7 +884,10 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       hash = mark.hash();
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        if (RTGC::RtHashLock::isLocked(hash)) return hash;
+        if (RTGC::RtHashLock::isValid(mark)) {
+          hashLock.consumeHash(hash);
+          return hash;
+        }
       } else
 #endif      
       if (hash != 0) {                     // if it has a hash, just return it
@@ -892,7 +895,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       }
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        hash = hashLock.makeHash(hash);
+        hash = hashLock.hash();
       } else
 #endif      
       hash = get_next_hash(current, obj);  // get a new hash
@@ -900,7 +903,9 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
                                            // try to install the hash
       test = obj->cas_set_mark(temp, mark);
       if (test == mark) {                  // if the hash was installed, return it
-        hashLock.clearHash();
+        if (EnableRTGC && !RTGC_FAT_OOP) {
+          hashLock.consumeHash(hash);
+        }
         return hash;
       }
       // Failed to install the hash. It could be that another thread
@@ -913,7 +918,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
       hash = temp.hash();
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isLocked(hash)) {
+      if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isValid(temp)) {
         // do nothing;
       } else
 #endif      
@@ -935,6 +940,9 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
           monitor->install_displaced_markword_in_object(obj);
           continue;
         }
+        if (EnableRTGC && !RTGC_FAT_OOP) {
+          hashLock.consumeHash(hash);
+        }
         return hash;
       }
       // Fall thru so we only have one place that installs the hash in
@@ -947,7 +955,10 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       hash = temp.hash();
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        if (RTGC::RtHashLock::isLocked(hash)) return hash;
+        if (RTGC::RtHashLock::isValid(temp)) {
+          hashLock.consumeHash(hash);
+          return hash;
+        }
       } else
 #endif      
       if (hash != 0) {                  // if it has a hash, just return it
@@ -972,10 +983,10 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     mark = monitor->header();
     assert(mark.is_neutral(), "invariant: header=" INTPTR_FORMAT, mark.value());
     hash = mark.hash();
-    if (hash == 0 RTGC_ONLY(|| !EnableRTGC || RTGC_FAT_OOP || !RTGC::RtHashLock::isLocked(hash))) {                       // if it does not have a hash
+    if (hash == 0 RTGC_ONLY(|| !EnableRTGC || RTGC_FAT_OOP || !RTGC::RtHashLock::isValid(mark))) {                       // if it does not have a hash
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        hash = hashLock.makeHash(hash);
+        hash = hashLock.hash();
       } else
 #endif      
       hash = get_next_hash(current, obj);  // get a new hash
@@ -993,7 +1004,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         assert(test.is_neutral(), "invariant: header=" INTPTR_FORMAT, test.value());
         assert(hash != 0, "should only have lost the race to a thread that set a non-zero hash");
 #if INCLUDE_RTGC
-        if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isLocked(hash)) continue;
+        if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isValid(test)) continue;
 #endif      
       }
 
@@ -1009,7 +1020,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 
 #if INCLUDE_RTGC      
     if (EnableRTGC && !RTGC_FAT_OOP) {
-      hashLock.clearHash();
+      hashLock.consumeHash(hash);
     }
 #endif      
     // We finally get the hash.

@@ -24,7 +24,12 @@ class ReferrerList {
 
 public:
     void initEmpty() {
-        _head._last_item_offset = -MAX_COUNT_IN_CHUNK;
+        _head._last_item_offset = -(MAX_COUNT_IN_CHUNK + 1);
+    }
+
+    void init(ShortOOP first) {
+        _head._items[0] = first;
+        _head._last_item_offset = -(MAX_COUNT_IN_CHUNK);
     }
 
     void init(ShortOOP first, GCObject* second) {

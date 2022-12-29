@@ -757,23 +757,49 @@ void rtHeapEx::mark_immortal_heap_objects() {
   rtgc_log(true, "immortalMarkClosure %d\n", immortalMarkClosure._cnt);
 }
 
-intptr_t RtHashLock::makeHash(intptr_t hash) {
-  if (hash != 0 && hash != _hash) {
-    precond(!isLocked(hash));
-    releaseHash();
-    return hash & ~ANCHOR_LIST_UNLOCKED;    
+void rtHeapEx::check_immortal_heap_objects() {
+  if (!ENABLE_CDS) return;
+  // rm build/macosx-x86_64-client-fastdebug/images/jdk/lib/client/classes.jsa
+  CheckImmortalClosure checkImmortalClosure ;
+  SerialHeap* heap = SerialHeap::heap();
+  heap->old_gen()->object_iterate(&checkImmortalClosure);
+  rtgc_log(true, "checkImmortalClosure %d\n", checkImmortalClosure._cnt);
+}
+
+RtHashLock::RtHashLock(oopDesc* p) {
+  GCObject* obj = to_obj(p);
+  RtNode nx = *obj->node_();
+  if (!nx.hasMultiRef()) {
+    _hash = allocateHashSlot(nx.mayHaveAnchor() ? &nx.getSingleAnchor() : NULL);
+  } else {
+    _hash = nx.debugIdentityHash();
   }
-  if (_hash == 0) {
-    RTGC::lock_heap();
-    _hash = ReferrerList::getIndex(ReferrerList::allocate());
-    precond(!isLocked(_hash));
-    RTGC::unlock_heap();
+}
+
+int RtHashLock::allocateHashSlot(ShortOOP* first) {
+  RTGC::lock_heap();
+  ReferrerList* refList = ReferrerList::allocate();
+  int hash = ReferrerList::getIndex(refList);
+  //precond(!isLocked(hash));
+  RTGC::unlock_heap();
+  if (first == NULL) {
+    refList->initEmpty();
+    precond(refList->empty());
+    precond(refList->approximated_item_count() == 0);
+  } else {
+    refList->init(*first);
+    precond(refList->approximated_item_count() == 1);
   }
+  return hash & ~ANCHOR_LIST_UNLOCKED;
+}
+
+intptr_t RtHashLock::hash() {
   return (intptr_t)(_hash & ~ANCHOR_LIST_UNLOCKED);
 }
 
-bool RtHashLock::isLocked(intptr_t hash) {
-  return (int32_t)hash > 0;
+bool RtHashLock::isValid(markWord mark) {
+  RtNode* nx = (RtNode*)&mark;
+  return (nx->hasMultiRef() && nx->debugIdentityHash() > 0);
 }
 
 void RtHashLock::releaseHash() {
@@ -789,14 +815,6 @@ RtHashLock::~RtHashLock() {
   releaseHash();
 }
 
-void rtHeapEx::check_immortal_heap_objects() {
-  if (!ENABLE_CDS) return;
-  // rm build/macosx-x86_64-client-fastdebug/images/jdk/lib/client/classes.jsa
-  CheckImmortalClosure checkImmortalClosure ;
-  SerialHeap* heap = SerialHeap::heap();
-  heap->old_gen()->object_iterate(&checkImmortalClosure);
-  rtgc_log(true, "checkImmortalClosure %d\n", checkImmortalClosure._cnt);
-}
 
 void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
   if (USE_EXPLICIT_TRACKABLE_MARK) {
