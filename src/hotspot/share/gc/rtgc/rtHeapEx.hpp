@@ -16,15 +16,16 @@ class RtHashLock {
   int32_t _hash;
 
   static int allocateHashSlot(ShortOOP* first);
+  static bool isCodeFixed(int32_t hash);
   void releaseHash();
 
 public:
-  RtHashLock(oopDesc* obj);
+  RtHashLock();
   ~RtHashLock();
 
-  static bool isValid(markWord hash);
+  intptr_t initHash(markWord mark);
   intptr_t hash();
-  void consumeHash(intptr_t hash) { if (_hash == hash) _hash = 0; }
+  void consumeHash(intptr_t hash);
 };
 
 class rtHeapEx {

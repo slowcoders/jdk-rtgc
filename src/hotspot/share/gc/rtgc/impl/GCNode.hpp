@@ -62,7 +62,8 @@ public:
 		return (int32_t)_refs > 0;
 	}
 
-	int32_t debugIdentityHash() const {
+	int32_t getIdentityHashCode() const {
+		precond(_hasMultiRef);
 		return _refs;
 	}
 

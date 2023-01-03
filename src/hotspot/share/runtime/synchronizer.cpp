@@ -869,7 +869,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
   }
 
 #if INCLUDE_RTGC
-  RTGC::RtHashLock hashLock(obj);
+  RTGC::RtHashLock hashLock;
 #endif
   while (true) {
     ObjectMonitor* monitor = NULL;
@@ -881,15 +881,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     assert(!mark.has_bias_pattern(), "invariant");
 
     if (mark.is_neutral()) {               // if this is a normal header
-      hash = mark.hash();
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        if (RTGC::RtHashLock::isValid(mark)) {
-          hashLock.consumeHash(hash);
-          return hash;
-        }
+        hash = hashLock.initHash(mark);
       } else
 #endif      
+      hash = mark.hash();
       if (hash != 0) {                     // if it has a hash, just return it
         return hash;
       }
@@ -916,12 +913,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       monitor = mark.monitor();
       temp = monitor->header();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
-      hash = temp.hash();
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isValid(temp)) {
-        // do nothing;
+      if (EnableRTGC && !RTGC_FAT_OOP) {
+        hash = hashLock.initHash(temp);
       } else
 #endif      
+      hash = temp.hash();
       if (hash != 0) {
         // It has a hash.
 
@@ -940,9 +937,6 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
           monitor->install_displaced_markword_in_object(obj);
           continue;
         }
-        if (EnableRTGC && !RTGC_FAT_OOP) {
-          hashLock.consumeHash(hash);
-        }
         return hash;
       }
       // Fall thru so we only have one place that installs the hash in
@@ -952,15 +946,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       // displaced markWord from the BasicLock on the stack.
       temp = mark.displaced_mark_helper();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
-      hash = temp.hash();
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
-        if (RTGC::RtHashLock::isValid(temp)) {
-          hashLock.consumeHash(hash);
-          return hash;
-        }
+        hash = hashLock.initHash(temp);
       } else
 #endif      
+      hash = temp.hash();
       if (hash != 0) {                  // if it has a hash, just return it
         return hash;
       }
@@ -982,8 +973,13 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     // Load ObjectMonitor's header/dmw field and see if it has a hash.
     mark = monitor->header();
     assert(mark.is_neutral(), "invariant: header=" INTPTR_FORMAT, mark.value());
+#if INCLUDE_RTGC
+    if (EnableRTGC && !RTGC_FAT_OOP) {
+      hash = hashLock.initHash(mark);
+    } else
+#endif      
     hash = mark.hash();
-    if (hash == 0 RTGC_ONLY(|| !EnableRTGC || RTGC_FAT_OOP || !RTGC::RtHashLock::isValid(mark))) {                       // if it does not have a hash
+    if (hash == 0) {                       // if it does not have a hash
 #if INCLUDE_RTGC
       if (EnableRTGC && !RTGC_FAT_OOP) {
         hash = hashLock.hash();
@@ -1000,11 +996,18 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         // merge in the hash just before our cmpxchg().
         // If we add any new usages of the header/dmw field, this code
         // will need to be updated.
+#if INCLUDE_RTGC
+        if (EnableRTGC && !RTGC_FAT_OOP) {
+          hash = hashLock.initHash(mark);
+        } else
+#endif      
         hash = test.hash();
         assert(test.is_neutral(), "invariant: header=" INTPTR_FORMAT, test.value());
         assert(hash != 0, "should only have lost the race to a thread that set a non-zero hash");
 #if INCLUDE_RTGC
-        if (EnableRTGC && !RTGC_FAT_OOP && !RTGC::RtHashLock::isValid(test)) continue;
+        if (EnableRTGC && !RTGC_FAT_OOP) {
+          // ...
+        } 
 #endif      
       }
 

@@ -766,21 +766,39 @@ void rtHeapEx::check_immortal_heap_objects() {
   rtgc_log(true, "checkImmortalClosure %d\n", checkImmortalClosure._cnt);
 }
 
-RtHashLock::RtHashLock(oopDesc* p) {
-  GCObject* obj = to_obj(p);
-  RtNode nx = *obj->node_();
-  if (!nx.hasMultiRef()) {
-    _hash = allocateHashSlot(nx.mayHaveAnchor() ? &nx.getSingleAnchor() : NULL);
-  } else {
-    _hash = nx.debugIdentityHash();
+RtHashLock::RtHashLock() {
+  _hash = 0;
+}
+
+bool RtHashLock::isCodeFixed(int32_t hash) {
+  return (hash & ANCHOR_LIST_UNLOCKED) == 0;
+}
+
+intptr_t RtHashLock::initHash(markWord mark) {
+  RtNode* nx = (RtNode*)&mark;
+  if (nx->hasMultiRef()) {
+    releaseHash();
+    int hash = nx->getIdentityHashCode();
+    if (!isCodeFixed(hash)) {
+      _hash = hash;
+      return 0;
+    } 
+
+    hash &= ~ANCHOR_LIST_UNLOCKED;
+    return hash;
   }
+
+  if (_hash == 0) {
+    _hash = allocateHashSlot(nx->mayHaveAnchor() ? &nx->getSingleAnchor() : NULL);
+    postcond(isCodeFixed(_hash));
+  }
+  return 0;
 }
 
 int RtHashLock::allocateHashSlot(ShortOOP* first) {
   RTGC::lock_heap();
   ReferrerList* refList = ReferrerList::allocate();
   int hash = ReferrerList::getIndex(refList);
-  //precond(!isLocked(hash));
   RTGC::unlock_heap();
   if (first == NULL) {
     refList->initEmpty();
@@ -794,21 +812,22 @@ int RtHashLock::allocateHashSlot(ShortOOP* first) {
 }
 
 intptr_t RtHashLock::hash() {
+  precond(_hash != 0);
   return (intptr_t)(_hash & ~ANCHOR_LIST_UNLOCKED);
 }
 
-bool RtHashLock::isValid(markWord mark) {
-  RtNode* nx = (RtNode*)&mark;
-  return (nx->hasMultiRef() && nx->debugIdentityHash() > 0);
+void RtHashLock::consumeHash(intptr_t hash) { 
+  if (this->hash() == hash) _hash = 0; 
 }
 
 void RtHashLock::releaseHash() {
-  if (_hash != 0) {
+  if (_hash == 0) return;
+  if (isCodeFixed(_hash)) {
     RTGC::lock_heap();
     ReferrerList::delete_(ReferrerList::getPointer(_hash));
-    _hash = 0;
     RTGC::unlock_heap();
   }
+  _hash = 0;
 }
 
 RtHashLock::~RtHashLock() {
