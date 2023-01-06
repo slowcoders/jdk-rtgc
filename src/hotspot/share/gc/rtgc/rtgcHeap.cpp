@@ -33,6 +33,8 @@ using namespace RTGC;
 
 namespace RTGC {
   // bool yg_root_locked = false;
+  bool g_in_progress_marking = false;
+
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
   bool g_in_gc_termination = false;
@@ -254,7 +256,7 @@ void rtHeap__clearStack() {
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->node_()->hasSafeAnchor() && !erased->isUnstableMarked()) {
           erased->markUnstable();
-          if (is_full_gc) {
+          if (false && is_full_gc) {
             oop new_p = cast_to_oop(erased)->forwardee();
             erased = new_p == NULL ? erased : to_obj(new_p);
           }
@@ -398,7 +400,7 @@ void rtHeap::mark_forwarded(oopDesc* p) {
   precond(!node->isGarbageMarked());
   
   assert(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
-    node->isStrongRootReachable() || node->node_()->hasAnchor() || node->isUnstableMarked(),
+      node->isStrongRootReachable() || node->node_()->hasAnchor() || node->isUnstableMarked(),
       " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
@@ -535,7 +537,19 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
     }
     g_young_roots.resize(0);
   }
+
+  int cnt_root = g_stack_roots.size();
+  if (cnt_root > 0) {
+    GCObject** src = &g_stack_roots.at(0);
+    GCObject** end = src + cnt_root;
+    for (; src < end; src++) {
+      GCObject* erased = src[0];
+      oop new_p = cast_to_oop(erased)->forwardee();
+      if (new_p != NULL) src[0] = to_obj(new_p);
+    }
+  }
 }
+
 
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
@@ -624,7 +638,7 @@ void rtHeap::finish_adjust_pointers() {
    * adjust_pointers 수행 중에, mark_survivor_reachable() 이 호출된다.
    * 이에, rtHeap__clearStack() 이 adjust_pointers 종료 후에 호출되어야 한다.
    */
-  rtHeap__clearStack<true>();
+  // rtHeap__clearStack<true>();
 }
 
 class ClearWeakHandleRef: public OopClosure {
@@ -657,6 +671,7 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
       WeakProcessor::oops_do(&clear_weak_handle_ref);
     }
     in_full_gc = 1;
+    g_in_progress_marking = true;
     rtHeapEx::break_reference_links(policy);
   }
   rtHeap__processUntrackedTenuredObjects();
@@ -667,7 +682,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   precond(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d\n", in_full_gc);
   is_gc_started = false;
-  if (!in_full_gc) {
+  if (true || !in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }

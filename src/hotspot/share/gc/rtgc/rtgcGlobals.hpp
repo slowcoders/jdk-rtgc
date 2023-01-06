@@ -19,8 +19,9 @@ namespace RTGC {
 
   extern Klass* g_dead_array_klass;
   extern Klass* g_dead_object_klass;
-  extern int g_cnt_update;
-  extern int g_cnt_update_log;
+  extern int  g_cnt_update;
+  extern int  g_cnt_update_log;
+  extern bool g_in_progress_marking;
 };
 
 #endif // SHARE_GC_RTGC_RTGC_GLOBALS_HPP

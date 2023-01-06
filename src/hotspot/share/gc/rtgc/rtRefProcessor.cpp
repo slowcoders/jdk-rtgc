@@ -811,6 +811,7 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
 
   if (is_tenure_gc) {
     __process_final_phantom_references<true>();
+    g_in_progress_marking = false;
   } else {
     __process_final_phantom_references<false>();
   }

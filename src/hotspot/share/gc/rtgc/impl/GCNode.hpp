@@ -132,7 +132,7 @@ friend class RtNode;
 	}
 
 public:
-	static int _cntTrackable;
+	static int   _cntTrackable;
 	static void* g_trackable_heap_start;
 
 	static int flags_offset() {
@@ -143,7 +143,9 @@ public:
 		if (RTGC_FAT_OOP) {
 			precond(sizeof(RtNode) == sizeof(markWord));
 			return ((RtNode*)this) + 1;
-		} else if (this->has_displaced_mark()) {
+		}
+		precond(!this->is_forwarded() || g_in_progress_marking);
+		if (this->has_displaced_mark()) {
 			return reinterpret_cast<RtNode*>(this->mark_addr()->displaced_mark_addr_at_safepoint());
 		} else {
 			return reinterpret_cast<RtNode*>(this->mark_addr());

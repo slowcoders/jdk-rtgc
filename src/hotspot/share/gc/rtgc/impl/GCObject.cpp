@@ -84,6 +84,7 @@ void GCObject::addReferrer(GCObject* referrer) {
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
     // rtgc_debug_log(this, "referrer %p added to %p\n", referrer, this);
+    precond(!cast_to_oop(this)->is_gc_marked());
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
     RtNode* nx = this->getMutableNode();
     if (!nx->mayHaveAnchor()) {
