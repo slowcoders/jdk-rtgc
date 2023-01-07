@@ -392,9 +392,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
       q->init_mark();
     }
 #endif
-    assert(q->forwardee() == NULL || !cast_to_oop(q)->is_gc_marked(), 
-        "should be forwarded to NULL (%p) TR=%d dstr=%d al=%d", (void*)q->forwardee(), rtHeap::is_trackable(cast_to_oop(q)), 
-            rtHeap::is_destroyed(cast_to_oop(q)), rtHeap::is_alive(cast_to_oop(q)));
+    assert(q->forwardee() == NULL, "should be forwarded to NULL");
   }
 
   compact_top += size;

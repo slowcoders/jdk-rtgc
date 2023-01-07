@@ -256,7 +256,7 @@ void rtHeap__clearStack() {
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->node_()->hasSafeAnchor() && !erased->isUnstableMarked()) {
           erased->markUnstable();
-          if (false && is_full_gc) {
+          if (RTGC_FAT_OOP && is_full_gc) {
             oop new_p = cast_to_oop(erased)->forwardee();
             erased = new_p == NULL ? erased : to_obj(new_p);
           }
@@ -538,14 +538,16 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
     g_young_roots.resize(0);
   }
 
-  int cnt_root = g_stack_roots.size();
-  if (cnt_root > 0) {
-    GCObject** src = &g_stack_roots.at(0);
-    GCObject** end = src + cnt_root;
-    for (; src < end; src++) {
-      GCObject* erased = src[0];
-      oop new_p = cast_to_oop(erased)->forwardee();
-      if (new_p != NULL) src[0] = to_obj(new_p);
+  if (!RTGC_FAT_OOP) {
+    int cnt_root = g_stack_roots.size();
+    if (cnt_root > 0) {
+      GCObject** src = &g_stack_roots.at(0);
+      GCObject** end = src + cnt_root;
+      for (; src < end; src++) {
+        GCObject* erased = src[0];
+        oop new_p = cast_to_oop(erased)->forwardee();
+        if (new_p != NULL) src[0] = to_obj(new_p);
+      }
     }
   }
 }
@@ -638,7 +640,9 @@ void rtHeap::finish_adjust_pointers() {
    * adjust_pointers 수행 중에, mark_survivor_reachable() 이 호출된다.
    * 이에, rtHeap__clearStack() 이 adjust_pointers 종료 후에 호출되어야 한다.
    */
-  // rtHeap__clearStack<true>();
+  if (RTGC_FAT_OOP) {
+    rtHeap__clearStack<true>();
+  }
 }
 
 class ClearWeakHandleRef: public OopClosure {
@@ -682,7 +686,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   precond(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d\n", in_full_gc);
   is_gc_started = false;
-  if (true || !in_full_gc) {
+  if (!RTGC_FAT_OOP || !in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
     rtHeap__clearStack<false>();
   }
