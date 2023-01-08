@@ -9,7 +9,7 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  develop(bool, EnableRTGC, true,                                          \
+  product(bool, EnableRTGC, true,                                           \
           "Enable Reverse Tracking garbage collection(RTGC) method")        \
                                                                             \
   develop(bool, RtLazyClearWeakHandle, false,                              \

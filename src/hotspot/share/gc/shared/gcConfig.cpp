@@ -169,9 +169,11 @@ GCArguments* GCConfig::select_gc() {
    * WeakHandle 은 예상보다 생명이 긴 편이다.
    * 필요시 ON_PHANTOM_OOP_REF 를 재정의 하기보다는 다른 상수를 정의하여 사용할 것.
    */
+#ifdef ASSERT
   RtLazyClearWeakHandle = false;//EnableRTGC;
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
+#endif
 #endif  
 
   // Exactly one GC selected

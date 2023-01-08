@@ -27,6 +27,14 @@ bash configure --with-jvm-variants=client \
   --with-gtest=./googletest
 # --with-toolchain-type=clang \
 ```
+```
+bash configure --with-jvm-variants=client \
+  --with-native-debug-symbols=external \
+  --with-jtreg=./jtreg-6.1 \
+  --enable-ccache \
+  --with-gtest=./googletest
+# --with-toolchain-type=clang \
+```
 
 ### for linux (without ccache -> is docker problrem??)
 ```

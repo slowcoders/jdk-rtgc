@@ -130,7 +130,9 @@ static void __trace_update_log(oopDesc* anchor, ErasedSlot erasedField, void* rt
 
 static void __check_update_log(oopDesc* anchor, volatile narrowOop* field, narrowOop erased, RtThreadLocalData* rtData) {
   // printf("check log %p[%p] v= %x rtData=%p thread=%p\n", anchor, field, (int32_t)erased, rtData, Thread::current());
+#ifdef ASSERT
   rtData->checkLastLog(anchor, field, erased);
+#endif
   postcond(cnt_log < 100);
 }
 
