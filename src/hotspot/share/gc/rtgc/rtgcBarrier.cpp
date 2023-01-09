@@ -49,17 +49,17 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   DecoratorSet ds = AccessBarrierSupport::
       resolve_possibly_unknown_oop_ref_strength<ON_UNKNOWN_OOP_REF>(base, offset);
   if (RtNoDiscoverPhantom || !RtLazyClearWeakHandle) {
-    precond((ds & ON_PHANTOM_OOP_REF) == 0);
+    rt_assert((ds & ON_PHANTOM_OOP_REF) == 0);
     return (ds & ON_PHANTOM_OOP_REF) == 0;
   }
   return true;
 }
 
 static void check_field_addr(oopDesc* base, volatile void* addr, bool is_array) {
-  //precond(!strong_reachable || is_strong_ref(addr, base));
+  //rt_assert(!strong_reachable || is_strong_ref(addr, base));
   assert(is_array == base->klass()->is_array_klass(), 
     "mismatch is_array=%d %s\n", is_array, base->klass()->name()->bytes());
-  assert(addr > (address)base + oopDesc::klass_offset_in_bytes()
+  rt_assert_f(addr > (address)base + oopDesc::klass_offset_in_bytes()
       && addr < (address)base + MAX_OBJ_SIZE
       , "invalid field addr %p of base %p\n", addr, base);
 }
@@ -86,8 +86,8 @@ int rtgc_getOopShift() {
         //rtgc_log(LOG_OPT(1), "## narrowOop shift=%d\n", _shift);
       }
     }
-    //assert(0 == CompressedOops::base(), "invalid narrowOop base");
-    // assert(3 == CompressedOops::shift()
+    //rt_assert_f(0 == CompressedOops::base(), "invalid narrowOop base");
+    // rt_assert_f(3 == CompressedOops::shift()
     //     || 0 == CompressedOops::shift(), "invalid narrowOop shift");
     return 0;//CompressedOops::shift();
   }
@@ -115,11 +115,11 @@ static void raw_set_field(oop* addr, oopDesc* value) {
 
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
-  precond(!is_gc_started);
+  rt_assert(!is_gc_started);
   narrowOop new_v = CompressedOops::encode(value);
   if (in_heap && rtHeap::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
-    precond(!rtHeap::in_full_gc);
+    rt_assert(!rtHeap::in_full_gc);
     //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
@@ -145,11 +145,11 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile oop* addr, oopDesc* valu
 
 template <bool in_heap>
 static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare, oopDesc* value) {
-  precond(!is_gc_started);
+  rt_assert(!is_gc_started);
   narrowOop c_v = CompressedOops::encode(compare);
   narrowOop n_v = CompressedOops::encode(value);
   if (in_heap && rtHeap::useModifyFlag()) {
-    precond(!rtHeap::is_modified(c_v));
+    rt_assert(!rtHeap::is_modified(c_v));
     n_v = rtHeap::to_modified(n_v);
   }
 
@@ -173,7 +173,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* c
 }
 
 void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
-  precond(is_barrier_locked());
+  rt_assert(is_barrier_locked());
 
   if (rtHeap::useModifyFlag()) return;
   if (old_v == new_v) return;
@@ -205,7 +205,7 @@ void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
     rtgc_log(LOG_OPT(11), "skip rtgc_store %p[] <= %p\n", base, new_v);
     return;
   }
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
   check_field_addr(base, addr, is_array);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
@@ -226,7 +226,7 @@ void rtgc_store_not_in_heap(T* addr, oopDesc* new_v) {
   }
   //oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
   //raw_set_volatile_field(addr, new_v);
-  assert(!(!dest_uninitialized && new_v != NULL && 
+  rt_assert_f(!(!dest_uninitialized && new_v != NULL && 
       RTGC::debugOptions[2] >= 16 && new_v->klass() == vmClasses::String_klass()), 
         "rtgc_store_not_in_heap %p\n", (void*)new_v);
   RTGC::on_root_changed(old, new_v, addr, "stor");
@@ -253,7 +253,7 @@ void RtgcBarrier::oop_store_not_in_heap_uninitialized(oop* addr, oopDesc* new_v)
 }
 
 void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
   if (is_strong_ref(addr, base)) {
 #ifdef ASSERT     // Exact Array Upate Detection
     if (base->klass()->is_array_klass()) {
@@ -275,7 +275,7 @@ void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_v, oopDesc* base) {
 
   if (rtHeap::is_trackable(base)) {
     if (decorators & ON_UNKNOWN_OOP_REF) {
-      precond((decorators & IS_ARRAY) == 0);
+      rt_assert((decorators & IS_ARRAY) == 0);
       oop_store_unknown(addr, new_v, base);
     } else if (decorators & IS_ARRAY) {
       rt_store_array_item(addr, new_v, base);
@@ -298,9 +298,9 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool initialized = (decorators & IS_DEST_UNINITIALIZED) == 0;
   bool is_array = (decorators & IS_ARRAY) != 0;
-  precond(!is_array || (in_heap && initialized));
-  precond(is_valid_decorators(decorators));
-  precond(!in_heap || initialized);
+  rt_assert(!is_array || (in_heap && initialized));
+  rt_assert(is_valid_decorators(decorators));
+  rt_assert(!in_heap || initialized);
 
   if (!in_heap) {
     return initialized ? reinterpret_cast<address>(rt_store_not_in_heap)
@@ -309,7 +309,7 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
 
   bool is_unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool is_trackable = (decorators & AS_RAW) == 0;
-  precond(!is_unknown || !is_array);
+  rt_assert(!is_unknown || !is_array);
 
   if (is_trackable) {
     if (is_unknown) {
@@ -360,7 +360,7 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_v, oopDesc* base) {
     return res;
   }
   rtgc_log(LOG_OPT(11), "xchg %p(%p) <-> %p\n", base, addr, new_v);
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
   check_field_addr(base, addr, is_array);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
@@ -396,7 +396,7 @@ oopDesc* RtgcBarrier::oop_xchg_not_in_heap(volatile oop* addr, oopDesc* new_v) {
 }
 
 oopDesc* RtgcBarrier::oop_xchg_unknown(volatile void* addr, oopDesc* new_v, oopDesc* base) {
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
 
   rtgc_log(LOG_OPT(11), "rt_xchg_c1 base: %p(%s) rt=%d, yg_root=%d new_v: %p(%s)\n", 
       base, base->klass()->name()->bytes(), is_strong_ref(addr, base), to_node(base)->isYoungRoot(), new_v, 
@@ -431,10 +431,10 @@ oopDesc* RtgcBarrier::rt_xchg_c1(T* addr, oopDesc* new_v, oopDesc* base) {
 }
 
 address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
-  precond(is_valid_decorators(decorators));
+  rt_assert(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
-    precond((decorators & IS_ARRAY) == 0);
+    rt_assert((decorators & IS_ARRAY) == 0);
     return reinterpret_cast<address>(rt_xchg_not_in_heap);
   }
 
@@ -480,7 +480,7 @@ oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc*
     return res;
   }
   check_field_addr(base, addr, is_array);
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
   lock_barrier();
   oopDesc* old = raw_atomic_cmpxchg<true>(base, addr, cmp_v, new_v);
   if (old == cmp_v) {
@@ -520,7 +520,7 @@ oopDesc* RtgcBarrier::oop_cmpxchg_not_in_heap(volatile oop* addr, oopDesc* cmp_v
 }
 
 oopDesc* RtgcBarrier::oop_cmpxchg_unknown(volatile void* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc* base) {
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
   if (is_strong_ref(addr, base)) {
 #ifdef ASSERT     // Exact Array Upate Detection
     if (base->klass()->is_array_klass()) {
@@ -570,10 +570,10 @@ oopDesc* RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_v, oopDesc* new_v, oopD
 
 
 address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
-  precond(is_valid_decorators(decorators));
+  rt_assert(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
-    precond((decorators & IS_ARRAY) == 0);
+    rt_assert((decorators & IS_ARRAY) == 0);
     return reinterpret_cast<address>(rt_cmpxchg_not_in_heap);
   }
 
@@ -641,7 +641,7 @@ oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
 }
 
 oopDesc* RtgcBarrier::oop_load_unknown(volatile void* addr, oopDesc* base) {
-  precond(rtHeap::is_trackable(base));
+  rt_assert(rtHeap::is_trackable(base));
 
   if (is_strong_ref(addr, base)) {
     return rt_load(addr, base);
@@ -671,10 +671,10 @@ oopDesc* RtgcBarrier::rt_load_c1(T* addr, oopDesc* base) {
 }
 
 address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
-  precond(is_valid_decorators(decorators));
+  rt_assert(is_valid_decorators(decorators));
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
-    precond((decorators & IS_ARRAY) == 0);
+    rt_assert((decorators & IS_ARRAY) == 0);
     return reinterpret_cast<address>(rt_load_not_in_heap);
   }
 
@@ -715,7 +715,7 @@ address RtgcBarrier::getLoadFunction(DecoratorSet decorators) {
 template <class ITEM_T, DecoratorSet ds, int shift>
 static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p, 
                     size_t length, arrayOopDesc* dst_array) {
-  precond(to_obj(dst_array)->isTrackable());
+  rt_assert(to_obj(dst_array)->isTrackable());
   bool checkcast = ARRAYCOPY_CHECKCAST & ds;
   bool dest_uninitialized = IS_DEST_UNINITIALIZED & ds;
   // rtgc_log(true, "arraycopy (%p)->%p(%p): %d) checkcast=%d, uninitialized=%d\n", 
@@ -728,10 +728,10 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
   const int delta = checkcast || (ds & ARRAYCOPY_DISJOINT) != 0 ? +1 : -1;
   if (delta > 0) {
-    precond(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
+    rt_assert(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
   }
 
-  precond(sizeof(ITEM_T) == sizeof(narrowOop) || !UseCompressedOops);
+  rt_assert(sizeof(ITEM_T) == sizeof(narrowOop) || !UseCompressedOops);
   const bool UseModifyFlag = rtHeap::useModifyFlag();
   lock_barrier();  
   size_t reverse_i = length;                    
@@ -751,7 +751,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
     }
     oopDesc* old_v;
     if (UseModifyFlag) {
-      precond(!dest_uninitialized); 
+      rt_assert(!dest_uninitialized); 
       old_v = raw_atomic_xchg<true>(dst_array, &dst_p[i], new_v);
     } else {
       old_v = dest_uninitialized ? NULL : CompressedOops::decode(dst_p[i]);
@@ -770,7 +770,7 @@ int RtgcBarrier::oop_arraycopy_checkcast(oop* src_p, oop* dst_p, size_t length, 
   return rtgc_arraycopy<oop, ARRAYCOPY_CHECKCAST, 0>(src_p, dst_p, length, dst_array);
 }
 int RtgcBarrier::oop_arraycopy_checkcast(HeapWord* src_p, HeapWord* dst_p, size_t length, arrayOopDesc* dst_array) {
-  assert(false, "not implemented");
+  rt_assert_f(false, "not implemented");
   return false;
 }
 
@@ -818,7 +818,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _rookie;
   template <class T>
   void do_work(T* p) {
-    precond(rtHeap::useModifyFlag());
+    rt_assert(rtHeap::useModifyFlag());
     T heap_oop = *p;
     if (rtHeap::is_modified(heap_oop)) {
       *p = rtHeap::to_unmodified(heap_oop);
@@ -833,8 +833,8 @@ public:
 };
 
 void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
-  precond(sizeof(oopDesc) == align_object_size(sizeof(oopDesc)));
-  precond(dst->klass() == src->klass());
+  rt_assert(sizeof(oopDesc) == align_object_size(sizeof(oopDesc)));
+  rt_assert(dst->klass() == src->klass());
   dst->init_mark();
   int copy_offset = // RTGC_FAT_OOP oopDesc::has_klass_gap() ? oopDesc::klass_offset_in_bytes() : 
                     sizeof(oopDesc);
@@ -845,7 +845,7 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
       copy_size);
 
   oopDesc* new_obj = dst;
-  assert(!to_node(new_obj)->isTrackable(), " wrong obj %p\n", new_obj);
+  rt_assert_f(!to_node(new_obj)->isTrackable(), " wrong obj %p\n", new_obj);
   rtgc_debug_log(new_obj, "clone_post_barrier %p\n", new_obj); 
   rtgc_log(to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, to_obj(new_obj)->getRootRefCount());

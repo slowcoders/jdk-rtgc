@@ -173,6 +173,10 @@ GCArguments* GCConfig::select_gc() {
   RtLazyClearWeakHandle = false;//EnableRTGC;
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
+#else
+  rt_assert(!RtLazyClearWeakHandle);
+  rt_assert(RtNoDirtyCardMarking == EnableRTGC);
+  rt_assert(RtNoDiscoverPhantom == EnableRTGC);
 #endif
 #endif  
 

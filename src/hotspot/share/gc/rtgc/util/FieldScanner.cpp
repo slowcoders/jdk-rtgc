@@ -52,10 +52,10 @@ public:
         return;
       }
       oop p = obj->forwardee();
-      precond(p != NULL);
+      rt_assert(p != NULL);
       link = to_obj(p);
     }
-    // precond(p != NULL);
+    // rt_assert(p != NULL);
     if (_fn(link, _base)) {
       _stack->push_back(link);
     }
@@ -64,7 +64,7 @@ public:
 
 
 void RuntimeHeap::scanInstanceGraph(GCObject* root, RefTracer2 trace, HugeArray<GCObject*>* stack, bool isTenured) {
-  precond(root->isTrackable());
+  rt_assert(root->isTrackable());
 
   oopDesc* p = cast_to_oop(root);
   if (!isTenured) {

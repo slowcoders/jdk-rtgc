@@ -53,7 +53,7 @@ void __trace(narrowOop* addr) {
   //rtgc_log(1, "__TRCAE %p\n", addr);
 }
 void __break(narrowOop* addr) {
-  assert(false, "__BREAK %p\n", addr);
+  rt_assert_f(false, "__BREAK %p\n", addr);
 }
 
 static LIR_Opr get_resolved_addr_reg(LIRAccess& access) {
@@ -98,7 +98,6 @@ public:
 
   LIR_Opr prepare_atomic_result(LIRGenerator* gen, LIRItem* cmp_item) {
     _phys_reg = _value;
-    debug_only(_decorators |= C1_NEEDS_PATCHING);
     if (cmp_item == NULL) {
       _type = RtgcBarrierSetAssembler::ReplaceType::Xchg;
     } else {
@@ -171,7 +170,7 @@ LIR_Opr RtgcBarrierSetC1::get_resolved_addr_reg(LIRAccess& access) {
   LIR_Address* address = NULL;
   LIR_Opr addr_op = access.resolved_addr();
   if (addr_op != NULL) {
-    precond(addr_op->is_address());
+    rt_assert(addr_op->is_address());
     address = addr_op->as_address_ptr();
     if (!address->base()->is_register() || address->index()->is_valid() || address->disp() != 0) {
       address = NULL;
@@ -182,8 +181,8 @@ LIR_Opr RtgcBarrierSetC1::get_resolved_addr_reg(LIRAccess& access) {
     access.set_resolved_addr(addr_op);
     address = addr_op->as_address_ptr();
   }
-  precond(address->base()->is_register()); 
-  precond(!address->index()->is_valid() && address->disp() == 0);
+  rt_assert(address->base()->is_register()); 
+  rt_assert(!address->index()->is_valid() && address->disp() == 0);
   
   LIR_Opr addr_reg = access.gen()->new_register(T_ADDRESS);
   access.gen()->lir()->move(address->base(), addr_reg);
@@ -246,9 +245,9 @@ bool RtgcBarrierSetC1::needBarrier_onResolvedAddress(LIRAccess& access, bool op_
       } else if (const_opr->type() == T_LONG) {
         disp = const_opr->as_jlong();
       } else {
-        assert(const_opr->type() == T_INT, "const type = %d\n", const_opr->type());
+        rt_assert_f(const_opr->type() == T_INT, "const type = %d\n", const_opr->type());
       }
-      assert(disp < 0 || disp > oopDesc::klass_offset_in_bytes(), "just checking");
+      rt_assert_f(disp < 0 || disp > oopDesc::klass_offset_in_bytes(), "just checking");
       return disp < 0 || disp > oopDesc::klass_offset_in_bytes();
     }
   }
@@ -339,7 +338,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
                 offset->is_constant() &&
                 offset->as_jint() >= 0 &&
                 offset->as_jint() <= oopDesc::klass_offset_in_bytes();
-    assert(!setKlass, "just check");
+    rt_assert_f(!setKlass, "just check");
     BarrierSetC1::store_at_resolved(access, value);
     return;
   }
@@ -396,7 +395,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
   //   LIR_Opr addr = access.resolved_addr();
   //   LIR_Opr result = stub->_phys_reg;
   //   __ move(value.result(), result);
-  //   // assert(type == T_INT || is_oop LP64_ONLY( || type == T_LONG ), "unexpected type");
+  //   // rt_assert_f(type == T_INT || is_oop LP64_ONLY( || type == T_LONG ), "unexpected type");
   //   __ xchg(addr, result, result, LIR_OprFact::illegalOpr);
   // }
   // __ branch_destination(stub->continuation());
@@ -420,7 +419,7 @@ bool __rtgc_cmpxchg_nih(volatile narrowOop* addr, oopDesc* cmp_value, oopDesc* n
 LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cmp_value, LIRItem& new_value) {
   if (!needBarrier_onResolvedAddress(access, true)) {
     bool in_heap = (access.decorators() & IN_HEAP) != 0;
-    precond(!in_heap || !access.is_oop());
+    rt_assert(!in_heap || !access.is_oop());
     return BarrierSetC1::atomic_cmpxchg_at_resolved(access, cmp_value, new_value);
   }
 

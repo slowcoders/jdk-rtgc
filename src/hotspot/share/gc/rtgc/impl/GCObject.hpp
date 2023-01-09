@@ -99,9 +99,9 @@ public:
 		int cc = 0;
 		GCObject* next;
 		for (GCObject* node = tail; node != anchor; node = next) {
-			debug_only(precond(++cc < 10000));
+			debug_only(rt_assert(++cc < 10000));
 			RtNode* nx = node->getMutableNode();
-			precond(replace_shorcut ||nx->getShortcutId() <= INVALID_SHORTCUT);
+			rt_assert(replace_shorcut ||nx->getShortcutId() <= INVALID_SHORTCUT);
 			nx->setShortcutId_unsafe(s_id);
 			next = nx->getSafeAnchor();
 		}
@@ -145,7 +145,7 @@ public:
 #endif
 
 	void markInTracing(GCObject* obj) {
-		assert(!inTracing(), "aleady in tracing %p", obj);
+		rt_assert_f(!inTracing(), "aleady in tracing %p", obj);
 		_inTracing = obj;
 	}
 	void unmarkInTracing() {
@@ -167,7 +167,7 @@ public:
 	static bool clearTooShort(GCObject* anchor, GCObject* tail);
 
 	void adjustPointUnsafe(GCObject* anchor, GCObject* tail) {
-		precond(anchor != NULL);
+		rt_assert(anchor != NULL);
 		_anchor = anchor; _tail = tail;
 	}
 

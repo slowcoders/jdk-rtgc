@@ -2,11 +2,34 @@
 #define SHARE_GC_RTGC_RTGC_LOG_HPP
 
 #include <stdio.h>
+#include "utilities/debug.hpp"
 
 #ifdef ASSERT
+  #define ENABLE_RTGC_ASSERT true
+#else 
+  #define ENABLE_RTGC_ASSERT true
+#endif
+
+
+#if ENABLE_RTGC_ASSERT
   extern bool RTGC_DEBUG;
 #else 
   #define RTGC_DEBUG false
+#endif
+
+#ifdef ASSERT
+#define rt_assert_f  assert
+#define rt_assert    precond
+#else
+#define rt_assert_f(p, ...)                                                        \
+do {                                                                           \
+  if (!(p)) {                                                                  \
+    TOUCH_ASSERT_POISON;                                                       \
+    report_vm_error(__FILE__, __LINE__, "assert(" #p ") failed", __VA_ARGS__); \
+    BREAKPOINT;                                                                \
+  }                                                                            \
+} while (0)
+#define rt_assert(p)  rt_assert_f(p, "")
 #endif
 
 

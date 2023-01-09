@@ -12,8 +12,8 @@ using namespace RTGC;
 namespace RTGC {
 
     void* _offset2Pointer(uint32_t offset) {
-        precond(offset != 0);
-        assert(!rtHeap::useModifyFlag() || (offset & 1) == 0, "wrong offset %x\n", offset); 
+        rt_assert(offset != 0);
+        rt_assert_f(!rtHeap::useModifyFlag() || (offset & 1) == 0, "wrong offset %x\n", offset); 
         uintptr_t base = (uintptr_t)CompressedOops::base();
         int shift = UseCompressedOops ? CompressedOops::shift() : 3;
         return (void*)(base + ((uintptr_t)offset << shift));
@@ -22,12 +22,12 @@ namespace RTGC {
     uint32_t _pointer2offset(void* ptr) {
         uintptr_t ref = (uintptr_t)ptr; 
         uintptr_t base = (uintptr_t)CompressedOops::base();
-        precond(ref > base);
-        precond(ref < base + OopEncodingHeapMax);
+        rt_assert(ref > base);
+        rt_assert(ref < base + OopEncodingHeapMax);
         int shift = UseCompressedOops ? CompressedOops::shift() : 3;
         uint32_t result = (uint32_t)((ref - base) >> shift);
-        precond(!rtHeap::useModifyFlag() || (result & 1) == 0); 
-        assert(_offset2Pointer(result) == ptr, "reversibility %p >> %d -> %x : %p\n", 
+        rt_assert(!rtHeap::useModifyFlag() || (result & 1) == 0); 
+        rt_assert_f(_offset2Pointer(result) == ptr, "reversibility %p >> %d -> %x : %p\n", 
             ptr, shift, result, _offset2Pointer(result));
         return result;
     }
@@ -47,7 +47,7 @@ ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
 const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
     Chunk* tail = g_chunkPool.allocate();
-    precond(((uintptr_t)tail & CHUNK_MASK) == 0);
+    rt_assert(((uintptr_t)tail & CHUNK_MASK) == 0);
     tail->_last_item_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
     return &tail->_items[MAX_COUNT_IN_CHUNK-1];
 }
@@ -56,7 +56,7 @@ const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
 ReferrerList::Chunk* ReferrerList::dealloc_chunk(Chunk* chunk) {
     //rtgc_log(true, "dealloc_chunk %p\n", this);
     Chunk* prev = (Chunk*)(&chunk->_items[MAX_COUNT_IN_CHUNK] + chunk->_last_item_offset);
-    precond(((uintptr_t)prev & CHUNK_MASK) == 0);
+    rt_assert(((uintptr_t)prev & CHUNK_MASK) == 0);
     g_chunkPool.delete_(chunk);
     return prev;
 }
@@ -94,7 +94,7 @@ void ReferrerList::add(ShortOOP item) {
         }
     } else {
         if (((uintptr_t)pLast & CHUNK_MASK) == 0) {
-            precond(((uintptr_t)pLast & ~CHUNK_MASK) == (uintptr_t)pLast);
+            rt_assert(((uintptr_t)pLast & ~CHUNK_MASK) == (uintptr_t)pLast);
             pLast = extend_tail((Chunk*)pLast);
             set_last_item_ptr(pLast);
         } else {
@@ -108,8 +108,8 @@ void ReferrerList::add(ShortOOP item) {
 static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
     while (iter.hasNext()) {
         const ShortOOP* ptr = iter.next_ptr();
-        precond(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
-        precond(ptr != NULL && ptr->getOffset() != 0);
+        rt_assert(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
+        rt_assert(ptr != NULL && ptr->getOffset() != 0);
         if (*ptr == item) {
             return ptr;
         }
@@ -129,7 +129,7 @@ const ShortOOP* ReferrerList::getItemPtr(ShortOOP item) {
     }
 
     for (; pItem >= _head._items; pItem--) {
-        assert(pItem->getOffset() != 0, "pItem %p, base=%p count=%d\n", pItem, this, this->approximated_item_count());
+        rt_assert_f(pItem->getOffset() != 0, "pItem %p, base=%p count=%d\n", pItem, this, this->approximated_item_count());
         if (*pItem == item) return pItem;
     }
     return NULL;
@@ -139,7 +139,7 @@ void ReferrerList::replaceFirst(ShortOOP new_first) {
     ShortOOP old_first = this->front();
     if (old_first != new_first) {
         const ShortOOP* pItem = getItemPtr(new_first);
-        assert(pItem != NULL, "incorrect anchor %p(%s)\n",
+        rt_assert_f(pItem != NULL, "incorrect anchor %p(%s)\n",
             (GCObject*)new_first, RTGC::getClassName((GCObject*)new_first));
         _head._items[0] = new_first;
         *(ShortOOP*)pItem = old_first;
@@ -156,9 +156,9 @@ const void* ReferrerList::remove(ShortOOP item) {
 }
 
 const void* ReferrerList::replace(ShortOOP old_p, ShortOOP new_p) {
-    precond(new_p.getOffset() != 0);
+    rt_assert(new_p.getOffset() != 0);
     const ShortOOP* pItem = getItemPtr(old_p);
-    precond(pItem != NULL);
+    rt_assert(pItem != NULL);
     *(ShortOOP::OffsetType*)pItem = new_p.getOffset();
     return pItem;
 }
@@ -217,7 +217,7 @@ void AnchorIterator::initialize(GCObject* obj) {
 #define _USE_MMAP 1
 #define _ULIMIT 1
 void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
-    precond(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
     void* addr;    
 #if _USE_JVM
     size_t total_reserved = bytes;
@@ -235,13 +235,13 @@ void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
     addr = realloc(addr, 4096);
 #endif
 #endif
-    assert(addr != NULL, "reserve mem fail");
+    rt_assert_f(addr != NULL, "reserve mem fail");
     rtgc_log(false, "reserve_memory %p %dk\n", addr, (int)(bytes/1024));
     return addr;
 }
 
 void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) {
-    precond(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
 #if _USE_JVM
     rtgc_log(1, "commit_memory\n");
     return;
@@ -256,11 +256,11 @@ void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) 
     void* mem = ::realloc(addr, offset + bytes);
     if (mem == addr) return;
 #endif
-    assert(0, "OutOfMemoryError:E009");
+    rt_assert_f(0, "OutOfMemoryError:E009");
 }
 
 void RTGC::VirtualMemory::free(void* addr, size_t bytes) {
-    precond(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
 #if _USE_JVM
     fatal(1, "free_memory\n");
     return;
@@ -274,5 +274,5 @@ void RTGC::VirtualMemory::free(void* addr, size_t bytes) {
     ::free(addr);
     return;
 #endif
-    assert(0, "Invalid Address:E00A");
+    rt_assert_f(0, "Invalid Address:E00A");
 }

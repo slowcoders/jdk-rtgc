@@ -34,9 +34,9 @@ class ShortOOP {
 public:
     typedef uint32_t OffsetType;
     ShortOOP(GCObject* ptr) {
-        precond(ptr != NULL);
+        rt_assert(ptr != NULL);
         _ofs = _pointer2offset(ptr);
-        postcond(_ofs != 0);
+        rt_assert(_ofs != 0);
     }
 
     operator GCObject* () const {

@@ -7,6 +7,7 @@
 #include "gc/rtgc/impl/GCRuntime.hpp"
 #include "logging/logConfiguration.hpp"
 
+
 using namespace RTGC;
 
 static const int LOG_OPT(int function) {
@@ -39,9 +40,9 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  assert(obj2 == NULL || !obj2->isGarbageMarked(),
+  rt_assert_f(obj2 == NULL || !obj2->isGarbageMarked(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj2));
-  assert(obj1 == NULL || !obj1->isGarbageMarked(),
+  rt_assert_f(obj1 == NULL || !obj1->isGarbageMarked(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj1));
 }
 
@@ -68,13 +69,13 @@ void RTGC::lock_heap(bool heavy) {
 }
 
 void RTGC::promote_heavy_lock() {
-  precond(g_mv_lock == LIGHT_LOCK);
+  rt_assert(g_mv_lock == LIGHT_LOCK);
   g_mv_lock = HEAVY_LOCK;
   // lock_semaphore
 }
 
 void RTGC::unlock_heap() {
-  precond(heap_locked_bySelf());
+  rt_assert(heap_locked_bySelf());
   if (IS_HEAVY_LOCK(g_mv_lock)) {
     // unlock semaphore;
   }
@@ -106,9 +107,9 @@ bool RTGC::needTrack(oopDesc* obj) {
 }
 
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
-  precond(p != NULL);
+  rt_assert(p != NULL);
   check_valid_obj(p, debug_base);
-  assert(RTGC::heap_locked_bySelf() ||
+  rt_assert_f(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
   precond (p != debug_base);
@@ -140,12 +141,12 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   check_valid_obj(newValue, base);
   check_valid_obj(oldValue, base);
   precond (oldValue != newValue);
-  assert(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d\n", 
+  rt_assert_f(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d\n", 
           base, RTGC::getClassName((GCObject*)base), to_obj(base)->getRootRefCount());
-  assert(RTGC::heap_locked_bySelf() ||
+  rt_assert_f(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  assert(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
+  rt_assert_f(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
 
   // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 
   //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
@@ -165,7 +166,7 @@ void RTGC::on_root_changed(oopDesc* oldValue, oopDesc* newValue, volatile void* 
   check_valid_obj(newValue, newValue);
   check_valid_obj(oldValue, newValue);
 
-  assert(RTGC::heap_locked_bySelf() ||
+  rt_assert_f(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
 
@@ -196,7 +197,7 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
-  assert(cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
+  rt_assert_f(cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
       tag, obj, RTGC::getClassName(obj));
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
@@ -226,7 +227,7 @@ const char* RTGC::getClassName(const void* obj, bool showClassInfo) {
 
 oop rtgc_break(const char* file, int line, const char* function) {
   printf("Error %s:%d %s", file, line, function);
-  assert(false, "illegal barrier access");
+  rt_assert_f(false, "illegal barrier access");
   return NULL;
 } 
 
@@ -327,7 +328,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   }
 }
 
-#ifdef ASSERT
+#if ENABLE_RTGC_ASSERT
 bool RTGC_DEBUG = false;
 #endif
 void rtHeap__initialize();
@@ -341,9 +342,9 @@ void RTGC::initialize() {
   is_narrow_oop_mode = false;
 #endif
 
-#ifdef ASSERT
+#if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
@@ -355,6 +356,7 @@ void RTGC::initialize() {
   rtHeapEx::initializeRefProcessor();
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
+    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   if (RTGC_DEBUG) {
     rtgc_log(1, "CDS base=%p end=%p\n", 

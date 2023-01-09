@@ -58,7 +58,7 @@ public:
 
   static inline bool needBarrier(DecoratorSet decorators, oopDesc* base,
                                  ptrdiff_t offset, bool op_store) {
-    precond(!(decorators & IS_ARRAY) ||
+    rt_assert(!(decorators & IS_ARRAY) ||
             (!(decorators & (IS_DEST_UNINITIALIZED|IN_NATIVE)) && (decorators & IN_HEAP)));
     return !is_raw_access(decorators, op_store)
         && offset > oopDesc::klass_offset_in_bytes()

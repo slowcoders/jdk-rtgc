@@ -13,10 +13,10 @@
 
 #define GC_DEBUG 1
 // #if defined(_DEBUG) || defined(GC_DEBUG)
-//   #include "assert.h"
+//   #include "rt_assert.h"
 // #else
-//   #undef assert
-//   #define assert(t) // ignore
+//   #undef rt_assert
+//   #define rt_assert_f(t) // ignore
 // #endif
 
 #define PP_MERGE_TOKEN_EX(L, R)	L##R
@@ -70,7 +70,7 @@ struct FixedAllocator {
 
     static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t header_size) {
         int idx_bucket = (capacity * item_size + MEM_BUCKET_SIZE - 1) / MEM_BUCKET_SIZE;
-        precond(idx_bucket < max_bucket);
+        rt_assert(idx_bucket < max_bucket);
         int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
         VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
         capacity = (mem_offset + MEM_BUCKET_SIZE - header_size) / item_size;
@@ -141,7 +141,7 @@ public:
     }
 
     T front() {
-        precond(!empty());
+        rt_assert(!empty());
         return this->at(0);
     }
 
@@ -179,32 +179,32 @@ public:
     }
 
     T& back() {
-        precond(_data->_size > 0);
+        rt_assert(_data->_size > 0);
         return _data->_items[_data->_size - 1];
     }
 
     void pop_back() {
-        precond(_data->_size > 0);
+        rt_assert(_data->_size > 0);
         _data->_size --;
     }
 
     T& operator[](size_t __n) {
-        precond(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n >= 0 && __n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T& at(size_t __n) {
-        precond(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n >= 0 && __n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T* adr_at(size_t __n) {
-        precond(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n >= 0 && __n < _data->_capacity);
         return _data->_items + __n;
     }
 
     void resize(size_t __n) {
-        precond(__n >= 0 && __n <= _data->_capacity);
+        rt_assert(__n >= 0 && __n <= _data->_capacity);
         _data->_size = (int)__n;
     }
 
@@ -262,7 +262,7 @@ public:
     }
 
     void removeFast(int idx) {
-        precond(idx >= 0 && idx < this->size());
+        rt_assert(idx >= 0 && idx < this->size());
         int newSize = this->size() - 1;
         if (idx < newSize) {
             _data->_items[idx] = this->at(newSize);
@@ -342,7 +342,7 @@ public:
     }
 
     T* getPointer(int idx) {
-        assert(_items + idx < _next, "invalid idx: %d (max=%ld)\n", idx, _next - _items);
+        rt_assert_f(_items + idx < _next, "invalid idx: %d (max=%ld)\n", idx, _next - _items);
         T* ptr = _items + idx;
         return ptr;
     }

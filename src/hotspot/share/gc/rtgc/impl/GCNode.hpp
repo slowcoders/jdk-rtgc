@@ -41,7 +41,7 @@ public:
 	}
 
 	ShortOOP& getSingleAnchor() const {
-		precond(!_hasMultiRef && _refs != 0);
+		rt_assert(!_hasMultiRef && _refs != 0);
 		return *(ShortOOP*)&_refs;
 	}
 
@@ -58,12 +58,12 @@ public:
 	}
 
 	bool isAnchorListLocked() {
-		precond(_hasMultiRef);
+		rt_assert(_hasMultiRef);
 		return (int32_t)_refs > 0;
 	}
 
 	int32_t getIdentityHashCode() const {
-		precond(_hasMultiRef);
+		rt_assert(_hasMultiRef);
 		return _refs;
 	}
 
@@ -78,13 +78,13 @@ public:
 	}
 
 	void setSingleAnchor(ShortOOP anchor) {
-		precond(!_hasMultiRef);
+		rt_assert(!_hasMultiRef);
 		_refs = anchor.getOffset();
-        precond(!rtHeap::useModifyFlag() || (_refs & 1) == 0); 
+        rt_assert(!rtHeap::useModifyFlag() || (_refs & 1) == 0); 
 	}
 
 	void removeSingleAnchor() {
-		precond(!_hasMultiRef);
+		rt_assert(!_hasMultiRef);
 		_refs = 0;
 	}
 
@@ -102,7 +102,7 @@ public:
 	}
 
 	void invalidateShortcutId() {
-		precond(hasSafeAnchor());
+		rt_assert(hasSafeAnchor());
 		// no-shortcut. but this has valid safe-anchor.
 		setShortcutId_unsafe(INVALID_SHORTCUT);
 	}
@@ -141,10 +141,10 @@ public:
 
 	const RtNode* node_() {
 		if (RTGC_FAT_OOP) {
-			precond(sizeof(RtNode) == sizeof(markWord));
+			rt_assert(sizeof(RtNode) == sizeof(markWord));
 			return ((RtNode*)this) + 1;
 		}
-		precond(!this->is_forwarded() || g_in_progress_marking);
+		rt_assert(!this->is_forwarded() || g_in_progress_marking);
 		if (this->has_displaced_mark()) {
 			return reinterpret_cast<RtNode*>(this->mark_addr()->displaced_mark_addr_at_safepoint());
 		} else {
@@ -173,12 +173,12 @@ public:
 	}
 
 	void markYoungRoot() {
-		precond(!this->isYoungRoot());
+		rt_assert(!this->isYoungRoot());
 		flags().isYoungRoot = true;
 	}
 
 	void unmarkYoungRoot() {
-		precond(this->isYoungRoot());
+		rt_assert(this->isYoungRoot());
 		flags().isYoungRoot = false;
 	}
 
@@ -192,7 +192,7 @@ public:
 
 	void markTrackable() {
 		if (USE_EXPLICIT_TRACKABLE_MARK) {
-			precond(!this->isTrackable());
+			rt_assert(!this->isTrackable());
 			flags().isTrackableOrDestroyed = true;
 		} else {
 			fatal("should not reach here.");
@@ -200,7 +200,7 @@ public:
 	}
 
 	void markDestroyed() {
-		precond(flags().isGarbage);
+		rt_assert(flags().isGarbage);
 #ifdef ASSERT		
 		_cntTrackable--;
 #endif		
@@ -221,7 +221,7 @@ public:
 	}
 
 	int unmarkSurvivorReachable() {
-		precond(isSurvivorReachable());
+		rt_assert(isSurvivorReachable());
 		flags().rootRefCount &= ~(1 << 22);
 		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return flags().rootRefCount;
@@ -230,8 +230,8 @@ public:
 	int getReferrerCount();
 
 	void markSurvivorReachable() {
-		precond(!isGarbageMarked());
-		precond(!isSurvivorReachable());
+		rt_assert(!isGarbageMarked());
+		rt_assert(!isSurvivorReachable());
 		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d\n",    
 			this, this->getRootRefCount(), this->getReferrerCount());
 		flags().rootRefCount |= (1 << 22);
@@ -243,12 +243,12 @@ public:
 
 
 	void unmarkActiveFinalizer() {
-		precond(isActiveFinalizer());
+		rt_assert(isActiveFinalizer());
 		flags().rootRefCount &= ~(1 << 23);
 	}
 
 	void markActiveFinalizer() {
-		precond(!isActiveFinalizer());
+		rt_assert(!isActiveFinalizer());
 		flags().rootRefCount |= (1 << 23);
 	}
 
@@ -257,12 +257,12 @@ public:
 	}
 
 	void unmarkActiveFinalizerReachable() {
-		precond(isActiveFinalizerReachable());
+		rt_assert(isActiveFinalizerReachable());
 		flags().rootRefCount &= ~0x01;
 	}
 
 	void markActiveFinalizerReachable() {
-		precond(!isActiveFinalizerReachable());
+		rt_assert(!isActiveFinalizerReachable());
 		flags().rootRefCount |= 0x01;
 	}
 

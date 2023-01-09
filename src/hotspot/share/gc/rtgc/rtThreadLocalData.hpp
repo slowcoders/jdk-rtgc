@@ -113,10 +113,10 @@ public:
   void checkLastLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
     FieldUpdateLog* log = _log_buffer->peek();
     printf("log sp  %p start=%p\n", log, _log_buffer);
-    assert(log->_anchor == (void*)anchor, " %p %p\n", log->_anchor, anchor);
-    assert(log->offset() == (int32_t)(intptr_t)field, " %d %d\n", 
+    rt_assert_f(log->_anchor == (void*)anchor, " %p %p\n", log->_anchor, anchor);
+    rt_assert_f(log->offset() == (int32_t)(intptr_t)field, " %d %d\n", 
         log->offset(), (int32_t)(intptr_t)field);
-    assert(log->erased() == erased, " %x %x\n", (int32_t)log->erased(), (int32_t)erased);
+    rt_assert_f(log->erased() == erased, " %x %x\n", (int32_t)log->erased(), (int32_t)erased);
   }
 #endif
 };

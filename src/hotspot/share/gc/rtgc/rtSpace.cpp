@@ -22,7 +22,7 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
 }
 
 void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
-  assert(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
+  rt_assert_f(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
         "anchor=%p(%s) invalid pointer " PTR_DBG_SIG, 
         anchor, RTGC::getClassName(anchor), PTR_DBG_INFO(old_p));
 }
@@ -117,8 +117,8 @@ void FreeMemStore::clearStore() {
 }
 
 void RuntimeHeap::reclaimObject(GCObject* obj) {
-  precond(!cast_to_oop(obj)->is_gc_marked());
-  precond(obj->isTrackable());
+  rt_assert(!cast_to_oop(obj)->is_gc_marked());
+  rt_assert(obj->isTrackable());
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
   // ClassLoaderData* cld = rtHeapUtil::tenured_class_loader_data(cast_to_oop(obj));
   // if (cld != NULL) cld->decrease_holder_ref_count();
@@ -159,6 +159,6 @@ HeapWord* RtSpace::par_allocate(size_t word_size) {
 
 void rtSpace__initialize() {
   // g_deadspace_klass = TypeArrayKlass::create_klass((BasicType)T_INT, Thread::current());
-  // precond(g_deadspace_klass != NULL);
+  // rt_assert(g_deadspace_klass != NULL);
   g_freeMemStore.initialize();
 }

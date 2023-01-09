@@ -37,7 +37,6 @@ namespace RTGC {
 
   int g_cnt_update = 0;
   int g_cnt_update_log = 0;
-  extern bool g_in_gc_termination;
   address g_buffer_area_start = 0;
   address g_buffer_area_end = 0;
 
@@ -57,18 +56,18 @@ void FieldUpdateLog::updateAnchorList() {
 
   // rtgc_log(_atomic, "updateAnchorList %p[%d] = %x\n", _anchor, offset(), (int32_t)erased());
 
-  precond(to_obj(_anchor)->isTrackable());
-  assert(!rtHeap::is_modified(erased()), "%p(%s) [%d] v=%x/n", 
+  rt_assert(to_obj(_anchor)->isTrackable());
+  rt_assert_f(!rtHeap::is_modified(erased()), "%p(%s) [%d] v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), offset(), (int32_t)erased());
 
   narrowOop* pField = field(); 
   narrowOop new_p;
   while (true) {
     narrowOop cmp_v = *pField;
-    assert(rtHeap::is_modified(cmp_v), "%p(%s) [%d] v=%x/n", 
+    rt_assert_f(rtHeap::is_modified(cmp_v), "%p(%s) [%d] v=%x/n", 
         _anchor, RTGC::getClassName(_anchor), offset(), (int32_t)cmp_v);
 
-    precond(rtHeap::is_modified(cmp_v));
+    rt_assert(rtHeap::is_modified(cmp_v));
     new_p = rtHeap::to_unmodified(cmp_v);
     if (!_atomic) {
       *pField = new_p;
@@ -99,19 +98,19 @@ void FieldUpdateLog::add(oopDesc* anchor, volatile narrowOop* field, narrowOop e
 void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
   rtgc_debug_log(anchor, "add log(%p) [%d] %p\n", 
       anchor, erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
-  assert(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d\n", 
+  rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d\n", 
       anchor->size(), erasedField._offset);
 
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
 
-  precond(to_obj(anchor)->isTrackable());
-  precond(!rtHeap::is_modified(erasedField._obj));
+  rt_assert(to_obj(anchor)->isTrackable());
+  rt_assert(!rtHeap::is_modified(erasedField._obj));
   this->_anchor = (address)anchor;
   this->_erased = erasedField;
-  assert(rtHeap::is_modified(*field()), "%p(%s) [%d] v=%x/n", 
+  rt_assert_f(rtHeap::is_modified(*field()), "%p(%s) [%d] v=%x/n", 
       _anchor, RTGC::getClassName(_anchor), erasedField._offset, 
       (int32_t)*field());
-  assert(erasedField._offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+  rt_assert_f(erasedField._offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
 }
 
 
@@ -124,7 +123,7 @@ void UpdateLogBuffer::reset_gc_context() {
   g_buffer_area_end = (address)to->end();
 
 #ifdef ASSERT    
-  precond(g_buffer_area_start < g_buffer_area_end);
+  rt_assert(g_buffer_area_start < g_buffer_area_end);
   rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
     GenCollectedHeap::heap()->old_gen()->reserved().start(),
     newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
@@ -146,8 +145,7 @@ void UpdateLogBuffer::reset_gc_context() {
 }
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {
-  precond(!g_in_gc_termination);
-  precond(rtHeap::useModifyFlag());
+  rt_assert(rtHeap::useModifyFlag());
 
   UpdateLogBuffer* buffer;
   
@@ -185,7 +183,7 @@ void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
   } else {
     while (prev->_next != buffer) {
       prev = prev->_next;
-      precond(prev != NULL);
+      rt_assert(prev != NULL);
     }
     prev->_next = buffer->_next;
   }
@@ -236,10 +234,10 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
 
 RtThreadLocalData::RtThreadLocalData() { 
   _trackable_heap_start = GCNode::g_trackable_heap_start;
-  precond(_trackable_heap_start != NULL);
+  rt_assert(_trackable_heap_start != NULL);
   reset_field_update_log_buffer(); 
-  precond(_log_buffer->is_full());
-  precond(_log_buffer->next() == NULL);
+  rt_assert(_log_buffer->is_full());
+  rt_assert(_log_buffer->next() == NULL);
 }
 
 RtThreadLocalData::~RtThreadLocalData() {

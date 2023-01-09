@@ -72,7 +72,7 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
         prev = obj;
         obj = obj->node_()->getSafeAnchor();
         if (obj == anchor) return true;
-        precond(obj->node_()->getShortcut() == this);
+        rt_assert(obj->node_()->getShortcut() == this);
         if (obj == _inTracing) break;
     }
     bool cut_tail = clearTooShort(prev, _tail);
@@ -89,15 +89,15 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
 
 
 void SafeShortcut::vailidateShortcut() {
-    precond(_anchor->node_()->getShortcut() != this);
+    rt_assert(_anchor->node_()->getShortcut() != this);
     GCObject* anchor = _anchor;
-    assert(anchor->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+    rt_assert_f(anchor->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
     debug_only(int cnt = 0;)
     GCObject* tail = this->_tail;
     for (GCObject* obj = _tail; obj != anchor; obj = obj->node_()->getSafeAnchor()) {
-        assert(obj->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(obj));
+        rt_assert_f(obj->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(obj));
         //rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
-        assert(obj->node_()->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
+        rt_assert_f(obj->node_()->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
             obj, RTGC::getClassName(obj), getIndex(this));
     }
     //rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
@@ -106,10 +106,10 @@ void SafeShortcut::vailidateShortcut() {
 void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
     int s_id = getIndex(this);
 
-    assert(this->isValid(), "shotcut[%d] is invalid\nleftTail=" PTR_DBG_SIG "rightAnchor=" PTR_DBG_SIG "\n", 
+    rt_assert_f(this->isValid(), "shotcut[%d] is invalid\nleftTail=" PTR_DBG_SIG "rightAnchor=" PTR_DBG_SIG "\n", 
         getIndex(this), PTR_DBG_INFO(leftTail), PTR_DBG_INFO(rightAnchor));
-    precond(rightAnchor->node_()->getShortcut() == this);
-    assert(leftTail->node_()->getShortcut() == this || leftTail == this->anchor(), 
+    rt_assert(rightAnchor->node_()->getShortcut() == this);
+    rt_assert_f(leftTail->node_()->getShortcut() == this || leftTail == this->anchor(), 
         "wrong tail [%d] -> %p(%s) [%d] gm = %d\n", 
         this->getIndex(), leftTail, getClassName(leftTail), 
         leftTail->node_()->getShortcutId(), leftTail->isGarbageMarked());
@@ -164,7 +164,7 @@ void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {
 bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
     int len = MIN_SHORTCUT_LENGTH;
     for (GCObject* obj = tail; obj != anchor; obj = obj->node_()->getSafeAnchor()) {
-        precond(obj->node_()->hasAnchor());
+        rt_assert(obj->node_()->hasAnchor());
         if (--len < 0) return false;
     }
 
@@ -179,8 +179,8 @@ bool SafeShortcut::clearTooShort(GCObject* anchor, GCObject* tail) {
 }
 
 void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
-    assert(newAnchor->node_()->getShortcut() == this, "invalid anchor %p[%d]\n", newAnchor, this->getIndex(this));
-    precond(!this->inTracing());
+    rt_assert_f(newAnchor->node_()->getShortcut() == this, "invalid anchor %p[%d]\n", newAnchor, this->getIndex(this));
+    rt_assert(!this->inTracing());
     GCObject* old_anchor = _anchor;
     GCObject* next;
     for (GCObject* obj = newAnchor; obj != old_anchor; obj = next) {
@@ -199,8 +199,8 @@ void SafeShortcut::shrinkAnchorTo(GCObject* newAnchor) {
 }
 
 void SafeShortcut::shrinkTailTo(GCObject* newTail) {
-    assert(newTail->node_()->getShortcut() == this || newTail == this->anchor(), "invalid tail %p[%d]\n", newTail, this->getIndex(this));
-    precond(!this->inTracing());
+    rt_assert_f(newTail->node_()->getShortcut() == this || newTail == this->anchor(), "invalid tail %p[%d]\n", newTail, this->getIndex(this));
+    rt_assert(!this->inTracing());
 
     GCObject* next;
     for (GCObject* obj = _tail; obj != newTail; obj = next) {
@@ -220,8 +220,8 @@ void SafeShortcut::shrinkTailTo(GCObject* newTail) {
 }
 
 void SafeShortcut::extendTail(GCObject* tail) {
-    precond(tail != NULL); 
-    precond(tail != _tail); 
+    rt_assert(tail != NULL); 
+    rt_assert(tail != _tail); 
     int s_id = getIndex(this);
     rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "extendTail shotcut[%d] %p->%p\n", s_id, (void*)_tail, tail);
     GCObject* old_tail = _tail;
@@ -237,8 +237,8 @@ void SafeShortcut::extendTail(GCObject* tail) {
 }
 
 void SafeShortcut::extendAnchor(GCObject* anchor) { 
-    precond(anchor != NULL); 
-    precond(anchor != _anchor); 
+    rt_assert(anchor != NULL); 
+    rt_assert(anchor != _anchor); 
     int s_id = getIndex(this);
     rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "extendAnchor shotcut[%d] %p->%p\n", s_id, (void*)_anchor, anchor);
 

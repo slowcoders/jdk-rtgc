@@ -689,14 +689,14 @@ void GenCollectedHeap::do_collection(bool           full,
 
     print_heap_after_gc();
   }
-#ifdef ASSERT
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     rtHeap::finish_rtgc(true, true);
+#ifdef ASSERT
     rtHeap::print_heap_after_gc(do_full_collection);
+#endif
   }
 #endif  
-#endif
 }
 
 bool GenCollectedHeap::should_do_full_collection(size_t size, bool full, bool is_tlab,

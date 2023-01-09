@@ -63,7 +63,7 @@ public:
     }
 
     ShortOOP front() {
-        precond(!empty());
+        rt_assert(!empty());
         return _head._items[0];
     }
 
@@ -182,9 +182,9 @@ public:
     }
 
     const ShortOOP* next_ptr() {
-        precond(hasNext());
+        rt_assert(hasNext());
         const ShortOOP* oop = _ptr ++;
-        precond((GCObject*)*oop != NULL);
+        rt_assert((GCObject*)*oop != NULL);
         if (_ptr != _end) {
             if (ReferrerList::isEndOfChunk(_ptr)) {
                 _ptr = _ptr + *(int32_t*)_ptr;
@@ -202,7 +202,7 @@ public:
 class ReverseIterator : public NodeIterator<false> {
 public:     
     ReverseIterator(ReferrerList* list) {
-        precond(!list->isTooSmall());
+        rt_assert(!list->isTooSmall());
         if (!list->hasMultiChunk()) {
             _ptr = list->firstItemPtr();
             _end = list->lastItemPtr() + 1;
@@ -210,7 +210,7 @@ public:
             _ptr = list->lastItemPtr();
             _end = list->getNextChuckOffsetPtr();
         }
-        postcond(_ptr != _end);
+        rt_assert(_ptr != _end);
     }     
 };
 

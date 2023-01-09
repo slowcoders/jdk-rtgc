@@ -11,7 +11,7 @@
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_load_in_heap(T* addr) {
-  assert(RtgcBarrier::is_raw_access(decorators, false), "illegal access decorators");
+  rt_assert_f(RtgcBarrier::is_raw_access(decorators, false), "illegal access decorators");
 
   return ModRef::oop_load_in_heap(addr);
 }
@@ -38,9 +38,9 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline void RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_store_in_heap(T* addr, oop value) {
-  assert(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
+  rt_assert_f(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
 
-  precond((decorators & IS_DEST_UNINITIALIZED) == 0);
+  rt_assert((decorators & IS_DEST_UNINITIALIZED) == 0);
   ModRef::oop_store_in_heap(addr, value);
 }
 
@@ -70,7 +70,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_cmpxchg_in_heap(T* addr, oop compare_value, oop new_value) {
-  assert(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
+  rt_assert_f(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
 
   return ModRef::oop_atomic_cmpxchg_in_heap(addr, compare_value, new_value);
 }
@@ -104,7 +104,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop RtgcBarrierSet::AccessBarrier<decorators, BarrierSetT>::
 oop_atomic_xchg_in_heap(T* addr, oop new_value) {
-  assert(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
+  rt_assert_f(RtgcBarrier::is_raw_access(decorators, true), "illegal access decorators");
 
   return ModRef::oop_atomic_xchg_in_heap(addr, new_value);
 }
@@ -160,7 +160,7 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw, 
     bs->write_ref_array((HeapWord*)dst_raw, length);
     return true;
   } else {
-    assert(dst_obj != NULL, "better have an actual oop");
+    rt_assert_f(dst_obj != NULL, "better have an actual oop");
     Klass* bound = objArrayOop(dst_obj)->element_klass();
     T* from = const_cast<T*>(src_raw);
     size_t count = 0;
