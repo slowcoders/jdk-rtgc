@@ -103,6 +103,7 @@ void* FreeMemStore::recycle(size_t heap_size_in_word) {
         next->prev = NULL;
       }
       q->top = next;
+      // *(uintptr_t*)free = 0xFFFF;
     }
     return free;
   }
@@ -139,7 +140,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   rt_assert_f(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-#if 1 // 1
+#if 1 // 2
   HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
   bool recycled = (heap != NULL);
   if (recycled) {
@@ -160,6 +161,11 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   }
 #endif
   if (heap != NULL) {
+    //rtgc_log(recycled, "top=%p bottom=%p ptr=%p\n", top(), bottom(), heap);
+
+    // rt_assert_f(Universe::heap()->is_oop(cast_to_oop(heap)) && cast_to_oop(heap)->mark().value() != 0, 
+    //     "top=%p bottom=%p recycled=%d mv=%p\n" PTR_DBG_SIG, 
+    //     top(), bottom(), recycled, (void*)cast_to_oop(heap)->mark().value(), PTR_DBG_INFO(heap));
     rtHeap__addUntrackedTenuredObject(reinterpret_cast<GCObject*>(heap), recycled);
   }
   return heap;
