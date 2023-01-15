@@ -710,7 +710,6 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
 //   GCRuntime::onEraseRootVariable_internal(to_obj(p));
 // }
 
-
 void rtHeap::print_heap_after_gc(bool full_gc) {  
   rtgc_log(LOG_OPT(1), "trackables = %d, young_roots = %d, full gc = %d\n", 
       g_cntTrackable, g_young_roots.size(), full_gc); 

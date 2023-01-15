@@ -7,7 +7,7 @@
 #ifdef ASSERT
   #define ENABLE_RTGC_ASSERT true
 #else 
-  #define ENABLE_RTGC_ASSERT true
+  #define ENABLE_RTGC_ASSERT false
 #endif
 
 

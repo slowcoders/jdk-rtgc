@@ -35,6 +35,9 @@ static size_t obj_size_in_word(oopDesc* obj) {
 
 void FreeMemStore::reclaimMemory(GCObject* garbage) {
   size_t word_size = obj_size_in_word(cast_to_oop(garbage));
+  if (false) {
+    CollectedHeap::fill_with_object((HeapWord*)garbage, word_size, false);
+  }
   FreeMemQ* q = getFreeMemQ(word_size);
   FreeNode* free = reinterpret_cast<FreeNode*>(garbage);
   if (q->top != NULL) {
@@ -42,10 +45,6 @@ void FreeMemStore::reclaimMemory(GCObject* garbage) {
   }
   free->next = q->top;
   q->top = free;
-  if (word_size == 10) {
-    rtgc_log(LOG_OPT(6), "add free node %ld %p\n", 
-        word_size, free);
-  }
 }
 
 int FreeMemStore::getFreeMemQIndex(size_t heap_size_in_word) {
@@ -120,13 +119,12 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   rt_assert(!cast_to_oop(obj)->is_gc_marked());
   rt_assert(obj->isTrackable());
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
-  // ClassLoaderData* cld = rtHeapUtil::tenured_class_loader_data(cast_to_oop(obj));
-  // if (cld != NULL) cld->decrease_holder_ref_count();
   
-  if (false && !rtHeap::in_full_gc) {
+  obj->markDestroyed();
+  if (RTGC_FAT_OOP && !rtHeap::in_full_gc) {
     g_freeMemStore.reclaimMemory(obj);
   }
-  obj->markDestroyed();
+  rt_assert(obj->isDestroyed());
 }
 
 bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
@@ -138,6 +136,20 @@ bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
 void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled);
 
 HeapWord* RtSpace::allocate(size_t word_size) {
+  rt_assert_f(RTGC::heap_locked_bySelf() ||
+         (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
+         "not locked");
+#if 1 // 1
+  HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
+  bool recycled = (heap != NULL);
+  if (recycled) {
+    rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
+      word_size, heap);
+  }
+  else {
+    heap = _SUPER::allocate(word_size);
+  }
+#else
   HeapWord* heap = _SUPER::allocate(word_size);
   bool recycled = false;
   if (heap == NULL) {
@@ -146,6 +158,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
     rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
         word_size, heap);
   }
+#endif
   if (heap != NULL) {
     rtHeap__addUntrackedTenuredObject(reinterpret_cast<GCObject*>(heap), recycled);
   }

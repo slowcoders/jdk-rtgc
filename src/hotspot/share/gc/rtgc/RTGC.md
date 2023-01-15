@@ -47,8 +47,11 @@ bash configure --with-jvm-variants=client \
 ## 3. Make Images
     `make images CONF=linux debug LOG_LEVEL=info`
     `make images CONF=macosx debug LOG_LEVEL=info`
+
+### client CDS 사용 강제.
+   `./build/macosx-x86_64-client-release/images/jdk/bin/java -Xshare:on`
 ### client CDS 생성.
-   `./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xshare:dump`
+   `./build/macosx-x86_64-client-release/images/jdk/bin/java -Xshare:dump`
 
 ## 4. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
