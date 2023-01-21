@@ -344,7 +344,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #endif
@@ -356,7 +356,7 @@ void RTGC::initialize() {
   rtHeapEx::initializeRefProcessor();
 
   REF_LINK_ENABLED |= UnlockExperimentalVMOptions;
-    // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
+  // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   if (RTGC_DEBUG) {
     rtgc_log(1, "CDS base=%p end=%p\n", 

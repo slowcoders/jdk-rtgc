@@ -134,22 +134,26 @@ bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {
 }
 
 
+namespace RTGC {
+  extern address g_buffer_area_start;
+  extern address g_buffer_area_end;
+}
 void rtHeap__addUntrackedTenuredObject(GCObject* node, bool is_recycled);
 
 HeapWord* RtSpace::allocate(size_t word_size) {
-  rt_assert_f(RTGC::heap_locked_bySelf() ||
+  rt_assert_f(Heap_lock->owned_by_self() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
-         "not locked");
-#if 1 // 2
+          "not locked");
+#if 0 // 2
   HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
   bool recycled = (heap != NULL);
   if (recycled) {
-    rtgc_debug_log(heap, "recycle garbage %ld %p\n", 
-      word_size, heap);
+    _offsets.alloc_block(heap, word_size);
   }
   else {
     heap = _SUPER::allocate(word_size);
   }
+
 #else
   HeapWord* heap = _SUPER::allocate(word_size);
   bool recycled = false;
@@ -161,8 +165,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   }
 #endif
   if (heap != NULL) {
-    //rtgc_log(recycled, "top=%p bottom=%p ptr=%p\n", top(), bottom(), heap);
-
+    rt_assert(heap < (void*)RTGC::g_buffer_area_start || heap >= (void*)RTGC::g_buffer_area_end);
     // rt_assert_f(Universe::heap()->is_oop(cast_to_oop(heap)) && cast_to_oop(heap)->mark().value() != 0, 
     //     "top=%p bottom=%p recycled=%d mv=%p\n" PTR_DBG_SIG, 
     //     top(), bottom(), recycled, (void*)cast_to_oop(heap)->mark().value(), PTR_DBG_INFO(heap));

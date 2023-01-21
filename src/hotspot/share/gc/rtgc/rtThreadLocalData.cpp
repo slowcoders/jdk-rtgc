@@ -228,6 +228,14 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     }
     log = curr_buffer->pop();
   } 
+#ifdef ASSERT
+  DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
+  ContiguousSpace* to = newGen->to();
+  rt_assert(g_buffer_area_start == (address)to->bottom());
+  rt_assert(g_buffer_area_end == (address)to->end());
+
+  rt_assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end);
+#endif
   log->init(anchor, erasedField);
 }
 
