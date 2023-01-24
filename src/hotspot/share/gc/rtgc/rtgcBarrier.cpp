@@ -726,10 +726,7 @@ static int rtgc_arraycopy(ITEM_T* src_p, ITEM_T* dst_p,
       (ds & ARRAYCOPY_CHECKCAST) != 0, (IS_DEST_UNINITIALIZED & ds) != 0);
   Klass* bound = !checkcast ? NULL
                             : ObjArrayKlass::cast(dst_array->klass())->element_klass();
-  const int delta = checkcast || (ds & ARRAYCOPY_DISJOINT) != 0 ? +1 : -1;
-  if (delta > 0) {
-    rt_assert(dst_p < src_p || src_p + length <= dst_p || dst_p + length <= src_p);
-  }
+  const int delta = dst_p < src_p ? +1 : -1;
 
   rt_assert(sizeof(ITEM_T) == sizeof(narrowOop) || !UseCompressedOops);
   const bool UseModifyFlag = rtHeap::useModifyFlag();

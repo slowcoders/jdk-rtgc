@@ -165,7 +165,7 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
   return buffer;
 
   if (false) {
-    int length = (STACK_CHUNK_SIZE - sizeof(arrayOopDesc)) / sizeof(jint);
+    int length = (STACK_CHUNK_SIZE - arrayOopDesc::header_size(T_INT) * HeapWordSize) / sizeof(jint);
     ObjArrayAllocator allocator(Universe::intArrayKlassObj(), 
         STACK_CHUNK_SIZE >> LogHeapWordSize, length, false);
     buffer = (UpdateLogBuffer*)(void*)allocator.allocate();
