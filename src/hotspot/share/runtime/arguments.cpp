@@ -1621,20 +1621,15 @@ jint Arguments::set_ergonomics_flags() {
 #endif // _LP64
 
 #if INCLUDE_RTGC
-  EnableRTGC = UseSerialGC && UseCompressedClassPointers;
+  EnableRTGC = UseSerialGC && UseCompressedOops && UseCompressedClassPointers;
   /**
    * RtLazyClearWeakHandle 은 사용하지 않는다.
    * WeakHandle 은 예상보다 생명이 긴 편이다.
    * 필요시 ON_PHANTOM_OOP_REF 를 재정의 하기보다는 다른 상수를 정의하여 사용할 것.
    */
-#ifdef ASSERT
-  RtLazyClearWeakHandle = false;//EnableRTGC;
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
-#else
-  rt_assert(!RtLazyClearWeakHandle);
-  rt_assert(RtNoDirtyCardMarking == EnableRTGC);
-  rt_assert(RtNoDiscoverPhantom == EnableRTGC);
+  RtLazyClearWeakHandle = false;//EnableRTGC;
 #endif
 #endif  
 

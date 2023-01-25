@@ -1,20 +1,21 @@
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/sde/TemperatureTableTest
+
 sh exec_test.sh tools/javap/T4501660
 sh exec_test.sh tools/javap/stackmap/StackmapTest
 sh exec_test.sh tools/javac/plugin/AutostartPlugins
 
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/util/concurrent/Semaphore/RacingReleases/hs_err_pid24893.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/RuntimePermission/ExitVM/hs_err_pid21773.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Monitor/SyncOnValueBasedClassTest/hs_err_pid16817.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/memory/ReadFromNoaccessArea/hs_err_pid9511.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/handshake/HandshakeTimeoutTest/hs_err_pid16195.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Unsafe/InternalErrorTest/hs_err_pid9883.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ClassLoaderNoUnnamedModuleTest/hs_err_pid9648.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestMetaspacePerfCounters_id0/hs_err_pid8503.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestSizeTransitions_id0/hs_err_pid8614.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestPerfCountersAndMemoryPools/hs_err_pid8591.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestSurvivorRatioFlag/hs_err_pid13147.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/unsafe/SunMiscUnsafeAccessTestInt/hs_err_pid12413.log
-
+sh exec_test.sh java/util/concurrent/Semaphore/RacingReleases
+sh exec_test.sh java/lang/RuntimePermission/ExitVM
+# sh exec_test.sh runtime/Monitor/SyncOnValueBasedClassTest
+sh exec_test.sh runtime/memory/ReadFromNoaccessArea
+sh exec_test.sh runtime/handshake/HandshakeTimeoutTest
+sh exec_test.sh runtime/Unsafe/InternalErrorTest
+sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
+sh exec_test.sh gc/metaspace/TestMetaspacePerfCounters
+sh exec_test.sh gc/metaspace/TestSizeTransitions
+sh exec_test.sh gc/metaspace/TestPerfCountersAndMemoryPools
+sh exec_test.sh gc/arguments/TestSurvivorRatioFlag
+sh exec_test.sh compiler/unsafe/SunMiscUnsafeAccessTestInt
 exit
 
 #
@@ -33,7 +34,7 @@ exit
 
 ---------------  S U M M A R Y ------------
 
-Command Line: -Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/tmp -ea -esa -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native --patch-module=java.base=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/patches/java.base -Djava.security.policy=file:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/jtreg.policy com.sun.javatest.regtest.agent.AgentServer -id 30 -logfile /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/jtData/agentServer.30.trace -allowSetSecurityManager -port 57996 -timeoutFactor 4.0
+Command Line: -Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh tmp -ea -esa -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native --patch-module=java.base=/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh patches/java.base -Djava.security.policy=file:/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh jtreg.policy com.sun.javatest.regtest.agent.AgentServer -id 30 -logfile /Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh jtData/agentServer.30.trace -allowSetSecurityManager -port 57996 -timeoutFactor 4.0
 
 Host: DaeHoons-MacBook-Pro.local, "MacBookPro11,2" x86_64 2200 MHz, 8 cores, 16G, Darwin 20.6.0, macOS 11.6.1 (20G224)
 Time: Wed Jan 25 17:50:40 2023 KST elapsed time: 241.140256 seconds (0d 0h 4m 1s)

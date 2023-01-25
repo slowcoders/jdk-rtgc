@@ -144,7 +144,7 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   rt_assert_f(Heap_lock->owned_by_self() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
           "not locked");
-#if 0 // 2
+#if 1 // 2
   HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
   bool recycled = (heap != NULL);
   if (recycled) {

@@ -12,13 +12,13 @@
   product(bool, EnableRTGC, true,                                           \
           "Enable Reverse Tracking garbage collection(RTGC) method")        \
                                                                             \
-  develop(bool, RtLazyClearWeakHandle, false,                              \
+  product(bool, RtLazyClearWeakHandle, false,                              \
           "Disable discovering of phantom reference")                       \
                                                                             \
-  develop(bool, RtNoDiscoverPhantom, true,                                 \
+  product(bool, RtNoDiscoverPhantom, true,                                 \
           "Disable discovering of phantom reference")                       \
                                                                             \
-  develop(bool, RtNoDirtyCardMarking, true,                                \
+  product(bool, RtNoDirtyCardMarking, true,                                \
           "Disable dirty card marking")
 
 
