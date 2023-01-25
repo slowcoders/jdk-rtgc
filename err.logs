@@ -1,3 +1,63 @@
 sh exec_test.sh tools/javap/T4501660
 sh exec_test.sh tools/javap/stackmap/StackmapTest
 sh exec_test.sh tools/javac/plugin/AutostartPlugins
+
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/util/concurrent/Semaphore/RacingReleases/hs_err_pid24893.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/RuntimePermission/ExitVM/hs_err_pid21773.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Monitor/SyncOnValueBasedClassTest/hs_err_pid16817.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/memory/ReadFromNoaccessArea/hs_err_pid9511.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/handshake/HandshakeTimeoutTest/hs_err_pid16195.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Unsafe/InternalErrorTest/hs_err_pid9883.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ClassLoaderNoUnnamedModuleTest/hs_err_pid9648.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestMetaspacePerfCounters_id0/hs_err_pid8503.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestSizeTransitions_id0/hs_err_pid8614.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/metaspace/TestPerfCountersAndMemoryPools/hs_err_pid8591.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/arguments/TestSurvivorRatioFlag/hs_err_pid13147.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/unsafe/SunMiscUnsafeAccessTestInt/hs_err_pid12413.log
+
+exit
+
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:237), pid=21773, tid=41359
+#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed: precond
+#
+# JRE version: OpenJDK Runtime Environment (17.0) (fastdebug build 17-internal+0-adhoc.zeedh.jdk-rtgc)
+# Java VM: OpenJDK 64-Bit Client VM (fastdebug 17-internal+0-adhoc.zeedh.jdk-rtgc, mixed mode, emulated-client, compressed oops, compressed class ptrs, serial gc, bsd-amd64)
+# Core dump will be written. Default location: /cores/core.21773
+#
+# If you would like to submit a bug report, please visit:
+#   https://bugreport.java.com/bugreport/crash.jsp
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: -Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/tmp -ea -esa -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native --patch-module=java.base=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/patches/java.base -Djava.security.policy=file:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/jtreg.policy com.sun.javatest.regtest.agent.AgentServer -id 30 -logfile /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/jtData/agentServer.30.trace -allowSetSecurityManager -port 57996 -timeoutFactor 4.0
+
+Host: DaeHoons-MacBook-Pro.local, "MacBookPro11,2" x86_64 2200 MHz, 8 cores, 16G, Darwin 20.6.0, macOS 11.6.1 (20G224)
+Time: Wed Jan 25 17:50:40 2023 KST elapsed time: 241.140256 seconds (0d 0h 4m 1s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007fb1e5082e20):  JavaThread "AgentVMThread" [_thread_in_vm, id=41359, stack(0x0000700002309000,0x0000700002409000)]
+
+Stack: [0x0000700002309000,0x0000700002409000],  sp=0x0000700002406e70,  free space=1015k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [libjvm.dylib+0xb633ec]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb63a0b]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x3b
+V  [libjvm.dylib+0x2cc57d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x8ee02e]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x18e
+V  [libjvm.dylib+0x8f2059]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
+V  [libjvm.dylib+0x8f55c0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
+V  [libjvm.dylib+0x228bb7]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xb7
+V  [libjvm.dylib+0x22845f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
+V  [libjvm.dylib+0x228122]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
+V  [libjvm.dylib+0x22803e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
+V  [libjvm.dylib+0x227f7e]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
+V  [libjvm.dylib+0x4d4b65]  java_lang_Class::name(Handle, JavaThread*)+0x235
+V  [libjvm.dylib+0x5e7caa]  JVM_InitClassName+0x1aa
+J 559  java.lang.Class.initClassName()Ljava/lang/String; java.base@17-internal (0 bytes) @ 0x0000000113d1af4d [0x0000000113d1ae80+0x00000000000000cd]
+J 343 c1 java.lang.Class.getPackageName()Ljava/lang/String; java.base@17-internal (81 bytes) @ 0x0000000113ca6114 [0x0000000113ca5f60+0x00000000000001b4]
+J 1153 c1 java.lang.ClassLoader.checkPackageAccess(Ljava/lang/Class;Ljava/security/ProtectionDomain;)V java.base@17-internal (102 bytes) @ 0x0000000113e6681c [0x0000000113e66380+0x000000000000049c]
+v  ~StubRoutines::call_stub

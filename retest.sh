@@ -62,35 +62,36 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-    /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/javac \
-        -J-Xmx768m \
-        -J-XX:MaxRAMPercentage=6.25 \
-        -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/tmp \
-        -J-ea \
-        -J-esa \
-        -J--add-modules \
-        -Jjava.compiler,jdk.compiler \
-        -J-Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/tmp -ea -esa' \
-        -J-Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/tmp -J-ea -J-esa' \
-        -J-Dtest.compiler.opts= \
-        -J-Dtest.java.opts= \
-        -J-Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-        -J-Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-        -J-Dtest.timeout.factor=4.0 \
-        -J-Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
-        -J-Dtest.name=tools/javac/processing/rounds/MethodsDroppedBetweenRounds.java \
-        -J-Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/processing/rounds/MethodsDroppedBetweenRounds.java \
-        -J-Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/processing/rounds \
-        -J-Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/processing/rounds:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/lib \
-        -J-Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/classes/0/tools/javac/processing/rounds/MethodsDroppedBetweenRounds.d \
-        -J-Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/classes/0/tools/javac/processing/rounds/MethodsDroppedBetweenRounds.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/classes/0/tools/javac/lib \
-        -J-Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/classes/0/tools/javac/processing/rounds/MethodsDroppedBetweenRounds.d:/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/processing/rounds:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/classes/0/tools/javac/lib \
-        -J-Dtest.modules='java.compiler jdk.compiler' \
-        @/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_processing_rounds_MethodsDroppedBetweenRounds_java/tools/javac/processing/rounds/MethodsDroppedBetweenRounds.d/compile.0.jta
+CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+    /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp' \
+        -Dtest.compiler.opts= \
+        -Dtest.java.opts= \
+        -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -Dtest.timeout.factor=4.0 \
+        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.name=compiler/arraycopy/TestObjectArrayClone.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy/TestObjectArrayClone.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
+        -XX:MaxRAMPercentage=6.25 \
+        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp \
+        -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -XX:+IgnoreUnrecognizedVMOptions \
+        -XX:-UseCompressedClassPointers \
+        -Xmx128m \
+        -XX:CompileCommand=compileonly,compiler.arraycopy.TestObjectArrayClone::testClone* \
+        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/compiler/arraycopy/TestObjectArrayClone.d/main.2.jta

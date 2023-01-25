@@ -93,6 +93,7 @@ bool RTGC::lock_if_published(GCObject* obj) {
 }
 
 void RTGC::publish_and_lock_heap(GCObject* obj, bool doPublish) {
+  rt_assert(EnableRTGC);
   if (doPublish && obj != NULL && !isPublished(obj)) {
     //if (RTGC::debugOptions[0])
     //RTGC::scanInstanceGraph(obj, GCRuntime::markPublished);

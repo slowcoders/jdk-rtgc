@@ -128,6 +128,7 @@ void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
 }
 
 bool rtHeap::is_trackable(oopDesc* p) {
+  if (!EnableRTGC) return false;
   GCObject* obj = to_obj(p);
   bool isTrackable = obj->isTrackable();
   return isTrackable;
@@ -222,6 +223,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
+  rt_assert(EnableRTGC);
   GCObject* node = to_obj(new_p);
   rt_assert_f(is_adjusted_trackable(new_p), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   if (node->isGarbageMarked()) {
