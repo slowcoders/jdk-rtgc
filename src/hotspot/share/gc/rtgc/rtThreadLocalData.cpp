@@ -234,7 +234,8 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
   rt_assert(g_buffer_area_start == (address)to->bottom());
   rt_assert(g_buffer_area_end == (address)to->end());
 
-  rt_assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end);
+  rt_assert_f(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end,
+      " log = %p, buffer_start = %p, buffer_end = %p", log, g_buffer_area_start, g_buffer_area_end);
 #endif
   log->init(anchor, erasedField);
 }

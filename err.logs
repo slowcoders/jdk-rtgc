@@ -1,4 +1,56 @@
 build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/sde/TemperatureTableTest
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/redefineMethod/RedefineTest/hs_err_pid56801.log
+#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3b5ac2f58, buffer_start = 0x3b05a0000, buffer_end = 0x3b0650000
+# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+# V [libjvm.dylib+0x8ee018]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
+# V [libjvm.dylib+0x8f2049]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
+# V [libjvm.dylib+0x8f55b0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
+# V [libjvm.dylib+0x228be7]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xb7
+# V [libjvm.dylib+0x22848f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
+# V [libjvm.dylib+0x228152]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
+# V [libjvm.dylib+0x22806e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
+# V [libjvm.dylib+0x227fae]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
+# V [libjvm.dylib+0x58eebf]  jni_SetStaticObjectField+0x2ff
+
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/ProcessHandle/Basic/hs_err_pid65095.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/ProcessHandle/InfoTest/hs_err_pid65118.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/g1/humongousObjects/TestHumongousClassLoader/hs_err_pid52084.log
+#  assert(is_instance(java_string)) failed: must be java_string
+# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+# V [libjvm.dylib+0x49dc2e]  java_lang_String::length(oop)+0x9e
+# V [libjvm.dylib+0xa41335]  VerifyStrings::operator()(WeakHandle*)+0x75
+# V [libjvm.dylib+0xa4116c]  void ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::do_scan_locked<VerifyStrings>(Thread*, VerifyStrings&)+0x12c
+# V [libjvm.dylib+0xa3d3b8]  bool ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::try_scan<VerifyStrings>(Thread*, VerifyStrings&)+0x58
+# V [libjvm.dylib+0xa3d33b]  StringTable::verify()+0x5b
+# V [libjvm.dylib+0xb1751b]  Universe::verify(VerifyOption, char const*)+0x2cb
+# V [libjvm.dylib+0xb69d51]  VM_Exit::doit()+0x51
+
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/util/regex/RegExTest/hs_err_pid71462.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/SourceNameFilterTest/hs_err_pid56832.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Shutdown/ShutdownTest/hs_err_pid55449.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest/hs_err_pid55960.log
+# SIGSEGV (0xb) at pc=0x0000000108905afc, pid=71462, tid=41531
+# V  [libjvm.dylib+0x8eeafc]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0x7c
+# V  [libjvm.dylib+0xae6536]  Thread::~Thread()+0x46
+# V  [libjvm.dylib+0xae880c]  JavaThread::~JavaThread()+0x15c
+# V  [libjvm.dylib+0xae883e]  JavaThread::~JavaThread()+0xe
+# V  [libjvm.dylib+0xafa9c6]  ThreadsSMRSupport::smr_delete(JavaThread*)+0x46
+
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ClassLoaderNoUnnamedModuleTest/hs_err_pid46877.log
+build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/blackhole/BlackholeIntrinsicTest/hs_err_pid48325.log
+#  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:158), pid=48325, tid=12547
+#  assert(!to_obj(new_p)->isTrackable()) failed: precond
+# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+# V [libjvm.dylib+0x90084b]  rtHeap::mark_promoted_trackable(oopDesc*)+0x4b
+# V [libjvm.dylib+0x2d74e9]  DefNewGeneration::copy_to_survivor_space(oop)+0x649
+# V [libjvm.dylib+0x2d8716]  void FastScanClosure<DefNewScanClosure, true>::do_oop_work<oop>(oop*)+0x276
+# V [libjvm.dylib+0x1dd64b]  void ObjArrayKlass::oop_oop_iterate<oop, DefNewScanClosure>(oop, DefNewScanClosure*)+0x1eb
+# V [libjvm.dylib+0x1dd1fc]  void OopOopIterateDispatch<DefNewScanClosure>::Table::oop_oop_iterate<ObjArrayKlass, oop>(DefNewScanClosure*, oop, Klass*)+0x3c
+# V [libjvm.dylib+0x2db573]  int oopDesc::oop_iterate_size<DefNewScanClosure>(DefNewScanClosure*)+0x103
+# V [libjvm.dylib+0x2db3ae]  void ContiguousSpace::oop_since_save_marks_iterate<DefNewScanClosure>(DefNewScanClosure*)+0x19e
+# V [libjvm.dylib+0x2d395f]  void SerialHeap::oop_since_save_marks_iterate<DefNewScanClosure, DefNewYoungerGenClosure>(DefNewScanClosure*, DefNewYoungerGenClosure*)+0x11f
+# V [libjvm.dylib+0x2d37ae]  DefNewGeneration::FastEvacuateFollowersClosure::do_void()+0x3e
+
 
 sh exec_test.sh tools/javap/T4501660
 sh exec_test.sh tools/javap/stackmap/StackmapTest
@@ -16,49 +68,6 @@ sh exec_test.sh gc/metaspace/TestSizeTransitions
 sh exec_test.sh gc/metaspace/TestPerfCountersAndMemoryPools
 sh exec_test.sh gc/arguments/TestSurvivorRatioFlag
 sh exec_test.sh compiler/unsafe/SunMiscUnsafeAccessTestInt
+
 exit
 
-#
-# A fatal error has been detected by the Java Runtime Environment:
-#
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:237), pid=21773, tid=41359
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed: precond
-#
-# JRE version: OpenJDK Runtime Environment (17.0) (fastdebug build 17-internal+0-adhoc.zeedh.jdk-rtgc)
-# Java VM: OpenJDK 64-Bit Client VM (fastdebug 17-internal+0-adhoc.zeedh.jdk-rtgc, mixed mode, emulated-client, compressed oops, compressed class ptrs, serial gc, bsd-amd64)
-# Core dump will be written. Default location: /cores/core.21773
-#
-# If you would like to submit a bug report, please visit:
-#   https://bugreport.java.com/bugreport/crash.jsp
-#
-
----------------  S U M M A R Y ------------
-
-Command Line: -Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh tmp -ea -esa -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native --patch-module=java.base=/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh patches/java.base -Djava.security.policy=file:/Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh jtreg.policy com.sun.javatest.regtest.agent.AgentServer -id 30 -logfile /Users/zeedh/slowcoders/jdk-rtgc/sh exec_test.sh jtData/agentServer.30.trace -allowSetSecurityManager -port 57996 -timeoutFactor 4.0
-
-Host: DaeHoons-MacBook-Pro.local, "MacBookPro11,2" x86_64 2200 MHz, 8 cores, 16G, Darwin 20.6.0, macOS 11.6.1 (20G224)
-Time: Wed Jan 25 17:50:40 2023 KST elapsed time: 241.140256 seconds (0d 0h 4m 1s)
-
----------------  T H R E A D  ---------------
-
-Current thread (0x00007fb1e5082e20):  JavaThread "AgentVMThread" [_thread_in_vm, id=41359, stack(0x0000700002309000,0x0000700002409000)]
-
-Stack: [0x0000700002309000,0x0000700002409000],  sp=0x0000700002406e70,  free space=1015k
-Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
-V  [libjvm.dylib+0xb633ec]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
-V  [libjvm.dylib+0xb63a0b]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x3b
-V  [libjvm.dylib+0x2cc57d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
-V  [libjvm.dylib+0x8ee02e]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x18e
-V  [libjvm.dylib+0x8f2059]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-V  [libjvm.dylib+0x8f55c0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
-V  [libjvm.dylib+0x228bb7]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xb7
-V  [libjvm.dylib+0x22845f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
-V  [libjvm.dylib+0x228122]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
-V  [libjvm.dylib+0x22803e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x227f7e]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x4d4b65]  java_lang_Class::name(Handle, JavaThread*)+0x235
-V  [libjvm.dylib+0x5e7caa]  JVM_InitClassName+0x1aa
-J 559  java.lang.Class.initClassName()Ljava/lang/String; java.base@17-internal (0 bytes) @ 0x0000000113d1af4d [0x0000000113d1ae80+0x00000000000000cd]
-J 343 c1 java.lang.Class.getPackageName()Ljava/lang/String; java.base@17-internal (81 bytes) @ 0x0000000113ca6114 [0x0000000113ca5f60+0x00000000000001b4]
-J 1153 c1 java.lang.ClassLoader.checkPackageAccess(Ljava/lang/Class;Ljava/security/ProtectionDomain;)V java.base@17-internal (102 bytes) @ 0x0000000113e6681c [0x0000000113e66380+0x000000000000049c]
-v  ~StubRoutines::call_stub
