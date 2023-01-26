@@ -1630,7 +1630,6 @@ jint Arguments::set_ergonomics_flags() {
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
   RtLazyClearWeakHandle = false;//EnableRTGC;
-#endif
 #endif  
 
   return JNI_OK;
