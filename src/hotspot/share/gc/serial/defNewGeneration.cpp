@@ -779,8 +779,10 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       return old;
     }
 #ifdef INCLUDE_RTGC
-    precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
-    rtHeap::mark_promoted_trackable(obj);
+    if (true || EnableRTGC) { /* UseCommpressedOpp 와 무관 */
+      precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
+      rtHeap::mark_promoted_trackable(obj);
+    }
 #endif
   } else {
     if ((void*)obj <= (void*)0x100) printf("wrong obj %p\n", (void*)obj);

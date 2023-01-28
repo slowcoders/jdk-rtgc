@@ -1621,7 +1621,7 @@ jint Arguments::set_ergonomics_flags() {
 #endif // _LP64
 
 #if INCLUDE_RTGC
-  EnableRTGC = UseSerialGC && UseCompressedOops && UseCompressedClassPointers;
+  EnableRTGC = UseSerialGC && UseCompressedClassPointers;
   /**
    * RtLazyClearWeakHandle 은 사용하지 않는다.
    * WeakHandle 은 예상보다 생명이 긴 편이다.

@@ -579,7 +579,7 @@ class VerifyStrings : StackObj {
  public:
   bool operator()(WeakHandle* val) {
     oop s = val->peek();
-    if (s != NULL) {
+    if (s != NULL RTGC_ONLY(&& !rtHeap::is_destroyed(s))) {
       assert(java_lang_String::length(s) >= 0, "Length on string must work.");
     }
     return true;

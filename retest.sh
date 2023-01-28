@@ -62,17 +62,16 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/scratch/0 && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
-LANG=en_US.UTF-8 \
 LC_ALL=C \
+LC_CTYPE=UTF-8 \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
     /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
-        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp' \
-        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/tmp' \
         -Dtest.compiler.opts= \
         -Dtest.java.opts= \
         -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
@@ -80,18 +79,12 @@ CLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/
         -Dtest.timeout.factor=4.0 \
         -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
         -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
-        -Dtest.name=compiler/arraycopy/TestObjectArrayClone.java \
-        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy/TestObjectArrayClone.java \
-        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
-        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
-        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d \
-        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d \
-        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/classes/0/compiler/arraycopy/TestObjectArrayClone.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/arraycopy \
-        -XX:MaxRAMPercentage=6.25 \
-        -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/tmp \
-        -Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
-        -XX:+IgnoreUnrecognizedVMOptions \
-        -XX:-UseCompressedClassPointers \
-        -Xmx128m \
-        -XX:CompileCommand=compileonly,compiler.arraycopy.TestObjectArrayClone::testClone* \
-        com.sun.javatest.regtest.agent.MainWrapper /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_arraycopy_TestObjectArrayClone_java/compiler/arraycopy/TestObjectArrayClone.d/main.2.jta
+        -Dtest.name=compiler/blackhole/BlackholeIntrinsicTest.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole/BlackholeIntrinsicTest.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0 \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0 \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/compiler/blackhole/BlackholeIntrinsicTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/compiler/blackhole:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_compiler_blackhole_BlackholeIntrinsicTest_java/classes/0:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        compiler.blackhole.BlackholeIntrinsicTest
