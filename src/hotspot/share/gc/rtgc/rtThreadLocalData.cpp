@@ -45,9 +45,9 @@ namespace RTGC {
   static UpdateLogBufferHeader g_dummy_buffer_header;
 }
 
-UpdateLogBuffer* UpdateLogBuffer::g_free_buffer_q = NULL;
-UpdateLogBuffer* UpdateLogBuffer::g_active_buffer_q = NULL;
-UpdateLogBuffer* UpdateLogBuffer::g_inactive_buffer_q = NULL;
+UpdateLogBuffer* volatile UpdateLogBuffer::g_free_buffer_q = NULL;
+UpdateLogBuffer* volatile UpdateLogBuffer::g_active_buffer_q = NULL;
+UpdateLogBuffer* volatile UpdateLogBuffer::g_inactive_buffer_q = NULL;
 UpdateLogBuffer* const RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_buffer_header;
 
 
@@ -141,7 +141,7 @@ void UpdateLogBuffer::reset_gc_context() {
   buffer[-1]._next = NULL;
 
   ThreadLocalDataClosure tld_closure;
-  Threads::java_threads_do(&tld_closure);
+  Threads::threads_do(&tld_closure);
 }
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {

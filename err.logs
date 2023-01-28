@@ -1,5 +1,5 @@
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/sde/TemperatureTableTest
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/redefineMethod/RedefineTest/hs_err_pid56801.log
+sh exec_test.sh com/sun/jdi/sde/TemperatureTableTest
+sh exec_test.sh com/sun/jdi/redefineMethod/RedefineTest
 #  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3b5ac2f58, buffer_start = 0x3b05a0000, buffer_end = 0x3b0650000
 # V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
 # V [libjvm.dylib+0x8ee018]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
@@ -12,9 +12,9 @@ build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/j
 # V [libjvm.dylib+0x227fae]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
 # V [libjvm.dylib+0x58eebf]  jni_SetStaticObjectField+0x2ff
 
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/ProcessHandle/Basic/hs_err_pid65095.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/lang/ProcessHandle/InfoTest/hs_err_pid65118.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/gc/g1/humongousObjects/TestHumongousClassLoader/hs_err_pid52084.log
+sh exec_test.sh java/lang/ProcessHandle/Basic
+sh exec_test.sh java/lang/ProcessHandle/InfoTest
+sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader
 #  assert(is_instance(java_string)) failed: must be java_string
 # V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
 # V [libjvm.dylib+0x49dc2e]  java_lang_String::length(oop)+0x9e
@@ -25,10 +25,10 @@ build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1
 # V [libjvm.dylib+0xb1751b]  Universe::verify(VerifyOption, char const*)+0x2cb
 # V [libjvm.dylib+0xb69d51]  VM_Exit::doit()+0x51
 
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/java/util/regex/RegExTest/hs_err_pid71462.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_tier1/com/sun/jdi/SourceNameFilterTest/hs_err_pid56832.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Shutdown/ShutdownTest/hs_err_pid55449.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest/hs_err_pid55960.log
+sh exec_test.sh java/util/regex/RegExTest
+sh exec_test.sh com/sun/jdi/SourceNameFilterTest
+sh exec_test.sh runtime/Shutdown/ShutdownTest
+sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
 # SIGSEGV (0xb) at pc=0x0000000108905afc, pid=71462, tid=41531
 # V  [libjvm.dylib+0x8eeafc]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0x7c
 # V  [libjvm.dylib+0xae6536]  Thread::~Thread()+0x46
@@ -36,8 +36,8 @@ build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1
 # V  [libjvm.dylib+0xae883e]  JavaThread::~JavaThread()+0xe
 # V  [libjvm.dylib+0xafa9c6]  ThreadsSMRSupport::smr_delete(JavaThread*)+0x46
 
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/modules/ClassLoaderNoUnnamedModuleTest/hs_err_pid46877.log
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/compiler/blackhole/BlackholeIntrinsicTest/hs_err_pid48325.log
+sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
+sh exec_test.sh compiler/blackhole/BlackholeIntrinsicTest
 #  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:158), pid=48325, tid=12547
 #  assert(!to_obj(new_p)->isTrackable()) failed: precond
 # V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
