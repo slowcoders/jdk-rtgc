@@ -15,6 +15,9 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_SPACE, function);
 }
 
+namespace RTGC {
+  FreeNode* g_destroyed = NULL;
+};
 
 bool rtHeapUtil::is_dead_space(oopDesc* obj) {
   Klass* klass = obj->klass();
@@ -40,11 +43,11 @@ void FreeMemStore::reclaimMemory(GCObject* garbage) {
   }
   FreeMemQ* q = getFreeMemQ(word_size);
   FreeNode* free = reinterpret_cast<FreeNode*>(garbage);
-  if (q->top != NULL) {
-    q->top->prev = free;
+  if (q->_top != NULL) {
+    q->_top->_prev = free;
   }
-  free->next = q->top;
-  q->top = free;
+  free->_next = q->_top;
+  q->_top = free;
 }
 
 int FreeMemStore::getFreeMemQIndex(size_t heap_size_in_word) {
@@ -54,7 +57,7 @@ int FreeMemStore::getFreeMemQIndex(size_t heap_size_in_word) {
   while (low <= high) {
     int mid = (low + high) / 2;
     q = freeMemQList.adr_at(mid);
-    int diff = q->objSize - heap_size_in_word;
+    int diff = q->_objSize - heap_size_in_word;
     if (diff == 0) {
       return mid;
     }
@@ -76,8 +79,8 @@ FreeMemQ* FreeMemStore::getFreeMemQ(size_t heap_size_in_word) {
   }
   else {
     q = freeMemQList.push_empty_at(~idx);
-    q->top = NULL;
-    q->objSize = heap_size_in_word;
+    q->_top = NULL;
+    q->_objSize = heap_size_in_word;
 #if 0 //def ASSERT
     rtgc_log(LOG_OPT(6), "----- add freeMemQ %d : %d\n", ~idx, (int)heap_size_in_word);
     for (int i = 0; i < freeMemQList.size(); i ++) {
@@ -94,15 +97,15 @@ void* FreeMemStore::recycle(size_t heap_size_in_word) {
   int idx = getFreeMemQIndex(heap_size_in_word);
   if (idx >= 0) {
     q = freeMemQList.adr_at(idx);
-    FreeNode* free = q->top;
+    FreeNode* free = q->_top;
     if (free != NULL) {
-      FreeNode* next = free->next;
+      FreeNode* next = free->_next;
       if (next == NULL) {
         // freeMemQList.removeAndShift(idx);
       } else {
-        next->prev = NULL;
+        next->_prev = NULL;
       }
-      q->top = next;
+      q->_top = next;
       // *(uintptr_t*)free = 0xFFFF;
     }
     return free;
@@ -113,8 +116,10 @@ void* FreeMemStore::recycle(size_t heap_size_in_word) {
 };
 
 void FreeMemStore::clearStore() {
+  g_destroyed = NULL;
   g_freeMemStore.freeMemQList.resize(0);
 }
+
 
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   rt_assert(!cast_to_oop(obj)->is_gc_marked());
@@ -123,9 +128,19 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   
   obj->markDestroyed();
   if (RTGC_FAT_OOP && !rtHeap::in_full_gc) {
-    g_freeMemStore.reclaimMemory(obj);
+    ((FreeNode*)obj)->_next = g_destroyed;
+    g_destroyed = (FreeNode*)obj;
   }
   rt_assert(obj->isDestroyed());
+}
+
+void RuntimeHeap::reclaimSpace() {
+  FreeNode* next;
+  for (FreeNode* obj = g_destroyed; obj != NULL; obj = next) {
+    next = obj->_next;
+    g_freeMemStore.reclaimMemory((GCObject*)obj);
+  }
+  g_destroyed = NULL;
 }
 
 bool RuntimeHeap::is_broken_link(GCObject* anchor, GCObject* link) {

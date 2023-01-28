@@ -379,7 +379,7 @@ void RTGC::initialize() {
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_BARRIER, 0);
     enableLog(LOG_SHORTCUT, 0);
-    enableLog(LOG_TLS, 1);
+    enableLog(LOG_TLS, 0);
     // enableLog(LOG_TLS, 10);
 
     if (false) {

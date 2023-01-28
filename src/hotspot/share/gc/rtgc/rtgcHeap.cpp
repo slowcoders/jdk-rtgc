@@ -695,6 +695,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   }
   rtHeapEx::g_lock_unsafe_list = false;
   rt_assert(g_stack_roots.size() == 0);
+  RuntimeHeap::reclaimSpace();
   in_full_gc = 0;
 }
 

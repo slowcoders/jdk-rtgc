@@ -14,16 +14,14 @@ namespace rtHeapUtil {
 
 namespace RTGC {
   
-  class FreeNode {
-  friend class FreeMemStore;
-    FreeNode* prev;
-    FreeNode* next;
+  struct FreeNode {
+    FreeNode* _prev;
+    FreeNode* _next;
   };
 
-  class FreeMemQ {
-  friend class FreeMemStore;
-    FreeNode* top;
-    int objSize;
+  struct FreeMemQ {
+    FreeNode* _top;
+    int _objSize;
   };
 
   class FreeMemStore {

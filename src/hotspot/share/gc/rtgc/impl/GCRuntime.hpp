@@ -10,6 +10,7 @@ namespace RTGC {
 class RuntimeHeap {
 public:	
 	static void reclaimObject(GCObject* obj);
+	static void reclaimSpace();
 	static bool is_broken_link(GCObject* anchor, GCObject* link);
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
