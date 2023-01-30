@@ -180,12 +180,8 @@ void rtHeapUtil::resurrect_young_root(GCObject* node) {
   }
   node->unmarkGarbage();
   node->unmarkDirtyReferrerPoints();  
-  oop anchor = g_young_root_closure->current_anchor();
-  rt_assert(rtHeap::in_full_gc || anchor == NULL);
   node->getMutableNode()->invalidateSafeAnchor();
 
-  rtgc_log(LOG_OPT(7), "resurrect obj %p(%s) -> %p(%s YR=%d)\n", 
-      (void*)anchor, getClassName(anchor), node, getClassName(node), node->isYoungRoot());
   if (!g_young_root_closure->iterate_tenured_young_root_oop(cast_to_oop(node))) {
     if (node->isYoungRoot()) {
       node->unmarkYoungRoot();
@@ -248,7 +244,7 @@ void rtHeap__clearStack() {
   if (cnt_root > 0) {
     GCObject** src = &g_stack_roots.at(0);
     GCObject** end = src + cnt_root;
-    rtgc_log(LOG_OPT(8), "clear_stack_roots %d\n", 
+    rtgc_log(LOG_OPT(1), "clear_stack_roots %d\n", 
         g_stack_roots.size());
 
     for (; src < end; src++) {
@@ -267,7 +263,7 @@ void rtHeap__clearStack() {
       }
     }
 
-    rtgc_log(LOG_OPT(8), "iterate_stack_roots done %d\n", g_stack_roots.size());
+    rtgc_log(LOG_OPT(1), "iterate_stack_roots done %d\n", g_stack_roots.size());
     g_stack_roots.resize(0);
   }
 }
@@ -289,7 +285,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
         rt_assert(cast_to_oop(node)->is_gc_marked());
       }
     }
-    rtgc_log(LOG_OPT(8), "rtHeap__clear_garbage_young_roots done %d->%d garbages=%d\n", 
+    rtgc_log(LOG_OPT(1), "rtHeap__clear_garbage_young_roots done %d->%d garbages=%d\n", 
         old_cnt, g_young_roots.size(), _rtgc.g_pGarbageProcessor->getGarbageNodes()->size());
 
     rtHeap__clearStack<false>();
@@ -658,6 +654,7 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc() {
+        rtgc_log(LOG_OPT(1), "prepare_rtgc\n");
   is_gc_started = true;
   rt_assert(g_stack_roots.size() == 0);
   if (rtHeap::useModifyFlag()) {

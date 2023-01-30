@@ -127,7 +127,7 @@ void UpdateLogBuffer::reset_gc_context() {
   rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
     GenCollectedHeap::heap()->old_gen()->reserved().start(),
     newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
-  rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
+  rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x\n", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
 #endif    
 
   g_active_buffer_q = NULL;
@@ -154,7 +154,7 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
     rtgc_log(LOG_OPT(1), "recycle inactive LogBuffer %p s=%p e=%p\n", buffer, g_buffer_area_start, g_buffer_area_end);
     g_inactive_buffer_q = buffer->_next;
   } else if ((buffer = g_free_buffer_q) != NULL) {
-    rtgc_log(LOG_OPT(1), "Allocate LogBuffer %p s=%p e=%p\n", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
+    rtgc_log(LOG_OPT(10), "Allocate LogBuffer %p s=%p e=%p\n", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
     g_free_buffer_q = buffer->_next;
   } 
   if (buffer != NULL) {
@@ -196,7 +196,7 @@ template <bool _atomic>
 void UpdateLogBuffer::flush_pending_logs() {
   FieldUpdateLog* log = first_log();
   FieldUpdateLog* end = end_of_log();
-  rtgc_log(LOG_OPT(1), "flush_pending_logs atomic=%d buffer:%p cnt:%ld\n", _atomic, this, end-log);
+  rtgc_log(LOG_OPT(10), "flush_pending_logs atomic=%d buffer:%p cnt:%ld\n", _atomic, this, end-log);
   for (; log < end; log++) {
     log->updateAnchorList<_atomic>();
   }
@@ -206,6 +206,10 @@ void UpdateLogBuffer::flush_pending_logs() {
 void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData) {
 
   UpdateLogBuffer* curr_buffer = rtData->_log_buffer;
+  rt_assert_f(curr_buffer == g_dummy_buffer || 
+        (curr_buffer >= (void*)g_buffer_area_start && curr_buffer < (void*)g_buffer_area_end),
+      " curr_buffer = %p, buffer_start = %p, buffer_end = %p", curr_buffer, g_buffer_area_start, g_buffer_area_end);
+      
   FieldUpdateLog* log = curr_buffer->pop();
 
   if (log <= (void*)curr_buffer) {
@@ -229,13 +233,15 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     log = curr_buffer->pop();
   } 
 #ifdef ASSERT
-  DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
-  ContiguousSpace* to = newGen->to();
-  rt_assert(g_buffer_area_start == (address)to->bottom());
-  rt_assert(g_buffer_area_end == (address)to->end());
+  {
+    DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
+    ContiguousSpace* to = newGen->to();
+    rt_assert(g_buffer_area_start == (address)to->bottom());
+    rt_assert(g_buffer_area_end == (address)to->end());
 
-  rt_assert_f(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end,
-      " log = %p, buffer_start = %p, buffer_end = %p", log, g_buffer_area_start, g_buffer_area_end);
+    rt_assert_f(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end,
+        " log = %p, buffer_start = %p, buffer_end = %p", log, g_buffer_area_start, g_buffer_area_end);
+  }
 #endif
   log->init(anchor, erasedField);
 }
@@ -250,7 +256,8 @@ RtThreadLocalData::RtThreadLocalData() {
 }
 
 RtThreadLocalData::~RtThreadLocalData() {
-  if (_log_buffer != g_dummy_buffer) {
+  if (!_log_buffer->is_full()) {
+    rt_assert(_log_buffer != g_dummy_buffer);
     UpdateLogBuffer::recycle(_log_buffer);
   }
 }

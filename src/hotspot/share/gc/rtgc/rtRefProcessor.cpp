@@ -611,7 +611,7 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   if (is_full_gc) {
     jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
     GCObject* ref;
-    rtgc_log(LOG_OPT(3), "g_softList 1-2 %d\n", g_softList._refs.size());
+    rtgc_log(LOG_OPT(1), "g_softList 1-2 %d\n", g_softList._refs.size());
     for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; ) {
       if (ref->getContextFlag()) {
         ref->unmarkContextFlag();
@@ -749,6 +749,8 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
   OopClosure* keep_alive = task->keep_alive_closure();
   VoidClosure* complete_gc = task->complete_gc_closure();
 
+        rtgc_log(LOG_OPT(1), "keep_alive_final_referents %p\n", proxy_task);
+
   if (rtHeap::in_full_gc && rtHeap::DoCrossCheck) {
     if (UseCompressedOops) {
       __keep_alive_final_referents<narrowOop, true>(keep_alive, complete_gc);
@@ -768,6 +770,8 @@ void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
 template <bool is_full_gc>
 void __process_final_phantom_references() {
   rt_assert(!is_full_gc || !_rtgc.g_pGarbageProcessor->hasUnsafeObjects());
+
+        rtgc_log(LOG_OPT(1), "__process_final_phantom_references\n");
 
   for (RefIterator<is_full_gc> iter(g_phantomList); iter.next_ref(SkipInvalidRef) != NULL; ) {
     oopDesc* old_referent = iter.referent();
@@ -822,6 +826,7 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
 
 template<bool is_full_gc>
 void __adjust_ref_q_pointers() {
+        rtgc_log(LOG_OPT(1), "__adjust_ref_q_pointers\n");
   SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef_NoReferentCheck : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {

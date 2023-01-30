@@ -17,11 +17,11 @@
   #define RTGC_DEBUG false
 #endif
 
-#ifdef ASSERT
+#if defined(ASSERT) || !ENABLE_RTGC_ASSERT
 #define rt_assert_f  assert
 #define rt_assert    precond
 #else
-#define rt_assert_f(p, ...)                                                        \
+#define rt_assert_f(p, ...)                                                    \
 do {                                                                           \
   if (!(p)) {                                                                  \
     TOUCH_ASSERT_POISON;                                                       \
