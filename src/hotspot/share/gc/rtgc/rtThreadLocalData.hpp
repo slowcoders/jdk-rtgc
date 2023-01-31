@@ -42,11 +42,11 @@ class UpdateLogBuffer : public UpdateLogBufferHeader {
   static const int MAX_LOGS = (4*1024 - sizeof(UpdateLogBufferHeader)) / sizeof(FieldUpdateLog);
   FieldUpdateLog  _logs[MAX_LOGS];
 
+public:
+
   static UpdateLogBuffer* volatile g_free_buffer_q;
   static UpdateLogBuffer* volatile g_active_buffer_q;
   static UpdateLogBuffer* volatile g_inactive_buffer_q;
-
-public:
 
   FieldUpdateLog* pop() { return --_sp; }
 
