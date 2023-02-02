@@ -1,3 +1,8 @@
+sh exec_test.sh runtime/Unsafe/InternalErrorTest
+# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
+sh exec_test.sh runtime/Shutdown/ShutdownTest
+sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
+
 sh exec_test.sh com/sun/jdi/sde/TemperatureTableTest
 sh exec_test.sh com/sun/jdi/redefineMethod/RedefineTest
 #  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3b5ac2f58, buffer_start = 0x3b05a0000, buffer_end = 0x3b0650000
@@ -36,10 +41,11 @@ sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOf
 # V  [libjvm.dylib+0xae883e]  JavaThread::~JavaThread()+0xe
 # V  [libjvm.dylib+0xafa9c6]  ThreadsSMRSupport::smr_delete(JavaThread*)+0x46
 
-sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
 sh exec_test.sh compiler/blackhole/BlackholeIntrinsicTest
 #  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:158), pid=48325, tid=12547
+sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
 #  assert(!to_obj(new_p)->isTrackable()) failed: precond
+#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
 # V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
 # V [libjvm.dylib+0x90084b]  rtHeap::mark_promoted_trackable(oopDesc*)+0x4b
 # V [libjvm.dylib+0x2d74e9]  DefNewGeneration::copy_to_survivor_space(oop)+0x649

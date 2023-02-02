@@ -253,6 +253,7 @@ void Exceptions::throw_stack_overflow_exception(JavaThread* THREAD, const char* 
 void Exceptions::throw_unsafe_access_internal_error(JavaThread* thread, const char* file, int line, const char* message) {
   Handle h_exception = new_exception(thread, vmSymbols::java_lang_InternalError(), message);
   java_lang_InternalError::set_during_unsafe_access(h_exception());
+  fatal("unsafe_access_internal_error");
   _throw(thread, file, line, h_exception, message);
 }
 
