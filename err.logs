@@ -1,7 +1,12 @@
-sh exec_test.sh runtime/Unsafe/InternalErrorTest
-# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
 sh exec_test.sh runtime/Shutdown/ShutdownTest
+# SIGSEGV RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)
+
+sh exec_test.sh runtime/Unsafe/InternalErrorTest
+# SIGSEGV oop_desc::verify_on()
+# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
+
 sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
+
 
 sh exec_test.sh com/sun/jdi/sde/TemperatureTableTest
 sh exec_test.sh com/sun/jdi/redefineMethod/RedefineTest
