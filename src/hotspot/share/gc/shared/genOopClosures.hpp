@@ -83,7 +83,7 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool is_promoted> 
+template <bool is_promoted, bool resurrect=false> 
 class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true>, public ObjectClosure {
 private:
   Generation*  _old_gen;
@@ -94,6 +94,8 @@ public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
     : FastScanClosure<ScanTrackableClosure<is_promoted>, true>(young_gen), 
     _old_gen(old_gen) {}
+
+  Generation*  old_gen() { return _old_gen; }
 
   template <typename T>
   void barrier(T* p, oop forwardee);
@@ -110,11 +112,11 @@ public:
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 
-// class OldTrackableClosure : public ScanTrackableClosure<false> {
-// public:  
-//   OldTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-//     : ScanTrackableClosure<false>(young_gen, old_gen) {}
-// };
+class ResurrectTrackableClosure : public ScanTrackableClosure<true, true> {
+public:  
+  ResurrectTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
+    : ScanTrackableClosure<true, true>(young_gen, old_gen) {}
+};
 
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
   bool _has_young_ref;

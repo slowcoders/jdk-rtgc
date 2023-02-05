@@ -520,20 +520,22 @@ public:
 class ObjArrayTask
 {
 public:
-  ObjArrayTask(oop o = NULL, int idx = 0): _obj(o), _index(idx) { }
-  ObjArrayTask(oop o, size_t idx): _obj(o), _index(int(idx)) {
+  ObjArrayTask(oop o = NULL, int idx = 0, bool resurrected = false): _obj(o), _resurrected(resurrected) { }
+  ObjArrayTask(oop o, size_t idx, bool resurrected = false): _obj(o), _index(int(idx)), _resurrected(resurrected) {
     assert(idx <= size_t(max_jint), "too big");
   }
   // Trivially copyable, for use in GenericTaskQueue.
 
   inline oop obj()   const { return _obj; }
   inline int index() const { return _index; }
+  inline int resurrected() const { return _resurrected; }
 
   DEBUG_ONLY(bool is_valid() const); // Tasks to be pushed/popped must be valid.
 
 private:
   oop _obj;
   int _index;
+  bool _resurrected;
 };
 
 // Wrapper over an oop that is a partially scanned array.

@@ -117,7 +117,7 @@ namespace rtCLDCleaner {
 
         rt_assert((node->getRootRefCount() & 0x3FF) != 0);
         if (!node->isTrackable() && !obj->is_gc_marked()) {
-          MarkSweep::mark_and_push_internal(obj, false);
+          MarkSweep::mark_and_push_internal<false>(obj);
         }
       }
     }

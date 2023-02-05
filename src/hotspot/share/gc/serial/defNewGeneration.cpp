@@ -109,9 +109,17 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 }
 
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
+  ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
-    if (EnableRTGC) rtHeap::oop_recycled_iterate(_scan_older);
+    if (EnableRTGC) {
+      rtHeap::oop_recycled_iterate(_scan_older);
+      while (!MarkSweep::_resurrect_stack.is_empty()) {
+        oop obj = MarkSweep::_resurrect_stack.pop();
+        //rt_assert(!rtHeap::is_yto_obj(obj)->isYoungRoot());
+        resurrector.do_object(obj);
+      }      
+    }
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }

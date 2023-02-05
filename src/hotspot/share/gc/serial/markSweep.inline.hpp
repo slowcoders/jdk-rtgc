@@ -56,16 +56,19 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
-inline void MarkSweep::mark_and_push_internal(oop obj, bool is_anchored) {
+template <bool is_anchored, bool is_resurrected>
+inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (rtHeap::is_trackable(obj)) {
-      if (!is_anchored) {
-        rtHeap::mark_survivor_reachable(obj);
-      } else {
+      if (is_resurrected) {
+        rtHeap::mark_resurrected_link(anchor, obj);
+      } else if (is_anchored) {
         precond(rtHeap::is_alive(obj));
+      } else {
+        rtHeap::mark_survivor_reachable(obj);
       }
-      if (!rtHeap::DoCrossCheck) return;
+      if (!rtHeap::DoCrossCheck) return false;
     }
   } 
 #endif
@@ -73,13 +76,15 @@ inline void MarkSweep::mark_and_push_internal(oop obj, bool is_anchored) {
     mark_object(obj);
     _marking_stack.push(obj);
   }
+  return true;
 }
 
-template <class T> inline void MarkSweep::mark_and_push(T* p) {
+template <class T, bool is_anchored> 
+inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-    mark_and_push_internal(obj, _is_rt_anchor_trackable);
+    mark_and_push_internal<is_anchored>(obj);
   }
 }
 
@@ -88,11 +93,13 @@ inline void MarkSweep::follow_klass(Klass* klass) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (obj != NULL) {
-      mark_and_push_internal(obj, false);
+      mark_and_push_internal<false>(obj);
     } 
   } else
 #endif
-  MarkSweep::mark_and_push(&obj);
+  {
+    MarkSweep::mark_and_push(&obj);
+  }
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
@@ -103,7 +110,7 @@ inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
       oop holder = cld->holder_no_keepalive();
       if (holder != NULL) {
-        mark_and_push_internal(holder, false);
+        mark_and_push_internal<false>(holder);
       } 
       cld->incremental_oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
       return;

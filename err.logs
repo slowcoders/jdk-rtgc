@@ -1,3 +1,7 @@
+sh exec_test.sh tools/doclint/EmptyTagsTest
+sh exec_test.sh tools/doclint/AccessTest
+sh exec_test.sh jdk/javadoc/doclet/testRecordTypes/TestRecordTypes
+
 sh exec_test.sh runtime/Shutdown/ShutdownTest
 # SIGSEGV RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)
 
@@ -7,6 +11,11 @@ sh exec_test.sh runtime/Unsafe/InternalErrorTest
 
 sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
 
+sh exec_test.sh runtime/memory/ReadFromNoaccessArea/hs_err_pid44973.log
+sh exec_test.sh runtime/Shutdown/ShutdownTest/hs_err_pid49694.log
+sh exec_test.sh runtime/Unsafe/InternalErrorTest/hs_err_pid45279.log
+sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest/hs_err_pid45101.log
+sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader/hs_err_pid47611.log
 
 sh exec_test.sh com/sun/jdi/sde/TemperatureTableTest
 sh exec_test.sh com/sun/jdi/redefineMethod/RedefineTest
@@ -163,7 +172,7 @@ V  [libjvm.dylib+0x4bebea]  InterpreterRuntime::resolve_from_cache(JavaThread*, 
 j  TestLogConfigurationDeadLock.test()V+241
 j  TestLogConfigurationDeadLock.main([Ljava/lang/String;)V+8
 
-build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_tier1/runtime/Shutdown/ShutdownTest
+sh exec_test.sh runtime/Shutdown/ShutdownTest
 #  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:186), pid=35801, tid=6403
 #  assert(prev != __null) failed: precond
 V  [libjvm.dylib+0x8e3b46]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0xc6

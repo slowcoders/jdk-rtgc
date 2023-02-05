@@ -119,7 +119,10 @@ class MarkSweep : AllStatic {
   static void initialize();
 
 #if INCLUDE_RTGC
+  static Stack<oop, mtGC>               _resurrect_stack;
   static bool _is_rt_anchor_trackable;
+  static void* _marking_klass;
+  static int   _marking_klass_count;
 #endif
   // Public closures
   static IsAliveClosure       is_alive;
@@ -156,11 +159,13 @@ class MarkSweep : AllStatic {
   template <class T> static inline oopDesc* adjust_pointer(T* p, oop* new_oop = NULL);
 
   // Check mark and maybe push on marking stack
-  template <class T> static void mark_and_push(T* p);
+  template <class T, bool is_anchored=false>
+  static void mark_and_push(T* p);
 
-  static inline void mark_and_push_internal(oop p, bool is_anchored);
-  
-#if INCLUDE_RTGC
+  template <bool is_anchored, bool is_resurrected=false>
+  static inline bool mark_and_push_internal(oop p, oopDesc* anchor=NULL);
+
+#if INCLUDE_RTGC  
  public:
 #else
  private:
@@ -173,12 +178,16 @@ class MarkSweep : AllStatic {
   // Mark pointer and follow contents.  Empty marking stack afterwards.
   template <class T> static inline void follow_root(T* p);
 
+  RTGC_ONLY(template <bool resurrected=false>)
   static inline void push_objarray(oop obj, size_t index);
 
+  RTGC_ONLY(template <bool resurrected=false>)
   static void follow_object(oop obj);
 
+  RTGC_ONLY(template <bool resurrected=false>)
   static void follow_array(objArrayOop array);
 
+  RTGC_ONLY(template <bool resurrected=false>)
   static void follow_array_chunk(objArrayOop array, int index);
 };
 

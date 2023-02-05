@@ -228,7 +228,6 @@ public:
       if (is_tracked) {
         precond(!rtHeap::is_modified(heap_oop));
       } else if (rtHeap::is_modified(heap_oop)) {
-        // rtgc_log(true, "clear modify flag in untracked %p\n", (void*)_current_anchor);
         *p = rtHeap::to_unmodified(heap_oop);
       }
     }
@@ -245,7 +244,7 @@ public:
       if (!is_tracked) {
         rtHeap::add_trackable_link(_current_anchor, obj);
       }
-      MarkSweep::mark_and_push_internal(obj, true);
+      MarkSweep::mark_and_push_internal<true>(obj);
     }
   }
 
@@ -285,7 +284,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   if (EnableRTGC) {
     young_root_closure.set_ref_discoverer(_ref_processor);
     rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
-    rtHeap::oop_recycled_iterate(&untracked_closure);
+    rtHeap::oop_recycled_iterate(&untracked_closure);  // resuurection 전용으로 활용한다.??
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif

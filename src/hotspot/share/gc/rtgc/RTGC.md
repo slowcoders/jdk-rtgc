@@ -18,7 +18,7 @@
    https://code.visualstudio.com/docs/cpp/config-clang-mac
 
 ## 2. Run configure
-### for macosx 
+### for macosx debug
 ```
 bash configure --with-jvm-variants=client \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
@@ -27,6 +27,16 @@ bash configure --with-jvm-variants=client \
   --with-gtest=./googletest
 # --with-toolchain-type=clang \
 ```
+optmized mode (--with-debug-level=optimized)
+```
+bash configure --with-jvm-variants=client \
+  --with-native-debug-symbols=external --with-debug-level=optimized \
+  --with-jtreg=./jtreg-6.1 \
+  --enable-ccache \
+  --with-gtest=./googletest
+# --with-toolchain-type=clang \
+```
+for release
 ```
 bash configure --with-jvm-variants=client \
   --with-native-debug-symbols=external \

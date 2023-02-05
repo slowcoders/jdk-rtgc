@@ -121,9 +121,9 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 #else // RTGC_OPT_YOUNG_ROOTS
 
-template <bool is_promoted> 
+template <bool is_promoted, bool resurrect>
 template <typename T>
-void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_p) {
+void ScanTrackableClosure<is_promoted, resurrect>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
   // precond(!rtHeap::is_modified(*p));
@@ -132,20 +132,24 @@ void ScanTrackableClosure<is_promoted>::barrier(T* p, oop new_p) {
   rtHeap::add_trackable_link(_trackable_anchor, new_p);
 }
 
-template <bool is_promoted> 
+template <bool is_promoted, bool resurrect>
 template <typename T>
-void ScanTrackableClosure<is_promoted>::trackable_barrier(T* p, oop new_p) {
+void ScanTrackableClosure<is_promoted, resurrect>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
   assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
       "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
       (void*)_trackable_anchor, _trackable_anchor->klass()->name()->bytes(), p, *(int32_t*)p);
   // rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%p] = %p\n", 
   //     (void*)_trackable_anchor, p, (void*)new_p);
-  rtHeap::add_trackable_link(_trackable_anchor, new_p);
+  if (resurrect) {
+    rtHeap::mark_resurrected_link(_trackable_anchor, new_p);
+  } else {   
+    rtHeap::add_trackable_link(_trackable_anchor, new_p);
+  }
 }
 
-template <bool is_promoted> 
-void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
+template <bool is_promoted, bool resurrect> 
+void ScanTrackableClosure<is_promoted, resurrect>::do_object(oop obj) {
   if (!is_promoted) {
     rtHeap::mark_tenured_trackable(obj);
   } else {
@@ -155,7 +159,9 @@ void ScanTrackableClosure<is_promoted>::do_object(oop obj) {
   _trackable_anchor = obj;
   _is_young_root = false;
   obj->oop_iterate(this);
-  if (_is_young_root) {
+  if (resurrect) {
+    rtHeap::mark_young_root(obj, _is_young_root);
+  } else if (_is_young_root) {
     rtHeap::add_young_root(obj, obj);
   }
   debug_only(_trackable_anchor = NULL;)

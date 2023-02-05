@@ -18,7 +18,6 @@ class BoolObjectClosure;
 class OopClosure;
 class VoidClosure;
 class ReferencePolicy;
-class DefNewYoungerGenClosure;
 class ReferenceDiscoverer;
 
 class RtYoungRootClosure {
@@ -51,8 +50,10 @@ public:
   static void mark_tenured_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
   static void mark_survivor_reachable(oopDesc* tenured_p);
+  static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);
 
   static void add_young_root(oopDesc* old_p, oopDesc* new_p);
+  static void mark_young_root(oopDesc* tenured_p, bool is_young_root);
   static void oop_recycled_iterate(ObjectClosure* closure);
 
   // for full gc
