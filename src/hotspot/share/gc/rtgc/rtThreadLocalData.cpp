@@ -209,7 +209,12 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
   rt_assert_f(curr_buffer == g_dummy_buffer || 
         (curr_buffer >= (void*)g_buffer_area_start && curr_buffer < (void*)g_buffer_area_end),
       " curr_buffer = %p, buffer_start = %p, buffer_end = %p", curr_buffer, g_buffer_area_start, g_buffer_area_end);
-      
+
+  UpdateLogBuffer* volatile prev_inactive_q = UpdateLogBuffer::g_inactive_buffer_q;
+  UpdateLogBuffer* volatile prev_free_q = UpdateLogBuffer::g_free_buffer_q;
+  bool reuse_curr_buffer = false;
+  bool buffer_full = false;
+
   FieldUpdateLog* log = curr_buffer->pop();
 
   if (log <= (void*)curr_buffer) {
@@ -217,11 +222,13 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     if (new_buffer != NULL) {
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
-      rtgc_log(LOG_OPT(1), "Recycling LogBuffer %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
+      reuse_curr_buffer = true;
+      rtgc_log(LOG_OPT(1), "Reuse CurrBuffer %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
+      buffer_full = true;
       rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
@@ -239,8 +246,9 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
     rt_assert(g_buffer_area_start == (address)to->bottom());
     rt_assert(g_buffer_area_end == (address)to->end());
 
-    rt_assert_f(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end,
-        " log = %p, buffer_start = %p, buffer_end = %p", log, g_buffer_area_start, g_buffer_area_end);
+    rt_assert_f((curr_buffer >= (void*)g_buffer_area_start && curr_buffer < (void*)g_buffer_area_end) && (log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end),
+        "curr_buffer = %p log = %p, buffer_start = %p, buffer_end = %p free_q = %p inactive_q = %p, reuse_curr_buffer=%d, buffer_full=%d", 
+        curr_buffer, log, g_buffer_area_start, g_buffer_area_end, prev_free_q, prev_inactive_q, reuse_curr_buffer, buffer_full);
   }
 #endif
   log->init(anchor, erasedField);
