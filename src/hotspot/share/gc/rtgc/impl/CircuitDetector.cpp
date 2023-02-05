@@ -61,11 +61,11 @@ bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly)
             GCObject* obj = (GCObject*)_visitedNodes.at(i);
             rt_assert(obj->isTrackable());
             if (is_debug_pointer(obj)) {
-                //rtgc_log(true, "garbage marked %p\n", obj);
+                //rtgc_log(1, "garbage marked %p\n", obj);
                 AnchorIterator it(obj);
                 while (it.hasNext()) {
                     GCObject* anchor = it.next();
-                    //rtgc_log(true, " - anchor %p\n", anchor);
+                    //rtgc_log(1, " - anchor %p\n", anchor);
                     rt_assert_f(anchor->isGarbageMarked(), "%p[%d], %p[%d]", 
                         anchor, anchor->getShortcutId(), obj, obj->getShortcutId());
                 }

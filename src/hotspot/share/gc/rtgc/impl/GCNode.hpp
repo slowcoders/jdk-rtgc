@@ -229,12 +229,16 @@ public:
 
 	int getReferrerCount();
 
-	void markSurvivorReachable() {
-		rt_assert(!isGarbageMarked());
+	void markSurvivorReachable_unsafe() {
 		rt_assert(!isSurvivorReachable());
 		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d\n",    
 			this, this->getRootRefCount(), this->getReferrerCount());
 		flags().rootRefCount |= (1 << 22);
+	}
+
+	void markSurvivorReachable() {
+		rt_assert(!isGarbageMarked());
+		markSurvivorReachable_unsafe();
 	}
 
 	bool isSurvivorReachable() {

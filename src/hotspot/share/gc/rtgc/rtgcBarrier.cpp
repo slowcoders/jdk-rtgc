@@ -271,7 +271,7 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
 
 template<DecoratorSet decorators, typename T> 
 void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_v, oopDesc* base) {
-  rtgc_trace(true, "rt_store_c1 base: %p new_v: %p\n", base, new_v); 
+  rtgc_log(true, "rt_store_c1 base: %p new_v: %p\n", base, new_v); 
 
   if (rtHeap::is_trackable(base)) {
     if (decorators & ON_UNKNOWN_OOP_REF) {

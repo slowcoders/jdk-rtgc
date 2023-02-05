@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include "utilities/debug.hpp"
+#include "gc/rtgc/RTGC.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 
 #ifdef ASSERT
   #define ENABLE_RTGC_ASSERT true
@@ -65,14 +67,11 @@ namespace RTGC {
   RTGC::to_obj(obj)->isUnstableMarked(), cast_to_oop(obj)->is_gc_marked()
 
 #define rtgc_log(logOption, ...) \
-  if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { \
-    printf("%p] %s:%d ", RTGC::currentThreadId(), RTGC::baseFileName(__FILE__), __LINE__); \
-    printf(__VA_ARGS__); \
-  }
+  if (RTGC_DEBUG && RTGC::logEnabled(logOption)) { log_trace_p(gc)(__VA_ARGS__); }
+
+#define rtgc_trace  log_trace(gc)
 
 #define rtgc_debug_log(obj, ...) \
   rtgc_log(RTGC::is_debug_pointer((void*)obj), __VA_ARGS__)
-
-#define rtgc_trace(opt, ...)  rtgc_log(RTGC::debugOptions[opt], __VA_ARGS__)
 
 #endif // SHARE_GC_RTGC_RTGC_LOG_HPP

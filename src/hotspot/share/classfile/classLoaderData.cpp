@@ -399,8 +399,8 @@ void ClassLoaderData::incremental_oops_do(OopClosure* f, bool clear_mod_oops) {
   if (_handles.incremental_oops_do(f)) {
     record_modified_oops();
   }
-  rtgc_trace(10, "incremental_oops_do = %p, keep_alive %d\n", //, last %p:%d\n", 
-          this, this->keep_alive());//, _last_chunk, _last_idx);
+  // rtgc_log(10, "incremental_oops_do = %p, keep_alive %d\n", //, last %p:%d\n", 
+  //         this, this->keep_alive());//, _last_chunk, _last_idx);
 }
 #endif
 

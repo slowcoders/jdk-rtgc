@@ -83,7 +83,7 @@ class SafeShortcut {
 			_inTracing(NULL), _anchor(anchor), _tail(tail) {}
 public:
 	~SafeShortcut() { 
-		//rtgc_log(true, "SafeShortcut deleted %d\n", this->getIndex());
+		//rtgc_log(1, "SafeShortcut deleted %d\n", this->getIndex());
 		*(int32_t*)&_anchor = 0; 
 	}
 
