@@ -124,7 +124,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   if (RTGC::is_debug_pointer(p)) {
      rtgc_log(1, "referrer %p(%s) added to %p(rc=%d refs_=%x)\n", 
         debug_base, RTGC::getClassName(debug_base), p, 
-        to_obj(p)->getRootRefCount(), to_obj(p)->node_()->getIdentityHashCode());
+        to_obj(p)->getRootRefCount(), to_obj(p)->getReferrerCount());
   }
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 

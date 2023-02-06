@@ -102,6 +102,7 @@ namespace RTGC {
       if (to_node(anchor)->isTrackable()) {
         RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc || PARTIAL_COLLECTION);
       } else if (to_obj(link)->isTrackable()) {
+        rt_assert(true && rtHeap::is_alive(link));
         rtHeap::mark_survivor_reachable(link);
       }
       return true;
@@ -541,6 +542,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
     if (to_obj(obj)->isTrackable()) {
       RTGC::add_referrer_ex(discovered, obj, !rtHeap::in_full_gc || PARTIAL_COLLECTION);
     } else if (to_obj(discovered)->isTrackable()) {
+        rt_assert(true && rtHeap::is_alive(discovered));
       rtHeap::mark_survivor_reachable(discovered);      
     }
   }
@@ -717,6 +719,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       } else if (referent->isTrackable()) {
         // gc 종료 후 Unsafe List 등록되도록 한다.
         rtgc_log(LOG_OPT(3), "yg-reachable final referent %p\n", referent);
+        rt_assert(true && rtHeap::is_alive(cast_to_oop(referent)));
         rtHeap::mark_survivor_reachable(cast_to_oop(referent));
       }
       ref->unmarkActiveFinalizer();

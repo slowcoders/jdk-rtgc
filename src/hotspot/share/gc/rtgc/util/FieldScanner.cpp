@@ -37,6 +37,8 @@ public:
     if (obj == NULL) return;
 
     GCObject* link = to_obj(obj);
+    if (isTenured) rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p(g=%d)\n", _base, (void*)obj, link->isGarbageMarked());
+
     if (link->isGarbageMarked()) {
       return;
     }
@@ -48,7 +50,6 @@ public:
        */
       if (!obj->is_gc_marked()) {
         link->clearAnchorList();
-        rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p\n", _base, (void*)obj);
         return;
       }
       oop p = obj->forwardee();

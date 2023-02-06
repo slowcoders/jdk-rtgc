@@ -359,17 +359,12 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     }
 
     // rtgc_log(LOG_OPT(7), "iterate yg root %p", (void*)node); 0x3f74adc18
-    rtgc_log(is_full_gc , "RTGC 6.1 %p", node);
     bool is_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
-    rtgc_log(is_full_gc , "RTGC 6.1.1 " PTR_DBG_SIG, PTR_DBG_INFO(node));
     closure->do_complete();
-    rtgc_log(is_full_gc , "RTGC 6.1.2 %p", node);
     if (!is_root) {
       node->unmarkYoungRoot();
-      rtgc_log(is_full_gc , "RTGC 6.1.2.1 %p", node);
       g_young_roots.removeFast(idx_root);
     } 
-    rtgc_log(is_full_gc , "RTGC 6.1.3 %p", node);
   }
 
   if (is_full_gc) {
@@ -467,7 +462,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
-  rt_assert(!old_p->isGarbageMarked());
+  rt_assert_f(!old_p->isGarbageMarked(), PTR_DBG_SIG "\n-" PTR_DBG_SIG, PTR_DBG_INFO(old_p), PTR_DBG_INFO(node));
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
     rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p", old_p, new_obj, node);
@@ -478,6 +473,7 @@ static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   if (!is_alive(old_p, false)) {
     rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
+    rtgc_log(true, "skip garbage %p", old_p);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
   }
@@ -546,6 +542,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
   rtgc_log(LOG_OPT(2), "old_gen_heap_start %p", old_gen_heap_start);
+  rt_assert(MarkSweep::_resurrect_stack.is_empty());
   // yg_root_locked = false;
   if (g_young_roots.size() > 0) {
     oop* src_0 = g_young_roots.adr_at(0);

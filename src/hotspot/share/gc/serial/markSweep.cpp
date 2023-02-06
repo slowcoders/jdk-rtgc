@@ -83,12 +83,16 @@ public:
   void do_iterate_array(objArrayOop array, int beg_index, int end_index) {
     _anchor = array;
     _is_young_root = false;
+    rt_assert(rtHeap::is_trackable(_anchor));
+    rt_assert(rtHeap::is_alive(_anchor));
     array->oop_iterate_range(this, beg_index, end_index);
     rtHeap::mark_young_root(array, _is_young_root);
   }
   void do_iterate(oop obj) {
     _anchor = obj;
     _is_young_root = false;
+    rt_assert(rtHeap::is_trackable(_anchor));
+    rt_assert(rtHeap::is_alive(_anchor));
     obj->oop_iterate(this);
     rtHeap::mark_young_root(obj, _is_young_root);
   }

@@ -126,10 +126,12 @@ template <typename T>
 void ScanTrackableClosure<is_promoted, resurrect>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
-  // precond(!rtHeap::is_modified(*p));
-  // rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
-  //     (void*)_trackable_anchor, p, (void*)new_p);
-  rtHeap::add_trackable_link(_trackable_anchor, new_p);
+  rt_assert(!rtHeap::is_trackable(new_p));
+  if (!resurrect) {
+    // rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
+    //     (void*)_trackable_anchor, p, (void*)new_p);
+    rtHeap::add_trackable_link(_trackable_anchor, new_p);
+  }
 }
 
 template <bool is_promoted, bool resurrect>
@@ -139,8 +141,8 @@ void ScanTrackableClosure<is_promoted, resurrect>::trackable_barrier(T* p, oop n
   assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
       "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
       (void*)_trackable_anchor, _trackable_anchor->klass()->name()->bytes(), p, *(int32_t*)p);
-  // rtgc_debug_log(_trackable_anchor, "trackable_barrier %p[%p] = %p\n", 
-  //     (void*)_trackable_anchor, p, (void*)new_p);
+  // rtgc_debug_log(_trackable_anchor, "trackable_barrier(%d) %p[%p] = %p\n", 
+  //     resurrect, (void*)_trackable_anchor, p, (void*)new_p);
   if (resurrect) {
     rtHeap::mark_resurrected_link(_trackable_anchor, new_p);
   } else {   

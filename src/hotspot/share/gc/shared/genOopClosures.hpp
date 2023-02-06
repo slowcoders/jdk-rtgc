@@ -84,7 +84,7 @@ public:
 
 #else // RTGC_OPT_YOUNG_ROOTS
 template <bool is_promoted, bool resurrect=false> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted>, true>, public ObjectClosure {
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted, resurrect>, true>, public ObjectClosure {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -92,7 +92,7 @@ private:
 
 public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<is_promoted>, true>(young_gen), 
+    : FastScanClosure<ScanTrackableClosure<is_promoted, resurrect>, true>(young_gen), 
     _old_gen(old_gen) {}
 
   Generation*  old_gen() { return _old_gen; }
