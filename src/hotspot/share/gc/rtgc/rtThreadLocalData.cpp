@@ -175,15 +175,41 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
   rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
+  rt_assert(buffer > (void*)0x100);
 
   RTGC::lock_heap();
   UpdateLogBuffer* prev = g_active_buffer_q; 
+  rt_assert(prev > (void*)0xFF);
   if (prev == buffer) {
     g_active_buffer_q = buffer->_next;
   } else {
     while (prev->_next != buffer) {
       prev = prev->_next;
-      rt_assert(prev != NULL);
+#ifdef ASSERT
+      if (prev <= (void*)0x100) {
+        int idx = 0;
+        printf("fail to find %p (%p)\n", buffer, prev);
+        printf("g_active_buffer_q\n");
+        prev = g_active_buffer_q; 
+        while (prev > (void*)0x100) {
+          printf("q(%d) %p\n", idx++, prev);
+          prev = prev->_next;
+        }
+        prev = g_inactive_buffer_q; 
+        idx = 0;
+        while (prev > (void*)0x100) {
+          printf("q(%d) %p\n", idx++, prev);
+          prev = prev->_next;
+        }
+        prev = g_free_buffer_q; 
+        idx = 0;
+        while (prev > (void*)0x100) {
+          printf("q(%d) %p\n", idx++, prev);
+          prev = prev->_next;
+        }
+      }
+#endif
+      rt_assert(prev > (void*)0x100);
     }
     prev->_next = buffer->_next;
   }
@@ -264,6 +290,7 @@ RtThreadLocalData::RtThreadLocalData() {
 }
 
 RtThreadLocalData::~RtThreadLocalData() {
+  rt_assert(_log_buffer > (void*)0x100);
   if (!_log_buffer->is_full()) {
     rt_assert(_log_buffer != g_dummy_buffer);
     UpdateLogBuffer::recycle(_log_buffer);

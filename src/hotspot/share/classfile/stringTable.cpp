@@ -580,6 +580,9 @@ class VerifyStrings : StackObj {
   bool operator()(WeakHandle* val) {
     oop s = val->peek();
     if (s != NULL) {
+#if INCLUDE_RTGC      
+      if (EnableRTGC && rtHeap::is_destroyed(s)) return true;
+#endif
       assert(java_lang_String::length(s) >= 0, "Length on string must work.");
     }
     return true;

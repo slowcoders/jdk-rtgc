@@ -68,6 +68,9 @@ namespace RTGC {
   HugeArray<GCObject*> g_stack_roots;
   HugeArray<GCObject*> g_recycled;
   Thread* gcThread = NULL;
+#ifdef ASSERT  
+  int g_debug_cnt_untracked = 0;
+#endif
   int g_cntTrackable = 0;
   int g_cntScan = 0;
   int g_saved_young_root_count = 0;
@@ -217,6 +220,9 @@ void rtHeap__processUntrackedTenuredObjects() {
     rtHeap::mark_promoted_trackable(cast_to_oop(node));
     GCRuntime::detectUnsafeObject(node);
   }
+#ifdef ASSERT
+  g_debug_cnt_untracked = g_recycled.size();
+#endif
   if (!USE_EXPLICIT_TRACKABLE_MARK) {
     g_recycled.resize(0); 
   }
@@ -878,9 +884,16 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
     // rt_assert(!in_full_gc || g_recycled.size() == 0);
     for (int idx = 0; idx < g_recycled.size(); idx++) {
       GCObject* node = g_recycled.at(idx);
-      rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
-      closure->do_object(cast_to_oop(node));
+      if (node->isGarbageMarked()) {
+        rt_assert(idx < g_debug_cnt_untracked);
+      } else {
+        rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
+        closure->do_object(cast_to_oop(node));
+      }
     }
+#ifdef ASSERT  
+    g_debug_cnt_untracked = 0;
+#endif
     g_recycled.resize(0); 
   }
 }

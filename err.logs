@@ -3,8 +3,9 @@ sh exec_test.sh tools/doclint/AccessTest
 sh exec_test.sh jdk/javadoc/doclet/testRecordTypes/TestRecordTypes
 
 sh exec_test.sh runtime/Shutdown/ShutdownTest
-# SIGSEGV RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)
-sh exec_test.sh runtime/Shutdown/ShutdownTest
+sh exec_test.sh java/util/regex/RegExTest
+sh exec_test.sh com/sun/jdi/SourceNameFilterTest
+sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
 #  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:186), pid=35801, tid=6403
 #  assert(prev != __null) failed: precond
 V  [libjvm.dylib+0x8e3b46]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0xc6
@@ -13,6 +14,27 @@ V  [libjvm.dylib+0xae2a9c]  JavaThread::~JavaThread()+0x15c
 V  [libjvm.dylib+0xae2ace]  JavaThread::~JavaThread()+0xe
 V  [libjvm.dylib+0xaeb5a6]  Threads::destroy_vm()+0x2c6
 V  [libjvm.dylib+0x5a07a1]  jni_DestroyJavaVM+0xd1
+
+
+sh exec_test.sh runtime/Unsafe/InternalErrorTest
+# SIGSEGV oop_desc::verify_on()
+# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
+
+sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
+#  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=56105, tid=5891
+#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
+V  [libjvm.dylib+0x7d9be3]  ModuleEntry::create_unnamed_module(ClassLoaderData*)+0x193
+V  [libjvm.dylib+0x255bf0]  ClassLoaderData::ClassLoaderData(Handle, bool)+0x320
+V  [libjvm.dylib+0x25e212]  ClassLoaderDataGraph::add_to_graph(Handle, bool)+0xc2
+V  [libjvm.dylib+0x25e4bf]  ClassLoaderDataGraph::add(Handle, bool)+0x5f
+V  [libjvm.dylib+0xa96370]  ClassLoaderDataGraph::find_or_create(Handle)+0x120
+V  [libjvm.dylib+0xa97382]  SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, JavaThread*)+0x262
+V  [libjvm.dylib+0xa96a14]  SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, JavaThread*)+0x64
+V  [libjvm.dylib+0x5e6850]  find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, JavaThread*)+0x30
+V  [libjvm.dylib+0x5e6764]  JVM_FindClassFromCaller+0x494
+C  [libjava.dylib+0x22ba]  Java_java_lang_Class_forName0+0x12a
+
+
 
 
 runtime/Throwable/TestCatchThrowableOOM
@@ -38,34 +60,9 @@ V  [libjvm.dylib+0x431c7a]  GenMarkSweep::mark_sweep_phase3()+0xaa
 V  [libjvm.dylib+0x43142d]  GenMarkSweep::invoke_at_safepoint(ReferenceProcessor*, bool)+0x22d
 
 
-sh exec_test.sh runtime/Unsafe/InternalErrorTest
-# SIGSEGV oop_desc::verify_on()
-# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
 
-sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
-#  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=56105, tid=5891
-#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
-V  [libjvm.dylib+0x7d9be3]  ModuleEntry::create_unnamed_module(ClassLoaderData*)+0x193
-V  [libjvm.dylib+0x255bf0]  ClassLoaderData::ClassLoaderData(Handle, bool)+0x320
-V  [libjvm.dylib+0x25e212]  ClassLoaderDataGraph::add_to_graph(Handle, bool)+0xc2
-V  [libjvm.dylib+0x25e4bf]  ClassLoaderDataGraph::add(Handle, bool)+0x5f
-V  [libjvm.dylib+0xa96370]  ClassLoaderDataGraph::find_or_create(Handle)+0x120
-V  [libjvm.dylib+0xa97382]  SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, JavaThread*)+0x262
-V  [libjvm.dylib+0xa96a14]  SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, JavaThread*)+0x64
-V  [libjvm.dylib+0x5e6850]  find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, JavaThread*)+0x30
-V  [libjvm.dylib+0x5e6764]  JVM_FindClassFromCaller+0x494
-C  [libjava.dylib+0x22ba]  Java_java_lang_Class_forName0+0x12a
 
-sh exec_test.sh runtime/Shutdown/ShutdownTest
-sh exec_test.sh java/util/regex/RegExTest
-sh exec_test.sh com/sun/jdi/SourceNameFilterTest
-sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
-# SIGSEGV (0xb) at pc=0x0000000108905afc, pid=71462, tid=41531
-# V  [libjvm.dylib+0x8eeafc]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0x7c
-# V  [libjvm.dylib+0xae6536]  Thread::~Thread()+0x46
-# V  [libjvm.dylib+0xae880c]  JavaThread::~JavaThread()+0x15c
-# V  [libjvm.dylib+0xae883e]  JavaThread::~JavaThread()+0xe
-# V  [libjvm.dylib+0xafa9c6]  ThreadsSMRSupport::smr_delete(JavaThread*)+0x46
+
 
 
 sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
