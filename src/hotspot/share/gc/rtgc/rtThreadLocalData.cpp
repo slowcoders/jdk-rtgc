@@ -28,9 +28,18 @@ bool rtHeap::useModifyFlag() {
 
 
 namespace RTGC {
+  extern bool is_gc_started;  
   class ThreadLocalDataClosure : public ThreadClosure {
   public:  
+#ifdef ASSERT
+    int _cntThread;
+#endif    
+    ThreadLocalDataClosure() {
+      debug_only(_cntThread = 0;)
+    }
+
     virtual void do_thread(Thread* thread) {
+      debug_only(_cntThread ++;)
       RtThreadLocalData::data(thread)->reset_field_update_log_buffer();
     }
   };
@@ -50,6 +59,7 @@ UpdateLogBuffer* volatile UpdateLogBuffer::g_active_buffer_q = NULL;
 UpdateLogBuffer* volatile UpdateLogBuffer::g_inactive_buffer_q = NULL;
 UpdateLogBuffer* const RtThreadLocalData::g_dummy_buffer = (UpdateLogBuffer*)&g_dummy_buffer_header;
 
+RtThreadLocalData* RtThreadLocalData::g_active_thread_q = NULL;
 
 template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
@@ -114,6 +124,18 @@ void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
 }
 
 
+#if 1// def ASSERT      
+void RtThreadLocalData::check_gc_context(int threads) {
+  int cntThread = 0;
+  for (RtThreadLocalData* rtData = g_active_thread_q; rtData != NULL; rtData = rtData->_next) {
+    rtData->reset_field_update_log_buffer();
+    //rt_assert_f(rtData->_log_buffer->is_full(), "not cleared %p", rtData);
+    //cntThread ++;
+  }
+  // rt_assert_f(threads == cntThread, " scan(%d) != active(%d)", threads, cntThread);
+}
+#endif        
+
 
 void UpdateLogBuffer::reset_gc_context() {
 
@@ -140,8 +162,11 @@ void UpdateLogBuffer::reset_gc_context() {
   }
   buffer[-1]._next = NULL;
 
-  ThreadLocalDataClosure tld_closure;
-  Threads::threads_do(&tld_closure);
+  // ThreadLocalDataClosure tld_closure;
+  // Threads::threads_do(&tld_closure);
+#ifdef ASSERT  
+  RtThreadLocalData::check_gc_context(0);
+#endif
 }
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {
@@ -149,7 +174,9 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 
   UpdateLogBuffer* buffer;
   
+  rt_assert(! is_gc_started);
   RTGC::lock_heap();
+  rt_assert(! is_gc_started);
   if ((buffer = g_inactive_buffer_q) != NULL) {
     rtgc_log(LOG_OPT(1), "recycle inactive LogBuffer %p s=%p e=%p\n", buffer, g_buffer_area_start, g_buffer_area_end);
     g_inactive_buffer_q = buffer->_next;
@@ -176,10 +203,13 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
   rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
   rt_assert(buffer > (void*)0x100);
-
+  rt_assert(! is_gc_started);
   RTGC::lock_heap();
+  rt_assert(! is_gc_started);
   UpdateLogBuffer* prev = g_active_buffer_q; 
-  rt_assert(prev > (void*)0xFF);
+  rt_assert_f(prev > (void*)0xFF, "g_active_buffer_q=%p, g_inactive_buffer_q=%p, g_free_buffer_q=%p",
+      g_active_buffer_q, g_inactive_buffer_q, g_free_buffer_q);
+
   if (prev == buffer) {
     g_active_buffer_q = buffer->_next;
   } else {
@@ -231,6 +261,9 @@ void UpdateLogBuffer::flush_pending_logs() {
 
 void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData) {
 
+  rt_assert(rtData == RtThreadLocalData::data(Thread::current()));
+  rt_assert(!Thread::current()->is_VM_thread());
+
   UpdateLogBuffer* curr_buffer = rtData->_log_buffer;
   rt_assert_f(curr_buffer == g_dummy_buffer || 
         (curr_buffer >= (void*)g_buffer_area_start && curr_buffer < (void*)g_buffer_area_end),
@@ -241,11 +274,15 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
   bool reuse_curr_buffer = false;
   bool buffer_full = false;
 
-  FieldUpdateLog* log = curr_buffer->pop();
-
-  if (log <= (void*)curr_buffer) {
+  if (curr_buffer->is_full()) {
     UpdateLogBuffer* new_buffer = UpdateLogBuffer::allocate();
     if (new_buffer != NULL) {
+// #ifdef ASSERT      
+//       if (curr_buffer == g_dummy_buffer) {
+//         rtData->_next = g_active_thread_q;
+//         g_active_thread_q = rtData;
+//       }
+// #endif      
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
       reuse_curr_buffer = true;
@@ -263,8 +300,9 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
       RTGC::unlock_heap();
       return;
     }
-    log = curr_buffer->pop();
   } 
+  FieldUpdateLog* log = curr_buffer->pop();
+
 #ifdef ASSERT
   {
     DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
@@ -287,13 +325,45 @@ RtThreadLocalData::RtThreadLocalData() {
   reset_field_update_log_buffer(); 
   rt_assert(_log_buffer->is_full());
   rt_assert(_log_buffer->next() == NULL);
+#ifdef ASSERT      
+  //rt_assert(!Thread::current()->is_VM_thread());
+  {
+    for (RtThreadLocalData* rtData = g_active_thread_q; rtData != NULL; ) {
+      rt_assert(rtData != this);
+      rtData = rtData->_next;
+    }
+    // rtgc_log(true, "attach tld %p", this);
+    //RTGC::lock_heap();
+    while (true) {
+      this->_next = g_active_thread_q;
+      if (this->_next == Atomic::cmpxchg(&g_active_thread_q, this->_next, this)) break;
+    }
+    //g_active_thread_q = this;
+    //RTGC::unlock_heap();
+  }
+#endif      
+
 }
 
 RtThreadLocalData::~RtThreadLocalData() {
   rt_assert(_log_buffer > (void*)0x100);
+  rt_assert(!Thread::current()->is_VM_thread());
+  {
+    RTGC::lock_heap();
+    RtThreadLocalData* rtData = Atomic::cmpxchg(&g_active_thread_q, this, this->_next);
+    if (rtData != this) {
+      for (; rtData->_next != this; ) {
+        rtData = rtData->_next;
+      }
+      rtData->_next = this->_next;
+    }
+    RTGC::unlock_heap();
+  }
   if (!_log_buffer->is_full()) {
     rt_assert(_log_buffer != g_dummy_buffer);
+    rt_assert(!Thread::current()->is_VM_thread());
     UpdateLogBuffer::recycle(_log_buffer);
+    _log_buffer = g_dummy_buffer;
   }
 }
 

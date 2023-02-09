@@ -337,7 +337,14 @@ void rtSpace__initialize();
 
 
 void RTGC::initialize() {
+#if COMPILER1_AND_COMPILER2
+#elif defined(COMPILER1)
+  fatal("What's wrong?");
+#elif defined(COMPILER2)
+#endif
+
 #ifdef _LP64
+  rt_assert(DEFAULT_CACHE_LINE_SIZE >= 64);
   is_narrow_oop_mode = UseCompressedOops;
 #else
   is_narrow_oop_mode = false;
