@@ -23,6 +23,30 @@
 #include "rtThreadLocalData.hpp"
 #include "gc/serial/serialHeap.inline.hpp"
 
+/**
+ Young Generation Scan
+  1) GC 시작 전에 old-G 에 allocate 된 객체(=recycle)를 trackable 로 marking 하고, Unsafe 검사를 한다.
+  2) Stack 및 root 객체를 marking 한다.
+  3) evacuate_followers.do_void()
+  4) YoungRoot 객체를 마킹한다. 
+    rtHeap::iterate_younger_gen_roots()
+    + evacuate_followers.do_void()
+  4) rtHeap::process_weak_soft_references()
+    // YG-GC 시에서는 weak/soft reference 는 garbage 처리하지 않는다.
+  5) rtHeap::process_final_phantom_references()
+    -> rtHeap__clear_garbage_young_roots()
+      -> _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+    GC 종료 후 marking 된 phantom_ref 객체의 주소 변경.
+  6) weak-oop clean-up. WeakProcessor::weak_oops_do
+
+ evacuate_followers.do_void() {
+   evacuated 객체: 
+      - to() 영역으로 새로 옮겨지 객체
+      - old_G 로 옮겨진 객체-
+      - recycled 객체 .
+    이때 Resurrection 이 발생할 수 있다.
+ }
+ */
 int rtHeap::in_full_gc = 0;
 
 static const int LOG_OPT(int function) {
@@ -63,7 +87,6 @@ namespace RTGC {
   };
 
   
-  bool g_in_iterate_younger_gen_roots = false;
   HugeArray<oop> g_young_roots;
   HugeArray<GCObject*> g_stack_roots;
   HugeArray<GCObject*> g_recycled;
@@ -303,15 +326,11 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
 
     rtHeapEx::g_lock_garbage_list = true;
   } else {
-    // g_in_iterate_younger_gen_roots = true;
     // rtCLDCleaner::clear_cld_locks(g_young_root_closure);
     // rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
     // _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-    // g_in_iterate_younger_gen_roots = false;    
   }
 }
-
-
 
 void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full_gc) {
   if (is_full_gc) {
@@ -337,7 +356,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
   rt_assert_f(garbages->size() == 0, "garbages->size %d", garbages->size());
 
-  g_in_iterate_younger_gen_roots = true;
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     if (node->isGarbageMarked()) {
@@ -377,8 +395,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     rtCLDCleaner::clear_cld_locks(g_young_root_closure);
     rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
   }
-  g_in_iterate_younger_gen_roots = false;
-
 }
 
 void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
@@ -884,8 +900,10 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
     // rt_assert(!in_full_gc || g_recycled.size() == 0);
     for (int idx = 0; idx < g_recycled.size(); idx++) {
       GCObject* node = g_recycled.at(idx);
+      rt_assert(node->isTrackable());
+      rt_assert(!node->isYoungRoot());
       if (node->isGarbageMarked()) {
-        rt_assert(idx < g_debug_cnt_untracked);
+        debug_only(rt_assert(is_full_gc && idx < g_debug_cnt_untracked));
       } else {
         rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
         closure->do_object(cast_to_oop(node));

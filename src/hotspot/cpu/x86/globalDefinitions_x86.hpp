@@ -48,7 +48,8 @@ const bool CCallingConventionRequiresIntsAsLongs = false;
 #elif defined(COMPILER1)
   // pure C1, 32-bit, small machine
   // i486 was the last Intel chip with 16-byte cache line size
-  #define DEFAULT_CACHE_LINE_SIZE 32
+  #define DEFAULT_CACHE_LINE_SIZE 64
+  // RTGC_C1_ONLY #define DEFAULT_CACHE_LINE_SIZE 32
 #elif defined(COMPILER2)
   #ifdef _LP64
     // pure C2, 64-bit, large machine

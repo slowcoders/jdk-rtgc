@@ -781,8 +781,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
     if ((void*)_old_gen <= (void*)0x100) printf("wrong oldgen %p\n", (void*)_old_gen);
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
-      //if ((void*)obj <= (void*)0x100) 
-      printf("handle_promotion_failure obj %p\n", (void*)obj);
       handle_promotion_failure(old);
       return old;
     }

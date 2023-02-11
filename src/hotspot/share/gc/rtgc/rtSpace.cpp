@@ -159,11 +159,11 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   rt_assert_f(Heap_lock->owned_by_self() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
           "not locked");
-#if 1 // 2
+#if 0 // 2
   HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
   bool recycled = (heap != NULL);
   if (recycled) {
-    _offsets.alloc_block(heap, word_size);
+    // _offsets.alloc_block(heap, word_size);
   }
   else {
     heap = _SUPER::allocate(word_size);

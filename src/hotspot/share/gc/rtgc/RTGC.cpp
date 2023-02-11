@@ -338,10 +338,11 @@ void rtSpace__initialize();
 
 void RTGC::initialize() {
 #if COMPILER1_AND_COMPILER2
-#elif defined(COMPILER1)
-  fatal("What's wrong?");
 #elif defined(COMPILER2)
+#elif defined(COMPILER1)
+  // fatal("What's wrong?");
 #endif
+
 
 #ifdef _LP64
   rt_assert(DEFAULT_CACHE_LINE_SIZE >= 64);
@@ -355,6 +356,8 @@ void RTGC::initialize() {
   // RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
+#else
+  rt_assert(false);
 #endif
 
   ReferrerList::initialize();

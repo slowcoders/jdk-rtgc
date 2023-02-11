@@ -74,8 +74,8 @@ public:
 
 class RtThreadLocalData {    
   UpdateLogBuffer* _log_buffer;
-  void* _trackable_heap_start;
   RtThreadLocalData* _next;
+  void* _trackable_heap_start;
 
   static UpdateLogBuffer* const g_dummy_buffer;
   static RtThreadLocalData* g_active_thread_q;
@@ -111,9 +111,9 @@ public:
 
   static void addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData);
 
-#ifdef ASSERT
-  static void check_gc_context(int threads);
+  static void reset_gc_context();
 
+#ifdef ASSERT
   void checkLastLog(oopDesc* anchor, volatile narrowOop* field, narrowOop erased) {
     FieldUpdateLog* log = _log_buffer->peek();
     printf("log sp  %p start=%p\n", log, _log_buffer);
