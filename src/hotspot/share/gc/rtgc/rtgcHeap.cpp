@@ -333,16 +333,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
 }
 
 void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full_gc) {
-  if (is_full_gc) {
-    if (closure != NULL) {
-      g_young_root_closure = closure;
-      return;
-    } 
-    closure = g_young_root_closure;
-    rt_assert(closure != NULL);
-  } else {
-    g_young_root_closure = closure;
-  }
+  g_young_root_closure = closure;
   int young_root_count = is_full_gc ? g_young_roots.size() : g_saved_young_root_count;
   rtHeapEx::g_lock_garbage_list = false;
 
@@ -903,7 +894,7 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
       rt_assert(node->isTrackable());
       rt_assert(!node->isYoungRoot());
       if (node->isGarbageMarked()) {
-        debug_only(rt_assert(is_full_gc && idx < g_debug_cnt_untracked));
+        debug_only(rt_assert(in_full_gc && idx < g_debug_cnt_untracked));
       } else {
         rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
         closure->do_object(cast_to_oop(node));

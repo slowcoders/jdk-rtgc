@@ -586,13 +586,13 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu\n", rtHeapEx::_soft_ref_timestamp_clock);
 
   jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
-  if (is_full_gc) {
-    ReferencePolicy* policy = RefList::g_ref_policy;
-    rt_assert(rtHeap::in_full_gc);
+  // if (is_full_gc) {
+  //   ReferencePolicy* policy = RefList::g_ref_policy;
+  //   rt_assert(rtHeap::in_full_gc);
     
-    rtHeap::iterate_younger_gen_roots(NULL, true);
-    complete_gc->do_void();
-  }
+  //   rtHeap::iterate_younger_gen_roots(NULL, true);
+  //   complete_gc->do_void();
+  // }
 
   if (false && !CLEAR_FINALIZE_REF) {
     // final reachble 을 먼저 marking 함으로써, resurrection 수를 줄일 수 있다.

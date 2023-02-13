@@ -283,8 +283,9 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
     young_root_closure.set_ref_discoverer(_ref_processor);
-    rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
     rtHeap::oop_recycled_iterate(&untracked_closure);  // resuurection 전용으로 활용한다.??
+    rtHeap::iterate_younger_gen_roots(&young_root_closure, true);
+    follow_stack_closure.do_void();
     rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
   }
 #endif
