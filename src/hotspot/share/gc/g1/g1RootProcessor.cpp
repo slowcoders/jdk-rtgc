@@ -56,6 +56,7 @@ void G1RootProcessor::evacuate_roots(G1ParScanThreadState* pss, uint worker_id) 
 
   G1EvacPhaseTimesTracker timer(phase_times, pss, G1GCPhaseTimes::ExtRootScan, worker_id);
 
+  // zee young-gc evacuate-closure
   G1EvacuationRootClosures* closures = pss->closures();
   process_java_roots(closures, phase_times, worker_id);
 
@@ -69,6 +70,7 @@ void G1RootProcessor::evacuate_roots(G1ParScanThreadState* pss, uint worker_id) 
       // concurrent mark ref processor as roots and keep entries
       // (which are added by the marking threads) on them live
       // until they can be processed at the end of marking.
+      // zee young-gc mark weak_oops
       _g1h->ref_processor_cm()->weak_oops_do(closures->strong_oops());
     }
   }
@@ -180,6 +182,7 @@ void G1RootProcessor::process_java_roots(G1RootClosures* closures,
   {
     G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::ThreadRoots, worker_id);
     bool is_par = n_workers() > 1;
+    // zee young-gc scan threads?
     Threads::possibly_parallel_oops_do(is_par,
                                        closures->strong_oops(),
                                        closures->strong_codeblobs());
@@ -188,6 +191,7 @@ void G1RootProcessor::process_java_roots(G1RootClosures* closures,
   {
     G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::CLDGRoots, worker_id);
     if (_process_strong_tasks.try_claim_task(G1RP_PS_ClassLoaderDataGraph_oops_do)) {
+      // zee young-gc scan cld
       ClassLoaderDataGraph::roots_cld_do(closures->strong_clds(), closures->weak_clds());
     }
   }
@@ -198,6 +202,7 @@ void G1RootProcessor::process_vm_roots(G1RootClosures* closures,
                                        uint worker_id) {
   OopClosure* strong_roots = closures->strong_oops();
 
+  // zee young-gc scan strong handles
   for (auto id : EnumRange<OopStorageSet::StrongId>()) {
     G1GCPhaseTimes::GCParPhases phase = G1GCPhaseTimes::strong_oopstorage_phase(id);
     G1GCParPhaseTimesTracker x(phase_times, phase, worker_id);

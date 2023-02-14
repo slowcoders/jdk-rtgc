@@ -204,3 +204,88 @@ Test summary Orignal version
                CLDClosure* strong_cld_closure = CLDToOopClosure
                CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure,
                CodeBlobToOopClosure* code_roots = &MarkingCodeBlobClosure(root_closure, is_adjust_phase)
+
+
+## Young Generation Scan
+  1) GC 시작 전에 old-G 에 allocate 된 객체(=recycle)를 trackable 로 marking 하고, Unsafe 검사를 한다.
+  2) Stack 및 root 객체를 marking 한다.
+  3) evacuate_followers.do_void()
+  4) YoungRoot 객체를 마킹한다. 
+    rtHeap::iterate_younger_gen_roots()
+    + evacuate_followers.do_void()
+  4) rtHeap::process_weak_soft_references()
+    // YG-GC 시에서는 weak/soft reference 는 garbage 처리하지 않는다.
+  5) rtHeap::process_final_phantom_references()
+    -> rtHeap__clear_garbage_young_roots()
+      -> _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+    GC 종료 후 marking 된 phantom_ref 객체의 주소 변경.
+  6) weak-oop clean-up. WeakProcessor::weak_oops_do
+
+evacuate_followers.do_void() {
+   evacuated 객체: 
+      - to() 영역으로 새로 옮겨지 객체
+      - old_G 로 옮겨진 객체-
+      - recycled 객체 .
+    이때 Resurrection 이 발생할 수 있다.
+}
+
+## old generation scan
+  0) modified field 의 anchorList 를 update 한다.
+  1) weak/softReference 를 referent 의 anchorList 에서 임시 제거.
+     rtHeapEx::break_reference_links(policy);
+  1-1) GC 시작 전에 old-G 에 allocate 된 객체(=recycle)를 trackable 로 marking 하고, Unsafe 검사를 한다.
+  2) Stack 및 root 객체를 marking 한다.
+  3) untracked object 의 anchorList 를 등록한다.
+     rtHeap::oop_recycled_iterate(&untracked_closure);  // resurrection 전용으로 활용한다.??
+  4) young object 를 marking 한다.
+     rtHeap::iterate_younger_gen_roots(NULL, true);
+  5) follow_stack_closure.do_void();
+  6) rtHeap::process_weak_soft_references(&keep_alive, &follow_stack_closure, true);
+      -> for (RefIterator<true> iter(g_softList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; )
+         -> iter.clear_weak_soft_garbage_referent();
+      -> for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(DetectGarbageRef)) != NULL; )
+         -> iter.clear_weak_soft_garbage_referent();
+
+  6) rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
+      -> complete_gc->do_void();
+      -> rtHeap__clear_garbage_young_roots(is_full_gc);
+  7) WeakProcessor::weak_oops_do(&is_alive, &do_nothing_cl);
+
+
+## rtgc 개요.
+### On Compile
+ * c1_LIRgenerator
+### At runtime
+ * mark_trackable object that allocated at tenured-heap (huge array)
+ * anchorList 변경 정보 저장.
+   --> modified anchor + modified field
+   content_modified, field_modified.
+ * refCount 변경 또는 변경 정보 저장.
+ * FinalReference 의 referent 를 finalier-reachable marking.
+ * referenceList 구성. -> RTGC는 모든 객체를 scan 하지 않으므로 별도 list 구성 필수.
+ * classLoaderData.cpp
+ * rtThreadLocal.cpp
+ * jniHandles.cpp
+### Prepare to tracking
+ * modified anchor 의 anchor-list 갱신
+ * refCount 갱신
+ * weak/soft-referent 에서 Reference Anchor 임시 제거. (mark_unrackable 로 대체 가능)
+
+### Middle of marking
+ * modified anchor 의 follower 중 young-g marking.
+   SerialGC 의 경우, DirtyCardToOopClosure::walk_mem_region 을 이용
+ * garbage resurrection.
+ * rtgc_fill_dead_space
+   dead space -> as garbage. 
+ * follow_klass, follow_cld, follow_object, follow_stack
+
+### At finsh
+ * adjust anchor-list pointers.
+ * clear weak handle
+
+### MISC
+ * JSA 파일
+   metaspaceShared.cpp
+
+### G1GC 
+ * https://thinkground.studio/일반적인-gc-내용과-g1gc-garbage-first-garbage-collector-내용/ 

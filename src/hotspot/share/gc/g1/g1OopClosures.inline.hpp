@@ -82,6 +82,8 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   if (CompressedOops::is_null(heap_oop)) {
     return;
   }
+
+  // zee young-gc younger-gen root scan
   oop obj = CompressedOops::decode_not_null(heap_oop);
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
@@ -175,6 +177,7 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
          "Oop originates from " PTR_FORMAT " (region: %u) which is in the collection set.",
          p2i(p), _g1h->addr_to_region((HeapWord*)p));
 
+  // zee young-gc younger-gen root scan
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
     // Since the source is always from outside the collection set, here we implicitly know
@@ -236,6 +239,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
     if (m.is_marked()) {
       forwardee = cast_to_oop(m.decode_pointer());
     } else {
+      // zee young-gc copy_to_survivor_space
       forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
     }
     assert(forwardee != NULL, "forwardee should not be NULL");

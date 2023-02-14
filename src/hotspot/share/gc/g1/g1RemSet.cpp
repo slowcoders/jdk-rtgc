@@ -787,6 +787,7 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
     HeapRegion* const card_region = _g1h->region_at(region_idx_for_card);
     G1ScanCardClosure card_cl(_g1h, _pss);
 
+    // zee young-gc scan younger-gen roots?
     HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful<true>(mr, &card_cl);
     assert(scanned_to != NULL, "Should be able to scan range");
     assert(scanned_to >= mr.end(), "Scanned to " PTR_FORMAT " less than range " PTR_FORMAT, p2i(scanned_to), p2i(mr.end()));
@@ -823,7 +824,7 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
     _blocks_scanned++;
   }
 
-   void scan_heap_roots(HeapRegion* r) {
+  void scan_heap_roots(HeapRegion* r) {
     EventGCPhaseParallel event;
     uint const region_idx = r->hrm_index();
 
@@ -837,6 +838,7 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
     // to resetting this value for every claim.
     _scanned_to = NULL;
 
+    // zee young-gc scan younger-gen roots
     while (claim.has_next()) {
       size_t const region_card_base_idx = ((size_t)region_idx << HeapRegion::LogCardsPerRegion) + claim.value();
       CardTable::CardValue* const base_addr = _ct->byte_for_index(region_card_base_idx);

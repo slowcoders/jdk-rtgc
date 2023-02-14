@@ -199,6 +199,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   if (m.is_marked()) {
     obj = cast_to_oop(m.decode_pointer());
   } else {
+    // zee young-gc do_copy_to_survivor_space
     obj = do_copy_to_survivor_space(region_attr, obj, m);
   }
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);

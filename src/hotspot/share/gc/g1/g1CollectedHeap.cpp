@@ -2973,6 +2973,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper(double target_paus
       G1HeapVerifier::G1VerifyType verify_type = young_collection_verify_type();
       verify_before_young_collection(verify_type);
 
+      // zee young-gc
       {
         // The elapsed time induced by the start time below deliberately elides
         // the possible verification above.
@@ -3443,6 +3444,7 @@ public:
     _humongous_candidates(0) { }
 
   void work(uint worker_id) {
+    // zee young-gc
     G1PrepareRegionsClosure cl(_g1h, this);
     _g1h->heap_region_par_iterate_from_worker_offset(&cl, &_claimer, worker_id);
   }
@@ -3485,6 +3487,7 @@ void G1CollectedHeap::pre_evacuate_collection_set(G1EvacuationInfo& evacuation_i
     phase_times()->record_prepare_heap_roots_time_ms((Ticks::now() - start).seconds() * 1000.0);
   }
 
+  // zee young-gc prepare 
   {
     G1PrepareEvacuationTask g1_prep_task(this);
     Tickspan task_time = run_task_timed(&g1_prep_task);
@@ -3595,12 +3598,15 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
   bool _has_optional_evacuation_work;
 
   void scan_roots(G1ParScanThreadState* pss, uint worker_id) {
+    // zee young-gc evacute roots
     _root_processor->evacuate_roots(pss, worker_id);
+    // zee young-gc younger-gen roots start
     _g1h->rem_set()->scan_heap_roots(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ObjCopy, _has_optional_evacuation_work);
     _g1h->rem_set()->scan_collection_set_regions(pss, worker_id, G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::CodeRoots, G1GCPhaseTimes::ObjCopy);
   }
 
   void evacuate_live_objects(G1ParScanThreadState* pss, uint worker_id) {
+    // zee young-gc evacute live_objects
     G1EvacuateRegionsBaseTask::evacuate_live_objects(pss, worker_id, G1GCPhaseTimes::ObjCopy, G1GCPhaseTimes::Termination);
   }
 
