@@ -119,8 +119,7 @@ public:
   static bool is_null(oop v)       { return v == NULL; }
   static bool is_null(narrowOop v) { 
 #if INCLUDE_RTGC
-    extern bool rtHeapEx__useModifyFlag;
-    if (EnableRTGC && rtHeapEx__useModifyFlag) {
+    if (rtHeap::useModifyFlag()) {
       // remove unmodified flag
       return ((uint32_t)v & ~1) == 0; 
     }

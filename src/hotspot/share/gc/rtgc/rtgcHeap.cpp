@@ -23,30 +23,7 @@
 #include "rtThreadLocalData.hpp"
 #include "gc/serial/serialHeap.inline.hpp"
 
-/**
- Young Generation Scan
-  1) GC 시작 전에 old-G 에 allocate 된 객체(=recycle)를 trackable 로 marking 하고, Unsafe 검사를 한다.
-  2) Stack 및 root 객체를 marking 한다.
-  3) evacuate_followers.do_void()
-  4) YoungRoot 객체를 마킹한다. 
-    rtHeap::iterate_younger_gen_roots()
-    + evacuate_followers.do_void()
-  4) rtHeap::process_weak_soft_references()
-    // YG-GC 시에서는 weak/soft reference 는 garbage 처리하지 않는다.
-  5) rtHeap::process_final_phantom_references()
-    -> rtHeap__clear_garbage_young_roots()
-      -> _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-    GC 종료 후 marking 된 phantom_ref 객체의 주소 변경.
-  6) weak-oop clean-up. WeakProcessor::weak_oops_do
 
- evacuate_followers.do_void() {
-   evacuated 객체: 
-      - to() 영역으로 새로 옮겨지 객체
-      - old_G 로 옮겨진 객체-
-      - recycled 객체 .
-    이때 Resurrection 이 발생할 수 있다.
- }
- */
 int rtHeap::in_full_gc = 0;
 
 static const int LOG_OPT(int function) {
@@ -695,6 +672,11 @@ void rtHeap::prepare_rtgc() {
     UpdateLogBuffer::process_update_logs();
   }
   g_saved_young_root_count = g_young_roots.size();
+#if TRACE_UPDATE_LOG
+  log_trace_p(gc)("field_update count = %d, inverse_graph_update_cnt = %d", g_field_update_cnt, g_inverse_graph_update_cnt);
+  g_field_update_cnt = 0;
+  g_inverse_graph_update_cnt = 0;
+#endif
 }
 
 void rtHeap::init_reference_processor(ReferencePolicy* policy) {

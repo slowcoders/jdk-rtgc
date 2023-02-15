@@ -178,6 +178,9 @@ void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
   if (rtHeap::useModifyFlag()) return;
   if (old_v == new_v) return;
 
+#if TRACE_UPDATE_LOG
+  Atomic::inc(&g_inverse_graph_update_cnt);
+#endif
   if (new_v != NULL && new_v != base) {
     debug_only(Atomic::add(&RTGC::g_cnt_update, 1);)
     RTGC::add_referrer_ex(new_v, base, true);

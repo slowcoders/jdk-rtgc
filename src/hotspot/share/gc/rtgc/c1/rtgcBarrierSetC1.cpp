@@ -42,6 +42,7 @@
 
 static int rtgc_log_trigger = 0;
 static const bool ENABLE_CPU_MEMBAR = false;
+static const bool USE_BARRIER_FUNC = true;
 #define ill   LIR_OprFact::illegalOpr
 #define __    gen->lir()-> 
 static const bool USE_REG_ADDR = true;
@@ -344,7 +345,7 @@ void RtgcBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
   }
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (!rtHeap::useModifyFlag() || !in_heap) {
+  if (USE_BARRIER_FUNC || !rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getStoreFunction(access.decorators() | AS_RAW);
     call_barrier(fn, access, value, voidType);
     return;
@@ -376,7 +377,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRItem& va
 
   value.load_item();
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (!rtHeap::useModifyFlag() || !in_heap) {
+  if (USE_BARRIER_FUNC || !rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getXchgFunction(access.decorators() | AS_RAW);
     return call_barrier(fn, access, value.result(), objectType);
   } else {
@@ -427,7 +428,7 @@ LIR_Opr RtgcBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem&
   new_value.load_item();
 
   bool in_heap = (access.decorators() & IN_HEAP) != 0;
-  if (!rtHeap::useModifyFlag() || !in_heap) {
+  if (USE_BARRIER_FUNC || !rtHeap::useModifyFlag() || !in_heap) {
     address fn = RtgcBarrier::getCmpSetFunction(access.decorators() | AS_RAW);
     cmp_value.load_item();
     LIR_Opr result = call_barrier(fn, access, new_value.result(), objectType, cmp_value.result());

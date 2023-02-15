@@ -28,6 +28,10 @@ bool rtHeap::useModifyFlag() {
 
 
 namespace RTGC {
+#if TRACE_UPDATE_LOG
+  int g_field_update_cnt = 0;
+  int g_inverse_graph_update_cnt = 0;
+#endif
   extern bool is_gc_started;  
   int g_cnt_update = 0;
   int g_cnt_update_log = 0;
@@ -72,6 +76,13 @@ void FieldUpdateLog::updateAnchorList() {
     }
   }
 
+#if TRACE_UPDATE_LOG
+  if (!_atomic) {
+    g_field_update_cnt ++;
+  } else {
+    Atomic::inc(&g_field_update_cnt);
+  }
+#endif
   rtgc_debug_log(to_obj(CompressedOops::decode(erased())), 
       "updateAnchorList %p[%d] = %p -> %p\n", 
       _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
@@ -333,8 +344,9 @@ void UpdateLogBuffer::process_update_logs() {
   }
   for (UpdateLogBuffer* buffer = g_inactive_buffer_q; buffer != NULL; buffer = buffer->_next) {
     buffer->flush_pending_logs<false>();
-  }
+  }  
   g_free_buffer_q = NULL;
   g_active_buffer_q = NULL;
   g_inactive_buffer_q = NULL;
+
 }

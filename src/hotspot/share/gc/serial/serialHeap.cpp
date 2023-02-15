@@ -90,6 +90,15 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   return memory_pools;
 }
 
+class CheckClouse : public OopIterateClosure {
+  template <typename T>
+  void do_oop_work(T* o) {
+    fatal("HHHH");
+  }
+  virtual void do_oop(oop* o) { do_oop_work(o); }
+  virtual void do_oop(narrowOop* o) { do_oop_work(o); }
+};
+
 void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
                                      OopIterateClosure* old_gen_closure,
                                      CLDClosure* cld_closure) {

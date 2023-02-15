@@ -5,12 +5,17 @@
 
 class RefProcProxyTask;
 
-extern bool rtHeapEx__useModifyFlag;
+#define TRACE_UPDATE_LOG true
 
 namespace RTGC {
 
 class GCObject;
 class ShortOOP;
+
+#if TRACE_UPDATE_LOG
+  extern int g_inverse_graph_update_cnt;
+  extern int g_field_update_cnt;
+#endif
 
 class RtHashLock {
   int32_t _hash;
