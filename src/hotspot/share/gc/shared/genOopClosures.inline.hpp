@@ -121,9 +121,9 @@ void DefNewYoungerGenClosure::barrier(T* p, oop new_obj) {
 
 #else // RTGC_OPT_YOUNG_ROOTS
 
-template <bool is_promoted, bool resurrect>
+template <bool resurrect>
 template <typename T>
-void ScanTrackableClosure<is_promoted, resurrect>::barrier(T* p, oop new_p) {
+void ScanTrackableClosure<resurrect>::barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(p), "expected ref in generation");
   _is_young_root = true;
   rt_assert(!rtHeap::is_trackable(new_p));
@@ -134,9 +134,9 @@ void ScanTrackableClosure<is_promoted, resurrect>::barrier(T* p, oop new_p) {
   }
 }
 
-template <bool is_promoted, bool resurrect>
+template <bool resurrect>
 template <typename T>
-void ScanTrackableClosure<is_promoted, resurrect>::trackable_barrier(T* p, oop new_p) {
+void ScanTrackableClosure<resurrect>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
   assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
       "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
@@ -150,14 +150,10 @@ void ScanTrackableClosure<is_promoted, resurrect>::trackable_barrier(T* p, oop n
   }
 }
 
-template <bool is_promoted, bool resurrect> 
-void ScanTrackableClosure<is_promoted, resurrect>::do_object(oop obj) {
-  if (!is_promoted) {
-    rtHeap::mark_tenured_trackable(obj);
-  } else {
-    assert(rtHeap::is_trackable(obj), "wrong anchor %p%s)\n", 
-        (void*)obj, obj->klass()->name()->bytes());
-  }  
+template <bool resurrect> 
+void ScanTrackableClosure<resurrect>::do_object(oop obj) {
+  assert(rtHeap::is_trackable(obj), "wrong anchor %p%s)\n", 
+      (void*)obj, obj->klass()->name()->bytes());
   _trackable_anchor = obj;
   _is_young_root = false;
   obj->oop_iterate(this);

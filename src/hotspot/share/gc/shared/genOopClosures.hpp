@@ -83,8 +83,8 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool is_promoted, bool resurrect=false> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<is_promoted, resurrect>, true>, public ObjectClosure {
+template <bool resurrect> 
+class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<resurrect>, true>, public ObjectClosure {
 private:
   Generation*  _old_gen;
   oopDesc* _trackable_anchor;
@@ -92,7 +92,7 @@ private:
 
 public:
   ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<is_promoted, resurrect>, true>(young_gen), 
+    : FastScanClosure<ScanTrackableClosure<resurrect>, true>(young_gen), 
     _old_gen(old_gen) {}
 
   Generation*  old_gen() { return _old_gen; }
@@ -106,16 +106,16 @@ public:
   void do_object(oop obj);
 };
 
-class DefNewYoungerGenClosure : public ScanTrackableClosure<true> {
+class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
 public:  
   DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<true>(young_gen, old_gen) {}
+    : ScanTrackableClosure<false>(young_gen, old_gen) {}
 };
 
-class ResurrectTrackableClosure : public ScanTrackableClosure<true, true> {
+class ResurrectTrackableClosure : public ScanTrackableClosure<true> {
 public:  
   ResurrectTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<true, true>(young_gen, old_gen) {}
+    : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 
 class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {

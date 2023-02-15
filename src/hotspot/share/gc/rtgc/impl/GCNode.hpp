@@ -11,7 +11,7 @@
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
-static const bool USE_EXPLICIT_TRACKABLE_MARK = true;
+static const bool AUTO_TRACKABLE_MARK_BY_ADDRESS = false;
 namespace RTGC {
 
 class ReferrerList;
@@ -183,7 +183,7 @@ public:
 	}
 
 	bool isTrackable() {
-		if (USE_EXPLICIT_TRACKABLE_MARK) {
+		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
 			return flags().isTrackableOrDestroyed;
 		} else {
 			return (void*)this >= g_trackable_heap_start;
@@ -191,7 +191,7 @@ public:
 	}
 
 	void markTrackable() {
-		if (USE_EXPLICIT_TRACKABLE_MARK) {
+		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
 			rt_assert(!this->isTrackable());
 			flags().isTrackableOrDestroyed = true;
 		} else {
@@ -204,16 +204,12 @@ public:
 #ifdef ASSERT		
 		_cntTrackable--;
 #endif		
-		if (USE_EXPLICIT_TRACKABLE_MARK) {
-			flags().isTrackableOrDestroyed = false;
-		} else {
-			flags().isTrackableOrDestroyed = true;
-		}
+		flags().isTrackableOrDestroyed = AUTO_TRACKABLE_MARK_BY_ADDRESS;
 	}
 
 	bool isDestroyed() {
 		return flags().isGarbage && 
-			flags().isTrackableOrDestroyed != USE_EXPLICIT_TRACKABLE_MARK;
+			flags().isTrackableOrDestroyed == AUTO_TRACKABLE_MARK_BY_ADDRESS;
 	}
 
 	bool isActiveFinalizer() {

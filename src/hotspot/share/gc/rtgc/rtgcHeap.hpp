@@ -47,7 +47,6 @@ public:
 
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
-  static void mark_tenured_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
   static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);

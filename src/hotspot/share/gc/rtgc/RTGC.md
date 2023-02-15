@@ -273,7 +273,8 @@ evacuate_followers.do_void() {
 
 ### Middle of marking
  * modified anchor 의 follower 중 young-g marking.
-   SerialGC 의 경우, DirtyCardToOopClosure::walk_mem_region 을 이용
+   SerialGC 의 경우, DirtyCardToOopClosure::walk_mem_region 이용 가능
+   참고) SerialGC RemSet : 1 byte dirty flag per 1024 bytes.
  * garbage resurrection.
  * rtgc_fill_dead_space
    dead space -> as garbage. 
@@ -287,5 +288,7 @@ evacuate_followers.do_void() {
  * JSA 파일
    metaspaceShared.cpp
 
-### G1GC 
+### About G1GC 
+ * At the end of a collection, G1 chooses the regions to be collected in the next collection (the collection set). The collection set will contain young regions.
+ * https://www.oracle.com/technical-resources/articles/java/g1gc.html
  * https://thinkground.studio/일반적인-gc-내용과-g1gc-garbage-first-garbage-collector-내용/ 

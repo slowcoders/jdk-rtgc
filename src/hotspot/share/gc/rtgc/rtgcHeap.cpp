@@ -150,29 +150,28 @@ void rtHeap::release_jni_handle_at_safepoint(oopDesc* p) {
 
 static bool is_adjusted_trackable(oopDesc* new_p) {
   if (to_obj(new_p)->isTrackable()) return true;
-  return !USE_EXPLICIT_TRACKABLE_MARK && 
+  return AUTO_TRACKABLE_MARK_BY_ADDRESS && 
       rtHeap::in_full_gc && 
       to_obj(new_p->forwardee())->isTrackable();
 }
 
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
-  // YG GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
-  if (USE_EXPLICIT_TRACKABLE_MARK) {
+  // GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
+  if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
     rt_assert(!to_obj(new_p)->isTrackable());
     to_obj(new_p)->markTrackable();
   } else {
     rt_assert(is_adjusted_trackable(new_p));
   }
   rtgc_debug_log(new_p, "mark_promoted_trackable %p", new_p);
+  /*
+   AUTO_TRACKABLE_MARK_BY_ADDRESS = true 인 경우,
+   runtime 에 old-GC 에 생성된 객체는 자동으로 Trackable 처리되나,
+   cld 를 lock 하지 않은 상태이다. 따라서 항상 lock_cld 호출 필요.
+   */
   rtCLDCleaner::lock_cld(new_p);
 }
 
-void rtHeap::mark_tenured_trackable(oopDesc* new_p) {
-  // YG GC 수행 전에, old-heap 에 allocate 된 객체들을 marking 한다.
-  precond (!to_obj(new_p)->isTrackable());
-  mark_promoted_trackable(new_p);
-  GCRuntime::detectUnsafeObject(to_obj(new_p));
-}
 
 void rtHeap::mark_young_root(oopDesc* tenured_p, bool is_young_root) {
   GCObject* node = to_obj(tenured_p);
@@ -203,6 +202,7 @@ void rtHeapUtil::resurrect_young_root(GCObject* node) {
 }
 
 void rtHeap__addRootStack_unsafe(GCObject* node) {
+  rt_assert(node->isTrackable());
   g_stack_roots.push_back(node);
 }
 
@@ -223,7 +223,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 #ifdef ASSERT
   g_debug_cnt_untracked = g_recycled.size();
 #endif
-  if (!USE_EXPLICIT_TRACKABLE_MARK) {
+  if (AUTO_TRACKABLE_MARK_BY_ADDRESS) {
     g_recycled.resize(0); 
   }
 }
@@ -260,7 +260,7 @@ void rtHeap__clearStack() {
 
     for (; src < end; src++) {
       GCObject* erased = src[0];
-      rt_assert(erased->isTrackable());
+      rt_assert(is_adjusted_trackable(cast_to_oop(erased)));
       rt_assert_f(erased->isSurvivorReachable(), "%p rc=%x", erased, erased->getRootRefCount());
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->node_()->hasSafeAnchor() && !erased->isUnstableMarked()) {
@@ -868,25 +868,23 @@ RtHashLock::~RtHashLock() {
 
 
 void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
-  if (USE_EXPLICIT_TRACKABLE_MARK) {
-    // fatal("full gc 도 oop_recycled_iterate() 호출해야 한다.");
-    // rt_assert(!in_full_gc || g_recycled.size() == 0);
-    for (int idx = 0; idx < g_recycled.size(); idx++) {
-      GCObject* node = g_recycled.at(idx);
-      rt_assert(node->isTrackable());
-      rt_assert(!node->isYoungRoot());
-      if (node->isGarbageMarked()) {
-        debug_only(rt_assert(in_full_gc && idx < g_debug_cnt_untracked));
-      } else {
-        rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
-        closure->do_object(cast_to_oop(node));
-      }
+  // fatal("full gc 도 oop_recycled_iterate() 호출해야 한다.");
+  // rt_assert(!in_full_gc || g_recycled.size() == 0);
+  for (int idx = 0; idx < g_recycled.size(); idx++) {
+    GCObject* node = g_recycled.at(idx);
+    rt_assert(node->isTrackable());
+    rt_assert(!node->isYoungRoot());
+    if (node->isGarbageMarked()) {
+      debug_only(rt_assert(in_full_gc && idx < g_debug_cnt_untracked));
+    } else {
+      rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
+      closure->do_object(cast_to_oop(node));
     }
-#ifdef ASSERT  
-    g_debug_cnt_untracked = 0;
-#endif
-    g_recycled.resize(0); 
   }
+#ifdef ASSERT  
+  g_debug_cnt_untracked = 0;
+#endif
+  g_recycled.resize(0); 
 }
 
 int cnt_init = 0;
