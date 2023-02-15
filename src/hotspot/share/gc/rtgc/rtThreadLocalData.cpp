@@ -22,9 +22,12 @@ static const int LOG_OPT(int function) {
 }
 
 bool rtHeapEx__useModifyFlag = true;
+
+#ifdef ASSERT
 bool rtHeap::useModifyFlag() {
   return rtHeapEx__useModifyFlag && EnableRTGC && UseCompressedOops;
 }
+#endif
 
 
 namespace RTGC {

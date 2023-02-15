@@ -1515,7 +1515,11 @@ void set_object_alignment() {
   // Oop encoding heap max
   OopEncodingHeapMax = (uint64_t(max_juint) + 1) << LogMinObjAlignmentInBytes;
 #if INCLUDE_RTGC
-  //  precond(UseCompressedOops); // just for check
+#ifdef ASSERT    
+  extern bool rtHeapEx__useModifyFlag;
+#else
+  const bool rtHeapEx__useModifyFlag = true;
+#endif
   if (EnableRTGC && rtHeapEx__useModifyFlag) {
     OopEncodingHeapMax /= 2;
     CompressedOppShift = LogMinObjAlignmentInBytes - 1;
@@ -1544,6 +1548,12 @@ void Arguments::set_use_compressed_oops() {
   // to use UseCompressedOops are InitialHeapSize and MinHeapSize.
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
+#if INCLUDE_RTGC
+#ifndef ASSERT
+  FLAG_SET_ERGO(UseCompressedOops, true);
+  return;
+#endif
+#endif
   if (max_heap_size <= max_heap_for_compressed_oops()) {
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);
@@ -1621,6 +1631,7 @@ jint Arguments::set_ergonomics_flags() {
 #endif // _LP64
 
 #if INCLUDE_RTGC
+#ifdef ASSERT
   EnableRTGC = UseSerialGC && UseCompressedClassPointers;
   /**
    * RtLazyClearWeakHandle 은 사용하지 않는다.
@@ -1630,6 +1641,11 @@ jint Arguments::set_ergonomics_flags() {
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
   RtLazyClearWeakHandle = false;//EnableRTGC;
+#else
+  if (!(UseSerialGC && UseCompressedClassPointers && UseCompressedOops)) {
+    fatal("RTGC only support UseSerialGC && UseCompressedClassPointers");
+  }
+#endif
 #endif  
 
   return JNI_OK;
