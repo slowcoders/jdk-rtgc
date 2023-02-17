@@ -217,7 +217,7 @@ namespace RTGC {
         return true;
       }
 
-      if (!node->isTrackable()) {
+      if (!node->isTrackable_unsafe()) {
         return !_curr_ref->is_gc_marked(); 
       }
 

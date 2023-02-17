@@ -127,6 +127,12 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase4();
 
+#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+  if (EnableRTGC) {
+    void rtHeap__onCompactionFinishied();
+    rtHeap__onCompactionFinishied();
+  }
+#endif
   restore_marks();
 
   // Set saved marks for allocation profiler (and other things? -- dld)

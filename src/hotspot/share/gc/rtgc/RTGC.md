@@ -283,6 +283,7 @@ evacuate_followers.do_void() {
 ### At finsh
  * adjust anchor-list pointers.
  * clear weak handle
+ * remove garbage ClassLoaderData (count of trackable = ref-count of cld)
 
 ### MISC
  * JSA 파일

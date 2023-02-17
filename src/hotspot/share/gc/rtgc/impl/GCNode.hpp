@@ -11,7 +11,7 @@
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
-static const bool AUTO_TRACKABLE_MARK_BY_ADDRESS = false;
+static const bool AUTO_TRACKABLE_MARK_BY_ADDRESS = true;
 namespace RTGC {
 
 class ReferrerList;
@@ -134,6 +134,7 @@ friend class RtNode;
 public:
 	static int   _cntTrackable;
 	static void* g_trackable_heap_start;
+	static bool in_progress_adjust_pointers;
 
 	static int flags_offset() {
 		return oopDesc::klass_gap_offset_in_bytes();
@@ -183,12 +184,24 @@ public:
 	}
 
 	bool isTrackable() {
+		rt_assert(!in_progress_adjust_pointers);
+		return this->isTrackable_unsafe();
+	}
+
+	bool isTrackable_unsafe() {
 		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
 			return flags().isTrackableOrDestroyed;
 		} else {
 			return (void*)this >= g_trackable_heap_start;
 		}
 	}
+
+	bool is_adjusted_trackable() {
+		if (this->isTrackable_unsafe()) return true;
+		return AUTO_TRACKABLE_MARK_BY_ADDRESS && 
+			rtHeap::in_full_gc && 
+			((GCNode*)(void*)this->forwardee())->isTrackable_unsafe();
+	}	
 
 	void markTrackable() {
 		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
@@ -200,7 +213,7 @@ public:
 	}
 
 	void markDestroyed() {
-		rt_assert(flags().isGarbage);
+		rt_assert(isGarbageMarked());
 #ifdef ASSERT		
 		_cntTrackable--;
 #endif		
@@ -208,7 +221,7 @@ public:
 	}
 
 	bool isDestroyed() {
-		return flags().isGarbage && 
+		return isGarbageMarked() && 
 			flags().isTrackableOrDestroyed == AUTO_TRACKABLE_MARK_BY_ADDRESS;
 	}
 

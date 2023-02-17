@@ -121,7 +121,7 @@ bool rtHeap::is_destroyed(oopDesc* p) {
 
 void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
   GCObject* node = to_obj(old_p);
-  rt_assert(node->isTrackable());
+  rt_assert(node->is_adjusted_trackable());
   rt_assert(!node->isGarbageMarked());
   // rt_assert(g_young_roots.indexOf(old_p) < 0);
   // rt_assert(g_young_roots.indexOf(new_p) < 0);
@@ -148,20 +148,21 @@ void rtHeap::release_jni_handle_at_safepoint(oopDesc* p) {
   GCRuntime::onEraseRootVariable_internal(obj);
 }
 
-static bool is_adjusted_trackable(oopDesc* new_p) {
-  if (to_obj(new_p)->isTrackable()) return true;
-  return AUTO_TRACKABLE_MARK_BY_ADDRESS && 
-      rtHeap::in_full_gc && 
-      to_obj(new_p->forwardee())->isTrackable();
-}
+// static bool is_adjusted_trackable(oopDesc* new_p) {
+//   if (to_obj(new_p)->isTrackable()) return true;
+//   return AUTO_TRACKABLE_MARK_BY_ADDRESS && 
+//       rtHeap::in_full_gc && 
+//       to_obj(new_p->forwardee())->isTrackable();
+// }
 
 void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   // GC 수행 도중에 old-g로 옮겨진 객체들을 marking 한다.
+  GCObject* node = to_obj(new_p);
   if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
-    rt_assert(!to_obj(new_p)->isTrackable());
-    to_obj(new_p)->markTrackable();
+    rt_assert(!node->isTrackable());
+    node->markTrackable();
   } else {
-    rt_assert(is_adjusted_trackable(new_p));
+    rt_assert(node->is_adjusted_trackable());
   }
   rtgc_debug_log(new_p, "mark_promoted_trackable %p", new_p);
   /*
@@ -232,7 +233,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   rt_assert(EnableRTGC);
   GCObject* node = to_obj(new_p);
-  rt_assert_f(is_adjusted_trackable(new_p), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
+  rt_assert_f(node->is_adjusted_trackable(), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   if (node->isGarbageMarked()) {
     rt_assert_f(node->isTrackable(), "not yr " PTR_DBG_SIG, PTR_DBG_INFO(node));
     rtHeapUtil::resurrect_young_root(node);
@@ -260,7 +261,7 @@ void rtHeap__clearStack() {
 
     for (; src < end; src++) {
       GCObject* erased = src[0];
-      rt_assert(is_adjusted_trackable(cast_to_oop(erased)));
+      rt_assert(erased->is_adjusted_trackable());
       rt_assert_f(erased->isSurvivorReachable(), "%p rc=%x", erased, erased->getRootRefCount());
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->node_()->hasSafeAnchor() && !erased->isUnstableMarked()) {
@@ -461,20 +462,21 @@ static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
 }
 
 size_t rtHeap::adjust_pointers(oopDesc* old_p) {
-  if (!is_alive(old_p, false)) {
+#ifdef ASSERT
+  g_cntScan ++;
+#endif
+
+  GCObject* node = to_obj(old_p);
+  bool is_alive = node->isTrackable_unsafe() ? !node->isGarbageMarked() : old_p->is_gc_marked();
+  if (!is_alive) {
     rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
     rtgc_log(true, "skip garbage %p", old_p);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
   }
 
-#ifdef ASSERT
-  g_cntScan ++;
-#endif
-
-  GCObject* node = to_obj(old_p);
   oopDesc* new_anchor_p = NULL;
-  bool is_trackable_forwardee = node->isTrackable();
+  bool is_trackable_forwardee = node->isTrackable_unsafe();
   g_adjust_pointer_closure._trackable_old_anchor = is_trackable_forwardee;
   if (!is_trackable_forwardee) {
     oopDesc* new_p = old_p->forwardee();
@@ -500,7 +502,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   g_adjust_pointer_closure.init(old_p, new_anchor_p, is_trackable_forwardee);
   size_t size = old_p->oop_iterate_size(&g_adjust_pointer_closure);
 
-  bool is_young_root = g_adjust_pointer_closure._has_young_ref && node->isTrackable();
+  bool is_young_root = g_adjust_pointer_closure._has_young_ref && is_trackable_forwardee;
   if (is_young_root) {
     oopDesc* forwardee = old_p->forwardee();
     if (forwardee == NULL) forwardee = old_p;
@@ -559,6 +561,11 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
       }
     }
   }
+  GCNode::in_progress_adjust_pointers = true;
+}
+
+void rtHeap__onCompactionFinishied() {
+  GCNode::in_progress_adjust_pointers = false;
 }
 
 
@@ -574,6 +581,7 @@ void GCNode::markGarbage(const char* reason)  {
   rt_assert_f(!cast_to_oop(this)->is_gc_marked() || reason == NULL,
       "invalid garbage marking on %p(%s) rc=%d discovered=%p ghost=%d", this, getClassName(this), this->getRootRefCount(),
       __get_discovered(cast_to_oop(this)), rtHeapEx::print_ghost_anchors((GCObject*)this));
+
   flags().isGarbage = true;
   flags().isPublished = true;
 }
@@ -746,8 +754,10 @@ void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
   GCObject* obj = to_obj(start);
   // rt_assert(obj->isTrackable());
   oopDesc::clear_rt_node(start);
-  obj->markGarbage(NULL);
-  obj->markDestroyed();
+  if (true || obj->isTrackable()) {
+    obj->markGarbage(NULL);
+    obj->markDestroyed();
+  }
 
   // size_t words = pointer_delta(end, start);
   // if (words >= CollectedHeap::filler_array_min_size()) {
