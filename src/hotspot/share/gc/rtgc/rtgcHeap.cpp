@@ -99,6 +99,13 @@ static oopDesc* __get_discovered(oop obj) {
     : java_lang_ref_Reference::discovered(obj);
 }
 
+void rtHeap::init_mark(oopDesc* p) {
+  if (true || UseBiasedLocking) {  
+    p->set_mark(markWord::prototype_for_klass(p->klass()));
+  } else {
+    p->set_mark(markWord::prototype());
+  }
+}
 
 bool rtHeap::is_alive(oopDesc* p, bool must_not_destroyed) {
   GCObject* node = to_obj(p);

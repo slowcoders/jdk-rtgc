@@ -193,6 +193,10 @@ void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
   rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
   rt_assert(buffer > (void*)0x100);
   rt_assert(! is_gc_started);
+// java/lang/invoke/MethodHandlesGeneralTest/hs_err_pid45346.log
+// #  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:195), pid=45346, tid=41731
+// #  assert(! is_gc_started) failed: precond
+
   RTGC::lock_heap();
   rt_assert(! is_gc_started);
   UpdateLogBuffer* prev = g_active_buffer_q; 

@@ -16,6 +16,8 @@ static const int LOG_OPT(int function) {
 }
 
 namespace RTGC {
+  extern bool REF_LINK_ENABLED;
+  extern bool is_gc_started;
   FreeNode* g_destroyed = NULL;
 };
 
@@ -127,7 +129,7 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
   
   obj->markDestroyed();
-  if (RTGC_FAT_OOP && !rtHeap::in_full_gc) {
+  if (!rtHeap::in_full_gc) {
     ((FreeNode*)obj)->_next = g_destroyed;
     g_destroyed = (FreeNode*)obj;
   }
@@ -159,7 +161,47 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   rt_assert_f(Heap_lock->owned_by_self() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
           "not locked");
-#if 0 // 2
+#if 1 // 2
+/* recycle 을 먼저 하는 경우에만 아래 오류가 발생하는 것으로 보인다.
+#  Internal Error (../../src/hotspot/share/classfile/javaClasses.inline.hpp:121), pid=80849, tid=18947
+#  assert(is_instance(java_string)) failed: must be java_string
+#
+# JRE version: OpenJDK Runtime Environment (17.0) (fastdebug build 17-internal+0-adhoc.zeedh.jdk-rtgc)
+# Java VM: OpenJDK 64-Bit Client VM (fastdebug 17-internal+0-adhoc.zeedh.jdk-rtgc, 
+           mixed mode, emulated-client, compressed oops, compressed class ptrs, serial gc, bsd-amd64)
+V  [libjvm.dylib+0x2cebbd]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x49f01e]  java_lang_String::length(oop)+0x9e
+V  [libjvm.dylib+0xa4134e]  VerifyStrings::operator()(WeakHandle*)+0x8e
+V  [libjvm.dylib+0xa4117c]  void ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::do_scan_locked<VerifyStrings>(Thread*, VerifyStrings&)+0x11c
+V  [libjvm.dylib+0xa3d418]  bool ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::try_scan<VerifyStrings>(Thread*, VerifyStrings&)+0x58
+V  [libjvm.dylib+0xa3d39b]  StringTable::verify()+0x5b
+V  [libjvm.dylib+0xb1c461]  Universe::verify(VerifyOption, char const*)+0x2b1
+V  [libjvm.dylib+0xb6d731]  VM_Exit::doit()+0x51
+
+-----------------------------------------
+#  SIGBUS (0xa) at pc=0x000000014acac348, pid=87876, tid=19459
+V  [libjvm.dylib+0xa1ac81]  ContiguousSpace::block_size(HeapWordImpl* const*) const+0x451
+V  [libjvm.dylib+0xd7ea3]  BlockOffsetArrayContigSpace::block_start_unsafe(void const*) const+0x3e3
+V  [libjvm.dylib+0xd79b9]  BlockOffsetArray::verify() const+0x139
+V  [libjvm.dylib+0xa1b67d]  OffsetTableContigSpace::verify() const+0x2d
+V  [libjvm.dylib+0x42ff6e]  GenCollectedHeap::verify(VerifyOption)+0x3e
+V  [libjvm.dylib+0xb1c40d]  Universe::verify(VerifyOption, char const*)+0x25d
+V  [libjvm.dylib+0xb87b9d]  VMThread::run()+0x19d
+
+----------------------------------------------
+recycle 연관성은 모호함.
+#  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=78046, tid=6147
+#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
+V  [libjvm.dylib+0x7d2963]  ModuleEntry::create_unnamed_module(ClassLoaderData*)+0x193
+V  [libjvm.dylib+0x25a6cd]  ClassLoaderData::ClassLoaderData(Handle, bool)+0x29d
+V  [libjvm.dylib+0x2627b2]  ClassLoaderDataGraph::add_to_graph(Handle, bool)+0xc2
+V  [libjvm.dylib+0x2629af]  ClassLoaderDataGraph::add(Handle, bool)+0x5f
+V  [libjvm.dylib+0xa90e04]  ClassLoaderDataGraph::find_or_create(Handle)+0xf4
+V  [libjvm.dylib+0xa91e31]  SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, JavaThread*)+0x261
+V  [libjvm.dylib+0xa914b4]  SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, JavaThread*)+0x64
+V  [libjvm.dylib+0x5e4781]  find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, JavaThread*)+0x31
+V  [libjvm.dylib+0x5e4696]  JVM_FindClassFromCaller+0x496
+*/
   HeapWord* heap = (HeapWord*)g_freeMemStore.recycle(word_size);
   bool recycled = (heap != NULL);
   if (recycled) {
@@ -180,6 +222,8 @@ HeapWord* RtSpace::allocate(size_t word_size) {
   }
 #endif
   if (heap != NULL) {
+    //rt_assert_f(is_gc_started, "old alloc at runtime %p %ld\n", heap, word_size*8);
+    rtgc_log(!is_gc_started, "old alloc at runtime %p %ld\n", heap, word_size*8);
     rt_assert(heap < (void*)RTGC::g_buffer_area_start || heap >= (void*)RTGC::g_buffer_area_end);
     // rt_assert_f(Universe::heap()->is_oop(cast_to_oop(heap)) && cast_to_oop(heap)->mark().value() != 0, 
     //     "top=%p bottom=%p recycled=%d mv=%p\n" PTR_DBG_SIG, 

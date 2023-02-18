@@ -36,6 +36,7 @@ public:
   static int  DoCrossCheck;
   static int  in_full_gc;
 
+  static void init_mark(oopDesc* p);
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);

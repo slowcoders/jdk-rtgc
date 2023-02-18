@@ -69,10 +69,14 @@ inline bool markWord::must_be_preserved_for_promotion_failure(const oopDesc* obj
 }
 
 inline markWord markWord::prototype_for_klass(const Klass* klass) {
-  markWord prototype_header = klass->prototype_header();
-  assert(prototype_header == prototype() || prototype_header.has_bias_pattern(), "corrupt prototype header");
+  if (UseBiasedLocking) {
+    markWord prototype_header = klass->prototype_header();
+    assert(prototype_header == prototype() || prototype_header.has_bias_pattern(), "corrupt prototype header");
 
-  return prototype_header;
+    return prototype_header;
+  } else {
+    return prototype();
+  }
 }
 
 #endif // SHARE_OOPS_MARKWORD_INLINE_HPP

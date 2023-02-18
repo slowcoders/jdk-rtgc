@@ -77,6 +77,11 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 void oopDesc::init_mark() {
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rtHeap::init_mark(this);
+  } else 
+#endif
   set_mark(markWord::prototype_for_klass(klass()));
 }
 

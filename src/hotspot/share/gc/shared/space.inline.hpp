@@ -391,6 +391,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
         assert(cur_obj != compaction_top, "everything in this pass should be moving");
         Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
       }
+      // zee clear gc mark
       cast_to_oop(compaction_top)->init_mark();
       assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");
 

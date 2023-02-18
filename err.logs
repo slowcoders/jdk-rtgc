@@ -1,3 +1,6 @@
+sh exec_test.sh java/lang/ref/SoftReference/Pin
+sh exec_test.sh java/lang/invoke/MethodHandlesGeneralTest
+
 sh exec_test.sh tools/doclint/EmptyTagsTest
 sh exec_test.sh tools/doclint/AccessTest
 sh exec_test.sh jdk/javadoc/doclet/testRecordTypes/TestRecordTypes
