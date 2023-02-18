@@ -164,6 +164,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   HeapWord* cur_obj = space->bottom();
   HeapWord* scan_limit = space->scan_limit();
 
+  // zee scan_and_forward
   while (cur_obj < scan_limit) {
     if (space->scanned_block_is_obj(cur_obj) && 
         ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
@@ -171,11 +172,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       Prefetch::write(cur_obj, interval);
 #if INCLUDE_RTGC
       if (EnableRTGC) {
-        
-        if (!rtHeap::DoCrossCheck && !cast_to_oop(cur_obj)->is_gc_marked()) {
-          MarkSweep::mark_object(cast_to_oop(cur_obj));
-        }
-        rtHeap::mark_forwarded(cast_to_oop(cur_obj));
+        rtHeap::mark_forwarded_trackable(cast_to_oop(cur_obj));
       }
 #endif
       size_t size = space->scanned_block_size(cur_obj);

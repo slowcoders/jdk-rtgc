@@ -761,24 +761,18 @@ void DefNewGeneration::handle_promotion_failure(oop old) {
 }
 
 oop DefNewGeneration::copy_to_survivor_space(oop old) {
-  if ((void*)old <= (void*)0x100) printf("wrong old %p\n", (void*)old);
   assert(is_in_reserved(old) && !old->is_forwarded(),
          "shouldn't be scavenging this oop");
-  if ((void*)old->klass() <= (void*)0x100) {
-    printf("wrong old %p klass %p\n", (void*)old, (void*)old->klass());
-  }
   size_t s = old->size();
   oop obj = NULL;
 
   // Try allocating obj in to-space (unless too old)
   if (old->age() < tenuring_threshold()) {
-    if ((void*)to() <= (void*)0x100) printf("wrong to() %p\n", (void*)to());
     obj = cast_to_oop(to()->allocate(s));
   }
 
   // Otherwise try allocating obj tenured
   if (obj == NULL) {
-    if ((void*)_old_gen <= (void*)0x100) printf("wrong oldgen %p\n", (void*)_old_gen);
     obj = _old_gen->promote(old, s);
     if (obj == NULL) {
       handle_promotion_failure(old);
@@ -791,8 +785,6 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
     }
 #endif
   } else {
-    if ((void*)obj <= (void*)0x100) printf("wrong obj %p\n", (void*)obj);
-
     // Prefetch beyond obj
     const intx interval = PrefetchCopyIntervalInBytes;
     Prefetch::write(obj, interval);

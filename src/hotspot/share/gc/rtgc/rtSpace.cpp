@@ -179,6 +179,7 @@ V  [libjvm.dylib+0xb1c461]  Universe::verify(VerifyOption, char const*)+0x2b1
 V  [libjvm.dylib+0xb6d731]  VM_Exit::doit()+0x51
 
 -----------------------------------------
+java/lang/System/LoggerFinder/internal/LoggerFinderLoaderTest/LoggerFinderLoaderTest
 #  SIGBUS (0xa) at pc=0x000000014acac348, pid=87876, tid=19459
 V  [libjvm.dylib+0xa1ac81]  ContiguousSpace::block_size(HeapWordImpl* const*) const+0x451
 V  [libjvm.dylib+0xd7ea3]  BlockOffsetArrayContigSpace::block_start_unsafe(void const*) const+0x3e3
@@ -189,6 +190,7 @@ V  [libjvm.dylib+0xb1c40d]  Universe::verify(VerifyOption, char const*)+0x25d
 V  [libjvm.dylib+0xb87b9d]  VMThread::run()+0x19d
 
 ----------------------------------------------
+runtime/modules/ClassLoaderNoUnnamedModuleTest
 recycle 연관성은 모호함.
 #  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=78046, tid=6147
 #  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.

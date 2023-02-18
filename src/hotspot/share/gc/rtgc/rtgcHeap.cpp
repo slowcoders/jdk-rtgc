@@ -100,7 +100,7 @@ static oopDesc* __get_discovered(oop obj) {
 }
 
 void rtHeap::init_mark(oopDesc* p) {
-  if (true || UseBiasedLocking) {  
+  if (UseBiasedLocking) {  
     p->set_mark(markWord::prototype_for_klass(p->klass()));
   } else {
     p->set_mark(markWord::prototype());
@@ -172,11 +172,6 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
     rt_assert(node->is_adjusted_trackable());
   }
   rtgc_debug_log(new_p, "mark_promoted_trackable %p", new_p);
-  /*
-   AUTO_TRACKABLE_MARK_BY_ADDRESS = true 인 경우,
-   runtime 에 old-GC 에 생성된 객체는 자동으로 Trackable 처리되나,
-   cld 를 lock 하지 않은 상태이다. 따라서 항상 lock_cld 호출 필요.
-   */
   rtCLDCleaner::lock_cld(new_p);
 }
 
@@ -410,13 +405,16 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
 }
 
 
-void rtHeap::mark_forwarded(oopDesc* p) {
+void rtHeap::mark_forwarded_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
-  rt_assert(!node->isGarbageMarked());
-  
+  rt_assert(!node->isGarbageMarked());  
   rt_assert_f(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
       node->isStrongRootReachable() || node->node_()->hasAnchor() || node->isUnstableMarked(),
       " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
+  if (!rtHeap::DoCrossCheck && !p->is_gc_marked()) {
+    MarkSweep::mark_object(p);
+  }
+
   // TODO markDirty 시점이 너무 이름. 필요없다??
   node->markDirtyReferrerPoints();
 }
