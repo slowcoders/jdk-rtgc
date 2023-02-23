@@ -98,11 +98,11 @@ namespace RTGC {
       rt_assert(link == RawAccess<>::oop_load_at(anchor, RefList::_discovered_off));
       if (link == NULL) return false;
 
-      rt_assert(!to_obj(link)->isGarbageMarked());
+      rt_assert(!to_obj(link)->isGarbageTrackable());
       if (to_node(anchor)->isTrackable()) {
         RTGC::add_referrer_ex(link, anchor, !rtHeap::in_full_gc || PARTIAL_COLLECTION);
       } else if (to_obj(link)->isTrackable()) {
-        rt_assert(true && rtHeap::is_alive(link));
+        rt_assert(rtHeap::is_alive(link));
         rtHeap::mark_survivor_reachable(link);
       }
       return true;
@@ -260,7 +260,7 @@ namespace RTGC {
           }
           rtgc_log(false && _refList.ref_type() == REF_SOFT, 
               "garbage soft ref %p\n", (void*)_curr_ref);
-          rt_assert_f(!_curr_ref->is_gc_marked() || rtHeapUtil::is_dead_space(_curr_ref), 
+          rt_assert_f(!_curr_ref->is_gc_marked(), // || rtHeapUtil::is_dead_space(_curr_ref), 
               "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d ac=%d ghost=%d\n", 
               (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)), policy, 
               GenCollectedHeap::heap()->old_gen()->reserved().start(),

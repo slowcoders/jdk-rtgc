@@ -797,8 +797,13 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
     age_table()->add(obj, s);
   }
 
+  rtgc_log(old == RTGC::debug_obj, "copy_surv 1 old = %p p=%p mark = %p dm = %p", 
+      (void*)old, old->mark().displaced_mark_addr_at_safepoint(), old->mark().to_pointer(), old->displaced_mark().to_pointer());
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
+
+  rtgc_log(old == RTGC::debug_obj, "copy_surv 2 obj = %p p=%p mark = %p dm = %p", 
+      (void*)obj, obj->mark().displaced_mark_addr_at_safepoint(), obj->mark().to_pointer(), obj->displaced_mark().to_pointer());
 
 #ifdef INCLUDE_RTGC
   if (EnableRTGC) {

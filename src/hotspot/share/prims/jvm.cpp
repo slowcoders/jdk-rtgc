@@ -613,7 +613,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   return hash;
 JVM_END
 
-
+static int cnt_wait = 0;
 JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
   JavaThreadInObjectWaitState jtiows(thread, ms != 0);
@@ -626,7 +626,12 @@ JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
     // event handler cannot accidentally consume an unpark() meant for
     // the ParkEvent associated with this ObjectMonitor.
   }
+  if (++cnt_wait == 3) {
+    RTGC::debug_obj = obj();
+  }
+  rtgc_log(true, "wait start %d) %p mark=%p th=%p", cnt_wait, (void*)obj(), obj()->mark().to_pointer(), Thread::current_or_null());
   ObjectSynchronizer::wait(obj, ms, CHECK);
+  rtgc_log(true, "wait end %p th=%p", (void*)obj(), Thread::current_or_null());
 JVM_END
 
 

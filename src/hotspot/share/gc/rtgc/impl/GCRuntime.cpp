@@ -16,12 +16,12 @@ const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
-    rt_assert_f(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
     return (flags().rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
-    rt_assert_f(!this->isGarbageMarked(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
+    rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
     rt_assert_f(flags().rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
     return (flags().rootRefCount -= 2);
 }
@@ -79,9 +79,9 @@ void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
 
-    rt_assert_f(!erased->isGarbageMarked() && erased->isStrongRootReachable(), 
+    rt_assert_f(!erased->isGarbageTrackable() && erased->isStrongRootReachable(), 
         "wrong ref-count %p rc=%d garbage=%d\n", 
-        erased, erased->getRootRefCount(), erased->isGarbageMarked());
+        erased, erased->getRootRefCount(), erased->isGarbageTrackable());
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }

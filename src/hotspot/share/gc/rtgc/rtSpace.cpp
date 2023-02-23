@@ -21,15 +21,13 @@ namespace RTGC {
   FreeNode* g_destroyed = NULL;
 };
 
-bool rtHeapUtil::is_dead_space(oopDesc* obj) {
-  Klass* klass = obj->klass();
-  return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
-}
-
 void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
-  rt_assert_f(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
+  fatal("deprecated");
+#if 0
+  rt_assert_f(!to_obj(old_p)->isGarbageMarked() || to_obj(old_p)->isDeadSpace(), 
         "anchor=%p(%s) invalid pointer " PTR_DBG_SIG, 
         anchor, RTGC::getClassName(anchor), PTR_DBG_INFO(old_p));
+#endif
 }
 
 

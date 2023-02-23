@@ -118,10 +118,11 @@ public:
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length);
+#if !INCLUDE_RTGC
       oop obj = cast_to_oop(dead_start);
       obj->set_mark(obj->mark().set_marked());
-
-      assert(dead_length == (size_t)obj->size(), "bad filler object size");
+#endif
+      assert(dead_length == (size_t)cast_to_oop(dead_start)->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
           p2i(dead_start), p2i(dead_end), dead_length * HeapWordSize);
 
@@ -166,6 +167,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   // zee scan_and_forward
   while (cur_obj < scan_limit) {
+    rtgc_debug_log(cur_obj, "scan %p gm=%d", cur_obj, cast_to_oop(cur_obj)->is_gc_marked());
     if (space->scanned_block_is_obj(cur_obj) && 
         ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
@@ -223,16 +225,19 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
         end_of_live = end;
       } else {
         // otherwise, it really is a free region.
-
+#if !(INCLUDE_RTGC && RTGC_SHARE_GC_MARK)
         // cur_obj is a pointer to a dead object. Use this dead memory to store a pointer to the next live object.
         *(HeapWord**)cur_obj = end;
-
+#endif
         // see if this is the first dead region.
         if (first_dead == NULL) {
           first_dead = cur_obj;
         }
       }
 
+#if (INCLUDE_RTGC && RTGC_SHARE_GC_MARK)
+      cast_to_oop(cur_obj)->set_mark(markWord::from_pointer(end).set_unlocked());
+#endif
       // move on to the next object
       cur_obj = end;
     }
@@ -363,7 +368,11 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
     if (!cast_to_oop(cur_obj)->is_gc_marked()) {
       debug_only(prev_obj = cur_obj);
       // The first word of the dead object contains a pointer to the next live object or end of space.
+#if (INCLUDE_RTGC && RTGC_SHARE_GC_MARK)
+      cur_obj = (HeapWord*)(void*)cast_to_oop(cur_obj)->forwardee();
+#else
       cur_obj = *(HeapWord**)cur_obj;
+#endif
       assert(cur_obj > prev_obj, "we should be moving forward through memory");
     } else {
       // prefetch beyond q
@@ -388,7 +397,12 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
         assert(cur_obj != compaction_top, "everything in this pass should be moving");
         Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
       }
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK
       // zee clear gc mark
+      if (EnableRTGC && rtHeap::is_trackable(cast_to_oop(compaction_top))) {
+        // do nothing.
+      } else 
+#endif      
       cast_to_oop(compaction_top)->init_mark();
       assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");
 

@@ -857,8 +857,7 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
   rt_assert(sizeof(oopDesc) == align_object_size(sizeof(oopDesc)));
   rt_assert(dst->klass() == src->klass());
   dst->init_mark();
-  int copy_offset = // RTGC_FAT_OOP oopDesc::has_klass_gap() ? oopDesc::klass_offset_in_bytes() : 
-                    sizeof(oopDesc);
+  int copy_offset = sizeof(oopDesc);
   int copy_size = size - (copy_offset / HeapWordSize);
   AccessInternal::arraycopy_disjoint_words_atomic(
       (address)(oopDesc*)src + copy_offset,

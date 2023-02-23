@@ -45,10 +45,11 @@ inline void MarkSweep::mark_object(oop obj) {
   obj->set_mark(markWord::prototype().set_marked());
 #if INCLUDE_RTGC
   if (EnableRTGC) {
+    rt_assert(!RTGC_SHARE_GC_MARK || !rtHeap::is_trackable(obj));
     // rtgc_debug_log(obj, "mark_object %p %d\n", (void*)obj, ++dbg_cnt_mark);
     // precond(!RTGC::is_debug_pointer(obj));
     precond(rtHeap::is_alive(obj));
-  }
+  } 
 #endif
   // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {

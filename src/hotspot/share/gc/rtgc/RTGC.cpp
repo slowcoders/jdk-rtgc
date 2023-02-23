@@ -10,6 +10,25 @@
 
 using namespace RTGC;
 
+const char* debugClassNames[] = {
+  0, // reserved for -XX:AbortVMOnExceptionMessage=''
+  // "sun/nio/fs/NativeBuffers$1", //  why this make java.nio.charset.MalformedInputException ???
+  // "jdk/internal/jrtfs/JrtFileSystemProvider",
+  "java/util/logging/LogManager$Cleaner",
+  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "java/lang/ref/Finalizer",
+    // "jdk/nio/zipfs/ZipFileSystem",
+  //  "java/lang/invoke/LambdaFormEditor$Transform",
+    // "java/lang/invoke/MethodTypeForm",
+    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
+    // "java/lang/invoke/MethodType",
+    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
+    // "java/lang/ref/SoftReference",
+    // "java/util/HashMap$Node", 
+    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "jdk/nio/zipfs/ZipFileSystem",
+    // "java/lang/ref/Finalizer"
+};
 static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
@@ -40,9 +59,9 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  rt_assert_f(obj2 == NULL || !obj2->isGarbageMarked(),
+  rt_assert_f(obj2 == NULL || !obj2->isGarbageTrackable(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj2));
-  rt_assert_f(obj1 == NULL || !obj1->isGarbageMarked(),
+  rt_assert_f(obj1 == NULL || !obj1->isGarbageTrackable(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj1));
 }
 
@@ -233,25 +252,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 } 
 
 
-const char* debugClassNames[] = {
-  0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "sun/nio/fs/NativeBuffers$1", //  why this make java.nio.charset.MalformedInputException ???
-  // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
-  // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "java/lang/ref/Finalizer",
-    // "jdk/nio/zipfs/ZipFileSystem",
-  //  "java/lang/invoke/LambdaFormEditor$Transform",
-    // "java/lang/invoke/MethodTypeForm",
-    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
-    // "java/lang/invoke/MethodType",
-    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-    // "java/lang/ref/SoftReference",
-    // "java/util/HashMap$Node", 
-    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "jdk/nio/zipfs/ZipFileSystem",
-    // "java/lang/ref/Finalizer"
-};
+
 
 const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
 void* debugKlass[CNT_DEBUG_CLASS];
@@ -311,8 +312,16 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   int type;
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+    if (!destroy_old_node) {
+      rtgc_log(1, "debug_obj moved %p -> %p rc=%d", 
+        old_p, new_p, to_obj(old_p)->getReferrerCount());
+    }
+    else {
+      rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n mw= %p dmw= %p", 
+        old_p, new_p, to_obj(old_p)->getReferrerCount(), 
+        cast_to_oop(new_p)->mark().to_pointer(), 
+        cast_to_oop(new_p)->has_displaced_mark() ? cast_to_oop(new_p)->displaced_mark().to_pointer() : NULL);
+    }
   }
   else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
@@ -320,8 +329,9 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if ((type = is_debug_pointer(old_p)) != 0) {
-    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
-      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
+    markWord mark = cast_to_oop(new_p)->mark();
+    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d mark=%p\n", 
+      type, old_p, new_p, to_obj(old_p)->getReferrerCount(), mark.to_pointer());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
     rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
@@ -353,7 +363,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #else

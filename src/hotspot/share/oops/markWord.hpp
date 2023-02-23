@@ -131,7 +131,7 @@ class markWord {
   static const int lock_bits                      = 2;
   static const int biased_lock_bits               = 1;
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - biased_lock_bits;
-#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+#if defined(_LP64) && INCLUDE_RTGC // && !RTGC_FAT_OOP
   static const int hash_bits                      = max_hash_bits > 32 ? 32 : max_hash_bits;
 #else
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
@@ -145,7 +145,7 @@ class markWord {
   static const int biased_lock_shift              = lock_bits;
   static const int age_shift                      = lock_bits + biased_lock_bits;
   static const int unused_gap_shift               = age_shift + age_bits;
-#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+#if defined(_LP64) && INCLUDE_RTGC // && !RTGC_FAT_OOP
   static const int epoch_shift                    = unused_gap_shift + unused_gap_bits;
   static const int hash_shift                     = 32;
 #else
@@ -248,7 +248,9 @@ class markWord {
     return (mask_bits(value(), lock_mask_in_place) == marked_value);
 #endif
   }
-  bool is_neutral()  const { return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value); }
+  bool is_neutral()  const { 
+    return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value); 
+  }
 
   // Special temporary state of the markWord while being inflated.
   // Code that looks at mark outside a lock need to take this into account.
@@ -295,15 +297,24 @@ class markWord {
   }
   BasicLock* locker() const {
     assert(has_locker(), "check");
+#if INCLUDE_RTGC
+    return (BasicLock*) (value() & ~rtgc_marked);
+#else
     return (BasicLock*) value();
+#endif
   }
   bool has_monitor() const {
     return ((value() & monitor_value) != 0);
   }
   ObjectMonitor* monitor() const {
     assert(has_monitor(), "check");
+    rt_assert((value() & unlocked_value) == 0);
+#if INCLUDE_RTGC
+    return (ObjectMonitor*) (value() & ~7);
+#else
     // Use xor instead of &~ to provide one extra tag-bit check.
     return (ObjectMonitor*) (value() ^ monitor_value);
+#endif
   }
   bool has_displaced_mark_helper() const {
     return ((value() & unlocked_value) == 0);
@@ -316,8 +327,8 @@ class markWord {
   markWord copy_set_hash(intptr_t hash) const {
     uintptr_t tmp = value() & (~hash_mask_in_place);
     tmp |= ((hash & hash_mask) << hash_shift);
-#if defined(_LP64) && INCLUDE_RTGC 
-    if (EnableRTGC && !RTGC_FAT_OOP) { 
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    if (EnableRTGC) { 
       tmp |= 0x80; // psuedo multiAnchor
     }
 #endif
@@ -355,8 +366,20 @@ class markWord {
   }
 
   // age operations
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK
   markWord set_marked()   { return markWord(value() |  rtgc_marked); }
   markWord set_unmarked() { return markWord(value() & ~rtgc_marked); }
+
+  // used by jvmti.
+  markWord set_visited(bool visited)   { 
+    return visited ? markWord((value() & ~lock_mask_in_place) | marked_value)
+                   : markWord((value() & ~lock_mask_in_place) | unlocked_value); 
+  }
+  bool is_visited() const { return (mask_bits(value(), lock_mask_in_place) == marked_value); }
+#else
+  markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
+  markWord set_unmarked() { return markWord((value() & ~lock_mask_in_place) | unlocked_value); }
+#endif
 
   uint     age()           const { return mask_bits(value() >> age_shift, age_mask); }
   markWord set_age(uint v) const {
@@ -386,7 +409,13 @@ class markWord {
   void print_on(outputStream* st, bool print_monitor_info = true) const;
 
   // Prepare address of oop for placement into mark
-  inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
+  inline static markWord encode_pointer_as_mark(void* p) { 
+#if INCLUDE_RTGC // NO_BIAS_LOCKING    
+    return from_pointer(p).set_marked().set_unlocked(); 
+#else
+    return from_pointer(p).set_marked(); 
+#endif
+  }
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() { if (UseBiasedLocking && has_bias_pattern()) return NULL; return (void*)clear_lock_bits().value(); }

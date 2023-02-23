@@ -47,6 +47,7 @@ class BasicLock {
   }
 
   void set_displaced_header(markWord header) {
+    rt_assert_f((header.value() & 7) != 0, "set_displaced_header=%p ", header.to_pointer());
     Atomic::store(&_displaced_header, header);
   }
 

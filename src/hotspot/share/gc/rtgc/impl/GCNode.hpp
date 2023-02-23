@@ -231,6 +231,7 @@ public:
 
 	int unmarkSurvivorReachable() {
 		rt_assert(isSurvivorReachable());
+		rt_assert(!isGarbageMarked());
 		flags().rootRefCount &= ~(1 << 22);
 		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return flags().rootRefCount;
@@ -294,14 +295,33 @@ public:
 	void markGarbage(const char* reason = NULL);
 
 	void unmarkGarbage(bool resurrected=true) {
-		// rtgc_log(resurrected, "resurrected %p\n", this);
-		flags().isGarbage = false;
-		// flags().isUnstable = false;
-		// flags().dirtyReferrerPoints = false;
+		if (RTGC_SHARE_GC_MARK) {
+			rt_assert(this->is_adjusted_trackable());
+			markWord mark = this->mark();
+			this->set_mark(mark.set_marked());
+		} else {
+			flags().isGarbage = false;
+		}
 	}
 
+	bool isGarbageTrackable() {
+		if (RTGC_SHARE_GC_MARK) {		
+			return this->is_adjusted_trackable() && this->isGarbageMarked();
+		} else {
+			return this->isGarbageMarked();
+		}
+	}
 
+	bool isGarbageMarked() {
+		if (RTGC_SHARE_GC_MARK) {
+			return !this->is_gc_marked();
+		} else {
+			return flags().isGarbage;
+		}
+	}
 
+	bool isDeadSpace();
+	
 	bool isStrongRootReachable() {
 		return flags().rootRefCount > 1;
 	}
@@ -317,10 +337,6 @@ public:
 	int incrementRootRefCount();
 
 	int decrementRootRefCount();
-
-	bool isGarbageMarked() {
-		return flags().isGarbage;
-	}
 
 	bool isUnreachable() {
 		return flags().rootRefCount == ZERO_ROOT_REF && !node_()->hasAnchor();

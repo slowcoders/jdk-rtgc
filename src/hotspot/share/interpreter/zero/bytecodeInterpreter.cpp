@@ -1560,6 +1560,7 @@ run:
             bool call_vm = UseHeavyMonitors;
             if (header.to_pointer() != NULL || call_vm) {
               markWord old_header = markWord::encode(lock);
+              rtgc_debug_log(lockee, "_monitorexit %p", (void*)lockee);
               if (call_vm || lockee->cas_set_mark(header, old_header) != old_header) {
                 // restore object for the slow case
                 most_recent->set_obj(lockee);
@@ -2693,6 +2694,7 @@ run:
           // If it isn't recursive we either must swap old header or call the runtime
           if (header.to_pointer() != NULL) {
             markWord old_header = markWord::encode(lock);
+              rtgc_debug_log(lockee, "handle_return %p", (void*)lockee);
             if (lockee->cas_set_mark(header, old_header) != old_header) {
               // restore object for the slow case
               end->set_obj(lockee);
@@ -2761,6 +2763,7 @@ run:
             // If it isn't recursive we either must swap old header or call the runtime
             if (header.to_pointer() != NULL) {
               markWord old_header = markWord::encode(lock);
+              rtgc_debug_log(rcvr, "handle_return %p", (void*)rcvr);
               if (rcvr->cas_set_mark(header, old_header) != old_header) {
                 // restore object for the slow case
                 base->set_obj(rcvr);

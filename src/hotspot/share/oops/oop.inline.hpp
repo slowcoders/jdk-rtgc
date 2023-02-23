@@ -64,7 +64,13 @@ void oopDesc::set_mark(HeapWord* mem, markWord m) {
 }
 
 void oopDesc::release_set_mark(markWord m) {
+#if INCLUDE_RTGC
+  uintptr_t value = m.value();
+  if (rtHeap::is_trackable(this)) value |= markWord::rtgc_marked;
+  HeapAccess<MO_RELEASE>::store_at(as_oop(), mark_offset_in_bytes(), value);
+#else
   HeapAccess<MO_RELEASE>::store_at(as_oop(), mark_offset_in_bytes(), m.value());
+#endif
 }
 
 markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark) {

@@ -358,6 +358,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   assert(this == cp->space, "'this' should be current compaction space.");
   size_t compaction_max_size = pointer_delta(end(), compact_top);
   while (size > compaction_max_size) {
+    rt_assert_f(q->is_gc_marked(), "dead space must be inside single generation.");
     // switch to next compaction space
     cp->space->set_compaction_top(compact_top);
     cp->space = cp->space->next_compaction_space();
@@ -392,7 +393,8 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
       q->init_mark();
     }
 #endif
-    assert(q->forwardee() == NULL, "should be forwarded to NULL");
+    assert(q->forwardee() == NULL, "should be forwarded to NULL p= %p m= %p f = %p", 
+        (void*)q, q->mark().to_pointer(), (void*)q->forwardee());
   }
 
   compact_top += size;

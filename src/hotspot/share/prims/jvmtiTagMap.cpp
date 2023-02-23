@@ -1357,9 +1357,15 @@ class RestoreMarksClosure : public ObjectClosure {
   void do_object(oop o) {
     if (o != NULL) {
       markWord mark = o->mark();
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK
+      if (mark.is_visited()) {
+        o->init_mark();
+      }
+#else
       if (mark.is_marked()) {
         o->init_mark();
       }
+#endif
     }
   }
 };
@@ -1436,8 +1442,11 @@ void ObjectMarker::done() {
 // mark an object
 inline void ObjectMarker::mark(oop o) {
   assert(Universe::heap()->is_in(o), "sanity check");
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK
+  assert(!o->mark().is_visited(), "should only mark an object once");
+#else
   assert(!o->mark().is_marked(), "should only mark an object once");
-
+#endif
   // object's mark word
   markWord mark = o->mark();
 
@@ -1447,7 +1456,11 @@ inline void ObjectMarker::mark(oop o) {
   }
 
   // mark the object
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK
+  o->set_mark(markWord::prototype().set_visited(true));
+#else
   o->set_mark(markWord::prototype().set_marked());
+#endif
 }
 
 // return true if object is marked

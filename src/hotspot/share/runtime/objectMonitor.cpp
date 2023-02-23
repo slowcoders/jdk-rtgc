@@ -366,7 +366,11 @@ bool ObjectMonitor::enter(JavaThread* current) {
   if (TrySpin(current) > 0) {
     assert(owner_raw() == current, "must be current: owner=" INTPTR_FORMAT, p2i(owner_raw()));
     assert(_recursions == 0, "must be 0: recursions=" INTX_FORMAT, _recursions);
+#if INCLUDE_RTGC // NO_BIAS_LOCKING
+    assert((object()->mark().value() & ~markWord::rtgc_marked) == markWord::encode(this).value(),
+#else
     assert(object()->mark() == markWord::encode(this),
+#endif
            "object mark must match encoded this: mark=" INTPTR_FORMAT
            ", encoded this=" INTPTR_FORMAT, object()->mark().value(),
            markWord::encode(this).value());
@@ -460,7 +464,11 @@ bool ObjectMonitor::enter(JavaThread* current) {
   assert(_recursions == 0, "invariant");
   assert(owner_raw() == current, "invariant");
   assert(_succ != current, "invariant");
+#if INCLUDE_RTGC // NO_BIAS_LOCKING
+  assert((object()->mark().value() & ~markWord::rtgc_marked) == markWord::encode(this).value(), "invariant");
+#else
   assert(object()->mark() == markWord::encode(this), "invariant");
+#endif
 
   // The thread -- now the owner -- is back in vm mode.
   // Report the glorious news via TI,DTrace and jvmstat.
@@ -646,9 +654,11 @@ void ObjectMonitor::install_displaced_markword_in_object(const oop obj) {
   // The dmw has to be neutral (not NULL, not locked and not marked).
   assert(dmw.is_neutral(), "must be neutral: dmw=" INTPTR_FORMAT, dmw.value());
 
+  rtgc_debug_log(obj, "install_displaced_markword_in_object %p %p", (void*)obj, dmw.to_pointer());
   // Install displaced mark word if the object's header still points
   // to this ObjectMonitor. More than one racing caller to this function
   // can rarely reach this point, but only one can win.
+              rtgc_debug_log(obj, "install_displaced_markword_in_object %p", (void*)obj);
   markWord res = obj->cas_set_mark(dmw, markWord::encode(this));
   if (res != markWord::encode(this)) {
     // This should be rare so log at the Info level when it happens.
@@ -955,7 +965,11 @@ void ObjectMonitor::ReenterI(JavaThread* current, ObjectWaiter* currentNode) {
   assert(currentNode != NULL, "invariant");
   assert(currentNode->_thread == current, "invariant");
   assert(_waiters > 0, "invariant");
+#if INCLUDE_RTGC // NO_BIAS_LOCKING
+  assert((object()->mark().value() & ~markWord::rtgc_marked) == markWord::encode(this).value(), "invariant");
+#else
   assert(object()->mark() == markWord::encode(this), "invariant");
+#endif
 
   assert(current->thread_state() != _thread_blocked, "invariant");
 
@@ -1014,7 +1028,11 @@ void ObjectMonitor::ReenterI(JavaThread* current, ObjectWaiter* currentNode) {
   // In addition, current.TState is stable.
 
   assert(owner_raw() == current, "invariant");
+#if INCLUDE_RTGC // NO_BIAS_LOCKING
+  assert((object()->mark().value() & ~markWord::rtgc_marked) == markWord::encode(this).value(), "invariant");
+#else
   assert(object()->mark() == markWord::encode(this), "invariant");
+#endif
   UnlinkAfterAcquire(current, currentNode);
   if (_succ == current) _succ = NULL;
   assert(_succ != current, "invariant");
@@ -1651,7 +1669,11 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   // Verify a few postconditions
   assert(owner_raw() == current, "invariant");
   assert(_succ != current, "invariant");
+#if INCLUDE_RTGC // NO_BIAS_LOCKING
+  assert((object()->mark().value() & ~markWord::rtgc_marked) == markWord::encode(this).value(), "invariant");
+#else
   assert(object()->mark() == markWord::encode(this), "invariant");
+#endif
 
   // check if the notification happened
   if (!WasNotified) {

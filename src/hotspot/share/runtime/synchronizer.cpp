@@ -59,6 +59,7 @@
 #include "utilities/preserveException.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/rtgcGlobals.hpp"
+#include "gc/rtgc/impl/GCObject.hpp"
 
 void MonitorList::add(ObjectMonitor* m) {
   ObjectMonitor* head;
@@ -437,12 +438,14 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current)
     BiasedLocking::revoke(current, obj);
   }
 
+  oopDesc* o_p = obj();
   markWord mark = obj->mark();
   assert(!mark.has_bias_pattern(), "should not see bias pattern here");
 
   if (mark.is_neutral()) {
     // Anticipate successful CAS -- the ST of the displaced mark must
     // be visible <= the ST performed by the CAS.
+  // rtgc_debug_log(o_p, "Sync enter 1 mark=%p " PTR_DBG_SIG, mark.to_pointer(), PTR_DBG_INFO(o_p));
     lock->set_displaced_header(mark);
     if (mark == obj()->cas_set_mark(markWord::from_pointer(lock), mark)) {
       return;
@@ -450,12 +453,14 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current)
     // Fall through to inflate() ...
   } else if (mark.has_locker() &&
              current->is_lock_owned((address)mark.locker())) {
+  // rtgc_debug_log(o_p, "Sync enter 2 mark=%p " PTR_DBG_SIG, mark.to_pointer(), PTR_DBG_INFO(o_p));
     assert(lock != mark.locker(), "must not re-lock the same lock");
     assert(lock != (BasicLock*)obj->mark().value(), "don't relock with same BasicLock");
     lock->set_displaced_header(markWord::from_pointer(NULL));
     return;
   }
 
+  // rtgc_debug_log(o_p, "Sync enter 3 mark=%p " PTR_DBG_SIG, mark.to_pointer(), PTR_DBG_INFO(o_p));
   // The object header will never be displaced to this lock,
   // so it does not matter what the value is, except that it
   // must be non-zero to avoid looking like a re-entrant lock,
@@ -473,12 +478,16 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* current)
 }
 
 void ObjectSynchronizer::exit(oop object, BasicLock* lock, JavaThread* current) {
+
   markWord mark = object->mark();
   // We cannot check for Biased Locking if we are racing an inflation.
   assert(mark == markWord::INFLATING() ||
          !mark.has_bias_pattern(), "should not see bias pattern here");
 
   markWord dhw = lock->displaced_header();
+  // rtgc_debug_log(object, "exit 1 %p dhw=%p mark=%p locked_mw=%p", 
+  //   (void*)object, dhw.to_pointer(), mark.to_pointer(), markWord::from_pointer(lock).to_pointer());
+
   if (dhw.value() == 0) {
     // If the displaced header is NULL, then this exit matches up with
     // a recursive enter. No real work to do here except for diagnostics.
@@ -505,6 +514,7 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, JavaThread* current) 
       }
     }
 #endif
+
     return;
   }
 
@@ -1258,6 +1268,7 @@ void ObjectSynchronizer::inflate_helper(oop obj) {
   (void)inflate(Thread::current(), obj, inflate_cause_vm_internal);
 }
 
+static int cnt_inflate = 0;
 ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
                                            const InflateCause cause) {
   EventJavaMonitorInflate event;
@@ -1277,7 +1288,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
     if (mark.has_monitor()) {
       ObjectMonitor* inf = mark.monitor();
       markWord dmw = inf->header();
-      assert(dmw.is_neutral(), "invariant: header=" INTPTR_FORMAT, dmw.value());
+      assert(dmw.is_neutral(), "invariant: header=" INTPTR_FORMAT " " PTR_DBG_SIG, dmw.value(), PTR_DBG_INFO(object));
       return inf;
     }
 
@@ -1349,7 +1360,9 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
       markWord dmw = mark.displaced_mark_helper();
       // Catch if the object's header is not neutral (not locked and
       // not marked is what we care about here).
-      assert(dmw.is_neutral(), "invariant: header=" INTPTR_FORMAT, dmw.value());
+      assert(dmw.is_neutral(), "mark = %p, dp= %p invariant: header=" INTPTR_FORMAT, 
+          mark.to_pointer(), mark.displaced_mark_addr_at_safepoint(), 
+          dmw.value());
 
       // Setup monitor fields to proper values -- prepare the monitor
       m->set_header(dmw);
@@ -1366,6 +1379,9 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
       // be stable at the time of publishing the monitor address.
       guarantee(object->mark() == markWord::INFLATING(), "invariant");
       // Release semantics so that above set_object() is seen first.
+      // rt_assert(++cnt_inflate < 2);
+  rtgc_debug_log(object, "inflate-- %p old=%p new=%p", 
+      (void*)object, object->mark().to_pointer(), markWord::encode(m).to_pointer());
       object->release_set_mark(markWord::encode(m));
 
       // Once ObjectMonitor is configured and the object is associated
@@ -1403,6 +1419,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
     // prepare m for installation - set monitor to initial state
     m->set_header(mark);
 
+  rtgc_debug_log(object, "inflate-2 %p %p", (void*)object, mark.to_pointer());
     if (object->cas_set_mark(markWord::encode(m), mark) != mark) {
       delete m;
       m = NULL;

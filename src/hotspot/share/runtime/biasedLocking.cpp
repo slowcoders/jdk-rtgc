@@ -276,6 +276,7 @@ void BiasedLocking::single_revoke_at_safepoint(oop obj, bool is_bulk, JavaThread
     // Reset object header to point to displaced mark.
     // Must release store the lock address for platforms without TSO
     // ordering (e.g. ppc).
+              rtgc_debug_log(obj, "single_revoke_at_safepoint %p", (void*)obj);
     obj->release_set_mark(markWord::encode(highest_lock));
     assert(!obj->mark().has_bias_pattern(), "illegal mark state: stack lock used bias bit");
     // Log at "info" level if not bulk, else "trace" level
@@ -717,6 +718,7 @@ void BiasedLocking::walk_stack_and_revoke(oop obj, JavaThread* biased_locker) {
     // Reset object header to point to displaced mark.
     // Must release store the lock address for platforms without TSO
     // ordering (e.g. ppc).
+              rtgc_debug_log(obj, "walk_stack_and_revoke %p", (void*)obj);
     obj->release_set_mark(markWord::encode(highest_lock));
     assert(!obj->mark().has_bias_pattern(), "illegal mark state: stack lock used bias bit");
     log_info(biasedlocking)("  Revoked bias of currently-locked object");

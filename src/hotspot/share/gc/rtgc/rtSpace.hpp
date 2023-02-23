@@ -7,8 +7,6 @@
 namespace rtHeapUtil {
   void resurrect_young_root(RTGC::GCObject* node);
 
-  bool is_dead_space(oopDesc* obj);
-
   void ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor=NULL);
 }
 
