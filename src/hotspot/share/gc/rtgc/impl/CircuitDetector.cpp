@@ -343,7 +343,6 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
         //     "incorrect marked garbage %p(%s)\n", node, getClassName(node));
         return true;
     }
-    rt_assert(node->isTrackable());
     if (node->isUnreachable()) {
         node->markGarbage("collectGarbage");
         _visitedNodes.push_back(node);
@@ -365,7 +364,6 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
 
 bool GarbageProcessor::resolveStrongSurvivalPath(GCObject* node) {
     rt_assert(!node->isGarbageMarked());
-    rt_assert(node->isTrackable());
     node->unmarkUnstable();
     if (node->isStrongRootReachable()) {
         return true;

@@ -8,7 +8,8 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
-#define RTGC_FAT_OOP true
+#define RTGC_FAT_OOP        true
+#define RTGC_SHARE_GC_MARK  true
 
 class Thread;
 class oopDesc;
@@ -37,6 +38,8 @@ public:
   static int  in_full_gc;
 
   static void init_mark(oopDesc* p);
+  static void set_gc_marked(oopDesc* p);
+  static void set_gc_unmarked(oopDesc* p);
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);

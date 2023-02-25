@@ -219,9 +219,10 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
 #if INCLUDE_RTGC
     if (EnableRTGC && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
-    } else 
-#endif
+    } else if (!obj->is_gc_marked()) {
+#else
     if (!obj->mark().is_marked()) {
+#endif
       mark_object(obj);
       follow_object(obj);
     }

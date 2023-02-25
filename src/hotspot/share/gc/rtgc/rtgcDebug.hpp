@@ -59,10 +59,10 @@ namespace RTGC {
   void adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node);
 };
 
-#define PTR_DBG_SIG "%p(%s) tr=%d rc=%d ac=%d g=%d sc=[%d] cls=%d u=%d m=%d\n"
+#define PTR_DBG_SIG "%p(%s) tr=%d rc=%d ac=%d m0=%d sc=[%d] cls=%d u=%d m1=%d\n"
 #define PTR_DBG_INFO(obj) (void*)obj, RTGC::getClassName(obj), \
-  RTGC::to_obj(obj)->isTrackable(), RTGC::to_obj(obj)->getRootRefCount(), RTGC::to_obj(obj)->getReferrerCount(), \
-  RTGC::to_obj(obj)->isGarbageMarked(), RTGC::to_obj(obj)->node_()->getShortcutId(), \
+  RTGC::to_obj(obj)->isTrackable_unsafe(), RTGC::to_obj(obj)->getRootRefCount(), RTGC::to_obj(obj)->getReferrerCount(), \
+  RTGC::to_obj(obj)->isAlive(), RTGC::to_obj(obj)->node_()->getShortcutId(), \
    cast_to_oop(obj)->klass() == vmClasses::Class_klass(), \
   RTGC::to_obj(obj)->isUnstableMarked(), cast_to_oop(obj)->is_gc_marked()
 

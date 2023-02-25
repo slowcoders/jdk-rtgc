@@ -77,6 +77,8 @@ public class ClassLoadUnloadTest {
         List<String> argsList = new ArrayList<>();
         Collections.addAll(argsList, args);
         Collections.addAll(argsList, "-Xmn8m");
+        Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
+        Collections.addAll(argsList, "-XX:AbortVMOnExceptionMessage=#java/util/ArrayList");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, ClassUnloadTestMain.class.getName());
         return ProcessTools.createJavaProcessBuilder(argsList);

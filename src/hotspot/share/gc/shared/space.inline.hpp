@@ -118,10 +118,14 @@ public:
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length);
-      oop obj = cast_to_oop(dead_start);
-      obj->set_mark(obj->mark().set_marked());
-
-      assert(dead_length == (size_t)obj->size(), "bad filler object size");
+#if INCLUDE_RTGC
+      if (!EnableRTGC) 
+#endif
+      {
+        oop obj = cast_to_oop(dead_start);
+        obj->set_mark(obj->mark().set_marked());
+      }
+      assert(dead_length == (size_t)cast_to_oop(dead_start)->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
           p2i(dead_start), p2i(dead_end), dead_length * HeapWordSize);
 
@@ -166,6 +170,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   // zee scan_and_forward
   while (cur_obj < scan_limit) {
+    // rtgc_debug_log(cur_obj, "scan %p gm=%d", cur_obj, cast_to_oop(cur_obj)->is_gc_marked());
     if (space->scanned_block_is_obj(cur_obj) && 
         ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
@@ -189,7 +194,9 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
           if (rtHeap::DoCrossCheck) {
             rtHeap::destroy_trackable(cast_to_oop(cur_obj));
           } else {
-            precond(!rtHeap::is_alive(cast_to_oop(cur_obj), false));
+            rt_assert(!rtHeap::is_alive(cast_to_oop(cur_obj)));
+            rt_assert(!rtHeap::is_trackable(cast_to_oop(cur_obj)) || rtHeap::is_destroyed(cast_to_oop(cur_obj)));
+            //precond(!rtHeap::is_alive(cast_to_oop(cur_obj), false));
           }
         }
 
@@ -203,6 +210,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
             rtHeap::destroy_trackable(cast_to_oop(end));
           } else {
             if (rtHeap::is_alive(cast_to_oop(end), false)) break;
+            rt_assert(!rtHeap::is_trackable(cast_to_oop(end)) || rtHeap::is_destroyed(cast_to_oop(end)));
           }
         }
       }
@@ -223,16 +231,27 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
         end_of_live = end;
       } else {
         // otherwise, it really is a free region.
-
-        // cur_obj is a pointer to a dead object. Use this dead memory to store a pointer to the next live object.
-        *(HeapWord**)cur_obj = end;
-
+#if INCLUDE_RTGC
+        if (!EnableRTGC) {
+          // cur_obj is a pointer to a dead object. Use this dead memory to store a pointer to the next live object.
+          *(HeapWord**)cur_obj = end;
+        }
+#endif
         // see if this is the first dead region.
         if (first_dead == NULL) {
           first_dead = cur_obj;
         }
       }
 
+#if INCLUDE_RTGC
+      if (EnableRTGC) {
+        rt_assert(!rtHeap::is_alive(cast_to_oop(cur_obj)));
+        rt_assert(!rtHeap::is_trackable(cast_to_oop(cur_obj)) || rtHeap::is_destroyed(cast_to_oop(cur_obj)));
+        rt_assert(!cast_to_oop(cur_obj)->is_gc_marked());
+        *(HeapWord**)cur_obj = end;
+        // cast_to_oop(cur_obj)->set_mark(markWord::from_pointer(end).set_unlocked());
+      }
+#endif
       // move on to the next object
       cur_obj = end;
     }
@@ -296,18 +315,31 @@ template <class SpaceType>
 inline void CompactibleSpace::verify_up_to_first_dead(SpaceType* space) {
   HeapWord* cur_obj = space->bottom();
 
-  if (cur_obj < space->_end_of_live && space->_first_dead > cur_obj && !cast_to_oop(cur_obj)->is_gc_marked()) {
-     // we have a chunk of the space which hasn't moved and we've reinitialized
-     // the mark word during the previous pass, so we can't use is_gc_marked for
-     // the traversal.
-     HeapWord* prev_obj = NULL;
+  if (cur_obj < space->_end_of_live && space->_first_dead > cur_obj 
+      RTGC_ONLY(&& RTGC_SHARE_GC_MARK) NOT_RTGC(&& !cast_to_oop(cur_obj)->is_gc_marked())) {
+    // we have a chunk of the space which hasn't moved and we've reinitialized
+    // the mark word during the previous pass, so we can't use is_gc_marked for
+    // the traversal.
+    HeapWord* prev_obj = NULL;
 
-     while (cur_obj < space->_first_dead) {
-       size_t size = space->obj_size(cur_obj);
-       assert(!cast_to_oop(cur_obj)->is_gc_marked(), "should be unmarked (special dense prefix handling)");
-       prev_obj = cur_obj;
-       cur_obj += size;
-     }
+    while (cur_obj < space->_first_dead) {
+      size_t size = space->obj_size(cur_obj);
+// #if INCLUDE_RTGC
+//       if (EnableRTGC) {
+//         if (cast_to_oop(cur_obj)->is_gc_marked()) {
+//           prev_obj = cur_obj;
+//           cur_obj += size;
+//         } else {
+//           cur_obj = *(HeapWord**)cur_obj;
+//         }
+//       } else 
+// #endif
+      {
+        assert(EnableRTGC || !cast_to_oop(cur_obj)->is_gc_marked(), "should be unmarked (special dense prefix handling)");
+        prev_obj = cur_obj;
+        cur_obj += size;
+      }
+    }
   }
 }
 #endif
@@ -352,9 +384,15 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
   assert(bottom < end_of_live, "bottom: " PTR_FORMAT " should be < end_of_live: " PTR_FORMAT, p2i(bottom), p2i(end_of_live));
   HeapWord* cur_obj = bottom;
-  if (space->_first_dead > cur_obj && !cast_to_oop(cur_obj)->is_gc_marked()) {
-    // All object before _first_dead can be skipped. They should not be moved.
-    // A pointer to the first live object is stored at the memory location for _first_dead.
+  if (space->_first_dead > cur_obj RTGC_ONLY(&& RTGC_SHARE_GC_MARK) NOT_RTGC(&& !cast_to_oop(cur_obj)->is_gc_marked())) {
+    if (EnableRTGC && RTGC_SHARE_GC_MARK && !rtHeap::is_trackable(cast_to_oop(cur_obj))) {
+      HeapWord* first_dead = space->_first_dead;
+      while (cur_obj < space->_first_dead) {
+        rtHeap::set_gc_unmarked(cast_to_oop(cur_obj));
+        size_t size = space->obj_size(cur_obj);
+        cur_obj += size;
+      }
+    }
     cur_obj = *(HeapWord**)(space->_first_dead);
   }
 
@@ -363,6 +401,11 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
     if (!cast_to_oop(cur_obj)->is_gc_marked()) {
       debug_only(prev_obj = cur_obj);
       // The first word of the dead object contains a pointer to the next live object or end of space.
+#if INCLUDE_RTGC
+      // if (EnableRTGC) {
+      //   cur_obj = (HeapWord*)(void*)cast_to_oop(cur_obj)->forwardee();
+      // } else
+#endif
       cur_obj = *(HeapWord**)cur_obj;
       assert(cur_obj > prev_obj, "we should be moving forward through memory");
     } else {
@@ -373,10 +416,12 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
 #if INCLUDE_RTGC      
-      if (RtLateClearGcMark && compaction_top == NULL) {
-        // Debugging 을 위하여 주소가 옮겨지지 않은 객체의 marked-state 를 clear 하지 않았다.
-        // Space.cpp:388 참조.
+      if (EnableRTGC && RtLateClearGcMark && compaction_top == NULL) {
+        // 주소가 옮겨지지 않은 객체의 marked-state 를 clear 하지 않았다.
+        // Space.cpp:391 참조.
+        rt_assert_f(false, "obj %p, _first_dead %p, bottom %p", cur_obj, space->_first_dead, bottom);
         compaction_top = cur_obj;
+        rt_assert(!cast_to_oop(compaction_top)->is_gc_marked());
       }
       else 
 #endif      
@@ -387,11 +432,12 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
         // copy object and reinit its mark
         assert(cur_obj != compaction_top, "everything in this pass should be moving");
         Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
+        cast_to_oop(compaction_top)->init_mark();
+        if (EnableRTGC && RTGC_SHARE_GC_MARK && !rtHeap::is_trackable(cast_to_oop(compaction_top))) {
+          rtHeap::set_gc_unmarked(cast_to_oop(compaction_top));
+        }
       }
-      // zee clear gc mark
-      cast_to_oop(compaction_top)->init_mark();
-      assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");
-
+      assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");      
       debug_only(prev_obj = cur_obj);
       cur_obj += size;
     }

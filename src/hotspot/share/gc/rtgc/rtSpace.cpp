@@ -26,10 +26,10 @@ bool rtHeapUtil::is_dead_space(oopDesc* obj) {
   return klass->is_typeArray_klass() || klass == vmClasses::Object_klass();
 }
 
-void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor) {
-  rt_assert_f(!to_obj(old_p)->isGarbageMarked() || is_dead_space(old_p), 
-        "anchor=%p(%s) invalid pointer " PTR_DBG_SIG, 
-        anchor, RTGC::getClassName(anchor), PTR_DBG_INFO(old_p));
+void rtHeapUtil::ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor, oopDesc* new_anchor) {
+  rt_assert_f(to_obj(old_p)->isAlive() || is_dead_space(old_p), 
+        "anchor=%p -> %p(%s) invalid pointer " PTR_DBG_SIG, 
+        anchor, new_anchor, RTGC::getClassName(anchor), PTR_DBG_INFO(old_p));
 }
 
 

@@ -1630,8 +1630,7 @@ jint Arguments::set_ergonomics_flags() {
   // in vm_version initialization code.
 #endif // _LP64
 
-#if INCLUDE_RTGC // NO_BIAS_LOCK
-  rt_assert(!UseBiasedLocking);
+#if INCLUDE_RTGC // NO_BIASED_LOCKING
 #ifdef ASSERT
   EnableRTGC = UseSerialGC && UseCompressedClassPointers;
   /**
@@ -1643,6 +1642,7 @@ jint Arguments::set_ergonomics_flags() {
   RtNoDiscoverPhantom  = EnableRTGC;
   RtLazyClearWeakHandle = false;//EnableRTGC;
 #else
+  rt_assert(!UseBiasedLocking);
   if (!(UseSerialGC && UseCompressedClassPointers && UseCompressedOops)) {
     fatal("RTGC only support UseSerialGC && UseCompressedClassPointers");
   }
@@ -3142,10 +3142,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     return JNI_ERR;
   }
 
-#if INCLUDE_RTGC // NO_BIAS_LOCK
-  UseBiasedLocking = false;
-#endif
-
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
     // Disable biased locking now as it interferes with the clean up of
@@ -4065,9 +4061,6 @@ jint Arguments::apply_ergo() {
     return code;
   }
 
-#if INCLUDE_RTGC // NO_BIAS_LOCK  
-  UseBiasedLocking = false;
-#endif
   // Turn off biased locking for locking debug mode flags,
   // which are subtly different from each other but neither works with
   // biased locking

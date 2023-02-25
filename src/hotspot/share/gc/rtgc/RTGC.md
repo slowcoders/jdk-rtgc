@@ -293,3 +293,24 @@ evacuate_followers.do_void() {
  * At the end of a collection, G1 chooses the regions to be collected in the next collection (the collection set). The collection set will contain young regions.
  * https://www.oracle.com/technical-resources/articles/java/g1gc.html
  * https://thinkground.studio/일반적인-gc-내용과-g1gc-garbage-first-garbage-collector-내용/ 
+
+
+### modify-node-tracing.
+   if (obj->isTrackable()) {
+      new_v |= modified_bit;
+      if (!obj->hasModifiedField()) {
+         registerModifiedTrackable(obj);
+      }
+   }
+   obj->field = new_v;
+
+   ---
+   traceYoungRoots::do_work_oop(T* p) {
+      T new_v;
+      if (is_modified(new_v)) {
+         addUpdateLog(_anchor, p, )
+         *p = to_unmodified(new_v);
+      }
+   for (obj : modifiedNodes) {
+
+   }

@@ -274,14 +274,14 @@ bool oopDesc::has_bias_pattern() const {
 
 // Used only for markSweep, scavenging
 bool oopDesc::is_gc_marked() const {
-  return mark().is_marked();
+  return EnableRTGC ? rtHeap::is_alive((oopDesc*)this) : mark().is_marked();
 }
 
 // Used by scavengers
 bool oopDesc::is_forwarded() const {
   // The extra heap check is needed since the obj might be locked, in which case the
   // mark would point to a stack location and have the sentinel bit cleared
-  return mark().is_marked();
+  return EnableRTGC ? is_gc_marked() : mark().is_marked();
 }
 
 // Used by scavengers

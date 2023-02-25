@@ -41,19 +41,26 @@
 inline void MarkSweep::mark_object(oop obj) {
   // some marks may contain information we need to preserve so we store them away
   // and overwrite the mark.  We'll restore it at the end of markSweep.
+#ifdef ASSERT  
+  void rtHeap_check_marked_object(oopDesc* obj);
+  rtHeap_check_marked_object(obj);
+#endif
   markWord mark = obj->mark();
-  obj->set_mark(markWord::prototype().set_marked());
+
 #if INCLUDE_RTGC
   if (EnableRTGC) {
-    // rtgc_debug_log(obj, "mark_object %p %d\n", (void*)obj, ++dbg_cnt_mark);
-    // precond(!RTGC::is_debug_pointer(obj));
-    precond(rtHeap::is_alive(obj));
-  }
+    rt_assert(!RTGC_SHARE_GC_MARK || !rtHeap::is_trackable(obj));
+    rtHeap::set_gc_marked(obj);
+  } else
 #endif
+  obj->set_mark(markWord::prototype().set_marked());
+
+#if !INCLUDE_RTGC || !RTGC_SHARE_GC_MARK
   // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
+#endif
 }
 
 template <bool is_anchored, bool is_resurrected>
@@ -66,13 +73,18 @@ inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
       } else if (is_anchored) {
         precond(rtHeap::is_alive(obj));
       } else {
+        // anchor 가 young 인 경우.
         rtHeap::mark_survivor_reachable(obj);
       }
       if (!rtHeap::DoCrossCheck) return false;
     }
-  } 
+  }
+
+  if (!obj->is_gc_marked())
+#else 
+  if (!obj->mark().is_marked()) 
 #endif
-  if (!obj->mark().is_marked()) {
+  {
     mark_object(obj);
     _marking_stack.push(obj);
   }

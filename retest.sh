@@ -62,34 +62,32 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/java/util/stream/test/org/openjdk/tests/java/util/stream/CollectorToUnmodListTest && \
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-    /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/javac \
-        -J-Xmx768m \
-        -J-XX:MaxRAMPercentage=6.25 \
-        -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/tmp \
-        -J-ea \
-        -J-esa \
-        -J-Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/tmp -ea -esa' \
-        -J-Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/tmp -J-ea -J-esa' \
-        -J-Dtest.compiler.opts= \
-        -J-Dtest.java.opts= \
-        -J-Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-        -J-Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-        -J-Dtest.timeout.factor=4.0 \
-        -J-Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native \
-        -J-Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk \
-        -J-Dtest.name=java/util/stream/test/org/openjdk/tests/java/util/stream/CollectorToUnmodListTest.java \
-        -J-Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/util/stream/test/org/openjdk/tests/java/util/stream/CollectorToUnmodListTest.java \
-        -J-Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/util/stream/test \
-        -J-Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/util/stream/test \
-        -J-Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/classes/0/java/util/stream/test \
-        -J-Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/classes/0/java/util/stream/test \
-        -J-Dtest.modules=jdk.incubator.foreign \
-        -J-Dtest.patch.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/classes/0/lib/testlibrary/bootlib \
-        @/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_util_stream_test_org_openjdk_tests_java_util_stream_CollectorToUnmodListTest_java/java/util/stream/test/org/openjdk/tests/java/util/stream/CollectorToUnmodListTest.d/compile.1.jta
+    /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
+       -XX:+UnlockExperimentalVMOptions \
+       -XX:AbortVMOnExceptionMessage='#java/util/ArrayList' \
+        -Dtest.vm.opts='-XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/tmp' \
+        -Dtest.tool.vm.opts='-J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/tmp' \
+        -Dtest.compiler.opts= \
+        -Dtest.java.opts= \
+        -Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -Dtest.timeout.factor=4.0 \
+        -Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/hotspot/jtreg/native \
+        -Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg \
+        -Dtest.name=runtime/logging/ClassLoadUnloadTest.java \
+        -Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging/ClassLoadUnloadTest.java \
+        -Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging \
+        -Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging/classes:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/ClassLoadUnloadTest.d \
+        -Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/ClassLoadUnloadTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/classes:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/test/lib \
+        -Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/ClassLoadUnloadTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/classes:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/test/lib \
+        -Dtest.modules=java.base/jdk.internal.misc \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/ClassLoadUnloadTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/runtime/logging/classes:/Users/zeedh/slowcoders/jdk-rtgc/test/hotspot/jtreg/runtime/logging/classes:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_hotspot_jtreg_runtime_logging_ClassLoadUnloadTest_java/classes/0/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/test/lib:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/javatest.jar:/Users/zeedh/slowcoders/jdk-rtgc/jtreg-6.1/lib/jtreg.jar \
+        ClassLoadUnloadTest

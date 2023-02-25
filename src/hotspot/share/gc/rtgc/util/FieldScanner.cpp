@@ -35,13 +35,13 @@ public:
 
   void work_oop(oop obj) {
     if (obj == NULL) return;
-
-    GCObject* link = to_obj(obj);
-    if (isTenured) rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p(g=%d)\n", _base, (void*)obj, link->isGarbageMarked());
-
-    if (link->isGarbageMarked()) {
+    if (!rtHeap::is_alive(obj)) {
       return;
     }
+
+    GCObject* link = to_obj(obj);
+    // if (isTenured) rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p(g=%d)\n", _base, (void*)obj, link->isGarbageMarked());
+
 
     if (!isTenured && !_hasForwardedPointers && !link->isTrackable()) {
       /**

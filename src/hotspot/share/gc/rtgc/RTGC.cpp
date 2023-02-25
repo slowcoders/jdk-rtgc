@@ -40,9 +40,9 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  rt_assert_f(obj2 == NULL || !obj2->isGarbageMarked(),
+  rt_assert_f(obj2 == NULL || !obj2->isGarbageTrackable(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj2));
-  rt_assert_f(obj1 == NULL || !obj1->isGarbageMarked(),
+  rt_assert_f(obj1 == NULL || !obj1->isGarbageTrackable(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj1));
 }
 
@@ -198,7 +198,8 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
-  rt_assert_f(cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
+  rt_assert_f(cast_to_oop(obj)->is_gc_marked() || cast_to_oop(obj)->forwardee() == NULL, 
+      "getForwardee(%s) on garbage %p(%s)\n", 
       tag, obj, RTGC::getClassName(obj));
   oopDesc* p = cast_to_oop(obj)->forwardee();
   return p == NULL ? obj : to_obj(p);
@@ -236,7 +237,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "sun/nio/fs/NativeBuffers$1", //  why this make java.nio.charset.MalformedInputException ???
-  // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
+  "jdk/tools/jlink/internal/JmodArchive$JmodEntry",
   // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
@@ -353,7 +354,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #else
@@ -378,7 +379,7 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = (s == NULL || s[1] == 0) ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = NULL;//0x3e0013510;
+    debug_obj = debugClassNames[0] != NULL ? (void*)0x3f0d27980 : NULL;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

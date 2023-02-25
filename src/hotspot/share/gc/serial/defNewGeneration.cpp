@@ -742,6 +742,7 @@ void DefNewGeneration::restore_preserved_marks() {
 
 void DefNewGeneration::handle_promotion_failure(oop old) {
   log_debug(gc, promotion)("Promotion failure size = %d) ", old->size());
+  fatal("HHHH");
   rtgc_log(1, "Promotion failure %p size=%d\n", (void*)old, old->size());
   
   _promotion_failed = true;
@@ -749,7 +750,12 @@ void DefNewGeneration::handle_promotion_failure(oop old) {
   _preserved_marks_set.get()->push_if_necessary(old, old->mark());
   // forward to self
   old->forward_to(old);
-
+  if (EnableRTGC) {
+    if (RTGC_SHARE_GC_MARK) {
+      rtHeap::set_gc_marked(old);
+    }
+  }
+  
   _promo_failure_scan_stack.push(old);
 
   if (!_promo_failure_drain_in_progress) {
@@ -802,6 +808,9 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
 
 #ifdef INCLUDE_RTGC
   if (EnableRTGC) {
+    if (RTGC_SHARE_GC_MARK) {
+      rtHeap::set_gc_marked(old);
+    }
 #ifdef ASSERT
     RTGC::adjust_debug_pointer(old, obj, true);
 #endif

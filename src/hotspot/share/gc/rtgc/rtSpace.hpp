@@ -9,7 +9,7 @@ namespace rtHeapUtil {
 
   bool is_dead_space(oopDesc* obj);
 
-  void ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor=NULL);
+  void ensure_alive_or_deadsapce(oopDesc* old_p, oopDesc* anchor, oopDesc* new_anchor);
 }
 
 namespace RTGC {
