@@ -36,6 +36,7 @@ Stack<oop, mtGC> MarkSweep::_resurrect_stack;
 namespace RTGC {
   // bool yg_root_locked = false;
   bool g_in_progress_marking = false;
+  int cnt_resurrect = 0;
 
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
@@ -189,7 +190,7 @@ void rtHeap::mark_young_root(oopDesc* tenured_p, bool is_young_root) {
 }
 
 void rtHeapUtil::resurrect_young_root(GCObject* node) {
-  rtgc_log(true, "resurrect_young_root %p", node);
+  rtgc_log((++cnt_resurrect % 100) == 0, "resurrect_young_root cnt=%d %p", cnt_resurrect, node);
   rt_assert(node->isGarbageMarked());
   rt_assert(node->isTrackable());
   if (!rtHeap::in_full_gc) {
@@ -408,15 +409,17 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   rt_assert(!node->isGarbageMarked());  
-  rt_assert_f(!node->isTrackable() || // unreachble 상태가 아니어야 한다.
-      node->isStrongRootReachable() || node->node_()->hasAnchor() || node->isUnstableMarked(),
-      " invalid node " PTR_DBG_SIG, PTR_DBG_INFO(node));
-  if (!rtHeap::DoCrossCheck && !p->is_gc_marked()) {
-    MarkSweep::mark_object(p);
+  if (node->isTrackable_unsafe()) {
+    rt_assert_f(!node->isUnreachable(), PTR_DBG_SIG, PTR_DBG_INFO(node));
+    markWord mark = p->mark();
+    if (p->mark_must_be_preserved(mark)) {
+      MarkSweep::preserve_mark(p, mark);
+    }
+    // TODO markDirty 시점이 너무 이름. 필요없다??
+    node->markDirtyReferrerPoints();
+  } else {
+    rt_assert(p->is_gc_marked());
   }
-
-  // TODO markDirty 시점이 너무 이름. 필요없다??
-  node->markDirtyReferrerPoints();
 }
 
 
@@ -458,6 +461,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
+  rt_assert(!old_p->isGarbageMarked());
   rt_assert_f(!old_p->isGarbageMarked(), PTR_DBG_SIG "\n-" PTR_DBG_SIG, PTR_DBG_INFO(old_p), PTR_DBG_INFO(node));
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
@@ -472,9 +476,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 #endif
 
   GCObject* node = to_obj(old_p);
-  bool is_alive = node->isTrackable_unsafe() ? !node->isGarbageMarked() : old_p->is_gc_marked();
+  // 모든 dead-space 는 명시적으로 garbage markin 되어 있다.
+  bool is_alive = !node->isGarbageMarked();// : old_p->is_gc_marked();
   if (!is_alive) {
-    rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
+    // rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
     rtgc_log(true, "skip garbage %p", old_p);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
@@ -678,7 +683,8 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc() {
-        rtgc_log(LOG_OPT(1), "prepare_rtgc\n");
+  rtgc_log(LOG_OPT(1), "prepare_rtgc\n");
+  debug_only(cnt_resurrect = 0;);
   is_gc_started = true;
   rt_assert(g_stack_roots.size() == 0);
   if (rtHeap::useModifyFlag()) {
@@ -755,23 +761,16 @@ size_t CollectedHeap::filler_array_min_size() {
   return align_object_size(filler_array_hdr_size()); // align to MinObjAlignment
 }
 
-void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap) {
-  GCObject* obj = to_obj(start);
-  // rt_assert(obj->isTrackable());
-  oopDesc::clear_rt_node(start);
-  if (true || obj->isTrackable()) {
+void rtHeap__mark_dead_space(oopDesc* deadObj) {
+  GCObject* obj = to_obj(deadObj);
+  rt_assert(!deadObj->is_gc_marked());
+  if (obj->isTrackable_unsafe()) {
+    rt_assert(obj->isDestroyed());
+  } else {
+    rt_assert(obj->isUnreachable());
     obj->markGarbage(NULL);
     obj->markDestroyed();
   }
-
-  // size_t words = pointer_delta(end, start);
-  // if (words >= CollectedHeap::filler_array_min_size()) {
-  //   fill_with_array(start, words, zap);
-  // } else if (words > 0) {
-  //     init_dead_space(start, vmClasses::Object_klass(), -1);
-  // }
-  //RuntimeHeap::reclaimObject(obj);
-  CollectedHeap::fill_with_object(start, end, zap);
 }
 
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {

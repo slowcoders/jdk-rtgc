@@ -377,23 +377,27 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   // store the forwarding pointer into the mark word
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
-    assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
-#ifdef INCLUDE_RTGC
+#ifdef INCLUDE_RTGC 
+    assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");
 #ifdef ASSERT
     if (EnableRTGC) {
       RTGC::adjust_debug_pointer(q, cast_to_oop(compact_top), false);
     }
 #endif
+#else
+    assert(q->is_gc_marked(), "encoding the pointer should preserve the mark");
 #endif
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
 #if INCLUDE_RTGC 
-    if (!RtLateClearGcMark || RTGC_SHARE_GC_MARK) {
-      q->init_mark();
-    }
+    rt_assert_f(rtHeap::is_destroyed(q) || (rtHeap::is_trackable(q) ? (!q->is_gc_marked() && rtHeap::is_alive(q))
+        : q->is_gc_marked()), "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
 #endif
-    assert(q->forwardee() == NULL, "should be forwarded to NULL");
+    // copy_to_survior_space 실행 시 age 등의 값이 clear 되지 않은 상태이다.
+    // 무조건으로 init_mark 필요.
+    q->init_mark();
+    assert(q->forwardee() == NULL, "should be forwarded to NULL %p m=%p", (void*)q, q->mark().to_pointer());
   }
 
   compact_top += size;

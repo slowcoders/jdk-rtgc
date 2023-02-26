@@ -45,8 +45,7 @@ inline void MarkSweep::mark_object(oop obj) {
   obj->set_mark(markWord::prototype().set_marked());
 #if INCLUDE_RTGC
   if (EnableRTGC) {
-    // rtgc_debug_log(obj, "mark_object %p %d\n", (void*)obj, ++dbg_cnt_mark);
-    // precond(!RTGC::is_debug_pointer(obj));
+    rt_assert(!rtHeap::is_trackable(obj));
     precond(rtHeap::is_alive(obj));
   }
 #endif

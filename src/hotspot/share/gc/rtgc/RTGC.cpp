@@ -198,9 +198,9 @@ bool RTGC::logEnabled(int logOption) {
 }
 
 GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
-  rt_assert_f(cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
-      tag, obj, RTGC::getClassName(obj));
   oopDesc* p = cast_to_oop(obj)->forwardee();
+  rt_assert_f(p == NULL || cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
+      tag, obj, RTGC::getClassName(obj));
   return p == NULL ? obj : to_obj(p);
 }
 
@@ -353,7 +353,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #else
