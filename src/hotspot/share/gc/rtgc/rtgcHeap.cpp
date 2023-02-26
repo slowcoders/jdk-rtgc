@@ -141,7 +141,7 @@ void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
 bool rtHeap::is_trackable(oopDesc* p) {
   if (!EnableRTGC) return false;
   GCObject* obj = to_obj(p);
-  bool isTrackable = obj->isTrackable();
+  bool isTrackable = obj->isTrackable_unsafe();
   return isTrackable;
 }
 

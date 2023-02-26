@@ -358,6 +358,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   assert(this == cp->space, "'this' should be current compaction space.");
   size_t compaction_max_size = pointer_delta(end(), compact_top);
   while (size > compaction_max_size) {
+    rt_assert_f(q->is_gc_marked(), "dead space 는 단일 generation 에서만 허용.");
     // switch to next compaction space
     cp->space->set_compaction_top(compact_top);
     cp->space = cp->space->next_compaction_space();
@@ -388,7 +389,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
 #if INCLUDE_RTGC 
-    if (!RtLateClearGcMark) {
+    if (!RtLateClearGcMark || RTGC_SHARE_GC_MARK) {
       q->init_mark();
     }
 #endif

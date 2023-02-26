@@ -425,7 +425,7 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
-  precond(/*!rtHeap::is_trackable(cast_to_oop(mem)) || */rtHeap::is_destroyed(cast_to_oop(mem)));
+  precond(!rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
   if (UseBiasedLocking) {
     oopDesc::set_mark(mem, klass->prototype_header());
   } else {
@@ -493,15 +493,18 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 void CollectedHeap::fill_with_object(HeapWord* start, size_t words, bool zap)
 {
   DEBUG_ONLY(fill_args_check(start, words);)
+#if !INCLUDE_RTGC  
   HandleMark hm(Thread::current());  // Free handles before leaving.
+#endif
   fill_with_object_impl(start, words, zap);
 }
 
 void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 {
   DEBUG_ONLY(fill_args_check(start, words);)
+#if !INCLUDE_RTGC  
   HandleMark hm(Thread::current());  // Free handles before leaving.
-
+#endif
   // Multiple objects may be required depending on the filler array maximum size. Fill
   // the range up to that with objects that are filler_array_max_size sized. The
   // remainder is filled with a single object.
@@ -518,8 +521,8 @@ void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 }
 
 void CollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  if (EnableRTGC) {//} && rtHeap::is_trackable((oopDesc*)start)) {
+#if 0 && INCLUDE_RTGC 
+  if (EnableRTGC) {
     void rtgc_fill_dead_space(HeapWord* start, HeapWord* end, bool zap);
     rtgc_fill_dead_space(start, end, zap);
   } else

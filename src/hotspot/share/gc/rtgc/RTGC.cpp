@@ -40,9 +40,9 @@ namespace RTGC {
 static void check_valid_obj(void* p1, void* p2) {
   GCObject* obj1 = (GCObject*)p1;
   GCObject* obj2 = (GCObject*)p2;
-  rt_assert_f(obj2 == NULL || !obj2->isGarbageMarked(),
+  rt_assert_f(obj2 == NULL || obj2->isAlive(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj2));
-  rt_assert_f(obj1 == NULL || !obj1->isGarbageMarked(),
+  rt_assert_f(obj1 == NULL || obj1->isAlive(),
       "incorrect garbage mark " PTR_DBG_SIG, PTR_DBG_INFO(obj1));
 }
 

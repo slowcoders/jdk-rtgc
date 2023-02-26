@@ -111,7 +111,11 @@ public:
 struct GCFlags {
 	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;
+#if RTGC_SHARE_GC_MARK
+	uint32_t isMarked: 1;
+#else
 	uint32_t isGarbage: 1;
+#endif
 	uint32_t dirtyReferrerPoints: 1;
 	uint32_t isUnstable: 1;
 
@@ -221,7 +225,7 @@ public:
 	}
 
 	bool isDestroyed() {
-		return isGarbageMarked() && 
+		return isTrackable_unsafe() && !isAlive() && 
 			flags().isTrackableOrDestroyed == AUTO_TRACKABLE_MARK_BY_ADDRESS;
 	}
 
@@ -231,6 +235,7 @@ public:
 
 	int unmarkSurvivorReachable() {
 		rt_assert(isSurvivorReachable());
+		rt_assert(!isGarbageMarked());
 		flags().rootRefCount &= ~(1 << 22);
 		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return flags().rootRefCount;
@@ -295,7 +300,11 @@ public:
 
 	void unmarkGarbage(bool resurrected=true) {
 		// rtgc_log(resurrected, "resurrected %p\n", this);
-		flags().isGarbage = false;
+		#if RTGC_SHARE_GC_MARK
+			flags().isMarked = true;
+		#else
+			flags().isGarbage = false;
+		#endif
 		// flags().isUnstable = false;
 		// flags().dirtyReferrerPoints = false;
 	}
@@ -318,8 +327,25 @@ public:
 
 	int decrementRootRefCount();
 
+	bool isAlive() {
+		#if RTGC_SHARE_GC_MARK
+			return flags().isMarked;
+		#else
+			return !flags().isGarbage;
+		#endif
+	}
+
+	bool isGarbageTrackable() {
+		if (RTGC_SHARE_GC_MARK) {		
+			return this->is_adjusted_trackable() && !this->isAlive();
+		} else {
+			return !this->isAlive();
+		}
+	}
+
 	bool isGarbageMarked() {
-		return flags().isGarbage;
+		rt_assert(!RTGC_SHARE_GC_MARK || this->is_adjusted_trackable());
+		return !isAlive();
 	}
 
 	bool isUnreachable() {

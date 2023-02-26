@@ -154,15 +154,7 @@ class markWord {
 #endif
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
-#if INCLUDE_RTGC  // NO_BIAS_LOCKING
-  static const uintptr_t rtgc_not_marked          = 0;
-  static const uintptr_t rtgc_marked              = 4;
-  static const uintptr_t biased_lock_mask         = lock_mask;
-  static const uintptr_t rtgc_lock_mask           = right_n_bits(lock_bits + biased_lock_bits);
-  static const uintptr_t rtgc_lock_mask_in_place  = rtgc_lock_mask << lock_shift;
-#else
   static const uintptr_t biased_lock_mask         = right_n_bits(lock_bits + biased_lock_bits);
-#endif
   static const uintptr_t biased_lock_mask_in_place= biased_lock_mask << lock_shift;
   static const uintptr_t biased_lock_bit_in_place = 1 << biased_lock_shift;
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
@@ -200,8 +192,10 @@ class markWord {
   // fixes up biased locks to be compatible with it when a bias is
   // revoked.
   bool has_bias_pattern() const {
-#if INCLUDE_RTGC // NO_BIAS_LOCKING  
+#if INCLUDE_RTGC // NO_BIASED_LOCKING 
+#ifndef ASSERT 
     return false;
+#endif
 #endif
     return (mask_bits(value(), biased_lock_mask_in_place) == biased_lock_pattern);
   }
@@ -242,11 +236,7 @@ class markWord {
     return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value);
   }
   bool is_marked()   const {
-#if INCLUDE_RTGC // NO_BIAS_LOCKING
-    return (value() & rtgc_marked) != 0;
-#else    
     return (mask_bits(value(), lock_mask_in_place) == marked_value);
-#endif
   }
   bool is_neutral()  const { return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value); }
 
@@ -346,17 +336,11 @@ class markWord {
   }
 
   // used to encode pointers during GC
-  markWord clear_lock_bits() { 
-#if INCLUDE_RTGC // NO_BIAS_LOCKING
-    return markWord(value() & ~rtgc_lock_mask_in_place); 
-#else    
-    return markWord(value() & ~lock_mask_in_place); 
-#endif
-  }
+  markWord clear_lock_bits() { return markWord(value() & ~lock_mask_in_place); }
 
   // age operations
-  markWord set_marked()   { return markWord(value() |  rtgc_marked); }
-  markWord set_unmarked() { return markWord(value() & ~rtgc_marked); }
+  markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
+  markWord set_unmarked() { return markWord((value() & ~lock_mask_in_place) | unlocked_value); }
 
   uint     age()           const { return mask_bits(value() >> age_shift, age_mask); }
   markWord set_age(uint v) const {
@@ -386,7 +370,14 @@ class markWord {
   void print_on(outputStream* st, bool print_monitor_info = true) const;
 
   // Prepare address of oop for placement into mark
-  inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
+  inline static markWord encode_pointer_as_mark(void* p) { 
+#if INCLUDE_RTGC && RTGC_SHARE_GC_MARK    
+    if (EnableRTGC) {
+      return from_pointer(p); 
+    } else
+#endif
+    return from_pointer(p).set_marked(); 
+  }
 
   // Recover address of oop from encoded form used in mark
   inline void* decode_pointer() { if (UseBiasedLocking && has_bias_pattern()) return NULL; return (void*)clear_lock_bits().value(); }

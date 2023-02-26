@@ -1746,9 +1746,7 @@ void VM_Version::print_platform_virtualization_info(outputStream* st) {
 }
 
 bool VM_Version::use_biased_locking() {
-#if INCLUDE_RTGC // NO_BIAS_LOCK
-  UseBiasedLocking = false;
-#endif
+#if defined(ASSERT) || !INCLUDE_RTGC // NO_BIASED_LOCKING
 #if INCLUDE_RTM_OPT
   // RTM locking is most useful when there is high lock contention and
   // low data contention.  With high lock contention the lock is usually
@@ -1765,6 +1763,7 @@ bool VM_Version::use_biased_locking() {
       UseBiasedLocking = false;
     }
   }
+#endif
 #endif
   return UseBiasedLocking;
 }
