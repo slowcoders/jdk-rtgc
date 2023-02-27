@@ -117,7 +117,7 @@ public:
     size_t dead_length = pointer_delta(dead_end, dead_start);
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
-      CollectedHeap::fill_with_object(dead_start, dead_length);
+      CollectedHeap::fill_with_object(dead_start, dead_length, false);
 #if !INCLUDE_RTGC      
       oop obj = cast_to_oop(dead_start);
       obj->set_mark(obj->mark().set_marked());
@@ -298,9 +298,8 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
 template <class SpaceType>
 inline void CompactibleSpace::verify_up_to_first_dead(SpaceType* space) {
   HeapWord* cur_obj = space->bottom();
-  if (EnableRTGC && rtHeap::is_trackable(cast_to_oop(cur_obj))) return;
 
-  /* not-moved YG 객체의 marked 상태가 해제되어 있음을 확인하다. */
+  // 참고) RTGC Trackable 은 항상 unmarked 상태이다.
   if (cur_obj < space->_end_of_live && space->_first_dead > cur_obj && !cast_to_oop(cur_obj)->is_gc_marked()) {
      // we have a chunk of the space which hasn't moved and we've reinitialized
      // the mark word during the previous pass, so we can't use is_gc_marked for
@@ -347,7 +346,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
   assert(space->_first_dead <= end_of_live, "Invariant. _first_dead: " PTR_FORMAT " <= end_of_live: " PTR_FORMAT, p2i(space->_first_dead), p2i(end_of_live));
   if (space->_first_dead == end_of_live && (bottom == end_of_live || !cast_to_oop(bottom)->is_gc_marked())) {
-    // 참고) Trackable 객체는 항상 is_gc_marked() 값이 false 이다.
+    // 참고) RTGC Trackable 은 항상 unmarked 상태이다.
     // Nothing to compact. The space is either empty or all live object should be left in place.
     clear_empty_region(space);
     return;
@@ -358,7 +357,8 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
   assert(bottom < end_of_live, "bottom: " PTR_FORMAT " should be < end_of_live: " PTR_FORMAT, p2i(bottom), p2i(end_of_live));
   HeapWord* cur_obj = bottom;
-  if (space->_first_dead > cur_obj && RTGC_ONLY(!rtHeap::is_alive(cast_to_oop(cur_obj))) NOT_RTGC(!cast_to_oop(cur_obj)->is_gc_marked())) {
+  if (space->_first_dead > cur_obj && !cast_to_oop(cur_obj)->is_gc_marked()) {
+    // 참고) RTGC Trackable 은 항상 unmarked 상태이다.
     // All object before _first_dead can be skipped. They should not be moved.
     // A pointer to the first live object is stored at the memory location for _first_dead.
     cur_obj = *(HeapWord**)(space->_first_dead);
@@ -378,15 +378,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       // size and destination
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
-#if INCLUDE_RTGC      
-      if (RtLateClearGcMark && compaction_top == NULL) {
-        // Debugging 을 위하여 주소가 옮겨지지 않은 객체의 marked-state 를 clear 하지 않았다.
-        // Space.cpp:388 참조.
-        fatal("HHHHHH");
-        compaction_top = cur_obj;
-      }
-      else 
-#endif      
+      rt_assert_f(compaction_top != NULL, "cur_obj %p, _first_dead %p, end_of_live %p", cur_obj, space->_first_dead, end_of_live);
       {
         // prefetch beyond compaction_top
         Prefetch::write(compaction_top, copy_interval);

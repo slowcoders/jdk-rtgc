@@ -111,10 +111,10 @@ void rtHeap::init_mark(oopDesc* p) {
 bool rtHeap::is_alive(oopDesc* p, bool must_not_destroyed) {
   GCObject* node = to_obj(p);
   if (!must_not_destroyed) {
-    return !node->isGarbageMarked() && (node->isTrackable() || p->is_gc_marked());
+    return !node->isGarbageMarked() && (node->isTrackable_unsafe() || p->is_gc_marked());
   }
   else {
-    if (node->isTrackable()) {
+    if (node->isTrackable_unsafe()) {
       return !node->isGarbageMarked();
     } else {
       rt_assert_f(!node->isGarbageMarked(), "destroyed object %p(%s)", p, RTGC::getClassName(p));
@@ -172,7 +172,7 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
   } else {
     rt_assert(node->is_adjusted_trackable());
   }
-  rtgc_debug_log(new_p, "mark_promoted_trackable %p", new_p);
+  rtgc_debug_log(new_p, "mark_promoted_trackable %p->%p", new_p, (void*)new_p->forwardee());
   rtCLDCleaner::lock_cld(new_p);
 }
 
@@ -415,11 +415,11 @@ void rtHeap::mark_forwarded_trackable(oopDesc* p) {
     if (p->mark_must_be_preserved(mark)) {
       MarkSweep::preserve_mark(p, mark);
     }
-    // TODO markDirty 시점이 너무 이름. 필요없다??
-    node->markDirtyReferrerPoints();
   } else {
     rt_assert(p->is_gc_marked());
   }
+  // TODO markDirty 시점이 너무 이름. 필요없다??
+  node->markDirtyReferrerPoints();
 }
 
 
@@ -461,8 +461,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
-  rt_assert(!old_p->isGarbageMarked());
-  rt_assert_f(!old_p->isGarbageMarked(), PTR_DBG_SIG "\n-" PTR_DBG_SIG, PTR_DBG_INFO(old_p), PTR_DBG_INFO(node));
+  rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(node));
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
     rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p", old_p, new_obj, node);

@@ -139,9 +139,9 @@ void UpdateLogBuffer::reset_gc_context() {
 
 #ifdef ASSERT    
   rt_assert(g_buffer_area_start < g_buffer_area_end);
-  rtgc_log(LOG_OPT(1), "heap old %p young=%p update=%d log=%d\n", 
+  rtgc_log(LOG_OPT(1), "heap old %p young-from=%p young-to=%p cnt_update=%d cnt_update_log=%d\n", 
     GenCollectedHeap::heap()->old_gen()->reserved().start(),
-    newGen->from()->bottom(), g_cnt_update, g_cnt_update_log);
+    newGen->from()->bottom(), newGen->to()->bottom(), g_cnt_update, g_cnt_update_log);
   rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x\n", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
 #endif    
 

@@ -162,9 +162,9 @@ void GCRuntime::adjustShortcutPoints() {
     for (; p < end; p++) {
         if (p->isValid()) {
 #ifdef ASSERT
-            if (!cast_to_oop((GCObject*)p->anchor())->is_gc_marked()) {
+            if (!rtHeap::is_alive(cast_to_oop((GCObject*)p->anchor()))) {
                 for (GCObject* node = p->tail(); node != p->anchor(); node = node->node_()->getSafeAnchor()) {
-                    rtgc_log(1, "node %p g=%d\n", node, node->isGarbageMarked());
+                    rtgc_log(1, "invalid shortcut node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }
 #endif            
