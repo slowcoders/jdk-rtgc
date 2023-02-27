@@ -475,14 +475,14 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 #endif
 
   GCObject* node = to_obj(old_p);
-  // 모든 dead-space 는 명시적으로 garbage markin 되어 있다.
-  bool is_alive = !node->isGarbageMarked();// : old_p->is_gc_marked();
-  if (!is_alive) {
+  // 참고) 모든 dead-space 는 trakable 이 아니어도 명시적으로 garbage markin 되어 있다.
+  if (node->isAlive()) {
     // rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
     rtgc_log(true, "skip garbage %p", old_p);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
   }
+  // 참고) 주소가 옮겨지지 않은 YG 객체는 unmarked 상태이다.
 
   oopDesc* new_anchor_p = NULL;
   bool is_trackable_forwardee = node->isTrackable_unsafe();
