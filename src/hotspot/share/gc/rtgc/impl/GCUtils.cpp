@@ -57,10 +57,30 @@ const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
 
 
 void ReferrerList::dealloc_chunk(Chunk* chunk) {
-    rtgc_log(true, "dealloc_chunk %p %d\n", chunk, chunk->_last_item_offset);
-    chunk->setDestroyed();
+    // rtgc_log(true, "dealloc_chunk %p %d\n", chunk, chunk->_last_item_offset);
+    uintptr_t* mem = (uintptr_t*)chunk;
+
+    // memset 대체.
+    rt_assert(sizeof(chunk) / sizeof(uintptr_t) == 4);
+    mem[1] = 0;
+    mem[2] = 0;
+    mem[3] = 0;
     g_chunkPool.delete_(chunk);
     rt_assert(!chunk->isAlive());
+}
+
+void ReferrerList::delete_(ReferrerList* list) {
+    if (list->empty()) {
+        dealloc_chunk(&list->_head);
+        return;
+    }
+    Chunk* chunk = getContainingChunck(list->lastItemPtr());
+    while (true) {
+        Chunk* nextChunk = chunk->getNextChunk();
+        dealloc_chunk(chunk);
+        if (chunk == &list->_head) break;
+        chunk = nextChunk;
+    };
 }
 
 
@@ -69,6 +89,7 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
     if (copy_to != NULL) {
         *copy_to = *pLast;
     }
+    rt_assert(!this->empty());
     Chunk* last_chunk = getContainingChunck(pLast);
     if (last_chunk == &_head) {
         _head._last_item_offset --;
@@ -109,9 +130,6 @@ void ReferrerList::add(ShortOOP item) {
         }
     }
     rt_assert(_head.isAlive());
-    if (this->hasMultiChunk()) {
-        rt_assert_f(_head.getNextChunk()->_last_item_offset != -8, "empty chunk %p", this); 
-    }
     *(ShortOOP*)pLast = item;
 }
 

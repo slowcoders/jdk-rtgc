@@ -19,8 +19,13 @@ public:
     struct Chunk {
         ShortOOP _items[MAX_COUNT_IN_CHUNK];
         int32_t _last_item_offset;
-        Chunk*  getNextChunk()  { return (Chunk*)(&_last_item_offset + _last_item_offset); }
+        Chunk*  getNextChunk()  { 
+            rt_assert((_last_item_offset % 8) != 0);  
+            return (Chunk*)(&_last_item_offset + _last_item_offset); 
+        }
+        
         bool    isAlive()       { return _last_item_offset != 0; }
+        
         void    setDestroyed()  { rt_assert_f(isAlive(), "not alive chunk %p", this); _last_item_offset = 0; }
     };
     static const int CHUNK_MASK = (sizeof(Chunk) - 1);
@@ -34,6 +39,7 @@ public:
 
     void init(ShortOOP first) {
         _head._items[0] = first;
+        *(int32_t*)&_head._items[1] = 0;
         _head._last_item_offset = -(MAX_COUNT_IN_CHUNK);
     }
 
@@ -132,15 +138,7 @@ public:
         dealloc_chunk(&list->_head);
     }
 
-    static void delete_(ReferrerList* list) {
-        Chunk* chunk = getContainingChunck(list->lastItemPtr());
-        while (true) {
-            Chunk* nextChunk = chunk->getNextChunk();
-            dealloc_chunk(chunk);
-            if (chunk == &list->_head) break;
-            chunk = nextChunk;
-        };
-    }
+    static void delete_(ReferrerList* list);
 
     static int getAllocatedItemCount() {
         return g_chunkPool.getAllocatedItemCount();

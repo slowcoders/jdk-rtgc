@@ -924,30 +924,17 @@ void ReferrerList::adjustAnchorPointers() {
   Chunk* chunk = g_chunkPool.getPointer(1); // 1 = indexStart;
   Chunk* endOfChunk = g_chunkPool.getNextAllocationPointer();
   for (; chunk < endOfChunk; chunk++) {
-    narrowOop* ppAnchor = (narrowOop*)chunk->_items;
-    Chunk* nextChunk = chunk->getNextChunk();
-    int cntItem;
-    if (nextChunk >= chunk && nextChunk < chunk + 1) {
-      // _head
-      cntItem = (ShortOOP*)nextChunk - (ShortOOP*)chunk + 1;
-      rtgc_log(true, "head");
-    } else if ((nextChunk = nextChunk->getNextChunk()) >= chunk && nextChunk < chunk + 1) {
-      // _tail
-      ppAnchor = (narrowOop*)nextChunk; 
-      cntItem = (ShortOOP*)nextChunk - chunk->_items;
-      rtgc_log(true, "tail");
-    } else {
-      // _middle.
-      cntItem = ReferrerList::MAX_COUNT_IN_CHUNK;
-      rtgc_log(true, "middle");
-    }
-    rt_assert(cntItem <= ReferrerList::MAX_COUNT_IN_CHUNK);
-
-    for (; --cntItem >= 0; ppAnchor ++) {
-      narrowOop anchor = *ppAnchor;
-      oop forwardee = CompressedOops::decode(anchor)->forwardee();
-      if (forwardee != NULL) {
-        //*ppAnchor = forwardee;
+    if (chunk->isAlive()) {
+      int cntItem = ReferrerList::MAX_COUNT_IN_CHUNK;
+      ShortOOP* ppAnchor = chunk->_items;
+      for (; --cntItem >= 0; ppAnchor ++) {
+        ShortOOP anchor = *ppAnchor;
+        if (anchor.getOffset() != 0) {
+          oop forwardee = cast_to_oop((GCObject*)anchor)->forwardee();
+          if (forwardee != NULL) {
+            //*ppAnchor = forwardee;
+          }
+        }
       }
     }
   }

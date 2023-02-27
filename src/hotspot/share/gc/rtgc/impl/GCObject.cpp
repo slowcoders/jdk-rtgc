@@ -103,10 +103,6 @@ void GCObject::addReferrer(GCObject* referrer) {
             referrers = nx->getAnchorList();
             referrers->add(referrer);
         }
-    if (referrers->hasMultiChunk()) {
-        rt_assert_f(referrers->_head.getNextChunk()->_last_item_offset != -8, "empty chunk %p", referrers); 
-    }
-
     }
 }
 
@@ -122,7 +118,6 @@ bool GCObject::hasReferrer(GCObject* referrer) {
         return referrers->contains(referrer);
     }
 }
-
 
 template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
@@ -186,10 +181,6 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         } else {
             rt_assert(!reallocReferrerList || !referrers->empty());
         }
-
-    if (referrers->hasMultiChunk()) {
-        rt_assert_f(referrers->_head.getNextChunk()->_last_item_offset != -8, "empty chunk %p", referrers); 
-    }
 
         if (!first_item_removed) {
             return +1;
