@@ -279,7 +279,7 @@ public:
     HugeArray() : _SUPER(DoNotInitialize::Flag) {}
 };
 
-template <class T, size_t MAX_BUCKET, int indexOffset, int clearOffset>
+template <class T, size_t MAX_BUCKET, int indexStart, int clearOffset, int nextOffset=0>
 class MemoryPool {
     T* _items;
     T* _free;
@@ -291,24 +291,22 @@ class MemoryPool {
 
 
     T*& NextFree(void* ptr) {
-        return *(T**)ptr;
+        return *(T**)((char*)ptr + nextOffset);
     }
 
 public:
     void initialize() {
         _end = _next = (T*)VirtualMemory::reserve_memory(MAX_BUCKET*MEM_BUCKET_SIZE);
-        _items = _next - indexOffset;
+        _items = _next - indexStart;
         _free = nullptr;
         #if GC_DEBUG
         _cntFree = 0;
         #endif
     }
 
-    #if GC_DEBUG
     int getAllocatedItemCount() {
-        return _next - _items - _cntFree - indexOffset;
+        return _next - _items - _cntFree - indexStart;
     }
-    #endif
 
     T* allocate() {
         T* ptr;
@@ -345,6 +343,10 @@ public:
         rt_assert_f(_items + idx < _next, "invalid idx: %d (max=%ld)\n", idx, _next - _items);
         T* ptr = _items + idx;
         return ptr;
+    }
+
+    T* getNextAllocationPointer() {
+        return _next;
     }
 
     int size() {

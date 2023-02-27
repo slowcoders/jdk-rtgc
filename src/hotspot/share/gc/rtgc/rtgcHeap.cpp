@@ -22,6 +22,7 @@
 #include "rtCLDCleaner.hpp"
 #include "rtThreadLocalData.hpp"
 #include "gc/serial/serialHeap.inline.hpp"
+#include "gc/rtgc/impl/GCUtils2.hpp"
 
 
 int rtHeap::in_full_gc = 0;
@@ -37,6 +38,7 @@ namespace RTGC {
   // bool yg_root_locked = false;
   bool g_in_progress_marking = false;
   int cnt_resurrect = 0;
+  int g_cnt_skip_garbage = 0;
 
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
@@ -190,7 +192,7 @@ void rtHeap::mark_young_root(oopDesc* tenured_p, bool is_young_root) {
 }
 
 void rtHeapUtil::resurrect_young_root(GCObject* node) {
-  rtgc_log((++cnt_resurrect % 100) == 0, "resurrect_young_root cnt=%d %p", cnt_resurrect, node);
+  rtgc_log((++cnt_resurrect % 100) == 0 || RTGC::is_debug_pointer(node), "resurrect_young_root cnt=%d %p", cnt_resurrect, node);
   rt_assert(node->isGarbageMarked());
   rt_assert(node->isTrackable());
   if (!rtHeap::in_full_gc) {
@@ -475,10 +477,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
 #endif
 
   GCObject* node = to_obj(old_p);
-  // 참고) 모든 dead-space 는 trakable 이 아니어도 명시적으로 garbage markin 되어 있다.
-  if (node->isAlive()) {
+  // 참고) 모든 dead-space 는 trakable 이 아니어도 명시적으로 garbage marking 되어야 한다.
+  if (!node->isAlive()) {
     // rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
-    rtgc_log(true, "skip garbage %p", old_p);
+    rtgc_log((++g_cnt_skip_garbage % 100) == 0 || RTGC::is_debug_pointer(node), "skip garbage %p cnt_skip=%d", old_p, g_cnt_skip_garbage);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
   }
@@ -500,7 +502,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
       new_anchor_p = new_p;
     }
   } else {
-    rt_assert(old_p->forwardee() == NULL || !g_adjust_pointer_closure.is_in_young(old_p->forwardee()));
+    rt_assert_f(old_p->forwardee() == NULL || !g_adjust_pointer_closure.is_in_young(old_p->forwardee()), "tenured object 는 YG 로 옮겨질 수 없다.");
     // ensure UnsafeList is empty.
     rt_assert_f(!node->isUnreachable() || node->isUnstableMarked(), 
       "unreachable trackable %p(%s)", 
@@ -658,6 +660,7 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
 void rtHeap::finish_adjust_pointers() {
   g_adjust_pointer_closure._old_gen_start = NULL;
+  ReferrerList::adjustAnchorPointers();
   rtHeapEx::adjust_ref_q_pointers(true);
   GCRuntime::adjustShortcutPoints();
   /**
@@ -683,7 +686,8 @@ class ClearWeakHandleRef: public OopClosure {
 
 void rtHeap::prepare_rtgc() {
   rtgc_log(LOG_OPT(1), "prepare_rtgc\n");
-  debug_only(cnt_resurrect = 0;);
+  debug_only(cnt_resurrect = 0;)
+  debug_only(g_cnt_skip_garbage = 0;)
   is_gc_started = true;
   rt_assert(g_stack_roots.size() == 0);
   if (rtHeap::useModifyFlag()) {
@@ -764,6 +768,7 @@ void rtHeap__mark_dead_space(oopDesc* deadObj) {
   GCObject* obj = to_obj(deadObj);
   rt_assert(!deadObj->is_gc_marked());
   if (obj->isTrackable_unsafe()) {
+    rt_assert(obj->isGarbageMarked());
     rt_assert(obj->isDestroyed());
   } else {
     rt_assert(obj->isUnreachable());
@@ -816,7 +821,7 @@ RtHashLock::RtHashLock() {
 }
 
 bool RtHashLock::isCodeFixed(int32_t hash) {
-  return (hash & ANCHOR_LIST_UNLOCKED) == 0;
+  return (hash & RTGC_NO_HASHCODE) == 0;
 }
 
 intptr_t RtHashLock::initHash(markWord mark) {
@@ -829,7 +834,7 @@ intptr_t RtHashLock::initHash(markWord mark) {
       return 0;
     } 
 
-    hash &= ~ANCHOR_LIST_UNLOCKED;
+    hash &= ~RTGC_NO_HASHCODE;
     return hash;
   }
 
@@ -853,12 +858,12 @@ int RtHashLock::allocateHashSlot(ShortOOP* first) {
     refList->init(*first);
     rt_assert(refList->approximated_item_count() == 1);
   }
-  return hash & ~ANCHOR_LIST_UNLOCKED;
+  return hash & ~RTGC_NO_HASHCODE;
 }
 
 intptr_t RtHashLock::hash() {
   rt_assert(_hash != 0);
-  return (intptr_t)(_hash & ~ANCHOR_LIST_UNLOCKED);
+  return (intptr_t)(_hash & ~RTGC_NO_HASHCODE);
 }
 
 void RtHashLock::consumeHash(intptr_t hash) { 
@@ -869,7 +874,7 @@ void RtHashLock::releaseHash() {
   if (_hash == 0) return;
   if (isCodeFixed(_hash)) {
     RTGC::lock_heap();
-    ReferrerList::delete_(ReferrerList::getPointer(_hash));
+    ReferrerList::deleteSingleChunkList(ReferrerList::getPointer(_hash));
     RTGC::unlock_heap();
   }
   _hash = 0;
@@ -902,8 +907,7 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
 
 int cnt_init = 0;
 void rtHeap__initialize() {
-  rtgc_log(true, "trackable_heap_start = %p narrowOpp:base = %p", 
-    GCNode::g_trackable_heap_start, CompressedOops::base());
+  rtgc_log(true, "trackable_heap_start = %p narrowOpp:base = %p",  GCNode::g_trackable_heap_start, CompressedOops::base());
 
   g_young_roots.initialize();
   g_stack_roots.initialize();
@@ -913,3 +917,38 @@ void rtHeap__initialize() {
 
 }
 
+void ReferrerList::adjustAnchorPointers() {
+  if (true) return;
+
+
+  Chunk* chunk = g_chunkPool.getPointer(1); // 1 = indexStart;
+  Chunk* endOfChunk = g_chunkPool.getNextAllocationPointer();
+  for (; chunk < endOfChunk; chunk++) {
+    narrowOop* ppAnchor = (narrowOop*)chunk->_items;
+    Chunk* nextChunk = chunk->getNextChunk();
+    int cntItem;
+    if (nextChunk >= chunk && nextChunk < chunk + 1) {
+      // _head
+      cntItem = (ShortOOP*)nextChunk - (ShortOOP*)chunk + 1;
+      rtgc_log(true, "head");
+    } else if ((nextChunk = nextChunk->getNextChunk()) >= chunk && nextChunk < chunk + 1) {
+      // _tail
+      ppAnchor = (narrowOop*)nextChunk; 
+      cntItem = (ShortOOP*)nextChunk - chunk->_items;
+      rtgc_log(true, "tail");
+    } else {
+      // _middle.
+      cntItem = ReferrerList::MAX_COUNT_IN_CHUNK;
+      rtgc_log(true, "middle");
+    }
+    rt_assert(cntItem <= ReferrerList::MAX_COUNT_IN_CHUNK);
+
+    for (; --cntItem >= 0; ppAnchor ++) {
+      narrowOop anchor = *ppAnchor;
+      oop forwardee = CompressedOops::decode(anchor)->forwardee();
+      if (forwardee != NULL) {
+        //*ppAnchor = forwardee;
+      }
+    }
+  }
+}

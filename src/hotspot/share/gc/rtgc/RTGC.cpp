@@ -10,6 +10,31 @@
 
 using namespace RTGC;
 
+/* 
+  JVM 빌드 시, java.nio.charset.MalformedInputException 을 만드는 debugClass 들.
+    "sun/nio/fs/NativeBuffers$1",
+    "[I",
+*/
+
+const char* debugClassNames[] = {
+  0, // reserved for -XX:AbortVMOnExceptionMessage=''
+  // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
+  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "java/lang/ref/Finalizer",
+    // "jdk/nio/zipfs/ZipFileSystem",
+  //  "java/lang/invoke/LambdaFormEditor$Transform",
+    // "java/lang/invoke/MethodTypeForm",
+    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
+    // "java/lang/invoke/MethodType",
+    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
+    // "java/lang/ref/SoftReference",
+    // "java/util/HashMap$Node", 
+    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
+    // "jdk/nio/zipfs/ZipFileSystem",
+    // "java/lang/ref/Finalizer"
+};
+
+
 static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_REF_LINK, function);
 }
@@ -232,26 +257,6 @@ oop rtgc_break(const char* file, int line, const char* function) {
   return NULL;
 } 
 
-
-const char* debugClassNames[] = {
-  0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "sun/nio/fs/NativeBuffers$1", //  why this make java.nio.charset.MalformedInputException ???
-  // "java/util/zip/ZipFile$ZipFileInflaterInputStream",
-  // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "java/lang/ref/Finalizer",
-    // "jdk/nio/zipfs/ZipFileSystem",
-  //  "java/lang/invoke/LambdaFormEditor$Transform",
-    // "java/lang/invoke/MethodTypeForm",
-    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
-    // "java/lang/invoke/MethodType",
-    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-    // "java/lang/ref/SoftReference",
-    // "java/util/HashMap$Node", 
-    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "jdk/nio/zipfs/ZipFileSystem",
-    // "java/lang/ref/Finalizer"
-};
 
 const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
 void* debugKlass[CNT_DEBUG_CLASS];

@@ -101,8 +101,12 @@ void GCObject::addReferrer(GCObject* referrer) {
         }
         else {
             referrers = nx->getAnchorList();
-            referrers->push_back(referrer);
+            referrers->add(referrer);
         }
+    if (referrers->hasMultiChunk()) {
+        rt_assert_f(referrers->_head.getNextChunk()->_last_item_offset != -8, "empty chunk %p", referrers); 
+    }
+
     }
 }
 
@@ -178,10 +182,14 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
             } else {
                 nx->setSingleAnchor(referrers->front());
             }
-            ReferrerList::delete_(referrers);
+            ReferrerList::deleteSingleChunkList(referrers);
         } else {
             rt_assert(!reallocReferrerList || !referrers->empty());
         }
+
+    if (referrers->hasMultiChunk()) {
+        rt_assert_f(referrers->_head.getNextChunk()->_last_item_offset != -8, "empty chunk %p", referrers); 
+    }
 
         if (!first_item_removed) {
             return +1;
@@ -254,7 +262,10 @@ void GCObject::clearAnchorList() {
     rt_assert(!nx->hasShortcut());
     if (nx->hasMultiRef()) {
         ReferrerList* referrers = nx->getAnchorList();
+        // bool huge_list = (void*)referrers->lastItemPtr() < referrers || (void*)referrers->lastItemPtr() >= referrers + 1;
+        // rtgc_log(huge_list, "clearAnchorList %p/%p ~ %p", referrers, referrers->firstItemPtr() + 7, referrers->lastItemPtr());
         ReferrerList::delete_(referrers);
+        // rtgc_log(huge_list, "clearAnchorList done");
         nx->setHasMultiRef(false);
     }
     nx->removeSingleAnchor();    
@@ -276,7 +287,7 @@ bool GCObject::clearEmptyAnchorList() {
         } else {
             nx->setSingleAnchor(referrers->front());
         }
-        ReferrerList::delete_(referrers);
+        ReferrerList::deleteSingleChunkList(referrers);
     }
     return cntAnchor == 0;
 }

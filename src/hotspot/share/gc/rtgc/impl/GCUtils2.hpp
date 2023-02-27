@@ -1,3 +1,5 @@
+#ifndef SHARE_GC_RTGC_IMPL_ANCHOR_LIST_HPP
+#define SHARE_GC_RTGC_IMPL_ANCHOR_LIST_HPP
 #include <memory.h>
 #include "utilities/globalDefinitions_gcc.hpp"
 #include "utilities/debug.hpp"
@@ -6,17 +8,20 @@
 
 namespace RTGC {
 
-static const uint32_t ANCHOR_LIST_UNLOCKED = 0x80000000;
-static const uint32_t ANCHOR_LIST_INDEX_MASK = ANCHOR_LIST_UNLOCKED - 1;
+static const uint32_t RTGC_NO_HASHCODE = 0x80000000;
+static const uint32_t ANCHOR_LIST_INDEX_MASK = RTGC_NO_HASHCODE - 1;
 
 class ReferrerList {
     friend class ReverseIterator;    
+public:
 
     static const int MAX_COUNT_IN_CHUNK = 7;
     struct Chunk {
         ShortOOP _items[MAX_COUNT_IN_CHUNK];
         int32_t _last_item_offset;
-        Chunk*  getNextChunk() { return (Chunk*)(&_last_item_offset + _last_item_offset); }
+        Chunk*  getNextChunk()  { return (Chunk*)(&_last_item_offset + _last_item_offset); }
+        bool    isAlive()       { return _last_item_offset != 0; }
+        void    setDestroyed()  { rt_assert_f(isAlive(), "not alive chunk %p", this); _last_item_offset = 0; }
     };
     static const int CHUNK_MASK = (sizeof(Chunk) - 1);
 
@@ -115,27 +120,33 @@ public:
     }
 
     static int getIndex(ReferrerList* referrers) {
-        return g_chunkPool.getIndex(&referrers->_head) | ANCHOR_LIST_UNLOCKED;
+        return g_chunkPool.getIndex(&referrers->_head) | RTGC_NO_HASHCODE;
     }
 
     static ReferrerList* getPointer(uint32_t idx) {
-        return (ReferrerList*)g_chunkPool.getPointer(idx & ~ANCHOR_LIST_UNLOCKED);
+        return (ReferrerList*)g_chunkPool.getPointer(idx & ~RTGC_NO_HASHCODE);
+    }
+
+    static void deleteSingleChunkList(ReferrerList* list) {
+        rt_assert(!list->hasMultiChunk());
+        dealloc_chunk(&list->_head);
     }
 
     static void delete_(ReferrerList* list) {
-        g_chunkPool.delete_(&list->_head);
-        return;
         Chunk* chunk = getContainingChunck(list->lastItemPtr());
         while (true) {
-            g_chunkPool.delete_(chunk);
+            Chunk* nextChunk = chunk->getNextChunk();
+            dealloc_chunk(chunk);
             if (chunk == &list->_head) break;
-            chunk = chunk->getNextChunk();
+            chunk = nextChunk;
         };
     }
 
     static int getAllocatedItemCount() {
         return g_chunkPool.getAllocatedItemCount();
     }
+
+    static void adjustAnchorPointers();
 
 private:
     typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
@@ -144,10 +155,11 @@ private:
 
     const ShortOOP* extend_tail(Chunk* last_chunk);
 
-    Chunk* dealloc_chunk(Chunk* chunk);
+    static void dealloc_chunk(Chunk* chunk);
 
     void set_last_item_ptr(const ShortOOP* pLast) {
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
+        rt_assert(_head.isAlive());
     }
 
     static Chunk* getContainingChunck(const ShortOOP* pItem) {
@@ -248,3 +260,4 @@ public:
 };
 
 }
+#endif
