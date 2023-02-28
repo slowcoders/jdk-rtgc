@@ -11,22 +11,29 @@ namespace RTGC {
 static const uint32_t RTGC_NO_HASHCODE = 0x80000000;
 static const uint32_t ANCHOR_LIST_INDEX_MASK = RTGC_NO_HASHCODE - 1;
 
+static const bool  MARK_ALIVE_CHUNK = true;
+
 class ReferrerList {
     friend class ReverseIterator;    
 public:
-
     static const int MAX_COUNT_IN_CHUNK = 7;
     struct Chunk {
         ShortOOP _items[MAX_COUNT_IN_CHUNK];
         int32_t _last_item_offset;
+        
         Chunk*  getNextChunk()  { 
             rt_assert((_last_item_offset % 8) != 0);  
             return (Chunk*)(&_last_item_offset + _last_item_offset); 
         }
         
-        bool    isAlive()       { return _last_item_offset != 0; }
+        bool isAlive()       { 
+            return !MARK_ALIVE_CHUNK || _last_item_offset != 0; 
+        }
         
-        void    setDestroyed()  { rt_assert_f(isAlive(), "not alive chunk %p", this); _last_item_offset = 0; }
+        void setDestroyed()  { 
+            rt_assert_f(MARK_ALIVE_CHUNK && isAlive(), "not alive chunk %p", this); 
+            _last_item_offset = 0; 
+        }
     };
     static const int CHUNK_MASK = (sizeof(Chunk) - 1);
 
@@ -39,7 +46,10 @@ public:
 
     void init(ShortOOP first) {
         _head._items[0] = first;
-        *(int32_t*)&_head._items[1] = 0;
+        if (MARK_ALIVE_CHUNK) {
+            // NextFree 주소값 clear.
+            *(int32_t*)&_head._items[1] = 0;
+        }
         _head._last_item_offset = -(MAX_COUNT_IN_CHUNK);
     }
 
@@ -121,9 +131,7 @@ public:
         g_chunkPool.initialize();
     }
 
-    static ReferrerList* allocate() {
-        return (ReferrerList*)g_chunkPool.allocate();
-    }
+    static ReferrerList* allocate();
 
     static int getIndex(ReferrerList* referrers) {
         return g_chunkPool.getIndex(&referrers->_head) | RTGC_NO_HASHCODE;
@@ -144,8 +152,6 @@ public:
         return g_chunkPool.getAllocatedItemCount();
     }
 
-    static void adjustAnchorPointers();
-
 private:
     typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
     
@@ -165,6 +171,23 @@ private:
     }
 
     void cut_tail_end(ShortOOP* copy_to);
+
+public:
+    template <typename T>
+    static void iterateAllAnchors(T* iter) {
+        Chunk* chunk = g_chunkPool.getPointer(1); // 1 = indexStart;
+        Chunk* endOfChunk = chunk + g_chunkPool.size();
+        int size_of_chunks = (char*)endOfChunk - (char*)chunk;
+        for (; chunk < endOfChunk; chunk++) {
+            if (chunk->isAlive()) {
+                int cntItem = ReferrerList::MAX_COUNT_IN_CHUNK;
+                ShortOOP* ppAnchor = chunk->_items;
+                for (; --cntItem >= 0; ppAnchor ++) {
+                    iter->do_oop(ppAnchor);
+                }
+            }
+        }
+    }    
 };
 
 template <bool trace_forward >

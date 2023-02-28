@@ -18,7 +18,7 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
+  // "[B",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -147,8 +147,8 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
         base, to_obj(base)->getRootRefCount(), p, RTGC::getClassName(p));
   }
   if (RTGC::is_debug_pointer(p)) {
-     rtgc_log(1, "referrer %p(%s) added to %p(rc=%d refs_=%x)\n", 
-        debug_base, RTGC::getClassName(debug_base), p, 
+     rtgc_log(1, "referrer %p/%p(%s) added to %p(rc=%d refs_=%x)\n", 
+        debug_base, base, RTGC::getClassName(debug_base), p, 
         to_obj(p)->getRootRefCount(), to_obj(p)->getReferrerCount());
   }
 #endif
@@ -262,12 +262,39 @@ const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0])
 void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
 int cntDbgObj = 0;
-// void RTGC::clearDebugClasses() {
-//   // for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
-//   //   debugClassNames[i] = NULL;
-//   //   debugKlass[i] = NULL;
-//   // }
-// }
+
+
+void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
+  if (!RTGC_DEBUG) return;
+  if (RTGC_FAT_OOP && destroy_old_node) {
+    to_obj(old_p)->invalidateAnchorList_unsafe();
+  }
+  if (!REF_LINK_ENABLED) return;
+  if (old_p == new_p) return;
+  
+  int type;
+  if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
+    RTGC::debug_obj = new_p;
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  }
+  else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
+    RTGC::debug_obj2 = new_p;
+    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  } 
+  else if ((type = is_debug_pointer(old_p)) != 0) {
+    // || ((uintptr_t)new_p & ~0xFFF) == 0x3f5b06000) {
+    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
+      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
+  } 
+  else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
+    rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
+      old_p, new_p, to_obj(old_p)->getReferrerCount());
+  }
+}
+
+
 int RTGC::is_debug_pointer(void* ptr) {
   oopDesc* obj = (oopDesc*)ptr;
   if (!RTGC_DEBUG || obj == NULL) return 0;
@@ -276,7 +303,7 @@ int RTGC::is_debug_pointer(void* ptr) {
 
   if (ptr == debug_obj2) return -1;
 
-  // if (((uintptr_t)ptr & ~0xFF00000) == 0x110029678) return true;
+  // if (((uintptr_t)ptr & ~0xFFF) == 0x3f5b06000) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -304,36 +331,6 @@ int RTGC::is_debug_pointer(void* ptr) {
   return 0;
 }
 
-
-void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
-  if (!RTGC_DEBUG) return;
-  if (RTGC_FAT_OOP && destroy_old_node) {
-    to_obj(old_p)->invalidateAnchorList_unsafe();
-  }
-  if (!REF_LINK_ENABLED) return;
-  if (old_p == new_p) return;
-  
-  int type;
-  if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
-    RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
-  }
-  else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
-    RTGC::debug_obj2 = new_p;
-    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
-  } 
-  else if ((type = is_debug_pointer(old_p)) != 0) {
-    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
-      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
-  } 
-  else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
-    rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
-  }
-}
-
 #if ENABLE_RTGC_ASSERT
 bool RTGC_DEBUG = false;
 #endif
@@ -358,7 +355,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #else

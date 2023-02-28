@@ -35,6 +35,7 @@ using namespace RTGC;
 Stack<oop, mtGC> MarkSweep::_resurrect_stack;
 
 namespace RTGC {
+  const bool BATCH_UPDATE_ANCHORS = false & MARK_ALIVE_CHUNK;
   // bool yg_root_locked = false;
   bool g_in_progress_marking = false;
   int cnt_resurrect = 0;
@@ -421,6 +422,7 @@ void rtHeap::mark_forwarded_trackable(oopDesc* p) {
     rt_assert(p->is_gc_marked());
   }
   // TODO markDirty 시점이 너무 이름. 필요없다??
+  rtgc_debug_log(p, "mark_forwarded %p", p);
   node->markDirtyReferrerPoints();
 }
 
@@ -451,7 +453,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   }
 
   // old_p 내부 field 에 대한 adjust_pointers 가 처리되지 않았으면...
-  if (to_obj(old_p)->isDirtyReferrerPoints()) {
+  if (BATCH_UPDATE_ANCHORS || to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
     RTGC::add_referrer_unsafe(old_p, _old_anchor_p, _old_anchor_p);
   }
@@ -463,7 +465,8 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
-  rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(node));
+  rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, 
+      old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(node));
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
     rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p", old_p, new_obj, node);
@@ -486,6 +489,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
   // 참고) 주소가 옮겨지지 않은 YG 객체는 unmarked 상태이다.
 
+  rtgc_debug_log(old_p, "adjust_pointers %p", old_p);
   oopDesc* new_anchor_p = NULL;
   bool is_trackable_forwardee = node->isTrackable_unsafe();
   g_adjust_pointer_closure._trackable_old_anchor = is_trackable_forwardee;
@@ -524,12 +528,14 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   RtNode* nx = node->getMutableNode();
   if (nx->mayHaveAnchor()) {
     if (nx->hasMultiRef()) {
-      ReferrerList* referrers = nx->getAnchorList();
-      rt_assert_f(!referrers->isTooSmall() || nx->isAnchorListLocked(), 
-          "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
-      for (ReverseIterator it(referrers); it.hasNext(); ) {
-        ShortOOP* ptr = (ShortOOP*)it.next_ptr();
-        adjust_anchor_pointer(ptr, node);
+      if (!BATCH_UPDATE_ANCHORS) {
+        ReferrerList* referrers = nx->getAnchorList();
+        rt_assert_f(!referrers->isTooSmall() || nx->isAnchorListLocked(), 
+            "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
+        for (ReverseIterator it(referrers); it.hasNext(); ) {
+          ShortOOP* ptr = (ShortOOP*)it.next_ptr();
+          adjust_anchor_pointer(ptr, node);
+        }
       }
     }
     else {
@@ -541,6 +547,21 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   return size; 
 }
 
+class AdjustAnchorClosure {
+  public:
+  int _cnt_anchors;
+
+  AdjustAnchorClosure() : _cnt_anchors(0) {}
+  void do_oop(ShortOOP* ppAnchor) {
+    if (ppAnchor->getOffset() != 0) {
+      debug_only(_cnt_anchors++;)
+      oop forwardee = cast_to_oop((GCObject*)*ppAnchor)->forwardee();
+      if (forwardee != NULL) {
+        *ppAnchor = to_obj(forwardee);
+      }
+    }
+  }
+};
 
 void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
@@ -660,7 +681,13 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
 void rtHeap::finish_adjust_pointers() {
   g_adjust_pointer_closure._old_gen_start = NULL;
-  ReferrerList::adjustAnchorPointers();
+
+  if (BATCH_UPDATE_ANCHORS) {
+    AdjustAnchorClosure adjustAnchorClosure;
+    ReferrerList::iterateAllAnchors(&adjustAnchorClosure);
+    rtgc_log(true, "total anchors in the referrer-list: %d", adjustAnchorClosure._cnt_anchors);
+  }
+
   rtHeapEx::adjust_ref_q_pointers(true);
   GCRuntime::adjustShortcutPoints();
   /**
@@ -851,6 +878,7 @@ int RtHashLock::allocateHashSlot(ShortOOP* first) {
   int hash = ReferrerList::getIndex(refList);
   RTGC::unlock_heap();
   if (first == NULL) {
+    fatal("not tested!");
     refList->initEmpty();
     rt_assert(refList->empty());
     rt_assert(refList->approximated_item_count() == 0);
@@ -917,25 +945,3 @@ void rtHeap__initialize() {
 
 }
 
-void ReferrerList::adjustAnchorPointers() {
-  if (true) return;
-
-
-  Chunk* chunk = g_chunkPool.getPointer(1); // 1 = indexStart;
-  Chunk* endOfChunk = g_chunkPool.getNextAllocationPointer();
-  for (; chunk < endOfChunk; chunk++) {
-    if (chunk->isAlive()) {
-      int cntItem = ReferrerList::MAX_COUNT_IN_CHUNK;
-      ShortOOP* ppAnchor = chunk->_items;
-      for (; --cntItem >= 0; ppAnchor ++) {
-        ShortOOP anchor = *ppAnchor;
-        if (anchor.getOffset() != 0) {
-          oop forwardee = cast_to_oop((GCObject*)anchor)->forwardee();
-          if (forwardee != NULL) {
-            //*ppAnchor = forwardee;
-          }
-        }
-      }
-    }
-  }
-}

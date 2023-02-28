@@ -101,7 +101,7 @@ void GCObject::addReferrer(GCObject* referrer) {
         }
         else {
             referrers = nx->getAnchorList();
-            referrers->add(referrer);
+            referrers->push_back(referrer);
         }
     }
 }
@@ -118,6 +118,7 @@ bool GCObject::hasReferrer(GCObject* referrer) {
         return referrers->contains(referrer);
     }
 }
+
 
 template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
@@ -253,10 +254,7 @@ void GCObject::clearAnchorList() {
     rt_assert(!nx->hasShortcut());
     if (nx->hasMultiRef()) {
         ReferrerList* referrers = nx->getAnchorList();
-        // bool huge_list = (void*)referrers->lastItemPtr() < referrers || (void*)referrers->lastItemPtr() >= referrers + 1;
-        // rtgc_log(huge_list, "clearAnchorList %p/%p ~ %p", referrers, referrers->firstItemPtr() + 7, referrers->lastItemPtr());
         ReferrerList::delete_(referrers);
-        // rtgc_log(huge_list, "clearAnchorList done");
         nx->setHasMultiRef(false);
     }
     nx->removeSingleAnchor();    

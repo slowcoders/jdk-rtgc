@@ -345,12 +345,8 @@ public:
         return ptr;
     }
 
-    T* getNextAllocationPointer() {
-        return _next;
-    }
-
     int size() {
-        return _next - _items;
+        return _next - _items - indexStart;
     }
 
     int getIndex(void* ptr) {

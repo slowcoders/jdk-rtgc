@@ -40,31 +40,32 @@ namespace RTGC {
             _end = list->firstItemPtr();
         }     
     };
-}
 
+}
 
 ReferrerList::ChunkPool ReferrerList::g_chunkPool;
 
 const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
     Chunk* tail = g_chunkPool.allocate();
+    if (MARK_ALIVE_CHUNK) {
+        *(uintptr_t*)tail = 0; // clear nextFree address 
+    }
     rt_assert(((uintptr_t)tail & CHUNK_MASK) == 0);
     tail->_last_item_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
     rt_assert_f(tail->_last_item_offset != -8, "empty chunk %p", tail); 
     rt_assert(tail->isAlive());
-
     return &tail->_items[MAX_COUNT_IN_CHUNK-1];
 }
 
-
 void ReferrerList::dealloc_chunk(Chunk* chunk) {
     // rtgc_log(true, "dealloc_chunk %p %d\n", chunk, chunk->_last_item_offset);
-    uintptr_t* mem = (uintptr_t*)chunk;
-
-    // memset 대체.
-    rt_assert(sizeof(chunk) / sizeof(uintptr_t) == 4);
-    mem[1] = 0;
-    mem[2] = 0;
-    mem[3] = 0;
+    if (MARK_ALIVE_CHUNK) {
+        rt_assert(sizeof(Chunk) / sizeof(uintptr_t) == 4);
+        uintptr_t* mem = (uintptr_t*)chunk;
+        mem[1] = 0;
+        mem[2] = 0;
+        mem[3] = 0;
+    }
     g_chunkPool.delete_(chunk);
     rt_assert(!chunk->isAlive());
 }
@@ -85,29 +86,38 @@ void ReferrerList::delete_(ReferrerList* list) {
 
 
 void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
+    rt_assert(!this->empty());
     const ShortOOP* pLast = lastItemPtr();
     if (copy_to != NULL) {
         *copy_to = *pLast;
     }
-    rt_assert(!this->empty());
+    // for opt scan
+    if (MARK_ALIVE_CHUNK) {
+        *(ShortOOP::OffsetType*)pLast = 0;
+    }
     Chunk* last_chunk = getContainingChunck(pLast);
     if (last_chunk == &_head) {
         _head._last_item_offset --;
     } else if (pLast - last_chunk->_items == MAX_COUNT_IN_CHUNK - 1) {
         Chunk* tail = last_chunk->getNextChunk();
+    Chunk* prev = (Chunk*)(&last_chunk->_items[MAX_COUNT_IN_CHUNK] + last_chunk->_last_item_offset);
+        rt_assert(prev == tail);
         dealloc_chunk(last_chunk);
         if (tail == &_head) {
             _head._last_item_offset = -1;
         } else {
             set_last_item_ptr(&tail->_items[0]);
         }
-        rt_assert_f(tail->_last_item_offset != -8, "empty chunk %p", tail); 
     } else {
         _head._last_item_offset ++;
     }
     rt_assert(_head.isAlive());
 }
 
+ReferrerList* ReferrerList::allocate() {
+    ReferrerList* list = (ReferrerList*)g_chunkPool.allocate();
+    return list;
+}
 
 void ReferrerList::add(ShortOOP item) {
     const ShortOOP* pLast = lastItemPtr();
