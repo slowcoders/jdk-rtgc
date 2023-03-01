@@ -76,6 +76,10 @@ TypeArrayKlass* TypeArrayKlass::allocate(ClassLoaderData* loader_data, BasicType
 }
 
 TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, ID) {
+#if INCLUDE_RTGC
+  set_node_type(rtNodeType::PrimitiveSet);
+#endif
+
   set_layout_helper(array_layout_helper(type));
   assert(is_array_klass(), "sanity");
   assert(is_typeArray_klass(), "sanity");

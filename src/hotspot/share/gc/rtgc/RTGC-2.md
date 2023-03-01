@@ -19,7 +19,7 @@
       (promotion 처리 : modified history 로 구현하려면, 별도 heap 필요.
           -> iterate_young_gen_roots() 전에 history-clean)
       (anchorList memory compression)
-   * icrease/decreaseRootRefCount 다듬기 -> ROOT_REF_COUNT(n) 
+   * increase/decreaseRootRefCount 다듬기 -> ROOT_REF_COUNT(n) 
       -> isStrongRootReachable() { return _flags < ROOT_REF_COUNT(1); }
    * rt_node 데이터 최적화
    * isAcyclic()!!

@@ -75,6 +75,15 @@ class ParCompactionManager;
 class PSPromotionManager;
 class vtableEntry;
 
+#if INCLUDE_RTGC
+enum rtNodeType {
+  Unknown = -2,
+  Cyclic = 0,
+  Acyclic = 1,
+  PrimitiveSet = 3,
+};
+#endif
+
 class Klass : public Metadata {
   friend class VMStructs;
   friend class JVMCIVMStructs;
@@ -172,6 +181,10 @@ private:
   // -1.
   jshort _shared_class_path_index;
 
+#if INCLUDE_RTGC
+  rtNodeType _node_type;
+#endif  
+
 #if INCLUDE_CDS
   // Flags of the current shared class.
   u2     _shared_class_flags;
@@ -188,7 +201,10 @@ protected:
 
   // Constructor
   Klass(KlassID id);
-  Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
+  Klass() : _id(KlassID(-1)) {
+    RTGC_ONLY(_node_type = rtNodeType::Unknown;)  
+    assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); 
+  }
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
@@ -301,6 +317,20 @@ protected:
   ClassLoaderData* class_loader_data() const               { return _class_loader_data; }
   void set_class_loader_data(ClassLoaderData* loader_data) {  _class_loader_data = loader_data; }
 
+#if INCLUDE_RTGC
+  rtNodeType node_type() {
+    rt_assert(_node_type != rtNodeType::Unknown); 
+    return _node_type;
+  }
+
+  rtNodeType resolve_node_type(JavaThread* thread) {
+    if (_node_type == rtNodeType::Unknown) {
+      _node_type = resolve_node_type_impl(thread);
+    }
+    return _node_type;
+  }
+#endif
+
   int shared_classpath_index() const   {
     return _shared_class_path_index;
   };
@@ -355,6 +385,17 @@ protected:
   void     set_subklass(Klass* s);
   void     set_next_sibling(Klass* s);
 
+#if INCLUDE_RTGC
+  void set_node_type(rtNodeType node_type) {
+    this->_node_type = node_type;
+  }
+
+  virtual rtNodeType resolve_node_type_impl(JavaThread* thread) {
+    fatal("Should not reach hear!");
+    return rtNodeType::Unknown;
+  }
+#endif  
+
  public:
 
   // Compiler support
@@ -368,7 +409,9 @@ protected:
   static ByteSize modifier_flags_offset()        { return in_ByteSize(offset_of(Klass, _modifier_flags)); }
   static ByteSize layout_helper_offset()         { return in_ByteSize(offset_of(Klass, _layout_helper)); }
   static ByteSize access_flags_offset()          { return in_ByteSize(offset_of(Klass, _access_flags)); }
-
+#if INCLUDE_RTGC
+  static ByteSize node_type_offset()             { return in_ByteSize(offset_of(Klass, _node_type)); }
+#endif
   // Unpacking layout_helper:
   static const int _lh_neutral_value           = 0;  // neutral non-array non-instance value
   static const int _lh_instance_slow_path_bit  = 0x01;

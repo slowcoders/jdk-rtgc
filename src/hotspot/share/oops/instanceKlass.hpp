@@ -437,6 +437,10 @@ class InstanceKlass: public Klass {
   friend class fieldDescriptor;
   FieldInfo* field(int index) const { return FieldInfo::from_field_array(_fields, index); }
 
+#if INCLUDE_RTGC
+  virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
+#endif
+
  public:
   int     field_offset      (int index) const { return field(index)->offset(); }
   int     field_access_flags(int index) const { return field(index)->access_flags(); }

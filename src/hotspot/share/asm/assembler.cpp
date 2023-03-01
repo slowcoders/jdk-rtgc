@@ -245,7 +245,7 @@ bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
   // and may lie outside of the zero-trapping page, and thus we need to ensure we're forcing
   // an explicit null check for -1.
   
-#ifdef INCLUDE_RTGC  
+#if INCLUDE_RTGC  
   if (RtExplictNullCheckAlways) {
     return offset < 0 || offset > oopDesc::klass_offset_in_bytes();
   }

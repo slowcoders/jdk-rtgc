@@ -136,6 +136,18 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
+#if INCLUDE_RTGC
+rtNodeType ObjArrayKlass::resolve_node_type_impl(JavaThread* thread) {
+  Klass* element_klass = this->element_klass();
+  if (element_klass->is_final() || element_klass->is_array_klass()) {
+    if (element_klass->resolve_node_type(thread) > rtNodeType::Cyclic) {
+      return rtNodeType::Acyclic;
+    }
+  }
+  return rtNodeType::Cyclic;
+}
+#endif  
+
 ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
   set_dimension(n);
   set_element_klass(element_klass);

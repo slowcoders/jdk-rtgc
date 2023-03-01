@@ -43,10 +43,19 @@ public:
   static const KlassID ID = InstanceClassLoaderKlassID;
 
 private:
-  InstanceClassLoaderKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_class_loader, ID) {}
+  InstanceClassLoaderKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_class_loader, ID) {
+#if INCLUDE_RTGC
+    set_node_type(rtNodeType::Acyclic);
+#endif    
+  }
 
 public:
-  InstanceClassLoaderKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InstanceClassLoaderKlass() { 
+    assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); 
+#if INCLUDE_RTGC
+    set_node_type(rtNodeType::Acyclic);
+#endif    
+  }
 
   // Oop fields (and metadata) iterators
   //

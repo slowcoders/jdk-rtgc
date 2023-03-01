@@ -37,6 +37,9 @@
 #include "utilities/macros.hpp"
 
 int InstanceMirrorKlass::_offset_of_static_fields = 0;
+#if INCLUDE_RTGC
+rtNodeType InstanceMirrorKlass::_rt_node_type = rtNodeType::Acyclic;
+#endif
 
 int InstanceMirrorKlass::instance_size(Klass* k) {
   if (k != NULL && k->is_instance_klass()) {

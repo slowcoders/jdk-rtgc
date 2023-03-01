@@ -50,10 +50,22 @@ class InstanceMirrorKlass: public InstanceKlass {
  private:
   static int _offset_of_static_fields;
 
-  InstanceMirrorKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_mirror, ID) {}
+#if INCLUDE_RTGC
+  static rtNodeType _rt_node_type;
+#endif
+  InstanceMirrorKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_mirror, ID) {
+#if INCLUDE_RTGC
+    set_node_type(_rt_node_type);
+#endif    
+  }
 
  public:
-  InstanceMirrorKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InstanceMirrorKlass() { 
+    assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); 
+#if INCLUDE_RTGC
+    set_node_type(_rt_node_type);
+#endif    
+  }
 
   static InstanceMirrorKlass* cast(Klass* k) {
     return const_cast<InstanceMirrorKlass*>(cast(const_cast<const Klass*>(k)));

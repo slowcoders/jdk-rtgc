@@ -194,6 +194,8 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
 // #endif
 #endif
+#if 0
+#else
 #if RTGC_FAT_OOP  
     xorptr(t1, t1);
 #ifdef _LP64    
@@ -205,6 +207,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     // movl(Address(obj, 16), t1);
     // movl(Address(obj, 20), t1);
 #endif    
+#endif
 #endif
 }
 

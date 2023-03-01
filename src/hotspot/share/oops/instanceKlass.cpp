@@ -802,6 +802,10 @@ void InstanceKlass::initialize(TRAPS) {
     // Note: at this point the class may be initialized
     //       OR it may be in the state of being initialized
     //       in case of recursive initialization!
+#if INCLUDE_RTGC
+    rtNodeType node_type = this->resolve_node_type(THREAD);
+    rt_assert(node_type != rtNodeType::Unknown);
+#endif    
   } else {
     assert(is_initialized(), "sanity check");
   }
@@ -1086,6 +1090,9 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Next, if C is a class rather than an interface, initialize it's super class and super
   // interfaces.
   if (!is_interface()) {
+#if INCLUDE_RTGC
+    bool is_acyclic = true;
+#endif
     Klass* super_klass = super();
     if (super_klass != NULL && super_klass->should_be_initialized()) {
       super_klass->initialize(THREAD);
@@ -1112,7 +1119,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
       THROW_OOP(e());
     }
   }
-
 
   // Step 8
   {
@@ -4193,3 +4199,50 @@ void ClassHierarchyIterator::next() {
   _current = _current->next_sibling();
   return; // visit next sibling subclass
 }
+
+#if INCLUDE_RTGC
+#include "ci/ciUtilities.hpp"
+#include "oops/fieldStreams.inline.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+
+rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
+  // temprary set nodeType for prevent recursive nodeType resolve
+  set_node_type(rtNodeType::Cyclic);
+  if (is_interface()) return rtNodeType::Cyclic;  
+
+  rt_assert(!this->is_array_klass());
+
+  // rtgc_log(true, "resolveNodeType klass = %s", this->name()->bytes());
+  rtNodeType super_type = super() == NULL ? rtNodeType::PrimitiveSet
+      : super()->resolve_node_type(thread);
+  if (super_type == rtNodeType::Cyclic) return rtNodeType::Cyclic;
+
+  // ResourceMark rm(JavaThread::current());
+
+  bool has_oop_field = super_type != rtNodeType::PrimitiveSet;
+  for (JavaFieldStream fs((InstanceKlass*)this); !fs.done(); fs.next()) {
+    if (fs.access_flags().is_static()) continue;
+
+    fieldDescriptor& fd = fs.field_descriptor();
+    BasicType basicType = fd.field_type();
+    if (basicType != T_OBJECT && basicType != T_ARRAY) continue;
+
+    has_oop_field = true;
+    Klass* klass = SystemDictionary::resolve_or_null(fd.signature(), //thread);
+        Handle(thread, this->class_loader()), Handle(), thread); 
+
+    rtgc_log(klass == NULL, "klass not found %s", fd.signature()->bytes());
+    if (klass == NULL) {
+      return rtNodeType::Cyclic; 
+    }
+    bool is_acyclic = (basicType == T_ARRAY || klass->is_final())
+                   && klass->resolve_node_type(thread) > rtNodeType::Cyclic;
+    // rtgc_log(true, "\tklass = %s, field = %s isAcyclic %d", 
+    //     klass->name()->bytes(), fd.signature()->bytes(), is_acyclic);
+    if (!is_acyclic) return rtNodeType::Cyclic;
+  }
+  rtNodeType node_type = (has_oop_field ? rtNodeType::Acyclic : rtNodeType::PrimitiveSet); 
+  // rtgc_log(true, "!! Acyclic klass = %s", this->name()->bytes());
+  return node_type;
+}
+#endif

@@ -377,7 +377,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   // store the forwarding pointer into the mark word
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
-#ifdef INCLUDE_RTGC 
+#if INCLUDE_RTGC 
 #ifdef ASSERT
     if (EnableRTGC) {
       assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");

@@ -778,7 +778,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#ifdef INCLUDE_RTGC
+#if INCLUDE_RTGC
     if (true || EnableRTGC) { /* UseCommpressedOpp 와 무관 */
       precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
       rtHeap::mark_promoted_trackable(obj);
@@ -800,7 +800,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-#ifdef INCLUDE_RTGC
+#if INCLUDE_RTGC
   if (EnableRTGC) {
 #ifdef ASSERT
     RTGC::adjust_debug_pointer(old, obj, true);
