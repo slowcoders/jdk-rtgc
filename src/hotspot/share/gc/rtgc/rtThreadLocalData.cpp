@@ -57,6 +57,12 @@ template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
 
   // rtgc_log(_atomic, "updateAnchorList %p[%d] = %x\n", _anchor, offset(), (int32_t)erased());
+  if (false && _anchor == NULL) {
+    narrowOop erased = _erased._obj;
+    narrowOop assigned = *(narrowOop*)&_erased._offset;
+    RTGC::on_root_changed(CompressedOops::decode(erased), CompressedOops::decode(assigned), NULL, NULL);
+    return;
+  }
 
   rt_assert(to_obj(_anchor)->isTrackable());
   rt_assert_f(!rtHeap::is_modified(erased()), "%p(%s) [%d] v=%x/n", 

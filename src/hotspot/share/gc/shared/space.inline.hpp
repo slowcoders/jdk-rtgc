@@ -118,10 +118,10 @@ public:
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length, false);
-#if !INCLUDE_RTGC      
-      oop obj = cast_to_oop(dead_start);
-      obj->set_mark(obj->mark().set_marked());
-#endif
+      if (!EnableRTGC) {
+        oop obj = cast_to_oop(dead_start);
+        obj->set_mark(obj->mark().set_marked());
+      }
       assert(dead_length == (size_t)cast_to_oop(dead_start)->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
           p2i(dead_start), p2i(dead_end), dead_length * HeapWordSize);
@@ -220,8 +220,10 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       // we don't have to compact quite as often.
       if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
         oop obj = cast_to_oop(cur_obj);
-        void rtHeap__mark_dead_space(oopDesc* obj);
-        rtHeap__mark_dead_space(obj);
+        if (EnableRTGC) {
+          void rtHeap__mark_dead_space(oopDesc* obj);
+          rtHeap__mark_dead_space(obj);
+        }
         compact_top = cp->space->forward(obj, obj->size(), cp, compact_top);
         end_of_live = end;
       } else {
@@ -268,7 +270,8 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   debug_only(HeapWord* prev_obj = NULL);
   while (cur_obj < end_of_live) {
     Prefetch::write(cur_obj, interval);
-    if (cur_obj < first_dead || RTGC_ONLY(rtHeap::is_alive(cast_to_oop(cur_obj), false)) NOT_RTGC(cast_to_oop(cur_obj)->is_gc_marked())) {
+    if (cur_obj < first_dead || 
+        (EnableRTGC ? rtHeap::is_alive(cast_to_oop(cur_obj), false) : cast_to_oop(cur_obj)->is_gc_marked())) {
       // cur_obj is alive
       // point all the oops to the new location
 #if INCLUDE_RTGC
@@ -366,7 +369,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
   debug_only(HeapWord* prev_obj = NULL);
   while (cur_obj < end_of_live) {
-    if (RTGC_ONLY(!rtHeap::is_alive(cast_to_oop(cur_obj), false)) NOT_RTGC(!cast_to_oop(cur_obj)->is_gc_marked())) {
+    if (EnableRTGC ? !rtHeap::is_alive(cast_to_oop(cur_obj), false) : !cast_to_oop(cur_obj)->is_gc_marked()) {
       debug_only(prev_obj = cur_obj);
       // The first word of the dead object contains a pointer to the next live object or end of space.
       cur_obj = *(HeapWord**)cur_obj;

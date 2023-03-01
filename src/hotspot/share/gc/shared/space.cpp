@@ -378,9 +378,9 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
 #ifdef INCLUDE_RTGC 
-    assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");
 #ifdef ASSERT
     if (EnableRTGC) {
+      assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");
       RTGC::adjust_debug_pointer(q, cast_to_oop(compact_top), false);
     }
 #endif
@@ -391,7 +391,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
 #if INCLUDE_RTGC 
-    rt_assert_f(rtHeap::is_destroyed(q) || (rtHeap::is_trackable(q) ? (!q->is_gc_marked() && rtHeap::is_alive(q))
+    rt_assert_f(!EnableRTGC || rtHeap::is_destroyed(q) || (rtHeap::is_trackable(q) ? (!q->is_gc_marked() && rtHeap::is_alive(q))
         : q->is_gc_marked()), "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
 #endif
     // copy_to_survior_space 실행 시 age 등의 값이 clear 되지 않은 상태이다.

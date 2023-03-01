@@ -112,6 +112,7 @@ void rtHeap::init_mark(oopDesc* p) {
 }
 
 bool rtHeap::is_alive(oopDesc* p, bool must_not_destroyed) {
+  rt_assert(EnableRTGC);
   GCObject* node = to_obj(p);
   if (!must_not_destroyed) {
     return !node->isGarbageMarked() && (node->isTrackable_unsafe() || p->is_gc_marked());
