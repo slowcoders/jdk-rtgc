@@ -268,7 +268,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   debug_only(HeapWord* prev_obj = NULL);
   while (cur_obj < end_of_live) {
     Prefetch::write(cur_obj, interval);
-    if (cur_obj < first_dead || RTGC_ONLY(rtHeap::is_alive(cast_to_oop(cur_obj))) NOT_RTGC(cast_to_oop(cur_obj)->is_gc_marked())) {
+    if (cur_obj < first_dead || RTGC_ONLY(rtHeap::is_alive(cast_to_oop(cur_obj), false)) NOT_RTGC(cast_to_oop(cur_obj)->is_gc_marked())) {
       // cur_obj is alive
       // point all the oops to the new location
 #if INCLUDE_RTGC
@@ -366,7 +366,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
 
   debug_only(HeapWord* prev_obj = NULL);
   while (cur_obj < end_of_live) {
-    if (RTGC_ONLY(!rtHeap::is_alive(cast_to_oop(cur_obj))) NOT_RTGC(!cast_to_oop(cur_obj)->is_gc_marked())) {
+    if (RTGC_ONLY(!rtHeap::is_alive(cast_to_oop(cur_obj), false)) NOT_RTGC(!cast_to_oop(cur_obj)->is_gc_marked())) {
       debug_only(prev_obj = cur_obj);
       // The first word of the dead object contains a pointer to the next live object or end of space.
       cur_obj = *(HeapWord**)cur_obj;
