@@ -338,3 +338,22 @@ make: *** [test] Error 2
 real    129m40.893s
 user    387m3.703s
 sys     12m12.053s
+
+--- acylic ref-count enabled -------------------
+alive objects 90914 anchors 52968 multi 5014
+alive objects 187646 anchors 240898 multi 57020
+alive objects 70578 anchors 52841 multi 5142
+alive objects 138120 anchors 82636 multi 5731
+alive objects 282307 anchors 122806 multi 5823
+alive objects 502519 anchors 629451 multi 170981
+alive objects 924497 anchors 1470441 multi 359440
+
+
+--- acylic ref-count disabled -------------------
+alive objects 90912 anchors 130308 multi 13358
+alive objects 187668 anchors 424694 multi 76289
+alive objects 70577 anchors 117607 multi 14308
+alive objects 138119 anchors 221506 multi 22470
+alive objects 282306 anchors 383748 multi 32340
+alive objects 502512 anchors 1177547 multi 233862
+alive objects 924416 anchors 2430149 multi 424139

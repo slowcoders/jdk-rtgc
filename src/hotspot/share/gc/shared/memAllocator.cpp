@@ -382,7 +382,9 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
   assert(mem != NULL, "cannot initialize NULL object");
   const size_t hs = oopDesc::header_size();
   assert(_word_size >= hs, "unexpected object size");
+#if !INCLUDE_RTGC  
   oopDesc::set_klass_gap(mem, 0);
+#endif
   Copy::fill_to_aligned_words(mem + hs, _word_size - hs);
 }
 

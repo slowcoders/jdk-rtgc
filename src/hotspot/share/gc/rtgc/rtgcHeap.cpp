@@ -40,6 +40,9 @@ namespace RTGC {
   bool g_in_progress_marking = false;
   int cnt_resurrect = 0;
   int g_cnt_skip_garbage = 0;
+  int g_cnt_multi_anchored_obj;
+  int g_cnt_ref_anchor;
+  int g_cnt_alive_obj;
 
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
@@ -378,7 +381,7 @@ void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
   rt_assert(node->isTrackable());
   if (anchor == link) return;
   rt_assert_f(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)", anchor, anchor->klass()->name()->bytes());
-  rt_assert(node->hasReferrer(to_obj(anchor)));
+  rt_assert(node->isAcyclic() || node->hasReferrer(to_obj(anchor)));
 
   if (node->isGarbageMarked()) {
     rt_assert_f(node->node_()->hasAnchor() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
@@ -460,6 +463,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   }
   else {
     RTGC::add_referrer_unsafe(old_p, _new_anchor_p, _old_anchor_p);
+    debug_only(g_cnt_ref_anchor += (int)to_obj(old_p)->node_()->mayHaveAnchor();)
   }
 }
 
@@ -468,6 +472,7 @@ static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
   rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, 
       old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(node));
+  debug_only(g_cnt_ref_anchor++;)
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {
     rtgc_log(LOG_OPT(11), "anchor moved %p->%p in %p", old_p, new_obj, node);
@@ -491,6 +496,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   // 참고) 주소가 옮겨지지 않은 YG 객체는 unmarked 상태이다.
 
   rtgc_debug_log(old_p, "adjust_pointers %p", old_p);
+  debug_only(g_cnt_alive_obj++;);
   oopDesc* new_anchor_p = NULL;
   bool is_trackable_forwardee = node->isTrackable_unsafe();
   g_adjust_pointer_closure._trackable_old_anchor = is_trackable_forwardee;
@@ -529,14 +535,20 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   RtNode* nx = node->getMutableNode();
   if (nx->mayHaveAnchor()) {
     if (nx->hasMultiRef()) {
+      debug_only(g_cnt_multi_anchored_obj ++;)
       if (!BATCH_UPDATE_ANCHORS) {
         ReferrerList* referrers = nx->getAnchorList();
         rt_assert_f(!referrers->isTooSmall() || nx->isAnchorListLocked(), 
             "invalid anchorList " PTR_DBG_SIG, PTR_DBG_INFO(node));
+        
+        debug_only(int cnt_anchor = 0;)
         for (ReverseIterator it(referrers); it.hasNext(); ) {
           ShortOOP* ptr = (ShortOOP*)it.next_ptr();
           adjust_anchor_pointer(ptr, node);
+          debug_only(cnt_anchor++;)
         }
+        rtgc_log(cnt_anchor > 1000, "big ref list %d acyclic %d %s", 
+            cnt_anchor, old_p->klass()->is_acyclic(), old_p->klass()->name()->bytes());
       }
     }
     else {
@@ -568,6 +580,10 @@ void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
   rtgc_log(LOG_OPT(2), "old_gen_heap_start %p", old_gen_heap_start);
   rt_assert(MarkSweep::_resurrect_stack.is_empty());
+  debug_only(g_cnt_ref_anchor = 0;)
+  debug_only(g_cnt_alive_obj = 0;);
+  debug_only(g_cnt_multi_anchored_obj = 0;)
+
   // yg_root_locked = false;
   if (g_young_roots.size() > 0) {
     oop* src_0 = g_young_roots.adr_at(0);
@@ -681,6 +697,8 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 }
 
 void rtHeap::finish_adjust_pointers() {
+  rtgc_log(true, "alive objects %d anchors %d multi %d", g_cnt_alive_obj, g_cnt_ref_anchor, g_cnt_multi_anchored_obj);
+
   g_adjust_pointer_closure._old_gen_start = NULL;
 
   if (BATCH_UPDATE_ANCHORS) {
@@ -698,6 +716,7 @@ void rtHeap::finish_adjust_pointers() {
   if (RTGC_FAT_OOP) {
     rtHeap__clearStack<true>();
   }
+
 }
 
 class ClearWeakHandleRef: public OopClosure {
@@ -808,7 +827,7 @@ void rtHeap__mark_dead_space(oopDesc* deadObj) {
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
     rt_assert_f(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
-    rt_assert_f(to_obj(obj)->hasReferrer(to_obj(anchor)), 
+    rt_assert_f(to_obj(obj)->isAcyclic() || to_obj(obj)->hasReferrer(to_obj(anchor)), 
         "anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,
         PTR_DBG_INFO(anchor), PTR_DBG_INFO(obj)); 
   }

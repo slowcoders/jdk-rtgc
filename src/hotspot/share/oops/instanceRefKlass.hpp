@@ -53,20 +53,16 @@ class InstanceRefKlass: public InstanceKlass {
   static const KlassID ID = InstanceRefKlassID;
 
  private:
-  InstanceRefKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_reference, ID) {
-#if INCLUDE_RTGC
-    set_node_type(rtNodeType::Cyclic);
-#endif    
-  }
+  InstanceRefKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_reference, ID) {}
 
  public:
   InstanceRefKlass() { 
     assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); 
-#if INCLUDE_RTGC
-    set_node_type(rtNodeType::Cyclic);
-#endif    
   }
 
+#if INCLUDE_RTGC
+  virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
+#endif
   // Oop fields (and metadata) iterators
   //
   // The InstanceRefKlass iterators also support reference processing.

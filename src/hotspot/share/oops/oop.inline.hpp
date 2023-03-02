@@ -141,10 +141,12 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
 }
 
 void oopDesc::clear_rt_node(HeapWord* mem) {
-#if RTGC_FAT_OOP 
+#if RTGC_FAT_OOP // rtNode
   cast_to_oop(mem)->_rtNode[0] = 0;
-#endif
+  cast_to_oop(mem)->set_klass_gap((int)(cast_to_oop(mem)->klass()->is_acyclic()));
+#else
   cast_to_oop(mem)->set_klass_gap(0);
+#endif
 }
 
 void oopDesc::set_klass_gap(int v) {

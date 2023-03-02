@@ -1884,7 +1884,11 @@ run:
               // Initialize header
               assert(!UseBiasedLocking, "Not implemented");
               obj->set_mark(markWord::prototype());
+#ifdef INCLUDE_RTGC
+              obj->set_klass_gap(ik->is_acyclic());
+#else
               obj->set_klass_gap(0);
+#endif
               obj->set_klass(ik);
 
               // Must prevent reordering of stores for object initialization

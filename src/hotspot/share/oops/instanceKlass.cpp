@@ -1418,6 +1418,9 @@ Klass* InstanceKlass::array_klass(int n, TRAPS) {
         release_set_array_klasses(k);
       }
     }
+    #if INCLUDE_RTGC
+      array_klasses()->resolve_node_type(THREAD);
+    #endif
   }
   // array_klasses() will always be set at this point
   ObjArrayKlass* oak = array_klasses();
@@ -4207,15 +4210,19 @@ void ClassHierarchyIterator::next() {
 
 rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
   // temprary set nodeType for prevent recursive nodeType resolve
-  set_node_type(rtNodeType::Cyclic);
-  if (is_interface()) return rtNodeType::Cyclic;  
+  rtNodeType node_type = rtNodeType::Cyclic;
+  set_node_type(node_type);
+  if (is_interface()) return node_type;  
 
   rt_assert(!this->is_array_klass());
 
-  // rtgc_log(true, "resolveNodeType klass = %s", this->name()->bytes());
+  if (thread == NULL) {
+    thread = JavaThread::current();
+  }
+
   rtNodeType super_type = super() == NULL ? rtNodeType::PrimitiveSet
       : super()->resolve_node_type(thread);
-  if (super_type == rtNodeType::Cyclic) return rtNodeType::Cyclic;
+  if (super_type == rtNodeType::Cyclic) return node_type;
 
   // ResourceMark rm(JavaThread::current());
 
@@ -4228,20 +4235,21 @@ rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
     if (basicType != T_OBJECT && basicType != T_ARRAY) continue;
 
     has_oop_field = true;
-    Klass* klass = SystemDictionary::resolve_or_null(fd.signature(), //thread);
-        Handle(thread, this->class_loader()), Handle(), thread); 
+    // 참고) classLoader 를 지정하지 않으면, 이미 load 된 class 만 resolve 가능.
+    Klass* klass = SystemDictionary::resolve_or_null(fd.signature(), 
+        Handle(thread, class_loader()), Handle(thread, protection_domain()), thread); 
 
     rtgc_log(klass == NULL, "klass not found %s", fd.signature()->bytes());
     if (klass == NULL) {
-      return rtNodeType::Cyclic; 
+      return node_type; 
     }
     bool is_acyclic = (basicType == T_ARRAY || klass->is_final())
-                   && klass->resolve_node_type(thread) > rtNodeType::Cyclic;
+                   && klass->resolve_node_type(thread) >= rtNodeType::Acyclic;
     // rtgc_log(true, "\tklass = %s, field = %s isAcyclic %d", 
     //     klass->name()->bytes(), fd.signature()->bytes(), is_acyclic);
-    if (!is_acyclic) return rtNodeType::Cyclic;
+    if (!is_acyclic) return node_type;
   }
-  rtNodeType node_type = (has_oop_field ? rtNodeType::Acyclic : rtNodeType::PrimitiveSet); 
+  node_type = (has_oop_field ? rtNodeType::Acyclic : rtNodeType::PrimitiveSet); 
   // rtgc_log(true, "!! Acyclic klass = %s", this->name()->bytes());
   return node_type;
 }

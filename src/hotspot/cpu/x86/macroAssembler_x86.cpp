@@ -4742,15 +4742,8 @@ void MacroAssembler::load_prototype_header(Register dst, Register src, Register 
 void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);
-#ifdef _LP64
-  if (UseCompressedClassPointers) {
-    encode_klass_not_null(src, tmp);
-    movl(Address(dst, oopDesc::klass_offset_in_bytes()), src);
-  } else
-#endif
-    movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 
-#if RTGC_FAT_OOP  
+#if RTGC_FAT_OOP  // rtNode
     xorptr(tmp, tmp);
 #ifdef _LP64    
     movq(Address(dst, 8), tmp);
@@ -4762,6 +4755,15 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
     // movl(Address(dst, 20), tmp);
 #endif    
 #endif
+
+
+#ifdef _LP64
+  if (UseCompressedClassPointers) {
+    encode_klass_not_null(src, tmp);
+    movl(Address(dst, oopDesc::klass_offset_in_bytes()), src);
+  } else
+#endif
+    movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 }
 
 void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,

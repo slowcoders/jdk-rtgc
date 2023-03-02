@@ -247,6 +247,11 @@ bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnch
     rt_assert(!rtHeapEx::g_lock_unsafe_list);
     rt_assert(garbageAnchor->isTrackable());
     rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    if (true) {
+        link->removeReferrer(garbageAnchor);
+        return link->isUnstableMarked();
+    }
+
     if (link->removeMatchedReferrers(garbageAnchor)) {
         if (link->isUnsafeTrackable() && !link->isUnstableMarked()) {
             link->markUnstable();

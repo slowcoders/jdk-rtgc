@@ -160,6 +160,11 @@ void vmClasses::resolve_all(TRAPS) {
   java_lang_String::compute_offsets();
   java_lang_Class::compute_offsets();
 
+#if INCLUDE_RTGC
+  vmClasses::Object_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Class_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::String_klass()->set_node_type(rtNodeType::Acyclic);
+#endif
   // Fixup mirrors for classes loaded before java.lang.Class.
   Universe::initialize_basic_type_mirrors(CHECK);
   Universe::fixup_mirrors(CHECK);
@@ -184,6 +189,14 @@ void vmClasses::resolve_all(TRAPS) {
   vmClasses::FinalReference_klass()->set_reference_type(REF_FINAL);
   vmClasses::PhantomReference_klass()->set_reference_type(REF_PHANTOM);
 
+#if INCLUDE_RTGC
+  vmClasses::Reference_klass()->set_node_type(rtNodeType::Cyclic);
+  vmClasses::SoftReference_klass()->set_node_type(rtNodeType::Cyclic);
+  vmClasses::WeakReference_klass()->set_node_type(rtNodeType::Cyclic);
+  vmClasses::FinalReference_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::PhantomReference_klass()->set_node_type(rtNodeType::Cyclic);
+#endif
+
   // JSR 292 classes
   vmClassID jsr292_group_start = VM_CLASS_ID(MethodHandle_klass);
   vmClassID jsr292_group_end   = VM_CLASS_ID(VolatileCallSite_klass);
@@ -201,6 +214,20 @@ void vmClasses::resolve_all(TRAPS) {
   _box_klasses[T_LONG]    = vmClasses::Long_klass();
   //_box_klasses[T_OBJECT]  = vmClasses::object_klass();
   //_box_klasses[T_ARRAY]   = vmClasses::object_klass();
+#if INCLUDE_RTGC
+  vmClasses::Boolean_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Character_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Float_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Double_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Byte_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Short_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Integer_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::Long_klass()->set_node_type(rtNodeType::Acyclic);
+  vmClasses::StackTraceElement_klass()->set_node_type(rtNodeType::Acyclic);
+
+  vmClasses::OutOfMemoryError_klass()->set_node_type(rtNodeType::Cyclic);
+  printf("GGGGGGG\n");
+#endif
 
 #ifdef ASSERT
   if (UseSharedSpaces) {

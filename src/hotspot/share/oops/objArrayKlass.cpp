@@ -140,7 +140,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
 rtNodeType ObjArrayKlass::resolve_node_type_impl(JavaThread* thread) {
   Klass* element_klass = this->element_klass();
   if (element_klass->is_final() || element_klass->is_array_klass()) {
-    if (element_klass->resolve_node_type(thread) > rtNodeType::Cyclic) {
+    this->set_node_type(rtNodeType::Cyclic); // Loop 방지.
+    if (element_klass->resolve_node_type(thread) >= rtNodeType::Acyclic) {
       return rtNodeType::Acyclic;
     }
   }
@@ -349,6 +350,9 @@ Klass* ObjArrayKlass::array_klass(int n, TRAPS) {
         assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
+    #if INCLUDE_RTGC
+      ObjArrayKlass::cast(higher_dimension())->resolve_node_type(THREAD);
+    #endif
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());

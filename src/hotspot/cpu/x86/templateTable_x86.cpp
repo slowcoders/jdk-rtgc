@@ -4033,7 +4033,12 @@ void TemplateTable::_new() {
       __ pop(rcx);   // get saved klass back in the register.
     }
 #ifdef _LP64
-    __ xorl(rsi, rsi); // use zero reg to clear memory (shorter code)
+    if (INCLUDE_RTGC) { // is_acyclic
+      __ movl(rsi, Address(rcx, Klass::node_type_offset()));
+      __ andl(rsi, 1);
+    } else {
+      __ xorl(rsi, rsi); // use zero reg to clear memory (shorter code)
+    }
     __ store_klass_gap(rax, rsi);  // zero klass gap for compressed oops
 #endif
     Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);

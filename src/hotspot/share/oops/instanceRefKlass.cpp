@@ -91,3 +91,10 @@ void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
     guarantee(InstanceKlass::cast(next->klass())->is_reference_instance_klass(), "next field verify failed");
   }
 }
+
+#if INCLUDE_RTGC
+rtNodeType InstanceRefKlass::resolve_node_type_impl(JavaThread* thread) {
+  return this->reference_type() == REF_FINAL ? rtNodeType::Acyclic : rtNodeType::Cyclic;
+}
+#endif
+  

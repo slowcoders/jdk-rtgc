@@ -109,6 +109,7 @@ public:
 };
 
 struct GCFlags {
+	uint32_t isAyclic: 1;
 	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;
 #if RTGC_SHARE_GC_MARK
@@ -123,13 +124,13 @@ struct GCFlags {
 	uint32_t isPublished: 1;
 	uint32_t immortal: 1;
 #if ZERO_ROOT_REF < 0	
-	int32_t rootRefCount: 24;
+	int32_t rootRefCount: 23;
 #else
-	uint32_t rootRefCount: 24;
+	uint32_t rootRefCount: 23;
 #endif
 };
 
-class GCNode : private oopDesc {
+class GCNode : public oopDesc {
 friend class RtNode;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
@@ -190,6 +191,10 @@ public:
 	bool isTrackable() {
 		rt_assert(!in_progress_adjust_pointers);
 		return this->isTrackable_unsafe();
+	}
+
+	bool isAcyclic() {
+		return flags().isAyclic;
 	}
 
 	bool isTrackable_unsafe() {

@@ -319,8 +319,12 @@ protected:
 
 #if INCLUDE_RTGC
   rtNodeType node_type() {
-    rt_assert(_node_type != rtNodeType::Unknown); 
     return _node_type;
+  }
+
+  bool is_acyclic() {
+    rt_assert_f(_node_type != rtNodeType::Unknown, "node type not resolved %s", name()->bytes()); 
+    return _node_type >= rtNodeType::Acyclic;
   }
 
   rtNodeType resolve_node_type(JavaThread* thread) {
@@ -328,6 +332,15 @@ protected:
       _node_type = resolve_node_type_impl(thread);
     }
     return _node_type;
+  }
+
+  void set_node_type(rtNodeType node_type) {
+    this->_node_type = node_type;
+  }
+
+  virtual rtNodeType resolve_node_type_impl(JavaThread* thread) {
+    fatal("Should not reach hear!");
+    return rtNodeType::Unknown;
   }
 #endif
 
@@ -384,17 +397,6 @@ protected:
  protected:                                // internal accessors
   void     set_subklass(Klass* s);
   void     set_next_sibling(Klass* s);
-
-#if INCLUDE_RTGC
-  void set_node_type(rtNodeType node_type) {
-    this->_node_type = node_type;
-  }
-
-  virtual rtNodeType resolve_node_type_impl(JavaThread* thread) {
-    fatal("Should not reach hear!");
-    return rtNodeType::Unknown;
-  }
-#endif  
 
  public:
 

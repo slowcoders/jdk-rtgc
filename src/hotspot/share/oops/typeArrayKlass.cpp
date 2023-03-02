@@ -198,6 +198,9 @@ Klass* TypeArrayKlass::array_klass(int n, TRAPS) {
         // use 'release' to pair with lock-free load
         release_set_higher_dimension(h_ak);
         assert(h_ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
+        #if INCLUDE_RTGC
+          oak->set_node_type(rtNodeType::Acyclic);
+        #endif        
       }
     }
   }
