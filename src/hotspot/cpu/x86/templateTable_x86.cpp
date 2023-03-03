@@ -3061,11 +3061,15 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   Label notVolatile, Done;
   __ movl(rdx, flags);
+#if INCLUDE_RTGC  
+  __ testl(rdx, 1 << ConstantPoolCacheEntry::is_volatile_shift);
+#else
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
   __ andl(rdx, 0x1);
 
   // Check for volatile store
   __ testl(rdx, rdx);
+#endif
   __ jcc(Assembler::zero, notVolatile);
 
   putfield_or_static_helper(byte_no, is_static, rc, obj, off, flags);
@@ -3088,6 +3092,9 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
 
   Label notByte, notBool, notInt, notShort, notChar,
         notLong, notFloat, notObj;
+#if INCLUDE_RTGC
+  Label notFinal;
+#endif        
   Label Done;
 
   const Register bc    = LP64_ONLY(c_rarg3) NOT_LP64(rcx);
@@ -3132,10 +3139,22 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
-    // Store into the field
-    do_oop_store(_masm, field, rax);
-    if (!is_static && rc == may_rewrite) {
-      patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+#if INCLUDE_RTGC
+    __ testl(rdx, 1 << ConstantPoolCacheEntry::is_final_shift);
+    __ jcc(Assembler::zero, notFinal);
+    {
+      // Store into the field
+      do_oop_store(_masm, field, rax, IS_FINAL_FIELD);
+    }
+    __ jmp(Done);
+    __ bind(notFinal);
+#endif
+    {
+      // Store into the field
+      do_oop_store(_masm, field, rax);
+      if (!is_static && rc == may_rewrite) {
+        patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+      }
     }
     __ jmp(Done);
   }

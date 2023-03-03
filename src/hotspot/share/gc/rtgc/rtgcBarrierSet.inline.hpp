@@ -60,6 +60,8 @@ oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
     RtgcBarrier::oop_store_unknown(addr, value, base);
   } else if (decorators & IS_ARRAY) {
     RtgcBarrier::oop_store_array_item(addr, value, base);
+  } else if (decorators & IS_FINAL_FIELD) {
+    RtgcBarrier::oop_store_final(addr, value, base);
   } else {
     RtgcBarrier::oop_store(addr, value, base);
   }

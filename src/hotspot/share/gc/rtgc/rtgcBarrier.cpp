@@ -16,6 +16,8 @@
 #include "runtime/atomic.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/rtThreadLocalData.hpp"
+#include "oops/fieldStreams.inline.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 
 
 volatile int LOG_VERBOSE = 0;
@@ -55,10 +57,69 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   return true;
 }
 
-static void check_field_addr(oopDesc* base, volatile void* addr, bool is_array) {
-  //rt_assert(!strong_reachable || is_strong_ref(addr, base));
+static bool is_final_field_offset(Klass* klass, int offset) {
+  rt_assert(klass->is_instance_klass());
+  while (klass != vmClasses::Object_klass()) {
+    for (JavaFieldStream fs(InstanceKlass::cast(klass)); !fs.done(); fs.next()) {
+      AccessFlags flags = fs.access_flags();
+      if (!flags.is_static() && fs.offset() == offset) {
+        return flags.is_final();
+      }
+    }
+    klass = klass->super();
+  }
+  fatal("unknown_offset");
+  return false;
+}
+
+
+static int find_field(Klass* klass, int offset, bool is_static, bool is_final, bool print_log) {
+  while (klass != vmClasses::Object_klass() && klass->is_instance_klass()) {
+    for (JavaFieldStream fs(InstanceKlass::cast(klass)); !fs.done(); fs.next()) {
+      AccessFlags flags = fs.access_flags();
+      rtgc_log(print_log, "field [%d] %s.%s %s final: %d", fs.offset(),
+          klass->name()->bytes(), fs.name()->bytes(), fs.signature()->bytes(), flags.is_final());
+      if (flags.is_static() == is_static && fs.offset() == offset) {
+        rtgc_log(flags.is_final() != is_final, "wrong final %d [%d] %s.%s %s", 
+            flags.is_final(), offset, klass->name()->bytes(), 
+            fs.name()->bytes(), fs.signature()->bytes());
+        return flags.is_final() == is_final;
+      }
+    }
+    klass = klass->super();
+  }
+  return -1;
+}
+
+static void check_field_addr(oopDesc* base, volatile void* addr, oopDesc* new_v, DecoratorSet decorators) {
+  bool is_array = (decorators & IS_ARRAY) != 0;
+  bool is_final = (decorators & IS_FINAL_FIELD) != 0;
   assert(is_array == base->klass()->is_array_klass(), 
     "mismatch is_array=%d %s\n", is_array, base->klass()->name()->bytes());
+#ifdef ASSERT
+  if (!base->klass()->is_array_klass()) {
+    int offset = (address)addr - (address)base;
+    Klass* klass = base->klass();
+    int field_found = find_field(klass, offset, false, is_final, false);
+    if (field_found < 0) {
+      if (klass == vmClasses::Class_klass()) {
+        klass = java_lang_Class::as_Klass(base);
+        field_found = find_field(klass, offset, true, is_final, false);
+      }
+    }
+    if (field_found != 1) {
+      rtgc_log(true, "unknown offset [%d] %s is_class:%d %s", offset, 
+          klass->name()->bytes(), klass != base->klass(), new_v == NULL ? NULL : new_v->klass()->name()->bytes());
+      if (field_found < 0) {
+        find_field(base->klass(), offset, false, is_final, true);
+        if (base->klass() == vmClasses::Class_klass()) {
+          find_field(klass, offset, true, is_final, true);
+        }
+      }
+      fatal("matched field not found");
+    }
+  }
+#endif
   rt_assert_f(addr > (address)base + oopDesc::klass_offset_in_bytes()
       && addr < (address)base + MAX_OBJ_SIZE
       , "invalid field addr %p of base %p\n", addr, base);
@@ -201,7 +262,7 @@ void rtgc_update_inverse_graph_c1(oopDesc* base, oopDesc* old_v, oopDesc* new_v)
   }
 }
 
-template<class T, bool inHeap, int shift, bool is_array=false>
+template<class T, bool inHeap, int shift, DecoratorSet decorators=0>
 void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
   if (SKIP_UNTRACKABLE && !((GCNode*)to_obj(base))->isTrackable()) {
     raw_set_field(addr, new_v);
@@ -209,7 +270,7 @@ void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
     return;
   }
   rt_assert(rtHeap::is_trackable(base));
-  check_field_addr(base, addr, is_array);
+  check_field_addr(base, addr, new_v, decorators);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
   rtgc_update_inverse_graph(base, old, new_v);
@@ -240,9 +301,13 @@ void (*RtgcBarrier::rt_store)(void* addr, oopDesc* new_v, oopDesc* base) = 0;
 void RtgcBarrier::oop_store(oop* addr, oopDesc* new_v, oopDesc* base) {
   rtgc_store<oop, true, 0>(addr, new_v, base);
 }
+void (*RtgcBarrier::rt_store_final)(void* addr, oopDesc* new_v, oopDesc* base) = 0;
+void RtgcBarrier::oop_store_final(oop* addr, oopDesc* new_v, oopDesc* base) {
+  rtgc_store<oop, true, 0, IS_FINAL_FIELD>(addr, new_v, base);
+}
 void (*RtgcBarrier::rt_store_array_item)(void* addr, oopDesc* new_v, oopDesc* base) = 0;
 void RtgcBarrier::oop_store_array_item(oop* addr, oopDesc* new_v, oopDesc* base) {
-  rtgc_store<oop, true, 0, true>(addr, new_v, base);
+  rtgc_store<oop, true, 0, IS_ARRAY>(addr, new_v, base);
 }
 
 void (*RtgcBarrier::rt_store_not_in_heap)(void* addr, oopDesc* new_v);
@@ -263,7 +328,11 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
       rt_store_array_item(addr, new_v, base);
     } else 
 #endif
-    rt_store(addr, new_v, base);
+    if (is_final_field_offset(base->klass(), (address)addr - (address)base)) {
+      rt_store_final(addr, new_v, base);
+    } else {
+      rt_store(addr, new_v, base);
+    }
   }
   else if (UseCompressedOops) {
     raw_set_volatile_field((volatile narrowOop*)addr, new_v);
@@ -274,14 +343,14 @@ void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
 
 template<DecoratorSet decorators, typename T> 
 void RtgcBarrier::rt_store_c1(T* addr, oopDesc* new_v, oopDesc* base) {
-  // rtgc_log(false, "rt_store_c1 base: %p new_v: %p\n", base, new_v); 
-
   if (rtHeap::is_trackable(base)) {
     if (decorators & ON_UNKNOWN_OOP_REF) {
       rt_assert((decorators & IS_ARRAY) == 0);
       oop_store_unknown(addr, new_v, base);
     } else if (decorators & IS_ARRAY) {
       rt_store_array_item(addr, new_v, base);
+    } else if (decorators & IS_FINAL_FIELD) {
+      rt_store_final(addr, new_v, base);
     } else {
       rt_store(addr, new_v, base);
     }
@@ -311,6 +380,7 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
   }
 
   bool is_unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
+  bool is_final = (decorators & IS_FINAL_FIELD) != 0;
   bool is_trackable = (decorators & AS_RAW) == 0;
   rt_assert(!is_unknown || !is_array);
 
@@ -319,12 +389,15 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
       return reinterpret_cast<address>(oop_store_unknown);
     } else if (is_array) {
       return reinterpret_cast<address>(rt_store_array_item);
+    } else if (is_final) {
+      return reinterpret_cast<address>(rt_store_final);
     } else {
       return reinterpret_cast<address>(rt_store);
     }
   }
 
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses);
+  rt_assert(!is_volatile || !is_final);
   if (RTGC::is_narrow_oop_mode) {
     if (is_unknown) {
       const DecoratorSet ds = ON_UNKNOWN_OOP_REF;
@@ -334,6 +407,8 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
       const DecoratorSet ds = IS_ARRAY;
       return !is_volatile ? reinterpret_cast<address>(rt_store_c1<ds, narrowOop>)
           : reinterpret_cast<address>(rt_store_c1<ds|MO_SEQ_CST, narrowOop>);
+    } else if (is_final) {
+      return reinterpret_cast<address>(rt_store_c1<0|IS_FINAL_FIELD, narrowOop>);
     } else {
       return !is_volatile ? reinterpret_cast<address>(rt_store_c1<0, narrowOop>)
           : reinterpret_cast<address>(rt_store_c1<0|MO_SEQ_CST, narrowOop>);
@@ -347,6 +422,8 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
       const DecoratorSet ds = IS_ARRAY;
       return !is_volatile ? reinterpret_cast<address>(rt_store_c1<ds, oop>)
           : reinterpret_cast<address>(rt_store_c1<ds|MO_SEQ_CST, oop>);
+    } else if (is_final) {
+      return reinterpret_cast<address>(rt_store_c1<0|IS_FINAL_FIELD, oop>);
     } else {
       return !is_volatile ? reinterpret_cast<address>(rt_store_c1<0, oop>)
           : reinterpret_cast<address>(rt_store_c1<0|MO_SEQ_CST, oop>);
@@ -355,7 +432,7 @@ address RtgcBarrier::getStoreFunction(DecoratorSet decorators) {
 }
 
 
-template<class T, bool inHeap, int shift, bool is_array=false>
+template<class T, bool inHeap, int shift, DecoratorSet decorators=0>
 oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_v, oopDesc* base) {
   if (SKIP_UNTRACKABLE && !((GCNode*)to_obj(base))->isTrackable()) {
     oopDesc* res = raw_atomic_xchg<false>(NULL, addr, new_v);
@@ -364,7 +441,7 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_v, oopDesc* base) {
   }
   rtgc_log(LOG_OPT(11), "xchg %p(%p) <-> %p\n", base, addr, new_v);
   rt_assert(rtHeap::is_trackable(base));
-  check_field_addr(base, addr, is_array);
+  check_field_addr(base, addr, new_v, decorators);
   lock_barrier();
   oopDesc* old = raw_atomic_xchg<true>(base, addr, new_v);
   rtgc_update_inverse_graph(base, old, new_v);
@@ -390,7 +467,7 @@ oopDesc* RtgcBarrier::oop_xchg(volatile oop* addr, oopDesc* new_v, oopDesc* base
 }
 oopDesc* (*RtgcBarrier::rt_xchg_array_item)(volatile void* addr, oopDesc* new_v, oopDesc* base);
 oopDesc* RtgcBarrier::oop_xchg_array_item(volatile oop* addr, oopDesc* new_v, oopDesc* base) {
-  return rtgc_xchg<oop, true, 0, true>(addr, new_v, base);
+  return rtgc_xchg<oop, true, 0, IS_ARRAY>(addr, new_v, base);
 }
 
 oopDesc* (*RtgcBarrier::rt_xchg_not_in_heap)(volatile void* addr, oopDesc* new_v);
@@ -435,6 +512,7 @@ oopDesc* RtgcBarrier::rt_xchg_c1(T* addr, oopDesc* new_v, oopDesc* base) {
 
 address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
   rt_assert(is_valid_decorators(decorators));
+  rt_assert((decorators & IS_FINAL_FIELD) == 0);
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
     rt_assert((decorators & IS_ARRAY) == 0);
@@ -475,14 +553,14 @@ address RtgcBarrier::getXchgFunction(DecoratorSet decorators) {
 }
 
 
-template<class T, bool inHeap, int shift, bool is_array=false>
+template<class T, bool inHeap, int shift, DecoratorSet decorators=0>
 oopDesc* rtgc_cmpxchg(volatile T* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc* base) {
   if (SKIP_UNTRACKABLE && !((GCNode*)to_obj(base))->isTrackable()) {
     oopDesc* res = raw_atomic_cmpxchg<false>(NULL, addr, cmp_v, new_v);
     rtgc_log(LOG_OPT(11), "skip rtgc_xchg %p[] <= %p\n", base, new_v);
     return res;
   }
-  check_field_addr(base, addr, is_array);
+  check_field_addr(base, addr, new_v, decorators);
   rt_assert(rtHeap::is_trackable(base));
   lock_barrier();
   oopDesc* old = raw_atomic_cmpxchg<true>(base, addr, cmp_v, new_v);
@@ -514,7 +592,7 @@ oopDesc* RtgcBarrier::oop_cmpxchg(volatile oop* addr, oopDesc* cmp_v, oopDesc* n
 }
 oopDesc* (*RtgcBarrier::rt_cmpxchg_array_item)(volatile void* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc* base);
 oopDesc* RtgcBarrier::oop_cmpxchg_array_item(volatile oop* addr, oopDesc* cmp_v, oopDesc* new_v, oopDesc* base) {
-  return rtgc_cmpxchg<oop, true, 0, true>(addr, cmp_v, new_v, base);
+  return rtgc_cmpxchg<oop, true, 0, IS_ARRAY>(addr, cmp_v, new_v, base);
 }
 
 oopDesc* (*RtgcBarrier::rt_cmpxchg_not_in_heap)(volatile void* addr, oopDesc* cmp_v, oopDesc* new_v);
@@ -574,6 +652,7 @@ oopDesc* RtgcBarrier::rt_cmpset_c1(T* addr, oopDesc* cmp_v, oopDesc* new_v, oopD
 
 address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
   rt_assert(is_valid_decorators(decorators));
+  rt_assert((decorators & IS_FINAL_FIELD) == 0);
   bool in_heap = (decorators & IN_HEAP) != 0;
   if (!in_heap) {
     rt_assert((decorators & IS_ARRAY) == 0);
@@ -613,11 +692,12 @@ address RtgcBarrier::getCmpSetFunction(DecoratorSet decorators) {
   }
 }
 
-template<class T, bool inHeap, int shift, bool is_array=false>
+template<class T, bool inHeap, int shift, DecoratorSet decorators=0>
 oopDesc* rtgc_load(volatile T* addr, oopDesc* base) {
+  bool is_array = (decorators & IS_ARRAY) != 0;
   // oopDesc->print_on() 함수에서 임의의 필드 값을 access 한다.
   // 오류 발생 시 해당 함수를 수정할 것.
-  // check_field_addr(base, addr, true);
+  // check_field_addr(base, addr, new_v, decorators);
   //rtgc_log(LOG_OPT(4), "load %p(%p)\n", base, addr);
   oop value = RawAccess<>::oop_load(addr);
   return value;
@@ -636,7 +716,7 @@ oopDesc* RtgcBarrier::oop_load(volatile oop* addr, oopDesc* base) {
 }
 oopDesc* (*RtgcBarrier::rt_load_array_item)(volatile void* addr, oopDesc* base) = 0;
 oopDesc* RtgcBarrier::oop_load_array_item(volatile oop* addr, oopDesc* base) {
-  return rtgc_load<oop, true, 0, true>(addr, base);
+  return rtgc_load<oop, true, 0, IS_ARRAY>(addr, base);
 }
 oopDesc* (*RtgcBarrier::rt_load_not_in_heap)(volatile void* addr);
 oopDesc* RtgcBarrier::oop_load_not_in_heap(volatile oop* addr) {
@@ -883,13 +963,14 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
 
 #define INIT_BARRIER_METHODS(T, shift) \
   *(void**)&rt_store = reinterpret_cast<void*>(rtgc_store<T, true, shift>); \
+  *(void**)&rt_store_final = reinterpret_cast<void*>(rtgc_store<T, true, shift, IS_FINAL_FIELD>); \
   *(void**)&rt_xchg = reinterpret_cast<void*>(rtgc_xchg<T, true, shift>); \
   *(void**)&rt_cmpxchg = reinterpret_cast<void*>(rtgc_cmpxchg<T, true, shift>); \
   *(void**)&rt_load = reinterpret_cast<void*>(rtgc_load<T, true, shift>); \
-  *(void**)&rt_store_array_item = reinterpret_cast<void*>(rtgc_store<T, true, shift, true>); \
-  *(void**)&rt_xchg_array_item = reinterpret_cast<void*>(rtgc_xchg<T, true, shift, true>); \
-  *(void**)&rt_cmpxchg_array_item = reinterpret_cast<void*>(rtgc_cmpxchg<T, true, shift, true>); \
-  *(void**)&rt_load_array_item = reinterpret_cast<void*>(rtgc_load<T, true, shift, true>); \
+  *(void**)&rt_store_array_item = reinterpret_cast<void*>(rtgc_store<T, true, shift, IS_ARRAY>); \
+  *(void**)&rt_xchg_array_item = reinterpret_cast<void*>(rtgc_xchg<T, true, shift, IS_ARRAY>); \
+  *(void**)&rt_cmpxchg_array_item = reinterpret_cast<void*>(rtgc_cmpxchg<T, true, shift, IS_ARRAY>); \
+  *(void**)&rt_load_array_item = reinterpret_cast<void*>(rtgc_load<T, true, shift, IS_ARRAY>); \
   *(void**)&rt_store_not_in_heap = reinterpret_cast<void*>(rtgc_store_not_in_heap<T, false, shift>); \
   *(void**)&rt_store_not_in_heap_uninitialized = reinterpret_cast<void*>(rtgc_store_not_in_heap<T, true, shift>); \
   *(void**)&rt_xchg_not_in_heap = reinterpret_cast<void*>(rtgc_xchg_not_in_heap<T, false, shift>); \

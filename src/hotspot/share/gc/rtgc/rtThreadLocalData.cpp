@@ -21,7 +21,7 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_TLS, function);
 }
 
-bool rtHeapEx__useModifyFlag = true;
+bool rtHeapEx__useModifyFlag = false;
 
 #ifdef ASSERT
 bool rtHeap::useModifyFlag() {

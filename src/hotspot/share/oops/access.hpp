@@ -184,7 +184,11 @@ public:
 
   template <typename T>
   static inline void oop_store_at(oop base, ptrdiff_t offset, T value) {
+#if INCLUDE_RTGC
+    verify_heap_oop_decorators<store_mo_decorators | IS_FINAL_FIELD>();
+#else
     verify_heap_oop_decorators<store_mo_decorators>();
+#endif
     typedef typename AccessInternal::OopOrNarrowOop<T>::type OopType;
     OopType oop_value = value;
     AccessInternal::store_at<decorators | INTERNAL_VALUE_IS_OOP>(base, offset, oop_value);

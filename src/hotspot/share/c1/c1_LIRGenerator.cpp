@@ -1654,6 +1654,11 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (is_volatile) {
     decorators |= MO_SEQ_CST;
   }
+#if INCLUDE_RTGC  
+  if (x->field()->is_final()) {
+    decorators |= IS_FINAL_FIELD;
+  }
+#endif
   if (needs_patching) {
     decorators |= C1_NEEDS_PATCHING;
   }

@@ -1,4 +1,5 @@
 ###
+   * MarkSweep::follow_klass 생략 가능(??)
    * lockfree set-field: modified history (modified bit);
       MacroAssembler::decode_heap_oop/encode_heap_oop
       참조) BarrierSetAssembler::eden_allocate
@@ -278,6 +279,17 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
 0x7f992c008a20] RTGC.cpp:357 hash_mask_in_place 0x7fffffff00
 0x7f992c008a20] RTGC.cpp:359 unused_gap_bits 0x1
 0x7f992c008a20] RTGC.cpp:360 unused_gap_bits_in_place 0x80
+
+## set field
+1) TemplateTable::putfield_or_static_helper 
+      do_oop_store() TemaplateTable_x86.cpp 
+         MacroAssembler::store_heap_oop()
+            MacroAssembler::access_store_at()
+               BarrierSetAssembler::store_at()
+2) c1_LIRGenerator::do_StoreField
+      LIRGenerator::access_store_at()
+         BarrierSetC1::store_at()
+
 
 ## Reference 처리.
    !!! Referene 가 collect 되면, RefereceQueue 에 등록(enqueue)되지 않는다!

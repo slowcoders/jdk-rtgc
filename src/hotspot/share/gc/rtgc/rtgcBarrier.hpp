@@ -8,6 +8,7 @@
 
 class RtgcBarrier : public AllStatic {
   static void (*rt_store)(void* p, oopDesc* new_value, oopDesc* base);
+  static void (*rt_store_final)(void* p, oopDesc* new_value, oopDesc* base);
   static void (*rt_store_array_item)(void* p, oopDesc* new_value, oopDesc* base);
   static void (*rt_store_not_in_heap)(void* p, oopDesc* new_value);
   static void (*rt_store_not_in_heap_uninitialized)(void* p, oopDesc* new_value);
@@ -74,6 +75,11 @@ public:
   static void oop_store(oop* p, oopDesc* new_value, oopDesc* base);
   static void oop_store(narrowOop* p, oopDesc* new_value, oopDesc* base) {
     rt_store(p, new_value, base);
+  }
+
+  static void oop_store_final(oop* p, oopDesc* new_value, oopDesc* base);
+  static void oop_store_final(narrowOop* p, oopDesc* new_value, oopDesc* base) {
+    rt_store_final(p, new_value, base);
   }
 
   static void oop_store_array_item(oop* p, oopDesc* new_value, oopDesc* base);
