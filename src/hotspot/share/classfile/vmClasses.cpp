@@ -226,7 +226,6 @@ void vmClasses::resolve_all(TRAPS) {
   vmClasses::StackTraceElement_klass()->set_node_type(rtNodeType::Acyclic);
 
   vmClasses::OutOfMemoryError_klass()->set_node_type(rtNodeType::Cyclic);
-  printf("GGGGGGG\n");
 #endif
 
 #ifdef ASSERT
