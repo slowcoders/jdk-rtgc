@@ -184,10 +184,13 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
 #ifdef _LP64
   NOT_RTGC(else) if (UseCompressedClassPointers) {
-    if (INCLUDE_RTGC) { // is_acyclic
+#if INCLUDE_RTGC // is_acyclic
+    if (EnableRTGC) { // is_acyclic
       movl(t1, Address(klass, Klass::node_type_offset()));
       andl(t1, 1);
-    } else {
+    } else 
+#endif    
+    {
       xorptr(t1, t1);
     }
     store_klass_gap(obj, t1);

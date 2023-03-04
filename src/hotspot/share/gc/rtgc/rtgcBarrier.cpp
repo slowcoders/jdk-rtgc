@@ -58,6 +58,7 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
 }
 
 static bool is_final_field_offset(Klass* klass, int offset) {
+  // 참고) InstanceKlass::find_field_from_offset
   rt_assert(klass->is_instance_klass());
   while (klass != vmClasses::Object_klass()) {
     for (JavaFieldStream fs(InstanceKlass::cast(klass)); !fs.done(); fs.next()) {
@@ -97,7 +98,8 @@ static void check_field_addr(oopDesc* base, volatile void* addr, oopDesc* new_v,
   assert(is_array == base->klass()->is_array_klass(), 
     "mismatch is_array=%d %s\n", is_array, base->klass()->name()->bytes());
 #ifdef ASSERT
-  if (!base->klass()->is_array_klass()) {
+  // System.out 이 final 필드이면서 초기값이 null 이다. ㅜ,.ㅠ
+  if (!base->klass()->is_array_klass() && base->klass() != vmClasses::Class_klass()) {
     int offset = (address)addr - (address)base;
     Klass* klass = base->klass();
     int field_found = find_field(klass, offset, false, is_final, false);
@@ -108,15 +110,15 @@ static void check_field_addr(oopDesc* base, volatile void* addr, oopDesc* new_v,
       }
     }
     if (field_found != 1) {
-      rtgc_log(true, "unknown offset [%d] %s is_class:%d %s", offset, 
-          klass->name()->bytes(), klass != base->klass(), new_v == NULL ? NULL : new_v->klass()->name()->bytes());
       if (field_found < 0) {
         find_field(base->klass(), offset, false, is_final, true);
         if (base->klass() == vmClasses::Class_klass()) {
           find_field(klass, offset, true, is_final, true);
         }
       }
-      fatal("matched field not found");
+      rt_assert_f(false, "unknown offset [%d] %s is_class:%d %s found= %d", offset, 
+          klass->name()->bytes(), klass != base->klass(), 
+          new_v == NULL ? NULL : new_v->klass()->name()->bytes(), field_found);
     }
   }
 #endif

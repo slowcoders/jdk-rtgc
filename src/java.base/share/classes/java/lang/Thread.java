@@ -790,7 +790,7 @@ public class Thread implements Runnable {
          * A zero status value corresponds to state "NEW".
          */
         if (threadStatus != 0)
-            throw new IllegalThreadStateException();
+            throw new IllegalThreadStateException("" + threadStatus);
 
         /* Notify the group that this thread is about to be started
          * so that it can be added to the group's list of threads

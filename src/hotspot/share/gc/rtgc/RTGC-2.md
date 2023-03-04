@@ -289,6 +289,11 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
 2) c1_LIRGenerator::do_StoreField
       LIRGenerator::access_store_at()
          BarrierSetC1::store_at()
+3) array_item 에 대한 cmpxchg 문제.
+   LIRGenerator::do_CompareAndSwap 
+   // 관련 소스 한 곳만 수정한다(??)
+4) final field 에 대한 Unsafe.putReference()
+   // 관련 소스 한 곳만 수정한다(??)
 
 
 ## Reference 처리.

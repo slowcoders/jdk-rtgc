@@ -3062,14 +3062,17 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   Label notVolatile, Done;
   __ movl(rdx, flags);
 #if INCLUDE_RTGC  
-  __ testl(rdx, 1 << ConstantPoolCacheEntry::is_volatile_shift);
-#else
-  __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
-  __ andl(rdx, 0x1);
-
-  // Check for volatile store
-  __ testl(rdx, rdx);
+  if (EnableRTGC) {
+    __ testl(rdx, 1 << ConstantPoolCacheEntry::is_volatile_shift);
+  } else
 #endif
+  {
+    __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
+    __ andl(rdx, 0x1);
+
+    // Check for volatile store
+    __ testl(rdx, rdx);
+  }
   __ jcc(Assembler::zero, notVolatile);
 
   putfield_or_static_helper(byte_no, is_static, rc, obj, off, flags);
@@ -3140,14 +3143,17 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
 #if INCLUDE_RTGC
-    __ testl(rdx, 1 << ConstantPoolCacheEntry::is_final_shift);
-    __ jcc(Assembler::zero, notFinal);
-    {
-      // Store into the field
-      do_oop_store(_masm, field, rax, IS_FINAL_FIELD);
+    if (EnableRTGC) {
+
+      __ testl(rdx, 1 << ConstantPoolCacheEntry::is_final_shift);
+      __ jcc(Assembler::zero, notFinal);
+      {
+        // Store into the field
+        do_oop_store(_masm, field, rax, IS_FINAL_FIELD);
+      }
+      __ jmp(Done);
+      __ bind(notFinal);
     }
-    __ jmp(Done);
-    __ bind(notFinal);
 #endif
     {
       // Store into the field
@@ -4052,10 +4058,13 @@ void TemplateTable::_new() {
       __ pop(rcx);   // get saved klass back in the register.
     }
 #ifdef _LP64
-    if (INCLUDE_RTGC) { // is_acyclic
+#if INCLUDE_RTGC // is_acyclic
+    if (EnableRTGC) { // is_acyclic
       __ movl(rsi, Address(rcx, Klass::node_type_offset()));
       __ andl(rsi, 1);
-    } else {
+    } else 
+#endif    
+    {
       __ xorl(rsi, rsi); // use zero reg to clear memory (shorter code)
     }
     __ store_klass_gap(rax, rsi);  // zero klass gap for compressed oops
