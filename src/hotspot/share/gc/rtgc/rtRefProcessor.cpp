@@ -257,6 +257,11 @@ namespace RTGC {
               // emptyAnchorList를 명시적으로 clear 한다.
               GCRuntime::detectUnsafeObject(referent);
             }
+            if (to_obj(_curr_ref)->isTrackable() && !to_obj(_curr_ref)->getContextFlag()) {
+              // referent 의 referrerList 에서 _current_ref 가 제거된 상태.
+              rtgc_log(true, "clear referent field " PTR_DBG_SIG PTR_DBG_SIG, PTR_DBG_INFO(_curr_ref), PTR_DBG_INFO(referent));
+              _curr_ref->obj_field_put_raw(_referent_off, NULL);
+            }
           }
           rtgc_log(false && _refList.ref_type() == REF_SOFT, 
               "garbage soft ref %p\n", (void*)_curr_ref);
@@ -571,6 +576,11 @@ void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
     if (ENABLE_SOFT_WEAK_REF && policy->should_clear_reference(iter.ref(), soft_ref_timestamp)) {
       rtgc_log(LOG_OPT(3), "dirty soft %p tr=%d\n", ref, ref->isTrackable());
       if (ref->isTrackable()) {
+        /* markGarbageOrSometing() 대신에 break_weak_soft_link 를 사용하는 이유.
+          Weak/SoftReference 가 referent 를 참조하는 다른 Field를 더 가질 수 있다.
+          이에 ref 를 자체를 reverse tracking 하지 못하도록 하는 경우,
+          복수의 Field(Reference.referernt + another field) 를 구분하여 처리할 수 없다.
+        */
         iter.break_weak_soft_link();
       }
     } else {
@@ -665,7 +675,10 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     if (!is_full_gc) {
       iter.adjust_ref_pointer();
       ref = to_obj(iter.ref());
-      rt_assert((void*)referent == iter.get_raw_referent());
+      // ActiveFinalizer/Phantom Reference 은 scan 예외 대상이다.
+      rt_assert_f((void*)referent == iter.get_raw_referent(), 
+          "ref %p new_ref %p\n" PTR_DBG_SIG PTR_DBG_SIG, (void*)referent, iter.get_raw_referent(),
+          PTR_DBG_INFO(referent), PTR_DBG_INFO(iter.get_raw_referent()));
     } else if (rtHeap::DoCrossCheck && referent->isTrackable()) {
       bool is_gc_marked = cast_to_oop(referent)->is_gc_marked();
       rt_assert(CLEAR_FINALIZE_REF || !referent->isGarbageMarked());

@@ -962,8 +962,8 @@ bool universe_post_init() {
   // (this is currently used for a cheap & dirty solution in compiler exception handling)
   Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_NullPointerException(), true, CHECK_false);
 #if INCLUDE_RTGC
-  k->resolve_node_type(THREAD);
-#endif  
+  InstanceKlass::cast(k)->resolve_node_type(THREAD);
+#endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   Universe::_null_ptr_exception_instance = OopHandle(Universe::vm_global(), instance);
 
@@ -971,21 +971,21 @@ bool universe_post_init() {
   // (this is currently used for a cheap & dirty solution in compiler exception handling)
   k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ArithmeticException(), true, CHECK_false);
 #if INCLUDE_RTGC
-  k->resolve_node_type(THREAD);
-#endif  
+  InstanceKlass::cast(k)->resolve_node_type(THREAD);
+#endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   Universe::_arithmetic_exception_instance = OopHandle(Universe::vm_global(), instance);
 
   // Virtual Machine Error for when we get into a situation we can't resolve
   k = vmClasses::VirtualMachineError_klass();
-#if INCLUDE_RTGC
-  k->resolve_node_type(THREAD);
-#endif  
   bool linked = InstanceKlass::cast(k)->link_class_or_fail(CHECK_false);
   if (!linked) {
      tty->print_cr("Unable to link/verify VirtualMachineError class");
      return false; // initialization failed
   }
+#if INCLUDE_RTGC
+  InstanceKlass::cast(k)->resolve_node_type(THREAD);
+#endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   Universe::_virtual_machine_error_instance = OopHandle(Universe::vm_global(), instance);
 

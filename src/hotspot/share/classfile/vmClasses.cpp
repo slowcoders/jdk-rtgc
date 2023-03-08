@@ -112,6 +112,7 @@ void vmClasses::resolve_until(vmClassID limit_id, vmClassID &start_id, TRAPS) {
   start_id = limit_id;
 }
 
+bool no_auto_resole_node_type = true;
 void vmClasses::resolve_all(TRAPS) {
   assert(!Object_klass_loaded(), "well-known classes should only be initialized once");
 
@@ -228,6 +229,7 @@ void vmClasses::resolve_all(TRAPS) {
   vmClasses::OutOfMemoryError_klass()->set_node_type(rtNodeType::Cyclic);
 #endif
 
+  no_auto_resole_node_type = false;
 #ifdef ASSERT
   if (UseSharedSpaces) {
     JVMTI_ONLY(assert(JvmtiExport::is_early_phase(),

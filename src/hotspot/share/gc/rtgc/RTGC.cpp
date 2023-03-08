@@ -18,7 +18,8 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "[B",
+  "java/lang/invoke/LambdaFormEditor$Transform",
+  //"java/lang/invoke/LambdaFormEditor$Transform",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",

@@ -43,11 +43,25 @@ public:
       return;
     }
 
-    if (!isTenured && !_hasForwardedPointers && !link->isTrackable()) {
+    if (isTenured) {
+      if (!rtHeap::is_alive(obj, false)) {
+        if (!link->isTrackable()) {
+          link->clearAnchorList();
+        }
+        return;
+      }
+    } else if (_hasForwardedPointers) {
+      if (link->isGarbageMarked()) {
+        return;
+      }
       /**
-       * 참고) base 가 young_root 인 경우엔, 이미 해당 Field 의 pointer 가
-       * forwarded 된 객체의 주소로 변경된 상태이다.
+       * 참고) base 가 young_root 이고, 하위 YG reference 에 대한 복사가 종료되었으면,
+       * is_gc_marked() 가 false 이다.
        */
+    } else if (!link->isTrackable()) {
+      if (link->isGarbageMarked()) {
+        return;
+      }
       if (!obj->is_gc_marked()) {
         link->clearAnchorList();
         return;

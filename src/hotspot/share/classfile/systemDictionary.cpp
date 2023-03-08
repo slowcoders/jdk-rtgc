@@ -272,11 +272,13 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
 // Forwards to resolve_array_class_or_null or resolve_instance_class_or_null
 
 Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS) {
+  Klass* klass;
   if (Signature::is_array(class_name)) {
-    return resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
+    klass = resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
   } else {
-    return resolve_instance_class_or_null_helper(class_name, class_loader, protection_domain, THREAD);
+    klass = resolve_instance_class_or_null_helper(class_name, class_loader, protection_domain, THREAD);
   }
+  return klass;
 }
 
 // name may be in the form of "java/lang/Object" or "Ljava/lang/Object;"
@@ -316,6 +318,7 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          CHECK_NULL);
     if (k != NULL) {
       k = k->array_klass(ndims, CHECK_NULL);
+      //k->resolve_instance_class_or_null      
     }
   } else {
     k = Universe::typeArrayKlassObj(t);

@@ -41,7 +41,7 @@ void java_lang_String::set_value_raw(oop string, typeArrayOop buffer) {
 }
 
 void java_lang_String::set_value(oop string, typeArrayOop buffer) {
-  string->obj_field_put(_value_offset, buffer);
+  string->obj_field_put_final(_value_offset, buffer);
 }
 
 bool java_lang_String::hash_is_set(oop java_string) {
@@ -206,7 +206,11 @@ inline oop  java_lang_invoke_CallSite::target(oop site) {
 }
 
 inline void java_lang_invoke_CallSite::set_target(oop site, oop target) {
-  site->obj_field_put(_target_offset, target);
+  if (EnableRTGC) {
+    site->obj_field_put_final(_target_offset, target);
+  } else { 
+    site->obj_field_put(_target_offset, target);
+  }
 }
 
 inline bool java_lang_invoke_CallSite::is_instance(oop obj) {

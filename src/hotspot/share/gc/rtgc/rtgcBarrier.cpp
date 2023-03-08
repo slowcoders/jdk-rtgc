@@ -57,22 +57,6 @@ static bool is_strong_ref(volatile void* addr, oopDesc* base) {
   return true;
 }
 
-static bool is_final_field_offset(Klass* klass, int offset) {
-  // 참고) InstanceKlass::find_field_from_offset
-  rt_assert(klass->is_instance_klass());
-  while (klass != vmClasses::Object_klass()) {
-    for (JavaFieldStream fs(InstanceKlass::cast(klass)); !fs.done(); fs.next()) {
-      AccessFlags flags = fs.access_flags();
-      if (!flags.is_static() && fs.offset() == offset) {
-        return flags.is_final();
-      }
-    }
-    klass = klass->super();
-  }
-  fatal("unknown_offset");
-  return false;
-}
-
 
 static int find_field(Klass* klass, int offset, bool is_static, bool is_final, bool print_log) {
   while (klass != vmClasses::Object_klass() && klass->is_instance_klass()) {
@@ -116,9 +100,9 @@ static void check_field_addr(oopDesc* base, volatile void* addr, oopDesc* new_v,
           find_field(klass, offset, true, is_final, true);
         }
       }
-      rt_assert_f(false, "unknown offset [%d] %s is_class:%d %s found= %d", offset, 
+      rt_assert_f(false, "unknown offset [%d] %s is_class:%d %s found= %d, is_final=%d", offset, 
           klass->name()->bytes(), klass != base->klass(), 
-          new_v == NULL ? NULL : new_v->klass()->name()->bytes(), field_found);
+          new_v == NULL ? NULL : new_v->klass()->name()->bytes(), field_found, is_final);
     }
   }
 #endif
@@ -322,15 +306,27 @@ void RtgcBarrier::oop_store_not_in_heap_uninitialized(oop* addr, oopDesc* new_v)
   rtgc_store_not_in_heap<oop, true, 0>(addr, new_v);
 }
 
+static bool is_final_field_offset(Klass* klass, int offset) {
+  // 참고) InstanceKlass::find_field_from_offset
+  if (klass == vmClasses::Class_klass()) return false;
+  rt_assert(klass->is_instance_klass());
+  fieldDescriptor fd;
+  if (!InstanceKlass::cast(klass)->find_field_from_offset(offset, false, &fd)) {
+    fatal("unknown_offset %d %s", offset, klass->name()->bytes());
+  }
+  return fd.is_final();
+}
+
 void RtgcBarrier::oop_store_unknown(void* addr, oopDesc* new_v, oopDesc* base) {
   rt_assert(rtHeap::is_trackable(base));
   if (is_strong_ref(addr, base)) {
+    Klass* klass = base->klass();
 #ifdef ASSERT     // Exact Array Upate Detection
     if (base->klass()->is_array_klass()) {
       rt_store_array_item(addr, new_v, base);
     } else 
 #endif
-    if (is_final_field_offset(base->klass(), (address)addr - (address)base)) {
+    if (is_final_field_offset(klass, (address)addr - (address)base)) {
       rt_store_final(addr, new_v, base);
     } else {
       rt_store(addr, new_v, base);
@@ -898,28 +894,27 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
 
 template <bool modified>
 class RTGC_CloneClosure : public BasicOopIterateClosure {
-  oopDesc* _rookie;
+  oopDesc* _anchor;
 
   void do_work(narrowOop* p) {
-    rt_assert(rtHeap::useModifyFlag());
     narrowOop heap_oop = *p;
     if (modified) {
-      rt_assert(to_node(_rookie)->isTrackable());
+      rt_assert(to_node(_anchor)->isTrackable());
       if (CompressedOops::is_null(heap_oop)) return;
 
       if (!rtHeap::useModifyFlag()) {
         oop obj = CompressedOops::decode_not_null(heap_oop);
-        RTGC::add_referrer_ex(obj, _rookie, true);    
+        RTGC::add_referrer_ex(obj, _anchor, true);    
       } else {
         if (!rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_modified(heap_oop);
         }
         int dummy = 0;
-        FieldUpdateLog::add(_rookie, p, *(narrowOop*)&dummy);
+        FieldUpdateLog::add(_anchor, p, *(narrowOop*)&dummy);
       }
     }
     else {
-      rt_assert(!to_node(_rookie)->isTrackable());
+      rt_assert(!to_node(_anchor)->isTrackable());
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified(heap_oop);
       }
@@ -928,7 +923,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
 
 public:
   RTGC_CloneClosure(oopDesc* rookie) { 
-    this->_rookie = rookie; 
+    this->_anchor = rookie; 
   }
 
   virtual void do_oop(narrowOop* p) { do_work(p); }

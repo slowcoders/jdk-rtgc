@@ -471,7 +471,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
   rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, 
-      old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(node));
+      old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(old_p));
   debug_only(g_cnt_ref_anchor++;)
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
   if (new_obj != NULL) {

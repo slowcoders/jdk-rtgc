@@ -108,6 +108,8 @@ public:
 	}
 };
 
+#define ROOT_REF_COUNT_BITS 	23
+
 struct GCFlags {
 	uint32_t isAyclic: 1;
 	uint32_t isTrackableOrDestroyed: 1;
@@ -124,13 +126,18 @@ struct GCFlags {
 	uint32_t isPublished: 1;
 	uint32_t immortal: 1;
 #if ZERO_ROOT_REF < 0	
-	int32_t rootRefCount: 23;
+	int32_t rootRefCount: ROOT_REF_COUNT_BITS;
 #else
-	uint32_t rootRefCount: 23;
+	uint32_t rootRefCount: ROOT_REF_COUNT_BITS;
 #endif
 };
 
+
 class GCNode : public oopDesc {
+	static const int is_active_finalizer_value = 1 << (ROOT_REF_COUNT_BITS - 1);
+	static const int survivor_reachable_value = 1 << (ROOT_REF_COUNT_BITS - 2);
+	static const int finalizer_reachalbe_value = 1;
+
 friend class RtNode;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
@@ -148,7 +155,7 @@ public:
 	const RtNode* node_() {
 		if (RTGC_FAT_OOP) {
 			rt_assert(sizeof(RtNode) == sizeof(markWord));
-			return ((RtNode*)this) + 1;
+			return &((RtNode*)this)[1];
 		}
 		rt_assert(!this->is_forwarded() || g_in_progress_marking);
 		if (this->has_displaced_mark()) {
@@ -235,13 +242,13 @@ public:
 	}
 
 	bool isActiveFinalizer() {
-		return flags().rootRefCount & (1 << 23);
+		return flags().rootRefCount & is_active_finalizer_value;
 	}
 
 	int unmarkSurvivorReachable() {
 		rt_assert(isSurvivorReachable());
 		rt_assert(!isGarbageMarked());
-		flags().rootRefCount &= ~(1 << 22);
+		flags().rootRefCount &= ~survivor_reachable_value;
 		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
 		return flags().rootRefCount;
 	}
@@ -252,7 +259,7 @@ public:
 		rt_assert(!isSurvivorReachable());
 		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d\n",    
 			this, this->getRootRefCount(), this->getReferrerCount());
-		flags().rootRefCount |= (1 << 22);
+		flags().rootRefCount |= survivor_reachable_value;
 	}
 
 	void markSurvivorReachable() {
@@ -261,18 +268,18 @@ public:
 	}
 
 	bool isSurvivorReachable() {
-		return flags().rootRefCount & (1 << 22);
+		return (flags().rootRefCount & survivor_reachable_value) != 0;
 	}
 
 
 	void unmarkActiveFinalizer() {
 		rt_assert(isActiveFinalizer());
-		flags().rootRefCount &= ~(1 << 23);
+		flags().rootRefCount &= ~is_active_finalizer_value;
 	}
 
 	void markActiveFinalizer() {
 		rt_assert(!isActiveFinalizer());
-		flags().rootRefCount |= (1 << 23);
+		flags().rootRefCount |= is_active_finalizer_value;
 	}
 
 	bool isActiveFinalizerReachable() {

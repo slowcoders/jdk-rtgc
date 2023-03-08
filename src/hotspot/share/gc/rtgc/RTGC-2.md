@@ -189,7 +189,7 @@ void GenCollectedHeap::collect_generation()
 * MemAllocator
 void LIR_List::allocate_object(LIR_Opr dst..) 
    solw_path = new NewInstanceStub(klass_reg, Runtime1::fast_new_instance_id : ..)
-   append(new LIR_OpAllocObj..., slow_path = 
+   append(new LIR_OpAllocObj..., slow_path = new NewInstanceStub
    void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op, slow_path)
       void C1_MacroAssembler::allocate_object(..,, slow_path)
          C1_MacroAssembler::try_allocate(... , slow_path)
