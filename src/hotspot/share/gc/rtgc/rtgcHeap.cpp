@@ -106,6 +106,13 @@ static oopDesc* __get_discovered(oop obj) {
     : java_lang_ref_Reference::discovered(obj);
 }
 
+void rtHeap::init_allocated_object(HeapWord* mem, Klass* klass) {
+  ((uintptr_t*)to_obj(mem)->getMutableNode())[0] = 0;
+#if RTGC_ENABLE_ACYCLIC_REF_COUNT
+  oopDesc::set_klass_gap(mem, (int)klass->is_acyclic());
+#endif
+}      
+
 void rtHeap::init_mark(oopDesc* p) {
   if (UseBiasedLocking) {  
     p->set_mark(markWord::prototype_for_klass(p->klass()));
@@ -272,7 +279,8 @@ void rtHeap__clearStack() {
     for (; src < end; src++) {
       GCObject* erased = src[0];
       rt_assert(erased->is_adjusted_trackable());
-      rt_assert_f(erased->isSurvivorReachable(), "%p rc=%x", erased, erased->getRootRefCount());
+      rt_assert_f(erased->isSurvivorReachable(), "cls %p\n" PTR_DBG_SIG, 
+          (void*)cast_to_oop(erased)->klass()->java_mirror_no_keepalive(), PTR_DBG_INFO(erased));
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->node_()->hasSafeAnchor() && !erased->isUnstableMarked()) {
           erased->markUnstable();
@@ -412,7 +420,6 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   RTGC::add_referrer_ex(link, anchor, false);
 }
 
-
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   rt_assert(!node->isGarbageMarked());  
@@ -456,6 +463,23 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
     return;
   }
 
+  int max_count = (1 << 21) - 1;
+  if ((to_obj(old_p)->getRootRefCount() & max_count) >= max_count/3) {
+      rtgc_log((to_obj(old_p)->getRootRefCount() % 1000) == 0, "big array %p %d\n" PTR_DBG_SIG, 
+          (void*)old_p, to_obj(old_p)->getRootRefCount(), PTR_DBG_INFO(_old_anchor_p));
+      // if (_old_anchor_p->klass()->is_objArray_klass()) {
+      //     objArrayOopDesc* array = (objArrayOopDesc*)_old_anchor_p;
+      //     if (array->length() > 10*1000) {
+      //         rtgc_log(true, "array-length %d", array->length());
+      //         int cnt_dup = 0;
+      //         for (int i = 0; i < array->length(); i ++) {
+      //             if (array->obj_at(i) == (void*)this) cnt_dup ++;
+      //         }
+      //         rtgc_log(true, "item in array %d", cnt_dup);
+      //         // rt_assert_f(false, "debug-stop " PTR_DBG_SIG, PTR_DBG_INFO(this));
+      //     }
+      // }
+  }
   // old_p 내부 field 에 대한 adjust_pointers 가 처리되지 않았으면...
   if (BATCH_UPDATE_ANCHORS || to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
@@ -489,7 +513,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   // 참고) 모든 dead-space 는 trakable 이 아니어도 명시적으로 garbage marking 되어야 한다.
   if (!node->isAlive()) {
     // rt_assert(!old_p->is_gc_marked() || rtHeapUtil::is_dead_space(old_p));
-    rtgc_log((++g_cnt_skip_garbage % 100) == 0 || RTGC::is_debug_pointer(node), "skip garbage %p cnt_skip=%d", old_p, g_cnt_skip_garbage);
+    rtgc_log((++g_cnt_skip_garbage % 1000) == 0 || RTGC::is_debug_pointer(node), "skip garbage %p cnt_skip=%d", old_p, g_cnt_skip_garbage);
     int size = old_p->size_given_klass(old_p->klass());
     return size;
   }
@@ -547,7 +571,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
           adjust_anchor_pointer(ptr, node);
           debug_only(cnt_anchor++;)
         }
-        rtgc_log(cnt_anchor > 1000, "big ref list %d acyclic %d %s", 
+        rtgc_log(cnt_anchor > 5000, "big ref list %d acyclic %d %s", 
             cnt_anchor, old_p->klass()->is_acyclic(), old_p->klass()->name()->bytes());
       }
     }
@@ -632,7 +656,7 @@ void GCNode::markGarbage(const char* reason)  {
       __get_discovered(cast_to_oop(this)), rtHeapEx::print_ghost_anchors((GCObject*)this));
 
   flags().isGarbage = true;
-  flags().isPublished = true;
+  // flags().isPublished = true;
 }
 
 bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {

@@ -76,7 +76,7 @@ TypeArrayKlass* TypeArrayKlass::allocate(ClassLoaderData* loader_data, BasicType
 }
 
 TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, ID) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   set_node_type(rtNodeType::PrimitiveSet);
 #endif
 
@@ -198,9 +198,9 @@ Klass* TypeArrayKlass::array_klass(int n, TRAPS) {
         // use 'release' to pair with lock-free load
         release_set_higher_dimension(h_ak);
         assert(h_ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
-        #if INCLUDE_RTGC
-          oak->set_node_type(rtNodeType::Acyclic);
-        #endif        
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+        oak->set_node_type(rtNodeType::Acyclic);
+#endif        
       }
     }
   }

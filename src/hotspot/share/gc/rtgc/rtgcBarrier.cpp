@@ -948,7 +948,9 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
   rtgc_log(to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, to_obj(new_obj)->getRootRefCount());
   if (AUTO_TRACKABLE_MARK_BY_ADDRESS && to_node(new_obj)->isTrackable()) {
+    if (!rtHeap::useModifyFlag()) RTGC::lock_heap();
     RTGC_CloneClosure<true> c(new_obj);
+    if (!rtHeap::useModifyFlag()) RTGC::unlock_heap();
     new_obj->oop_iterate(&c);
   } else if (rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 

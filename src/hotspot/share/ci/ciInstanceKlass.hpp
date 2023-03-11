@@ -50,7 +50,12 @@ private:
   jobject                _loader;
   jobject                _protection_domain;
 
+#if INCLUDE_RTGC
+  u2                     _node_type;
+  u2                     _init_state;
+#else
   InstanceKlass::ClassState _init_state;           // state of class
+#endif
   bool                   _is_shared;
   bool                   _has_finalizer;
   SubklassValue          _has_subklass;
@@ -119,8 +124,18 @@ protected:
 public:
   // Has this klass been initialized?
   bool                   is_initialized() {
-    update_if_shared(InstanceKlass::fully_initialized);
-    return _init_state == InstanceKlass::fully_initialized;
+#if INCLUDE_RTGC
+    if (EnableRTGC) {
+      if (_is_shared && (_init_state != InstanceKlass::fully_initialized || _node_type < rtNodeType::Cyclic)) {
+        if (is_loaded()) compute_shared_init_state();
+      }
+      return ((_init_state << 16) + _node_type) >= InstanceKlass::clinit_check_value();
+    } else
+#endif
+    { 
+      update_if_shared(InstanceKlass::fully_initialized);
+      return _init_state == InstanceKlass::fully_initialized;
+    }
   }
   bool                   is_not_initialized() {
     update_if_shared(InstanceKlass::fully_initialized);

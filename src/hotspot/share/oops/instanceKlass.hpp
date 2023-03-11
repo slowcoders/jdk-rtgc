@@ -224,10 +224,12 @@ class InstanceKlass: public Klass {
   // _misc_flags.
   bool            _is_marked_dependent;     // used for marking during flushing and deoptimization
 
+#if !INCLUDE_RTGC
   // Class states are defined as ClassState (see above).
   // Place the _init_state here to utilize the unused 2-byte after
   // _idnum_allocated_count.
   u1              _init_state;              // state of class
+#endif
 
   // This can be used to quickly discriminate among the four kinds of
   // InstanceKlass. This should be an enum (?)
@@ -439,6 +441,7 @@ class InstanceKlass: public Klass {
 
 #if INCLUDE_RTGC
   virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
+  rtNodeType         resolve_node_type_internal(JavaThread* thread);
 #endif
 
  public:
@@ -975,7 +978,11 @@ public:
 #endif
 
   // support for stub routines
-  static ByteSize init_state_offset()  { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
+  static ByteSize init_state_offset()   { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  static int      clinit_check_value()  { return (fully_initialized << 16) + rtNodeType::Cyclic; }
+#endif
+
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 

@@ -8,8 +8,9 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
-#define RTGC_FAT_OOP        true
-#define RTGC_SHARE_GC_MARK  false
+#define RTGC_FAT_OOP                  true
+#define RTGC_SHARE_GC_MARK            false
+#define RTGC_ENABLE_ACYCLIC_REF_COUNT true
 
 class Thread;
 class oopDesc;
@@ -36,6 +37,8 @@ class rtHeap : AllStatic {
 public:
   static int  DoCrossCheck;
   static int  in_full_gc;
+
+  static void init_allocated_object(HeapWord* mem, Klass* klass);
 
   static void init_mark(oopDesc* p);
   static bool is_trackable(oopDesc* p);

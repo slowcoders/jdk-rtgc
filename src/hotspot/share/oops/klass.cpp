@@ -205,6 +205,7 @@ Klass::Klass(KlassID id) : _id(id),
                            _prototype_header(markWord::prototype()),
                            _shared_class_path_index(-1) {
   RTGC_ONLY(_node_type = rtNodeType::Unknown;) 
+  RTGC_ONLY(_init_state = InstanceKlass::fully_initialized;)  
   CDS_ONLY(_shared_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror_index = -1;)
   _primary_supers[0] = this;

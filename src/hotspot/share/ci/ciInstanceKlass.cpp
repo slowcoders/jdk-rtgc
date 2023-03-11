@@ -145,6 +145,9 @@ void ciInstanceKlass::compute_shared_init_state() {
   GUARDED_VM_ENTRY(
     InstanceKlass* ik = get_instanceKlass();
     _init_state = ik->init_state();
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+    _node_type = ik->node_type();
+#endif
   )
 }
 

@@ -77,10 +77,11 @@ class vtableEntry;
 
 #if INCLUDE_RTGC
 enum rtNodeType {
-  Unknown = -2,
-  Cyclic = 0,
-  Acyclic = 1,
-  PrimitiveSet = 3,
+  Unknown = 0,
+  MayCyclic = 2,
+  Cyclic = 4,
+  Acyclic = 5,
+  PrimitiveSet = 7,
 };
 #endif
 
@@ -181,10 +182,6 @@ private:
   // -1.
   jshort _shared_class_path_index;
 
-#if INCLUDE_RTGC
-  rtNodeType _node_type;
-#endif  
-
 #if INCLUDE_CDS
   // Flags of the current shared class.
   u2     _shared_class_flags;
@@ -198,11 +195,14 @@ private:
   CDS_JAVA_HEAP_ONLY(int _archived_mirror_index;)
 
 protected:
+#if INCLUDE_RTGC
+  u2  _node_type;
+  u2  _init_state;
+#endif  
 
   // Constructor
   Klass(KlassID id);
   Klass() : _id(KlassID(-1)) {
-    RTGC_ONLY(_node_type = rtNodeType::Unknown;)  
     assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); 
   }
 
@@ -318,9 +318,16 @@ protected:
   void set_class_loader_data(ClassLoaderData* loader_data) {  _class_loader_data = loader_data; }
 
 #if INCLUDE_RTGC
-  rtNodeType node_type() {
-    return _node_type;
+#if !RTGC_ENABLE_ACYCLIC_REF_COUNT
+  rtNodeType node_type() { return rtNodeType::Cyclic; }
+
+  bool is_acyclic() {
+    return false;
   }
+
+  rtNodeType resolve_node_type(JavaThread* thread) {}
+#else
+  rtNodeType node_type() { return (rtNodeType)_node_type; }
 
   bool is_acyclic() {
     rt_assert_f(_node_type != rtNodeType::Unknown, "node type not resolved %s", name()->bytes()); 
@@ -328,10 +335,10 @@ protected:
   }
 
   rtNodeType resolve_node_type(JavaThread* thread) {
-    if (_node_type == rtNodeType::Unknown) {
-      _node_type = resolve_node_type_impl(thread);
+    if (EnableRTGC && _node_type < rtNodeType::Cyclic) {
+      return resolve_node_type_impl(thread);
     }
-    return _node_type;
+    return (rtNodeType)_node_type;
   }
 
   void set_node_type(rtNodeType node_type) {
@@ -342,6 +349,7 @@ protected:
     fatal("Should not reach hear!");
     return rtNodeType::Unknown;
   }
+#endif
 #endif
 
   int shared_classpath_index() const   {
@@ -411,7 +419,7 @@ protected:
   static ByteSize modifier_flags_offset()        { return in_ByteSize(offset_of(Klass, _modifier_flags)); }
   static ByteSize layout_helper_offset()         { return in_ByteSize(offset_of(Klass, _layout_helper)); }
   static ByteSize access_flags_offset()          { return in_ByteSize(offset_of(Klass, _access_flags)); }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   static ByteSize node_type_offset()             { return in_ByteSize(offset_of(Klass, _node_type)); }
 #endif
   // Unpacking layout_helper:

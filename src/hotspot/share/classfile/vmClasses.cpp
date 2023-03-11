@@ -161,7 +161,7 @@ void vmClasses::resolve_all(TRAPS) {
   java_lang_String::compute_offsets();
   java_lang_Class::compute_offsets();
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   vmClasses::Object_klass()->set_node_type(rtNodeType::Acyclic);
   vmClasses::Class_klass()->set_node_type(rtNodeType::Acyclic);
   vmClasses::String_klass()->set_node_type(rtNodeType::Acyclic);
@@ -190,7 +190,7 @@ void vmClasses::resolve_all(TRAPS) {
   vmClasses::FinalReference_klass()->set_reference_type(REF_FINAL);
   vmClasses::PhantomReference_klass()->set_reference_type(REF_PHANTOM);
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   vmClasses::Reference_klass()->set_node_type(rtNodeType::Cyclic);
   vmClasses::SoftReference_klass()->set_node_type(rtNodeType::Cyclic);
   vmClasses::WeakReference_klass()->set_node_type(rtNodeType::Cyclic);
@@ -215,7 +215,7 @@ void vmClasses::resolve_all(TRAPS) {
   _box_klasses[T_LONG]    = vmClasses::Long_klass();
   //_box_klasses[T_OBJECT]  = vmClasses::object_klass();
   //_box_klasses[T_ARRAY]   = vmClasses::object_klass();
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   vmClasses::Boolean_klass()->set_node_type(rtNodeType::Acyclic);
   vmClasses::Character_klass()->set_node_type(rtNodeType::Acyclic);
   vmClasses::Float_klass()->set_node_type(rtNodeType::Acyclic);

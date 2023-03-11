@@ -712,11 +712,14 @@ void LinkResolver::check_field_loader_constraints(Symbol* field, Symbol* sig,
   }
 }
 
+static int ccc = 0;
 Method* LinkResolver::resolve_method(const LinkInfo& link_info,
                                      Bytecodes::Code code, TRAPS) {
 
   Handle nested_exception;
   Klass* resolved_klass = link_info.resolved_klass();
+
+  // rt_assert(++ccc < 9900);
 
   // 1. For invokevirtual, cannot call an interface method
   if (code == Bytecodes::_invokevirtual && resolved_klass->is_interface()) {
@@ -739,6 +742,7 @@ Method* LinkResolver::resolve_method(const LinkInfo& link_info,
 
   // 3. lookup method in resolved klass and its super klasses
   methodHandle resolved_method(THREAD, lookup_method_in_klasses(link_info, true, false));
+
 
   // 4. lookup method in all the interfaces implemented by the resolved klass
   if (resolved_method.is_null() && !resolved_klass->is_array_klass()) { // not found in the class hierarchy

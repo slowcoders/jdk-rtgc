@@ -6,6 +6,7 @@
 #include "oops/oop.hpp"
 #include "GCPointer.hpp"
 #include "../rtgcGlobals.hpp"
+#include "../rtgcHeap.hpp"
 
 #define ZERO_ROOT_REF 		0
 static const int NO_SAFE_ANCHOR = 0;
@@ -108,7 +109,7 @@ public:
 	}
 };
 
-#define ROOT_REF_COUNT_BITS 	23
+#define ROOT_REF_COUNT_BITS 	25
 
 struct GCFlags {
 	uint32_t isAyclic: 1;
@@ -123,8 +124,8 @@ struct GCFlags {
 	uint32_t isUnstable: 1;
 
 	uint32_t contextFlag: 1;
-	uint32_t isPublished: 1;
-	uint32_t immortal: 1;
+	// uint32_t isPublished: 1;
+	// uint32_t immortal: 1;
 #if ZERO_ROOT_REF < 0	
 	int32_t rootRefCount: ROOT_REF_COUNT_BITS;
 #else
@@ -138,7 +139,7 @@ class GCNode : public oopDesc {
 	static const int survivor_reachable_value = 1 << (ROOT_REF_COUNT_BITS - 2);
 	static const int finalizer_reachalbe_value = 1;
 
-friend class RtNode;
+	friend class RtNode;
 	GCFlags& flags() {
 		return *(GCFlags*)((uintptr_t)this + flags_offset());
 	}
@@ -365,11 +366,11 @@ public:
 	}
 
 	bool isPublished() {
-		return flags().isPublished;
+		return false;//flags().isPublished;
 	}
 
 	void markPublished() {
-		flags().isPublished = true;
+		// flags().isPublished = true;
 	}
 
 	bool getContextFlag() {
@@ -385,11 +386,11 @@ public:
 	}
 
 	void markImmortal() {
-		flags().immortal = false;
+		// flags().immortal = false;
 	}
 
 	bool isImmortal() {
-		return flags().immortal;
+		return false;//flags().immortal;
 	}
 };
 

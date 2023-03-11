@@ -1616,10 +1616,20 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) {
   if (op->init_check()) {
     add_debug_info_for_null_check_here(op->stub()->info());
-    __ cmpb(Address(op->klass()->as_register(),
-                    InstanceKlass::init_state_offset()),
-                    InstanceKlass::fully_initialized);
-    __ jcc(Assembler::notEqual, *op->stub()->entry());
+#if INCLUDE_RTGC
+    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+      __ cmpl(Address(op->klass()->as_register(), 
+                      Klass::node_type_offset()), 
+                      InstanceKlass::clinit_check_value());
+      __ jcc(Assembler::less, *op->stub()->entry());
+    } else 
+#endif
+    {
+      __ cmpl(Address(op->klass()->as_register(),
+                      InstanceKlass::init_state_offset()),
+                      InstanceKlass::fully_initialized);
+      __ jcc(Assembler::notEqual, *op->stub()->entry());
+    }
   }
   __ allocate_object(op->obj()->as_register(),
                      op->tmp1()->as_register(),
@@ -1652,12 +1662,17 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
     } else {
       __ mov(tmp3, len);
     }
+
     __ allocate_array(op->obj()->as_register(),
                       len,
                       tmp1,
                       tmp2,
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+                      op->type(),
+#else                      
                       arrayOopDesc::header_size(op->type()),
                       array_element_size(op->type()),
+#endif
                       op->klass()->as_register(),
                       *op->stub()->entry());
   }

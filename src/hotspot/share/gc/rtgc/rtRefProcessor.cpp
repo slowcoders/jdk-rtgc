@@ -259,7 +259,7 @@ namespace RTGC {
             }
             if (to_obj(_curr_ref)->isTrackable() && !to_obj(_curr_ref)->getContextFlag()) {
               // referent 의 referrerList 에서 _current_ref 가 제거된 상태.
-              rtgc_log(true, "clear referent field " PTR_DBG_SIG PTR_DBG_SIG, PTR_DBG_INFO(_curr_ref), PTR_DBG_INFO(referent));
+              // rtgc_log(true, "clear referent field " PTR_DBG_SIG PTR_DBG_SIG, PTR_DBG_INFO(_curr_ref), PTR_DBG_INFO(referent));
               _curr_ref->obj_field_put_raw(_referent_off, NULL);
             }
           }

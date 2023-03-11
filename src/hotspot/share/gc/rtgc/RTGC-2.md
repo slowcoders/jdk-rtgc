@@ -4,6 +4,7 @@
       MacroAssembler::decode_heap_oop/encode_heap_oop
       참조) BarrierSetAssembler::eden_allocate
            ShenandoahBarrierSetC1::load_reference_barrier_impl
+           c1_Runtime1_x86.cpp:1201 (new_object_array_id)
       참고) thread::_gc_data -> GCThreadLocalData[19];
          thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
 
@@ -187,6 +188,31 @@ void GenCollectedHeap::collect_generation()
 
 
 * MemAllocator
+
+TemplateTable::_new()
+   -> InterpreterRuntime::_new
+      -> klass->initialize(CHECK);
+         -> Klass::resolveNodeType()
+LIR_OpAllocObj 
+   -> __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::fast/new_instance/init_check_id))); 
+      -> Runtime1::new_instance
+         -> klass->initialize(CHECK);
+            -> Klass::resolveNodeType()
+
+TemplateTable::anewarray()
+   -> InterpreterRuntime::anewarray         
+      -> oopFactory::new_objArray
+         -> InstanceKlass::allocate_objArray
+         -> ArrayKlass::allocate_arrayArray
+            -> Klass::resolveNodeType()
+LIR_OpAllocArray 
+   -> __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+      -> Runtime1::new_object_array
+         -> oopFactory::new_objArray
+            -> InstanceKlass::allocate_objArray
+            -> ArrayKlass::allocate_arrayArray
+               -> Klass::resolveNodeType()
+
 void LIR_List::allocate_object(LIR_Opr dst..) 
    solw_path = new NewInstanceStub(klass_reg, Runtime1::fast_new_instance_id : ..)
    append(new LIR_OpAllocObj..., slow_path = new NewInstanceStub

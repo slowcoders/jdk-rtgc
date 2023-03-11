@@ -16,6 +16,8 @@ const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
+    int max_count = survivor_reachable_value - 1;
+    rt_assert_f((flags().rootRefCount & max_count) < max_count/2, PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
     return (flags().rootRefCount += 2);
 }

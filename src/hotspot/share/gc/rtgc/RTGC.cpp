@@ -18,7 +18,7 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "java/lang/invoke/LambdaFormEditor$Transform",
+  // "&java/lang/Class",
   //"java/lang/invoke/LambdaFormEditor$Transform",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
@@ -305,6 +305,7 @@ int RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj2) return -1;
 
   // if (((uintptr_t)ptr & ~0xFFF) == 0x3f5b06000) return true;
+  if (to_obj(obj)->isActiveFinalizer()) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -356,7 +357,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  // RTGC_DEBUG = 1;
+  RTGC_DEBUG = 1;
   logOptions[0] = -1;
   // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
 #else

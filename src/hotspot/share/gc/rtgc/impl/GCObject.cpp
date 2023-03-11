@@ -9,7 +9,6 @@ using namespace RTGC;
 
 void* GCNode::g_trackable_heap_start = 0;
 bool GCNode::in_progress_adjust_pointers = false;
-static const bool ENABLE_ACYCLIC_REF_COUNT = true;
 
 static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_GCNODE, function);
@@ -90,13 +89,14 @@ void GCObject::addReferrer(GCObject* referrer) {
     rt_assert(RTGC_FAT_OOP || !cast_to_oop(this)->is_gc_marked());
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
 
-    if (ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
+    if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert_f(this->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
         this->incrementRootRefCount();
+
         return;
     }
 
-    rt_assert_f(!ENABLE_ACYCLIC_REF_COUNT || !this->klass()->is_acyclic(), 
+    rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !this->klass()->is_acyclic(), 
         "wrong acyclic mark %s", RTGC::getClassName(this));
 
     RtNode* nx = this->getMutableNode();
@@ -136,12 +136,12 @@ template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
     rt_assert(referrer != this);
 
-    if (ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
+    if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert_f(this->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
         return this->decrementRootRefCount();
     }
 
-    rt_assert_f(!ENABLE_ACYCLIC_REF_COUNT || !this->klass()->is_acyclic(), 
+    rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !this->klass()->is_acyclic(), 
         "wrong acyclic mark %s", RTGC::getClassName(this));
 
     RtNode* nx = this->getMutableNode();
@@ -245,7 +245,7 @@ bool GCObject::tryRemoveReferrer(GCObject* referrer) {
 }
 
 bool GCObject::removeMatchedReferrers(GCObject* referrer) {
-    rt_assert_f(!ENABLE_ACYCLIC_REF_COUNT, "Should not reach here in Acylic support mode");
+    rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT, "Should not reach here in Acylic support mode");
     return removeReferrer_impl<true, false, true>(referrer) == 0;
 }
 

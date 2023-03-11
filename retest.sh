@@ -62,31 +62,67 @@
 #        -XX:+UnlockExperimentalVMOptions \
 #        -XX:AbortVMOnExceptionMessage='#' \
 
-pushd test/langtools/tools/javac/Paths && \
-/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/javac -J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_Paths_Diagnostics_sh/tmp -J-ea -J-esa -Xlint -cp Main.java Main.java
+# pushd test/langtools/tools/javac/Paths && \
+# /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/javac -J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tools_javac_Paths_Diagnostics_sh/tmp -J-ea -J-esa -Xlint -cp Main.java Main.java
 
-pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/scratch/3 && \
+# pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/scratch/3 && \
+# HOME=/Users/zeedh \
+# JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
+# LANG=en_US.UTF-8 \
+# LC_ALL=C \
+# PATH=/bin:/usr/bin:/usr/sbin \
+# TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
+# TESTFILE=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths/Diagnostics.sh \
+# TESTSRC=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths \
+# TESTSRCPATH=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths \
+# TESTCLASSES=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/1/tools/javac/Paths/Diagnostics.d \
+# TESTCLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/1/tools/javac/Paths/Diagnostics.d \
+# COMPILEJAVA=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+# TESTJAVA=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+# TESTVMOPTS='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -ea -esa' \
+# TESTTOOLVMOPTS='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -J-ea -J-esa' \
+# TESTJAVACOPTS= \
+# TESTJAVAOPTS= \
+# TESTTIMEOUTFACTOR=4.0 \
+# TESTROOT=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
+# FS=/ \
+# PS=: \
+# NULL=/dev/null \
+#     sh \
+#         /Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths/Diagnostics.sh
+
+pushd /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/scratch/0 && \
 HOME=/Users/zeedh \
 JDK8_HOME=/Library/Java/JavaVirtualMachines/adoptopenjdk-16.jdk/Contents/Home \
 LANG=en_US.UTF-8 \
 LC_ALL=C \
 PATH=/bin:/usr/bin:/usr/sbin \
 TEST_IMAGE_DIR=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test \
-TESTFILE=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths/Diagnostics.sh \
-TESTSRC=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths \
-TESTSRCPATH=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths \
-TESTCLASSES=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/1/tools/javac/Paths/Diagnostics.d \
-TESTCLASSPATH=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/classes/1/tools/javac/Paths/Diagnostics.d \
-COMPILEJAVA=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-TESTJAVA=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
-TESTVMOPTS='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -ea -esa' \
-TESTTOOLVMOPTS='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_langtools_tier1/tmp -J-ea -J-esa' \
-TESTJAVACOPTS= \
-TESTJAVAOPTS= \
-TESTTIMEOUTFACTOR=4.0 \
-TESTROOT=/Users/zeedh/slowcoders/jdk-rtgc/test/langtools \
-FS=/ \
-PS=: \
-NULL=/dev/null \
-    sh \
-        /Users/zeedh/slowcoders/jdk-rtgc/test/langtools/tools/javac/Paths/Diagnostics.sh
+    /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk/bin/javac \
+        -J-Xmx768m \
+        -J-XX:MaxRAMPercentage=6.25 \
+        -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/tmp \
+        -J-ea \
+        -J-esa \
+        -J-Djava.library.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native \
+        -J-Dtest.vm.opts='-Xmx768m -XX:MaxRAMPercentage=6.25 -Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/tmp -ea -esa' \
+        -J-Dtest.tool.vm.opts='-J-Xmx768m -J-XX:MaxRAMPercentage=6.25 -J-Djava.io.tmpdir=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/tmp -J-ea -J-esa' \
+        -J-Dtest.compiler.opts= \
+        -J-Dtest.java.opts= \
+        -J-Dtest.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -J-Dcompile.jdk=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/jdk \
+        -J-Dtest.timeout.factor=4.0 \
+        -J-Dtest.nativepath=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/images/test/jdk/jtreg/native \
+        -J-Dtest.root=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk \
+        -J-Dtest.name=java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java \
+        -J-Dtest.file=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java \
+        -J-Dtest.src=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching \
+        -J-Dtest.src.path=/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/lib/testlibrary:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/common:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -J-Dtest.classes=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.d \
+        -J-Dtest.class.path=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/lib/testlibrary:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/common:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/test/lib \
+        -J-Dtest.class.path.prefix=/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.d:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/lib/testlibrary:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/common:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/test/lib \
+        -J-Dtest.modules='java.base/java.lang.ref:open java.base/java.lang.invoke:open java.management' \
+        --add-modules java.base,java.management \
+        -d /Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.d \
+        -sourcepath /Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/lib/testlibrary:/Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/common:/Users/zeedh/slowcoders/jdk-rtgc/test/lib \
+        -classpath /Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.d:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/lib/testlibrary:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/java/lang/invoke/common:/Users/zeedh/slowcoders/jdk-rtgc/build/macosx-x86_64-client-fastdebug/test-support/jtreg_test_jdk_java_lang_invoke_LFCaching_LFSingleThreadCachingTest_java/classes/0/test/lib /Users/zeedh/slowcoders/jdk-rtgc/test/jdk/java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java

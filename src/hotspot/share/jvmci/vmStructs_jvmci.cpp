@@ -156,7 +156,10 @@
                                                                                                                                      \
   nonstatic_field(InstanceKlass,               _fields,                                       Array<u2>*)                            \
   nonstatic_field(InstanceKlass,               _constants,                                    ConstantPool*)                         \
-  nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
+  /* rtgc changed ----------------------------------------------------------------------*/                                           \
+  nonstatic_field(InstanceKlass,               _node_type,                                   u2)                                     \
+  nonstatic_field(InstanceKlass,               _init_state,                                   u2)                                    \
+  /* nonstatic_field(InstanceKlass,               _init_state,                                  u1)*/                                \
   nonstatic_field(InstanceKlass,               _init_thread,                                  Thread*)                               \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
   nonstatic_field(InstanceKlass,               _annotations,                                  Annotations*)                          \

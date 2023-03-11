@@ -242,7 +242,10 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
   nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
-  nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
+  /* rtgc changed */                                                                                                                 \
+  nonstatic_field(InstanceKlass,               _node_type,                                   u2)                                     \
+  nonstatic_field(InstanceKlass,               _init_state,                                   u2)                                    \
+  /*nonstatic_field(InstanceKlass,               _init_state,                                   u1)  */                              \
   nonstatic_field(InstanceKlass,               _init_thread,                                  Thread*)                               \
   nonstatic_field(InstanceKlass,               _itable_len,                                   int)                                   \
   nonstatic_field(InstanceKlass,               _reference_type,                               u1)                                    \
@@ -836,7 +839,10 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(ciObjArrayKlass,             _element_klass,                                ciKlass*)                              \
   nonstatic_field(ciObjArrayKlass,             _base_element_klass,                           ciKlass*)                              \
                                                                                                                                      \
-  nonstatic_field(ciInstanceKlass,             _init_state,                                   InstanceKlass::ClassState)             \
+  /*rtgc change ----------------------------------------------------------------------------------------------- */                   \
+  nonstatic_field(ciInstanceKlass,             _node_type,                                    u2)                                    \
+  nonstatic_field(ciInstanceKlass,             _init_state,                                   u2)                                    \
+  /*nonstatic_field(ciInstanceKlass,             _init_state,                                   InstanceKlass::ClassState)  */       \
   nonstatic_field(ciInstanceKlass,             _is_shared,                                    bool)                                  \
                                                                                                                                      \
   nonstatic_field(ciMethod,                    _interpreter_invocation_count,                 int)                                   \

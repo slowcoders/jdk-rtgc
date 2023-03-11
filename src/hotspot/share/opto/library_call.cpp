@@ -2778,13 +2778,27 @@ bool LibraryCallKit::inline_unsafe_allocate() {
     // Note:  The argument might still be an illegal value like
     // Serializable.class or Object[].class.   The runtime will handle it.
     // But we must make an explicit check for initialization.
-    Node* insp = basic_plus_adr(kls, in_bytes(InstanceKlass::init_state_offset()));
-    // Use T_BOOLEAN for InstanceKlass::_init_state so the compiler
-    // can generate code to load it as unsigned byte.
-    Node* inst = make_load(NULL, insp, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
-    Node* bits = intcon(InstanceKlass::fully_initialized);
-    test = _gvn.transform(new SubINode(inst, bits));
-    // The 'test' is non-zero if we need to take a slow path.
+#if INCLUDE_RTGC
+    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+      Node* insp = basic_plus_adr(kls, in_bytes(Klass::node_type_offset()));
+      // Use T_BOOLEAN for InstanceKlass::_init_state so the compiler
+      // can generate code to load it as unsigned byte.
+      Node* inst = make_load(NULL, insp, TypeInt::INT, T_BOOLEAN, MemNode::unordered);
+      Node* bits = intcon(InstanceKlass::clinit_check_value());
+      Node* cmp = _gvn.transform(new CmpINode(inst, bits));
+      Node *bol = _gvn.transform(new BoolNode(cmp, BoolTest::lt));
+      test = _gvn.transform(new BoolNode(cmp, BoolTest::lt));
+    } else 
+#endif
+    {
+      Node* insp = basic_plus_adr(kls, in_bytes(InstanceKlass::init_state_offset()));
+      // Use T_BOOLEAN for InstanceKlass::_init_state so the compiler
+      // can generate code to load it as unsigned byte.
+      Node* inst = make_load(NULL, insp, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
+      Node* bits = intcon(InstanceKlass::fully_initialized);
+      test = _gvn.transform(new SubINode(inst, bits));
+      // The 'test' is non-zero if we need to take a slow path.
+    }
   }
 
   Node* obj = new_instance(kls, test);

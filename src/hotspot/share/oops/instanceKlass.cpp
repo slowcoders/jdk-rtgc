@@ -493,11 +493,16 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _nest_host_index(0),
+  _nest_host_index(0),  
+#if !INCLUDE_RTGC  
   _init_state(allocated),
+#endif
   _reference_type(parser.reference_type()),
   _init_thread(NULL)
 {
+#if INCLUDE_RTGC  
+  _init_state = allocated;
+#endif
   set_vtable_length(parser.vtable_size());
   set_kind(kind);
   set_access_flags(parser.access_flags());
@@ -722,10 +727,6 @@ void InstanceKlass::eager_initialize(RTGC_ONLY(JavaThread) NOT_RTGC(Thread) *thr
 
     // call body to expose the this pointer
     eager_initialize_impl();
-
-#if INCLUDE_RTGC
-    this->resolve_node_type(thread);
-#endif    
   }
 }
 
@@ -793,6 +794,9 @@ void InstanceKlass::eager_initialize_impl() {
       ResourceMark rm(THREAD);
       log_info(class, init)("[Initialized %s without side effects]", external_name());
     }
+// #if INCLUDE_RTGC
+//     this->resolve_node_type(THREAD);
+// #endif    
   }
 }
 
@@ -801,15 +805,14 @@ void InstanceKlass::eager_initialize_impl() {
 // process. The step comments refers to the procedure described in that section.
 // Note: implementation moved to static method to expose the this pointer.
 void InstanceKlass::initialize(TRAPS) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  this->resolve_node_type(THREAD);
+#endif
   if (this->should_be_initialized()) {
     initialize_impl(CHECK);
     // Note: at this point the class may be initialized
     //       OR it may be in the state of being initialized
     //       in case of recursive initialization!
-#if INCLUDE_RTGC
-    rtNodeType node_type = this->resolve_node_type(THREAD);
-    rt_assert(node_type != rtNodeType::Unknown);
-#endif    
   } else {
     assert(is_initialized(), "sanity check");
   }
@@ -1029,6 +1032,8 @@ void InstanceKlass::initialize_super_interfaces(TRAPS) {
 void InstanceKlass::initialize_impl(TRAPS) {
   HandleMark hm(THREAD);
 
+  // printf("initialize_impl %s\n", name()->bytes());
+
   // Make sure klass is linked (verified) before initialization
   // A class could already be verified, since it has been reflected upon.
   link_class(CHECK);
@@ -1094,9 +1099,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Next, if C is a class rather than an interface, initialize it's super class and super
   // interfaces.
   if (!is_interface()) {
-#if INCLUDE_RTGC
-    bool is_acyclic = true;
-#endif
     Klass* super_klass = super();
     if (super_klass != NULL && super_klass->should_be_initialized()) {
       super_klass->initialize(THREAD);
@@ -1356,6 +1358,9 @@ objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
   Klass* ak = array_klass(n, CHECK_NULL);
+#if INCLUDE_RTGC
+  ak->resolve_node_type(THREAD);
+#endif  
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   return o;
@@ -1422,9 +1427,6 @@ Klass* InstanceKlass::array_klass(int n, TRAPS) {
         release_set_array_klasses(k);
       }
     }
-#if INCLUDE_RTGC
-    array_klasses()->resolve_node_type(THREAD);
-#endif
   }
   // array_klasses() will always be set at this point
   ObjArrayKlass* oak = array_klasses();
@@ -1461,6 +1463,7 @@ Method* InstanceKlass::class_initializer() const {
 }
 
 void InstanceKlass::call_class_initializer(TRAPS) {
+  // printf("InstanceKlass::call_class_initializer %s\n", name()->bytes());
   if (ReplayCompiles &&
       (ReplaySuppressInitializers == 1 ||
        (ReplaySuppressInitializers >= 2 && class_loader() != NULL))) {
@@ -1483,6 +1486,8 @@ void InstanceKlass::call_class_initializer(TRAPS) {
     JavaValue result(T_VOID);
     JavaCalls::call(&result, h_method, &args, CHECK); // Static call (no args)
   }
+  // printf("InstanceKlass::call_class_initializer done %s\n", name()->bytes());
+
 }
 
 
@@ -3887,7 +3892,7 @@ void InstanceKlass::set_init_state(ClassState state) {
   assert(good_state || state == allocated, "illegal state transition");
 #endif
   assert(_init_thread == NULL, "should be cleared before state change");
-  _init_state = (u1)state;
+  _init_state = (u1)state;  
 }
 
 #if INCLUDE_JVMTI
@@ -4212,26 +4217,16 @@ void ClassHierarchyIterator::next() {
 #include "oops/fieldStreams.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 
-rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
-  // temprary set nodeType for prevent recursive nodeType resolve
-  rtNodeType node_type = rtNodeType::Cyclic;
-  set_node_type(node_type);
-  if (is_interface()) return node_type;  
-
-  rt_assert(!this->is_array_klass());
-
-  if (thread == NULL) {
-    thread = JavaThread::current();
-  }
-
+rtNodeType InstanceKlass::resolve_node_type_internal(JavaThread* thread) {
+  // rtgc_log(true, "resolve_node_type_internal %s %p %p", 
+  //     name()->bytes(), (void*)class_loader(), (void*)protection_domain());
   rtNodeType super_type = super() == NULL ? rtNodeType::PrimitiveSet
       : super()->resolve_node_type(thread);
-  if (super_type == rtNodeType::Cyclic) return node_type;
+  if (super_type <= rtNodeType::Cyclic) return rtNodeType::Cyclic;
 
-  // ResourceMark rm(JavaThread::current());
-
+  // if (super() == vmClasses::Enum_klass())
   bool has_oop_field = super_type != rtNodeType::PrimitiveSet;
-  for (JavaFieldStream fs((InstanceKlass*)this); !fs.done(); fs.next()) {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
 
     fieldDescriptor& fd = fs.field_descriptor();
@@ -4240,16 +4235,16 @@ rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
 
     has_oop_field = true;
     // 참고) classLoader 를 지정하지 않으면, 이미 load 된 class 만 resolve 가능.
-    Klass* klass = SystemDictionary::resolve_or_null(fd.signature(), thread); 
+    Klass* k = SystemDictionary::resolve_or_null(fd.signature(), thread); 
 
-    if (klass != NULL) {
-      bool is_acyclic = (basicType == T_ARRAY || klass->is_final())
-                   && klass->resolve_node_type(thread) >= rtNodeType::Acyclic;
-      if (!is_acyclic) return node_type;
+    if (k != NULL) {
+      bool is_acyclic = (basicType == T_ARRAY || k->is_final())
+                   && k->resolve_node_type(thread) >= rtNodeType::Acyclic;
+      if (!is_acyclic) return rtNodeType::Cyclic;
     }
   }
 
-  for (JavaFieldStream fs((InstanceKlass*)this); !fs.done(); fs.next()) {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
 
     fieldDescriptor& fd = fs.field_descriptor();
@@ -4258,16 +4253,32 @@ rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
 
     has_oop_field = true;
     // 참고) classLoader 를 지정하지 않으면, 이미 load 된 class 만 resolve 가능.
-    Klass* klass = SystemDictionary::resolve_or_null(fd.signature(), 
+    Klass* k = SystemDictionary::resolve_or_null(fd.signature(), 
         Handle(thread, class_loader()), Handle(thread, protection_domain()), thread); 
 
-      bool is_acyclic = (basicType == T_ARRAY || klass->is_final())
-                   && klass->resolve_node_type(thread) >= rtNodeType::Acyclic;
-      if (!is_acyclic) return node_type;
+    bool is_acyclic = (basicType == T_ARRAY || k->is_final())
+                  && k->resolve_node_type(thread) >= rtNodeType::Acyclic;
+    if (!is_acyclic) return rtNodeType::Cyclic;
   }
 
-  node_type = (has_oop_field ? rtNodeType::Acyclic : rtNodeType::PrimitiveSet); 
-  // rtgc_log(true, "!! Acyclic klass = %s", this->name()->bytes());
-  return node_type;
+  return has_oop_field ? rtNodeType::Acyclic : rtNodeType::PrimitiveSet;   
+}
+
+rtNodeType InstanceKlass::resolve_node_type_impl(JavaThread* thread) {
+  if (is_interface() || is_hidden()) {
+    // hidden klass 는 필드 reflection 불가함.
+    return (rtNodeType)(_node_type = rtNodeType::Cyclic);  
+  }
+
+  rt_assert(!this->is_array_klass());
+  rt_assert(thread != NULL);
+
+  ObjectLocker lock(Handle(thread, vmClasses::Class_klass()->java_mirror()), thread);
+  if (_node_type == rtNodeType::Unknown) {
+    // temporary set nodeType for prevent recursive loop
+    _node_type = rtNodeType::MayCyclic;
+    _node_type = this->resolve_node_type_internal(thread);
+  }
+  return (rtNodeType)_node_type;
 }
 #endif

@@ -115,7 +115,6 @@ namespace rtCLDCleaner {
           rtHeap::lock_jni_handle_at_safepoint(obj);
         }
 
-        rt_assert_f((node->getRootRefCount() & 0x3FF) != 0, PTR_DBG_SIG, PTR_DBG_INFO(node));
         if (!node->isTrackable() && !obj->is_gc_marked()) {
           MarkSweep::mark_and_push_internal<false>(obj);
         }

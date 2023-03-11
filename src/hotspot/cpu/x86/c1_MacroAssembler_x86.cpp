@@ -184,8 +184,8 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
 #ifdef _LP64
   NOT_RTGC(else) if (UseCompressedClassPointers) {
-#if INCLUDE_RTGC // is_acyclic
-    if (EnableRTGC) { // is_acyclic
+#if INCLUDE_RTGC 
+    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) { 
       movl(t1, Address(klass, Klass::node_type_offset()));
       andl(t1, 1);
     } else 
@@ -286,7 +286,25 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
   verify_oop(obj);
 }
 
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+static Address::ScaleFactor __array_element_size(BasicType type) {
+  int elem_size = type2aelembytes(type);
+  switch (elem_size) {
+    case 1: return Address::times_1;
+    case 2: return Address::times_2;
+    case 4: return Address::times_4;
+    case 8: return Address::times_8;
+  }
+  ShouldNotReachHere();
+  return Address::no_scale;
+}
+
+void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, BasicType elementType, Register klass, Label& slow_case) {
+  int header_size = arrayOopDesc::header_size(elementType);
+  Address::ScaleFactor f = __array_element_size(elementType);
+#else
 void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, int header_size, Address::ScaleFactor f, Register klass, Label& slow_case) {
+#endif
   assert(obj == rax, "obj must be in rax, for cmpxchg");
   assert_different_registers(obj, len, t1, t2, klass);
 
@@ -294,8 +312,14 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
   assert(!(BytesPerWord & 1), "must be a multiple of 2 for masking code to work");
 
   // check for negative or excessive length
-  cmpptr(len, (int32_t)max_array_allocation_length);
+  cmpptr(len, (int32_t)max_array_allocation_length);  
   jcc(Assembler::above, slow_case);
+#if INCLUDE_RTGC
+  if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT && (elementType == T_OBJECT || elementType == T_ARRAY)) {
+    cmpb(Address(klass, Klass::node_type_offset()), rtNodeType::Cyclic);
+    jcc(Assembler::less, slow_case);
+  }
+#endif
 
   const Register arr_size = t2; // okay to be the same
   // align object end

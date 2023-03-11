@@ -961,7 +961,7 @@ bool universe_post_init() {
   // Setup preallocated NullPointerException
   // (this is currently used for a cheap & dirty solution in compiler exception handling)
   Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_NullPointerException(), true, CHECK_false);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   InstanceKlass::cast(k)->resolve_node_type(THREAD);
 #endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
@@ -970,7 +970,7 @@ bool universe_post_init() {
   // Setup preallocated ArithmeticException
   // (this is currently used for a cheap & dirty solution in compiler exception handling)
   k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ArithmeticException(), true, CHECK_false);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   InstanceKlass::cast(k)->resolve_node_type(THREAD);
 #endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
@@ -983,7 +983,7 @@ bool universe_post_init() {
      tty->print_cr("Unable to link/verify VirtualMachineError class");
      return false; // initialization failed
   }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   InstanceKlass::cast(k)->resolve_node_type(THREAD);
 #endif
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);

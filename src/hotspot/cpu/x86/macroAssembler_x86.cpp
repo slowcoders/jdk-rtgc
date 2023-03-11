@@ -4122,9 +4122,16 @@ void MacroAssembler::clinit_barrier(Register klass, Register thread, Label* L_fa
   }
 
   // Fast path check: class is fully initialized
-  cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-  jcc(Assembler::equal, *L_fast_path);
-
+#if INCLUDE_RTGC
+  if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+    cmpl(Address(klass, Klass::node_type_offset()), InstanceKlass::clinit_check_value());
+    jcc(Assembler::greaterEqual, *L_fast_path);
+  } else 
+#endif
+  {
+    cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+    jcc(Assembler::equal, *L_fast_path);
+  }
   // Fast path check: current thread is initializer thread
   cmpptr(thread, Address(klass, InstanceKlass::init_thread_offset()));
   if (L_slow_path == &L_fallthrough) {

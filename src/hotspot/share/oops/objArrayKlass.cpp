@@ -136,16 +136,16 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
 rtNodeType ObjArrayKlass::resolve_node_type_impl(JavaThread* thread) {
   Klass* element_klass = this->element_klass();
   if (element_klass->is_final() || element_klass->is_array_klass()) {
-    this->set_node_type(rtNodeType::Cyclic); // Loop 방지.
-    if (element_klass->resolve_node_type(thread) >= rtNodeType::Acyclic) {
-      return rtNodeType::Acyclic;
+    rtNodeType element_type = element_klass->resolve_node_type(thread);
+    if (element_type >= rtNodeType::Acyclic) {
+      return (rtNodeType)(_node_type = rtNodeType::Acyclic);
     }
   }
-  return rtNodeType::Cyclic;
+  return (rtNodeType)(_node_type = rtNodeType::Cyclic);
 }
 #endif  
 
@@ -350,9 +350,9 @@ Klass* ObjArrayKlass::array_klass(int n, TRAPS) {
         assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-    #if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
       ObjArrayKlass::cast(higher_dimension())->resolve_node_type(THREAD);
-    #endif
+#endif
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
@@ -418,6 +418,9 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
 
 void ObjArrayKlass::initialize(TRAPS) {
   bottom_klass()->initialize(THREAD);  // dispatches to either InstanceKlass or TypeArrayKlass
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  this->resolve_node_type(THREAD);
+#endif  
 }
 
 void ObjArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {

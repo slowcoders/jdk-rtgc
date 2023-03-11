@@ -1885,7 +1885,7 @@ run:
               assert(!UseBiasedLocking, "Not implemented");
               obj->set_mark(markWord::prototype());
 #ifdef INCLUDE_RTGC
-              if (EnableRTGC) {
+              if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
                 obj->set_klass_gap(ik->is_acyclic());
               } else
 #endif

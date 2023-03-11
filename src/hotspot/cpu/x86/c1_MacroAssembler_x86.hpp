@@ -90,7 +90,11 @@
   // header_size: size of object header in words
   // f          : element scale factor
   // slow_case  : exit to slow case implementation if fast allocation fails
+#if INCLUDE_RTGC
+  void allocate_array(Register obj, Register len, Register t1, Register t2, BasicType elementType, Register klass, Label& slow_case);
+#else
   void allocate_array(Register obj, Register len, Register t, Register t2, int header_size, Address::ScaleFactor f, Register klass, Label& slow_case);
+#endif
 
   int  rsp_offset() const { return _rsp_offset; }
   void set_rsp_offset(int n) { _rsp_offset = n; }

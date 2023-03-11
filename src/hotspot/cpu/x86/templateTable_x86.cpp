@@ -3963,8 +3963,16 @@ void TemplateTable::_new() {
 
   // make sure klass is initialized & doesn't have finalizer
   // make sure klass is fully initialized
-  __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-  __ jcc(Assembler::notEqual, slow_case);
+#if INCLUDE_RTGC
+  if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+    __ cmpl(Address(rcx, Klass::node_type_offset()), InstanceKlass::clinit_check_value());
+    __ jcc(Assembler::less, slow_case);
+  } else 
+#endif
+  {
+    __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+    __ jcc(Assembler::notEqual, slow_case);
+  }
 
   // get instance_size in InstanceKlass (scaled to a count of bytes)
   __ movl(rdx, Address(rcx, Klass::layout_helper_offset()));
@@ -4058,8 +4066,8 @@ void TemplateTable::_new() {
       __ pop(rcx);   // get saved klass back in the register.
     }
 #ifdef _LP64
-#if INCLUDE_RTGC // is_acyclic
-    if (EnableRTGC) { // is_acyclic
+#if INCLUDE_RTGC
+    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
       __ movl(rsi, Address(rcx, Klass::node_type_offset()));
       __ andl(rsi, 1);
     } else 

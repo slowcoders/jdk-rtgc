@@ -75,6 +75,9 @@ typeArrayOop oopFactory::new_longArray(int length, TRAPS) {
 // create java.lang.Object[]
 objArrayOop oopFactory::new_objectArray(int length, TRAPS)  {
   assert(Universe::objectArrayKlassObj() != NULL, "Too early?");
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  Universe::objectArrayKlassObj()->resolve_node_type(THREAD);
+#endif  
   return ObjArrayKlass::cast(Universe::objectArrayKlassObj())->allocate(length, THREAD);
 }
 

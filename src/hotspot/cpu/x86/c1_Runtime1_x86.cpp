@@ -1054,8 +1054,16 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
           if (id == fast_new_instance_init_check_id) {
             // make sure the klass is initialized
-            __ cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-            __ jcc(Assembler::notEqual, slow_path);
+#if INCLUDE_RTGC
+            if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+              __ cmpl(Address(klass, Klass::node_type_offset()), InstanceKlass::clinit_check_value());
+              __ jcc(Assembler::less, slow_path);
+            } else 
+#endif
+            {
+              __ cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+              __ jcc(Assembler::notEqual, slow_path);
+            }
           }
 
 #ifdef ASSERT
@@ -1197,7 +1205,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
           __ bind(slow_path);
         }
-
+        // zee new_object_array
         __ enter();
         OopMap* map = save_live_registers(sasm, 3);
         int call_offset;
