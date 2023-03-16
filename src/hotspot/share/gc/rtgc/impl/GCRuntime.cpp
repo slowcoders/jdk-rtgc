@@ -17,15 +17,15 @@ const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
     int max_count = survivor_reachable_value - 1;
-    rt_assert_f((flags().rootRefCount & max_count) < max_count/2, PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rt_assert_f((_flags.rootRefCount & max_count) < max_count/2, PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    return (flags().rootRefCount += 2);
+    return (_flags.rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    rt_assert_f(flags().rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    return (flags().rootRefCount -= 2);
+    rt_assert_f(_flags.rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
+    return (_flags.rootRefCount -= 2);
 }
 
 bool GCRuntime::detectUnsafeObject(GCObject* erased) {
@@ -165,7 +165,7 @@ void GCRuntime::adjustShortcutPoints() {
         if (p->isValid()) {
 #ifdef ASSERT
             if (!rtHeap::is_alive(cast_to_oop((GCObject*)p->anchor()))) {
-                for (GCObject* node = p->tail(); node != p->anchor(); node = node->node_()->getSafeAnchor()) {
+                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
                     rtgc_log(1, "invalid shortcut node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }

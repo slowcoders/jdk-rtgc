@@ -33,7 +33,7 @@ public:
 	bool hasReferrer(GCObject* referrer);
 
 	bool isUnsafeTrackable() {
-		return isTrackable() && getRootRefCount() <= 1 && !node_()->hasSafeAnchor();
+		return isTrackable() && getRootRefCount() <= 1 && !this->hasSafeAnchor();
 	}
 
 	void invaliateSurvivalPath(GCObject* newTail);
@@ -100,10 +100,9 @@ public:
 		GCObject* next;
 		for (GCObject* node = tail; node != anchor; node = next) {
 			debug_only(rt_assert(++cc < 10000));
-			RtNode* nx = node->getMutableNode();
-			rt_assert(replace_shorcut ||nx->getShortcutId() <= INVALID_SHORTCUT);
-			nx->setShortcutId_unsafe(s_id);
-			next = nx->getSafeAnchor();
+			rt_assert(replace_shorcut ||node->getShortcutId() <= INVALID_SHORTCUT);
+			node->setShortcutId_unsafe(s_id);
+			next = node->getSafeAnchor();
 		}
 		if (shortcut != NULL) {
 	        // rtgc_log(RTGC::LOG_OPTION(LOG_SCANNER, 10), "shotcut[%d:%d] created %p->%p\n", 

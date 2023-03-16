@@ -417,21 +417,21 @@ namespace RTGC {
           "ref %p of <%d> %p(%s) alive=%d, tr=%d gm=%d refT=%d multi=%d\n", 
           (void*)_curr_ref, _refList.ref_type(), referent, RTGC::getClassName(referent), is_alive,
           referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), 
-          referent->node_()->hasMultiRef());
+          referent->hasMultiRef());
 
       if (!is_alive) {
         rt_assert(!_referent_p->is_gc_marked());
         rtgc_log(false && !referent->isTrackable(), //!_referent_p->is_gc_marked(),
             "referent %p(%s) is collected tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
             referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), 
-            referent->node_()->hasMultiRef());
+            referent->hasMultiRef());
         enqueue_curr_ref(true);
       } else {
         if ((rtHeap::DoCrossCheck && is_full_gc) || !referent->isTrackable()) {
           rt_assert_f(_referent_p->is_gc_marked(),
               "referent %p(%s) tr=%d gm=%d refT=%d multi=%d\n", referent, RTGC::getClassName(referent), 
               referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), 
-              referent->node_()->hasMultiRef());
+              referent->hasMultiRef());
         }
         GCObject* ref = to_obj(_curr_ref);
         if (ref->isTrackable()) {
@@ -713,8 +713,8 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       }
       /* referent 가 순환 가비지의 일부이면, referrerList.size()가 0보다 크다 */
       rt_assert(!referent->isGarbageMarked());
-      rt_assert(!referent->node_()->hasSafeAnchor() || (!CLEAR_FINALIZE_REF && referent->node_()->getSafeAnchor() != ref));
-      rt_assert(!referent->node_()->hasShortcut());
+      rt_assert(!referent->hasSafeAnchor() || (!CLEAR_FINALIZE_REF && referent->getSafeAnchor() != ref));
+      rt_assert(!referent->hasShortcut());
       rt_assert_f(!referent->isTrackable() || referent->getRootRefCount() == 0, "rc = %d\n", referent->getRootRefCount());
       if (rtHeap::DoCrossCheck) {
         rt_assert(cast_to_oop(old_referent)->is_gc_marked() || (!is_full_gc && old_referent->isTrackable()));
@@ -724,10 +724,9 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           (void*)ref, old_referent, referent, RTGC::getClassName(old_referent));
       if (ref->isTrackable()) {
         RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref), !is_full_gc || PARTIAL_COLLECTION);
-        RtNode* nx = referent->getMutableNode();
-        if (referent->isTrackable() && !nx->hasSafeAnchor()) {
-          nx->setSafeAnchor(ref);
-          nx->setShortcutId_unsafe(INVALID_SHORTCUT);
+        if (referent->isTrackable() && !referent->hasSafeAnchor()) {
+          referent->setSafeAnchor(ref);
+          referent->setShortcutId_unsafe(INVALID_SHORTCUT);
         }
       } else if (referent->isTrackable()) {
         // gc 종료 후 Unsafe List 등록되도록 한다.
