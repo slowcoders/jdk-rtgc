@@ -18,7 +18,7 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "[B",
+  "java/lang/ref/SoftReference",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -141,6 +141,9 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   precond (p != debug_base);
 
   if (!REF_LINK_ENABLED) return;
+
+  rtgc_log (debug_base->klass()->id() == InstanceRefKlassID, PTR_DBG_SIG, PTR_DBG_INFO(debug_base)); 
+
 #ifdef ASSERT    
   if (false && RTGC::is_debug_pointer(debug_base)) {
      rtgc_log(1, "referrer %p(rc=%d) added to %p(%s)\n", 
@@ -261,7 +264,7 @@ oop rtgc_break(const char* file, int line, const char* function) {
 const int CNT_DEBUG_CLASS = sizeof(debugClassNames) / sizeof(debugClassNames[0]);
 void* debugKlass[CNT_DEBUG_CLASS];
 void* dbgObjs[16];
-int cntDbgObj = 0;
+static int cntDbgObj = 0;
 
 
 void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node) {
@@ -277,6 +280,7 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
+    // rt_assert(++cntDbgObj < 2);
   }
   else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
@@ -380,7 +384,7 @@ void RTGC::initialize() {
     ccstr s = AbortVMOnExceptionMessage;
     debugClassNames[0] = (s == NULL || s[1] == 0) ? NULL : s + 1;
     debugOptions[0] = 1;
-    debug_obj = NULL;//0x3e0013510;
+    debug_obj = /*NULL;//*/(void*)0x3fa6bcff8;
 
     rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
 

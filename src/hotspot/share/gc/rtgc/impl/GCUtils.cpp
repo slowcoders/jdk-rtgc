@@ -67,11 +67,12 @@ void ReferrerList::dealloc_chunk(Chunk* chunk) {
         mem[3] = 0;
     }
     g_chunkPool.delete_(chunk);
-    rt_assert(!chunk->isAlive());
+    rt_assert(!MARK_ALIVE_CHUNK || !chunk->isAlive());
 }
 
 void ReferrerList::delete_(ReferrerList* list) {
-    if (list->empty()) {
+
+    if (true || list->empty()) {
         dealloc_chunk(&list->_head);
         return;
     }

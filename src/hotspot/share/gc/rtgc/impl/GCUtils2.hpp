@@ -11,7 +11,7 @@ namespace RTGC {
 static const uint32_t RTGC_NO_HASHCODE = 0x80000000;
 static const uint32_t ANCHOR_LIST_INDEX_MASK = RTGC_NO_HASHCODE - 1;
 
-static const bool  MARK_ALIVE_CHUNK = true;
+static const bool  MARK_ALIVE_CHUNK = false;
 
 class ReferrerList {
     friend class ReverseIterator;    

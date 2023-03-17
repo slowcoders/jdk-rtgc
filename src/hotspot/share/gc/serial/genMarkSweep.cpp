@@ -102,6 +102,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase1(clear_all_softrefs);
 
+  rtgc_log(true, "mark_sweep_phase2(scan_and_forward)");
   mark_sweep_phase2();
 
   // Don't add any more derived pointers during phase3

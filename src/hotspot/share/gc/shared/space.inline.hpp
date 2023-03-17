@@ -117,7 +117,7 @@ public:
     size_t dead_length = pointer_delta(dead_end, dead_start);
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
-      CollectedHeap::fill_with_object(dead_start, dead_length, false);
+      CollectedHeap::fill_with_object(dead_start, dead_length);
 #if !INCLUDE_RTGC      
       oop obj = cast_to_oop(dead_start);
       obj->set_mark(obj->mark().set_marked());

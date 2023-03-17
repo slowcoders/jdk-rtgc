@@ -3690,7 +3690,7 @@ class VerifyFieldClosure: public BasicOopIterateClosure {
     if (!oopDesc::is_oop_or_null(obj)) {
       tty->print_cr("Failed: " PTR_FORMAT " -> " PTR_FORMAT, p2i(p), p2i(obj));
       Universe::print_on(tty);
-      guarantee(false, "boom");
+      guarantee(false, "boom %p", (void*)obj);
     }
   }
  public:

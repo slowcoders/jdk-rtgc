@@ -41,8 +41,11 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 public class HeapChangeLogging {
   public static void main(String[] args) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xmx128m", "-Xmn100m", "-XX:+UseSerialGC", "-Xlog:gc", HeapFiller.class.getName());
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
+    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xmx128m", "-Xmn100m", 
+      "-XX:+UnlockExperimentalVMOptions",
+       "-XX:AbortVMOnExceptionMessage=#",
+       "-XX:+UseSerialGC", "-Xlog:gc", HeapFiller.class.getName());
+    OutputAnalyzer output = new OutputAnalyzer(pb.inheritIO().start());
     String stdout = output.getStdout();
     System.out.println(stdout);
     Matcher stdoutMatcher = Pattern.compile(".*\\(Allocation Failure\\) [0-9]+[KMG]->[0-9]+[KMG]\\([0-9]+[KMG]\\)", Pattern.MULTILINE).matcher(stdout);

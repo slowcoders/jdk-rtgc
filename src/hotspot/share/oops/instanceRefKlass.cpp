@@ -77,6 +77,7 @@ void InstanceRefKlass::update_nonstatic_oop_maps(Klass* k) {
 // Verification
 
 void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
+  rtgc_log(true, "ref oop_verify_on %p %s", (void*)obj, obj->klass()->name()->bytes());
   InstanceKlass::oop_verify_on(obj, st);
   // Verify referent field
   oop referent = java_lang_ref_Reference::unknown_referent_no_keepalive(obj);

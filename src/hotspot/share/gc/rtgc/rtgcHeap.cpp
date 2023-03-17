@@ -489,7 +489,7 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
   // 참고) 주소가 옮겨지지 않은 YG 객체는 unmarked 상태이다.
 
-  rtgc_debug_log(old_p, "adjust_pointers %p", old_p);
+  rtgc_debug_log(old_p, "adjust_pointers %p -> %p m: %d", old_p, (void*)old_p->forwardee(), old_p->is_gc_marked());
   oopDesc* new_anchor_p = NULL;
   bool is_trackable_forwardee = node->isTrackable_unsafe();
   g_adjust_pointer_closure._trackable_old_anchor = is_trackable_forwardee;
@@ -746,7 +746,6 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
 
 void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused) {
   rt_assert(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
-  rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d", in_full_gc);
   is_gc_started = false;
   if (!RTGC_FAT_OOP || !in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
@@ -760,6 +759,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   RuntimeHeap::reclaimSpace();
   rt_assert(MarkSweep::_resurrect_stack.size() == 0);
   MarkSweep::_resurrect_stack.clear();
+  rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d", in_full_gc);
   in_full_gc = 0;
 }
 
