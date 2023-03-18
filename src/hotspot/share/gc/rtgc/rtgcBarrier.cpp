@@ -924,6 +924,14 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
 public:
   RTGC_CloneClosure(oopDesc* rookie) { 
     this->_anchor = rookie; 
+    if (modified && !rtHeap::useModifyFlag()) {    
+      RTGC::lock_heap();
+    }
+  }
+  ~RTGC_CloneClosure() {
+    if (modified && !rtHeap::useModifyFlag()) {    
+      RTGC::unlock_heap();
+    }
   }
 
   virtual void do_oop(narrowOop* p) { do_work(p); }

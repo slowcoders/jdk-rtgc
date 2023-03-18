@@ -841,10 +841,15 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
 
 template<bool is_full_gc>
 void __adjust_ref_q_pointers() {
-        rtgc_log(LOG_OPT(1), "__adjust_ref_q_pointers\n");
-  SkipPolicy soft_weak_policy = is_full_gc ? SkipGarbageRef_NoReferentCheck : SkipInvalidRef;
+  rtgc_log(LOG_OPT(1), "__adjust_ref_q_pointers\n");
+  /* 2023.0318 Full-GC 시에는 이미 Garbage 객체가 모두 제거된 상태이다. 
+     특히, YG-객체 중 위치가 이동되지 않은 객체는 gc_mark 가 해제된 상태라 가비지 검사가 불가능하다.
+     참고) sh exec_test.sh gc/serial/HeapChangeLogging
+  */  
+  SkipPolicy soft_weak_policy = is_full_gc ? /*SkipGarbageRef_*/NoReferentCheck : SkipInvalidRef;
   rtgc_log(LOG_OPT(3), "g_softList 2 %d\n", g_softList._refs.size());
   for (RefIterator<is_full_gc> iter(g_softList); iter.next_ref(soft_weak_policy) != NULL; ) {
+    rt_assert(!to_obj(iter.ref())->isGarbageMarked());
     iter.adjust_ref_pointer();
     if (!is_full_gc && to_obj(iter.ref())->isGarbageMarked()) {
       // YG-root 내부의 객체가 marking 시 promote 된 후, 해당 YG-root 가 garbage 처리된 상황.
@@ -854,6 +859,7 @@ void __adjust_ref_q_pointers() {
   } 
   rtgc_log(LOG_OPT(3), "g_weakList 2 %d\n", g_weakList._refs.size());
   for (RefIterator<is_full_gc> iter(g_weakList); iter.next_ref(soft_weak_policy) != NULL; ) {
+    rt_assert(!to_obj(iter.ref())->isGarbageMarked());
     iter.adjust_ref_pointer();
     if (!is_full_gc && to_obj(iter.ref())->isGarbageMarked()) {
       // YG-root 내부의 객체가 marking 시 promote 된 후, 해당 YG-root 가 garbage 처리된 상황.
