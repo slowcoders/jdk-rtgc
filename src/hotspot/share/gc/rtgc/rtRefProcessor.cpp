@@ -25,7 +25,6 @@ extern void rtHeap__clear_garbage_young_roots(bool is_full_gc);
 
 static const bool USE_REF_ARRAY = true;
 static const bool ENABLE_SOFT_WEAK_REF = true;
-static const bool CLEAR_FINALIZE_REF = false;
 #if DO_CROSS_CHECK_REF
 static int g_cntMisRef = 0;
 static int g_cntGarbageRef = 0;
@@ -560,11 +559,6 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
 
 void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
   GCObject* ref;
-  if (CLEAR_FINALIZE_REF) {
-    for (RefIterator<true> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
-      to_obj(iter.referent())->unmarkActiveFinalizerReachable();
-    }
-  }
   RefList::g_ref_policy = policy;
 
   for (RefIterator<true> iter(g_weakList); (ref = iter.next_ref(SkipClearedRef_NoGarbageCheck)) != NULL; ) {
@@ -608,21 +602,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   //   complete_gc->do_void();
   // }
 
-  if (false && !CLEAR_FINALIZE_REF) {
-    // final reachble 을 먼저 marking 함으로써, resurrection 수를 줄일 수 있다.
-    for (RefIterator<true> iter(g_finalList); iter.next_ref(SkipNone) != NULL; ) {
-      oopDesc* referent = iter.referent();
-      if (!to_obj(referent)->isTrackable()) {
-        if (!referent->is_gc_marked()) {
-          if (UseCompressedOops) {
-            keep_alive->do_oop((narrowOop*)iter.referent_addr());
-          } else {
-            keep_alive->do_oop((oop*)iter.referent_addr());
-          }
-        }
-      }
-    }
-  }
 
   if (is_full_gc) {
     jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
@@ -667,11 +646,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     GCObject* referent = to_obj(iter.referent());
     bool is_alive;
     if (referent->isTrackable()) {
-      if (CLEAR_FINALIZE_REF) {
-        is_alive = !_rtgc.g_pGarbageProcessor->detectGarbage(referent);
-      } else {
-        is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
-      }
+      is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
     } else {
       is_alive = cast_to_oop(referent)->is_gc_marked();
     }
@@ -685,7 +660,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           PTR_DBG_INFO(referent), PTR_DBG_INFO(iter.get_raw_referent()));
     } else if (rtHeap::DoCrossCheck && referent->isTrackable()) {
       bool is_gc_marked = cast_to_oop(referent)->is_gc_marked();
-      rt_assert(CLEAR_FINALIZE_REF || !referent->isGarbageMarked());
+      rt_assert(!referent->isGarbageMarked());
       rt_assert_f(is_gc_marked == is_alive, 
           "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d ac=%d garbage=%d ghost=%d", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
@@ -708,16 +683,14 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       GCObject* old_referent = referent;
       if (is_full_gc) {
         rt_assert(referent == (void*)iter.get_raw_referent());
-        if (!CLEAR_FINALIZE_REF) {
-          referent->unmarkActiveFinalizerReachable();
-        }
+        referent->unmarkActiveFinalizerReachable();
       } else {
         referent = to_obj(iter.get_raw_referent());
         referent->unmarkActiveFinalizerReachable();
       }
       /* referent 가 순환 가비지의 일부이면, referrerList.size()가 0보다 크다 */
       rt_assert(!referent->isGarbageMarked());
-      rt_assert(!referent->hasSafeAnchor() || (!CLEAR_FINALIZE_REF && referent->getSafeAnchor() != ref));
+      rt_assert(!referent->hasSafeAnchor() || referent->getSafeAnchor() != ref);
       rt_assert(!referent->hasShortcut());
       rt_assert_f(!referent->isTrackable() || referent->getRootRefCount() == 0, "rc = %d", referent->getRootRefCount());
       if (rtHeap::DoCrossCheck) {
@@ -744,10 +717,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       iter.enqueue_curr_ref(false);
     } else {
       rtgc_log(LOG_OPT(3), "active final ref %p of %p(%s)", ref, referent, getClassName(referent));
-      if (is_full_gc) {
-        // remark!
-        if (CLEAR_FINALIZE_REF) referent->markActiveFinalizerReachable();
-      } else {
+      if (!is_full_gc) {
         iter.adjust_referent_pointer();
       }
       rt_assert_f(referent->isActiveFinalizerReachable(), "must be ActiveFinalizerReachable %p", referent);
