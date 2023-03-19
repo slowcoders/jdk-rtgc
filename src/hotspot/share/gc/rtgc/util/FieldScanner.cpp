@@ -37,9 +37,7 @@ public:
     if (obj == NULL) return;
 
     GCObject* link = to_obj(obj);
-    if (isTenured) rtgc_debug_log(to_obj(_base), "FieldIterator %p->%p(g=%d)\n", _base, (void*)obj, link->isGarbageMarked());
-
-    if (link->isGarbageMarked()) {
+    if (!link->isTrackable() || link->isGarbageMarked()) {
       return;
     }
 

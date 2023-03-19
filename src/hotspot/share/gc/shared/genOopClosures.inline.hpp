@@ -85,7 +85,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
                                         : _young_gen->copy_to_survivor_space(obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
       if (rtHeap::is_trackable(new_obj)) {
-        static_cast<Derived*>(this)->trackable_barrier(p, new_obj);
+        static_cast<Derived*>(this)->promoted_trackable_barrier(p, new_obj);
       } else {
         static_cast<Derived*>(this)->barrier(p, new_obj);
       }
@@ -142,17 +142,20 @@ template <bool resurrect>
 template <typename T>
 void ScanTrackableClosure<resurrect>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
-  assert(!rtHeap::useModifyFlag() || !rtHeap::is_modified(*p), 
-      "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
-      (void*)_trackable_anchor, _trackable_anchor->klass()->name()->bytes(), p, *(int32_t*)p);
-  // rtgc_debug_log(_trackable_anchor, "trackable_barrier(%d) %p[%p] = %p\n", 
-  //     resurrect, (void*)_trackable_anchor, p, (void*)new_p);
   if (resurrect) {
     rtHeap::mark_resurrected_link(_trackable_anchor, new_p);
   } else {   
     rtHeap::add_trackable_link(_trackable_anchor, new_p);
   }
 }
+
+template <bool resurrect>
+template <typename T>
+void ScanTrackableClosure<resurrect>::promoted_trackable_barrier(T* p, oop new_p) {
+  assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
+  rtHeap::add_trackable_link(_trackable_anchor, new_p);
+}
+
 
 template <bool resurrect> 
 void ScanTrackableClosure<resurrect>::do_object(oop obj) {

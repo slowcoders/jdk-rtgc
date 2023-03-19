@@ -225,14 +225,12 @@ void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
 #if TRACE_UPDATE_LOG
   Atomic::inc(&g_inverse_graph_update_cnt);
 #endif
-  if (new_v != NULL && new_v != base /*&& to_obj(new_v)->isTrackable()*/) {
+  if (new_v != NULL && new_v != base) {
     debug_only(Atomic::add(&RTGC::g_cnt_update, 1);)
-    RTGC::add_referrer_ex(new_v, base, true);
+    RTGC::add_referrer_ex(new_v, base);
   }
   if (old_v != NULL && old_v != base) {
-    GCObject* oldValue = to_obj(old_v);
-    GCObject* referrer = to_obj(base);
-    GCRuntime::disconnectReferenceLink(oldValue, referrer);
+    GCRuntime::disconnectReferenceLink(to_obj(old_v), to_obj(base));
   }
 }
 
@@ -891,13 +889,15 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
 
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _anchor;
+  bool _is_young_root;
 
   void do_work(narrowOop* p) {
     narrowOop heap_oop = *p;
     oop obj;
     if (rtHeap::useModifyFlag()) {
-      if (CompressedOops::is_null(heap_oop) || 
-          !to_obj(obj = CompressedOops::decode_not_null(heap_oop))->isTrackable()) {
+      // YoungRoot 등록 문제 처리.
+      if (CompressedOops::is_null(heap_oop)) {  
+          // !to_obj(obj = CompressedOops::decode_not_null(heap_oop))->isTrackable()) {
         if (rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_unmodified(heap_oop);
         }
@@ -911,9 +911,7 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
     } else {
       if (!CompressedOops::is_null(heap_oop)) {
         obj = CompressedOops::decode_not_null(heap_oop);
-        if (to_obj(obj)->isTrackable()) {
-          RTGC::add_referrer_ex(obj, _anchor, true);    
-        }
+        RTGC::add_referrer_ex(obj, _anchor);    
       }
     }
   }
@@ -1006,18 +1004,18 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
     int cp_len = MIN(diff, length);
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(*(--src_end));
-      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array, true);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(dst_p[i]);
-      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array, true);
+      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array);
     }
   } else {
     int cp_len = MIN(-diff, length);
     ITEM_T* dst_end = dst_p + length;    
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* src_item = CompressedOops::decode(src_p[i]);
-      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array, true);
+      if (item != NULL && isTrackableArray) RTGC::add_referrer_ex(src_item, dst_array);
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(*(--dst_end));

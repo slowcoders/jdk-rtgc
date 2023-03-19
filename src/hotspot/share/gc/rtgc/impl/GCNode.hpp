@@ -98,6 +98,7 @@ public:
 
 	void unmarkYoungRoot() {
 		rt_assert(this->isYoungRoot());
+		rtgc_debug_log(this, "unmark young root %p", this);
 		_flags.isYoungRoot = false;
 	}
 

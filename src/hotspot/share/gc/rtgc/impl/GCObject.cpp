@@ -18,11 +18,11 @@ static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
     rt_assert_f(link != anchor ||
         (rtHeap::in_full_gc && link->is_gc_marked() && 
          link->forwardee() != NULL && (void*)link->forwardee() != anchor), 
-            "recursive link %p\n", link);
+            "recursive link %p", link);
 }
 
 ReferrerList* GCNode::getAnchorList() const {
-	rt_assert_f(_hasMultiRef, "_refs %x\n", _refs);
+	rt_assert_f(_hasMultiRef, "_refs %x", _refs);
     return ReferrerList::getPointer(_refs & ANCHOR_LIST_INDEX_MASK);
 }
 
@@ -38,7 +38,7 @@ void GCNode::setAnchorList(ReferrerList* anchors) {
 }
 
 GCObject* GCNode::getSafeAnchor() const {
-	rt_assert_f(hasAnchor(), "no anchors %p(%s)\n", this, RTGC::getClassName(this)); 
+	rt_assert_f(hasAnchor(), "no anchors %p(%s)", this, RTGC::getClassName(this)); 
     GCObject* front;
     if (hasMultiRef()) {
         ReferrerList* referrers = getAnchorList();
@@ -84,7 +84,8 @@ void GCObject::addReferrer(GCObject* referrer) {
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
     // rtgc_log(this->klass()->is_acyclic(), 
-    //     "referrer %p added to %p(%s)\n", referrer, this, this->klass()->name()->bytes());
+    //     "referrer %p added to %p(%s)", referrer, this, this->klass()->name()->bytes());
+    rt_assert(this->is_adjusted_trackable());
     rt_assert(RTGC_FAT_OOP || !cast_to_oop(this)->is_gc_marked());
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
 
@@ -132,6 +133,7 @@ bool GCObject::hasReferrer(GCObject* referrer) {
 template <bool reallocReferrerList, bool must_exist, bool remove_mutiple_items>
 int  GCObject::removeReferrer_impl(GCObject* referrer) {
     rt_assert(referrer != this);
+    rt_assert(this->is_adjusted_trackable());
 
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
@@ -143,7 +145,7 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
 
     if (!must_exist && !this->mayHaveAnchor()) return -1;
 
-    rt_assert_f(this->mayHaveAnchor(), "no referrer %p(%s) in empty %p(%s) \n", 
+    rt_assert_f(this->mayHaveAnchor(), "no referrer %p(%s) in empty %p(%s)", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
     rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from " PTR_DBG_SIG, 
@@ -154,12 +156,12 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         if (!must_exist &&this->getSingleAnchor() != referrer) return -1;
 
         rt_assert_f(this->getSingleAnchor() == referrer, 
-            "referrer %p(%s) != %p in %p(%s) \n", 
+            "referrer %p(%s) != %p in %p(%s)", 
             referrer, RTGC::getClassName(referrer),
             (GCObject*)this->getSingleAnchor(),
             this, RTGC::getClassName(this));
         this->removeSingleAnchor();
-        rtgc_debug_log(this, "anchor-list cleared by removeReferrer %p\n", this);
+        rtgc_debug_log(this, "anchor-list cleared by removeReferrer %p", this);
     }
     else {
         ReferrerList* referrers = this->getAnchorList();
@@ -169,20 +171,20 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
         } else {
             removed = referrers->remove(referrer);
         }
-        rtgc_debug_log(this, "anchor removed(%p/%d) from " PTR_DBG_SIG, 
-            removed, removed == referrers->firstItemPtr(), PTR_DBG_INFO(this)); 
 
         if (!must_exist && removed == NULL) return -1;
 
 #ifdef ASSERT            
         if (removed == NULL) {
+            rtgc_debug_log(this, "anchor not found %p(%s) -> %p(%s)", 
+                referrer, RTGC::getClassName(referrer), this, RTGC::getClassName(this));
             for (AnchorIterator it(this); it.hasNext(); ) {
                 GCObject* anchor = it.next();
-                rtgc_log(1, "at %p(%s)\n", anchor, RTGC::getClassName(anchor));
+                rtgc_log(1, "at %p(%s)", anchor, RTGC::getClassName(anchor));
             }
         }
 #endif        
-        rt_assert_f(removed != NULL, "referrer %p(%s) is not found in %p(%s) \n", 
+        rt_assert_f(removed != NULL, "referrer %p(%s) is not found in %p(%s)", 
             referrer, RTGC::getClassName(referrer),
             this, RTGC::getClassName(this));
 
@@ -295,14 +297,14 @@ bool GCObject::clearEmptyAnchorList() {
 }
 
 void GCObject::removeAllAnchors() {
-    rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p\n", this);
+    rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p", this);
 
     if (this->hasShortcut()) {
         SafeShortcut* shortcut = this->getShortcut();
         shortcut->shrinkTailTo(this->getSafeAnchor());
     }  
     clearAnchorList();
-    rtgc_debug_log(this, "anchor-list cleared by removeAllAnchors %p\n", this);
+    rtgc_debug_log(this, "anchor-list cleared by removeAllAnchors %p", this);
 }
 
 

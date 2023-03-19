@@ -48,7 +48,10 @@ void GCRuntime::disconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    erased->removeReferrer(owner);
+    rt_assert(owner->isTrackable_unsafe());
+    if (erased->is_adjusted_trackable()) {
+        erased->removeReferrer(owner);
+    }
 }
 
 bool GCRuntime::tryDisconnectReferenceLink(
