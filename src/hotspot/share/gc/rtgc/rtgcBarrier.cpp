@@ -889,24 +889,18 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
   }
 }
 
-template <bool clear_modified>
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _anchor;
 
   void do_work(narrowOop* p) {
     narrowOop heap_oop = *p;
-    if (clear_modified) {
-      rt_assert(!to_node(_anchor)->isTrackable());
-      if (rtHeap::is_modified(heap_oop)) {
-        *p = rtHeap::to_unmodified(heap_oop);
-      }
-    } else {
-      rt_assert(to_node(_anchor)->isTrackable());
-      if (CompressedOops::is_null(heap_oop)) return;
-
-      if (!rtHeap::useModifyFlag()) {
-        oop obj = CompressedOops::decode_not_null(heap_oop);
-        RTGC::add_referrer_ex(obj, _anchor, true);    
+    oop obj;
+    if (rtHeap::useModifyFlag()) {
+      if (CompressedOops::is_null(heap_oop) || 
+          !to_obj(obj = CompressedOops::decode_not_null(heap_oop))->isTrackable()) {
+        if (rtHeap::is_modified(heap_oop)) {
+          *p = rtHeap::to_unmodified(heap_oop);
+        }
       } else {
         if (!rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_modified(heap_oop);
@@ -914,13 +908,20 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
         int dummy = 0;
         FieldUpdateLog::add(_anchor, p, *(narrowOop*)&dummy);
       }
+    } else {
+      if (!CompressedOops::is_null(heap_oop)) {
+        obj = CompressedOops::decode_not_null(heap_oop);
+        if (to_obj(obj)->isTrackable()) {
+          RTGC::add_referrer_ex(obj, _anchor, true);    
+        }
+      }
     }
   }
 
 public:
   RTGC_CloneClosure(oopDesc* rookie) { 
     this->_anchor = rookie; 
-    rt_assert(clear_modified || to_obj(rookie)->isTrackable());
+    rt_assert(to_obj(rookie)->isTrackable());
   }
 
   virtual void do_oop(narrowOop* p) { do_work(p); }
@@ -946,13 +947,8 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
     " clone in jvmti %p(rc=%d)\n", new_obj, to_obj(new_obj)->getRootRefCount());
   if (to_node(new_obj)->isTrackable()) {
     if (!rtHeap::useModifyFlag()) RTGC::lock_heap();
-    RTGC_CloneClosure<false> c(new_obj);
+    RTGC_CloneClosure c(new_obj);
     if (!rtHeap::useModifyFlag()) RTGC::unlock_heap();
-    new_obj->oop_iterate(&c);
-  } else if (false && /* YG 객체의 modified_flag 는 무시한다.*/
-      rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
-    rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
-    RTGC_CloneClosure<true> c(new_obj);
     new_obj->oop_iterate(&c);
   }
 }

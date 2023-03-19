@@ -162,7 +162,7 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return isTrackable;
 }
 
-bool rtHeap::is_in_trackable_space(oopDesc* p) {
+bool rtHeap::is_in_trackable_space(void* p) {
   return GenCollectedHeap::heap()->old_gen()->is_in(p);
 }
 

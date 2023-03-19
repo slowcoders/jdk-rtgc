@@ -84,12 +84,9 @@ void FieldUpdateLog::updateAnchorList() {
   }
 
 #if TRACE_UPDATE_LOG
-  if (!_atomic) {
-    g_field_update_cnt ++;
-  } else {
-    Atomic::inc(&g_field_update_cnt);
-  }
+  Atomic::inc(&g_field_update_cnt);
 #endif
+
   rtgc_debug_log(to_obj(CompressedOops::decode(erased())), 
       "updateAnchorList %p[%d] = %p -> %p\n", 
       _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
@@ -145,7 +142,7 @@ void UpdateLogBuffer::reset_gc_context() {
   rt_assert(g_buffer_area_start < g_buffer_area_end);
   rtgc_log(LOG_OPT(1), "heap old %p eden=%p(%x) young-from=%p young-to=%p cnt_update=%d cnt_update_log=%d\n", 
     GenCollectedHeap::heap()->old_gen()->reserved().start(),
-    newGen->eden()->bottom(), (int)newGen->eden()->capacity()
+    newGen->eden()->bottom(), (int)newGen->eden()->capacity(),
     newGen->from()->bottom(), newGen->to()->bottom(), g_cnt_update, g_cnt_update_log);
   rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x\n", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
 #endif    
