@@ -162,6 +162,10 @@ bool rtHeap::is_trackable(oopDesc* p) {
   return isTrackable;
 }
 
+bool rtHeap::is_in_trackable_space(oopDesc* p) {
+  return GenCollectedHeap::heap()->old_gen()->is_in(p);
+}
+
 void rtHeap::lock_jni_handle_at_safepoint(oopDesc* p) {
   GCObject* obj = to_obj(p);
   GCRuntime::onAssignRootVariable_internal(obj);
@@ -451,7 +455,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
   oop new_p;
   oopDesc* old_p = MarkSweep::adjust_pointer(p, _trackable_old_anchor, &new_p); 
-  rt_assert(!rtHeap::is_modified(*p));
+  rt_assert(!rtHeap::is_modified(*p) || !rtHeap::is_in_trackable_space(p));
   // if (_trackable_old_anchor) {
   //   if (rtHeap::useModifyFlag() && _is_trackable_forwardee) {
   //     *p = rtHeap::to_unmodified(*p);

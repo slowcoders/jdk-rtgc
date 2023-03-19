@@ -56,7 +56,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (EnableRTGC && !clear_modified_flag) {
     // YG-Object 의 modified-field 는 무시된다.
-    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_trackable((oopDesc*)p));
+    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_in_trackable_space(p));
   }
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {

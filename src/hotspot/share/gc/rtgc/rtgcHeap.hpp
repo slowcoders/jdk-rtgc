@@ -44,6 +44,7 @@ public:
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);
+  static bool is_in_trackable_space(void* p);
 
   static void prepare_rtgc();
   static void init_reference_processor(ReferencePolicy* policy);

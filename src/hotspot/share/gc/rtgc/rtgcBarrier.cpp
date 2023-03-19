@@ -168,17 +168,11 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
   if (in_heap && rtHeap::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
     rt_assert(!rtHeap::in_full_gc);
-    //rtgc_debug_log(base, "raw_atomic_xchg(%p)[%p] -> %p\n", base, addr, (void*)new_v);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
   if (in_heap && rtHeap::useModifyFlag()) {
     if (!rtHeap::is_modified(old_v)) {
       FieldUpdateLog::add(base, addr, old_v);
-      // rtgc_log(RTGC::is_debug_pointer(to_obj(value)), 
-      //     "raw_atomic_xchg ++ anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
-    } else {
-      // rtgc_log(RTGC::is_debug_pointer(to_obj(value)), 
-      //     "raw_atomic_xchg -- anchor %p link: %p old=%p\n", base, value, (void*)CompressedOops::decode(old_v));
     }
   }
   return CompressedOops::decode(old_v);
@@ -223,6 +217,7 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile oop* addr, oopDesc* c
 
 void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
   rt_assert(is_barrier_locked());
+  rt_assert(to_obj(base)->isTrackable());
 
   if (rtHeap::useModifyFlag()) return;
   if (old_v == new_v) return;
@@ -230,7 +225,7 @@ void rtgc_update_inverse_graph(oopDesc* base, oopDesc* old_v, oopDesc* new_v) {
 #if TRACE_UPDATE_LOG
   Atomic::inc(&g_inverse_graph_update_cnt);
 #endif
-  if (new_v != NULL && new_v != base) {
+  if (new_v != NULL && new_v != base /*&& to_obj(new_v)->isTrackable()*/) {
     debug_only(Atomic::add(&RTGC::g_cnt_update, 1);)
     RTGC::add_referrer_ex(new_v, base, true);
   }
@@ -954,7 +949,8 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
     RTGC_CloneClosure<false> c(new_obj);
     if (!rtHeap::useModifyFlag()) RTGC::unlock_heap();
     new_obj->oop_iterate(&c);
-  } else if (rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
+  } else if (false && /* YG 객체의 modified_flag 는 무시한다.*/
+      rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
     RTGC_CloneClosure<true> c(new_obj);
     new_obj->oop_iterate(&c);

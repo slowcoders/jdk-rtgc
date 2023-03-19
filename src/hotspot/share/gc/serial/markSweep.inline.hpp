@@ -131,7 +131,7 @@ inline oopDesc* MarkSweep::adjust_pointer(T* p, bool clear_modified, oop* new_oo
   T heap_oop = RawAccess<>::oop_load(p);
   if (EnableRTGC && !clear_modified) {
     // YG-Object 의 modified-field 는 무시된다.
-    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_trackable((oopDesc*)p));
+    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_in_trackable_space(p));
   }
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // useModifyFlag() zzzzz
