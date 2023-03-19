@@ -116,12 +116,20 @@ public:
 
   static void     print_mode(outputStream* st);
 
-  static bool is_null(oop v)       { return v == NULL; }
+  static bool is_null(oop v)       { 
+#if INCLUDE_RTGC
+    if (rtHeap::useModifyFlag()) {
+      // remove unmodified flag
+      return (uintptr_t)(void*)v <= 1; 
+    }
+#endif
+    return v == NULL; 
+  }
   static bool is_null(narrowOop v) { 
 #if INCLUDE_RTGC
     if (rtHeap::useModifyFlag()) {
       // remove unmodified flag
-      return ((uint32_t)v & ~1) == 0; 
+      return (uint32_t)v <= 1; 
     }
 #endif
     return v == narrowOop::null;

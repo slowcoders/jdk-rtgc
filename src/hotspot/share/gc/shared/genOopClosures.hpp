@@ -118,7 +118,7 @@ public:
     : ScanTrackableClosure<true>(young_gen, old_gen) {}
 };
 
-class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
+class YoungRootClosure : public FastScanClosure<YoungRootClosure, true>, public RtYoungRootClosure {
   bool _has_young_ref;
   VoidClosure* _complete_closure;
 public:
@@ -148,7 +148,7 @@ public:
 
   template <typename T>
   void trackable_barrier(T* p, oop new_p) {
-    assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p),
+    assert(!rtHeap::useModifyFlag() || !rtHeap::is_modified(*p),
         "yg-barrier %p(%s)[%d] = %x\n", 
         (void*)_current_anchor, _current_anchor->klass()->name()->bytes(),
         (int)((address)p - (address)_current_anchor), (int32_t)(intptr_t)(void*)*p);
@@ -161,7 +161,7 @@ public:
 // Closure for scanning DefNewGeneration when *not* iterating over the old generation.
 //
 // This closures records changes to oops in CLDs.
-class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, true> {
+class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, false> {
   ClassLoaderData* _scanned_cld;
 public:
   DefNewScanClosure(DefNewGeneration* g);

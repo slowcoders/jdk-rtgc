@@ -21,7 +21,7 @@ static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_TLS, function);
 }
 
-bool rtHeapEx__useModifyFlag = false;
+bool rtHeapEx__useModifyFlag = true;
 
 #ifdef ASSERT
 bool rtHeap::useModifyFlag() {
@@ -55,8 +55,6 @@ RtThreadLocalData* RtThreadLocalData::g_active_thread_q = NULL;
 
 template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
-
-  // rtgc_log(_atomic, "updateAnchorList %p[%d] = %x\n", _anchor, offset(), (int32_t)erased());
   if (false && _anchor == NULL) {
     narrowOop erased = _erased._obj;
     narrowOop assigned = *(narrowOop*)&_erased._offset;

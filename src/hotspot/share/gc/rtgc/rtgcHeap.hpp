@@ -96,7 +96,6 @@ public:
   }
 
   static inline bool is_modified(oop p) {
-    if (true) return true;
     return (((uintptr_t)(void*)p) & 1) != 0;
   }
 
@@ -105,7 +104,6 @@ public:
   }
 
   static inline oop to_modified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) | 1);
   }
 
@@ -114,7 +112,6 @@ public:
   }
 
   static inline oop to_unmodified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) & ~1);
   }
 

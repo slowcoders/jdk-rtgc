@@ -54,10 +54,14 @@ template <typename Derived, bool clear_modified_flag>
 template <typename T>
 inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
+  if (EnableRTGC && !clear_modified_flag) {
+    // YG-Object 의 modified-field 는 무시된다.
+    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_trackable((oopDesc*)p));
+  }
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // useModifyFlag()
-    if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (clear_modified_flag && rtHeap::useModifyFlag()) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -87,7 +91,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
-      if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+      if (clear_modified_flag && rtHeap::useModifyFlag()) {
         if (rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_unmodified(heap_oop);
         }
@@ -138,7 +142,7 @@ template <bool resurrect>
 template <typename T>
 void ScanTrackableClosure<resurrect>::trackable_barrier(T* p, oop new_p) {
   assert(_old_gen->is_in_reserved(new_p), "expected ref in generation");
-  assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p), 
+  assert(!rtHeap::useModifyFlag() || !rtHeap::is_modified(*p), 
       "WRONG MODIFIED\n %p(%s) [%p] = %x\n", 
       (void*)_trackable_anchor, _trackable_anchor->klass()->name()->bytes(), p, *(int32_t*)p);
   // rtgc_debug_log(_trackable_anchor, "trackable_barrier(%d) %p[%p] = %p\n", 
@@ -168,7 +172,7 @@ void ScanTrackableClosure<resurrect>::do_object(oop obj) {
 #endif
 
 inline DefNewScanClosure::DefNewScanClosure(DefNewGeneration* g) :
-    FastScanClosure<DefNewScanClosure, true>(g), _scanned_cld(NULL) {}
+    FastScanClosure<DefNewScanClosure, false>(g), _scanned_cld(NULL) {}
 
 template <class T>
 void DefNewScanClosure::barrier(T* p, oop new_p) {

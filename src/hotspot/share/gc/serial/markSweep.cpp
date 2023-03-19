@@ -233,7 +233,7 @@ void MarkSweep::FollowRootClosure::do_oop(oop* p)       { follow_root(p); }
 void MarkSweep::FollowRootClosure::do_oop(narrowOop* p) { follow_root(p); }
 
 void PreservedMark::adjust_pointer() {
-  MarkSweep::adjust_pointer(&_obj);
+  MarkSweep::adjust_pointer(&_obj, false);
 }
 
 void PreservedMark::restore() {
@@ -276,7 +276,7 @@ void MarkSweep::adjust_marks() {
   StackIterator<oop, mtGC> iter(_preserved_oop_stack);
   while (!iter.is_empty()) {
     oop* p = iter.next_addr();
-    adjust_pointer(p);
+    adjust_pointer(p, false);
   }
 }
 

@@ -230,7 +230,7 @@ public:
   template <typename T>
   void do_oop_work(T* p) {
     T heap_oop = RawAccess<>::oop_load(p);
-    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (rtHeap::useModifyFlag()) {
       if (is_tracked) {
         precond(!rtHeap::is_modified(heap_oop));
       } else if (rtHeap::is_modified(heap_oop)) {

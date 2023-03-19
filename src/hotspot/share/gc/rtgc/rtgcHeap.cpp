@@ -442,7 +442,7 @@ void rtHeap::mark_forwarded_trackable(oopDesc* p) {
 
 template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
-  rt_assert_f(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || 
+  rt_assert_f(!rtHeap::useModifyFlag() || 
       !_trackable_old_anchor || !rtHeap::is_modified(*p), 
       "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
       (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
@@ -450,10 +450,13 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
       PTR_DBG_INFO(_old_anchor_p));
 
   oop new_p;
-  oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
-  if (rtHeap::useModifyFlag() && _is_trackable_forwardee && sizeof(T) == sizeof(narrowOop)) {
-    *p = rtHeap::to_unmodified(*p);
-  }
+  oopDesc* old_p = MarkSweep::adjust_pointer(p, _trackable_old_anchor, &new_p); 
+  rt_assert(!rtHeap::is_modified(*p));
+  // if (_trackable_old_anchor) {
+  //   if (rtHeap::useModifyFlag() && _is_trackable_forwardee) {
+  //     *p = rtHeap::to_unmodified(*p);
+  //   }
+  // }
   if (old_p == NULL || old_p == _old_anchor_p) return;
 
 #ifdef ASSERT

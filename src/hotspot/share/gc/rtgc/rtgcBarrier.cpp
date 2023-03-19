@@ -163,6 +163,7 @@ static void raw_set_field(oop* addr, oopDesc* value) {
 template <bool in_heap>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
   rt_assert(!is_gc_started);
+  rt_assert(!in_heap || to_obj(base)->isTrackable());
   narrowOop new_v = CompressedOops::encode(value);
   if (in_heap && rtHeap::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
@@ -193,6 +194,7 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile oop* addr, oopDesc* valu
 template <bool in_heap>
 static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopDesc* compare, oopDesc* value) {
   rt_assert(!is_gc_started);
+  rt_assert(!in_heap || to_obj(base)->isTrackable());
   narrowOop c_v = CompressedOops::encode(compare);
   narrowOop n_v = CompressedOops::encode(value);
   if (in_heap && rtHeap::useModifyFlag()) {
@@ -892,13 +894,18 @@ address RtgcBarrier::getArrayCopyFunction(DecoratorSet decorators) {
   }
 }
 
-template <bool modified>
+template <bool clear_modified>
 class RTGC_CloneClosure : public BasicOopIterateClosure {
   oopDesc* _anchor;
 
   void do_work(narrowOop* p) {
     narrowOop heap_oop = *p;
-    if (modified) {
+    if (clear_modified) {
+      rt_assert(!to_node(_anchor)->isTrackable());
+      if (rtHeap::is_modified(heap_oop)) {
+        *p = rtHeap::to_unmodified(heap_oop);
+      }
+    } else {
       rt_assert(to_node(_anchor)->isTrackable());
       if (CompressedOops::is_null(heap_oop)) return;
 
@@ -913,25 +920,12 @@ class RTGC_CloneClosure : public BasicOopIterateClosure {
         FieldUpdateLog::add(_anchor, p, *(narrowOop*)&dummy);
       }
     }
-    else {
-      rt_assert(!to_node(_anchor)->isTrackable());
-      if (rtHeap::is_modified(heap_oop)) {
-        *p = rtHeap::to_unmodified(heap_oop);
-      }
-    }
   }
 
 public:
   RTGC_CloneClosure(oopDesc* rookie) { 
     this->_anchor = rookie; 
-    if (modified && !rtHeap::useModifyFlag()) {    
-      RTGC::lock_heap();
-    }
-  }
-  ~RTGC_CloneClosure() {
-    if (modified && !rtHeap::useModifyFlag()) {    
-      RTGC::unlock_heap();
-    }
+    rt_assert(clear_modified || to_obj(rookie)->isTrackable());
   }
 
   virtual void do_oop(narrowOop* p) { do_work(p); }
@@ -955,14 +949,14 @@ void RtgcBarrier::oop_clone_in_heap(oop src, oop dst, size_t size) {
   rtgc_debug_log(new_obj, "clone_post_barrier %p\n", new_obj); 
   rtgc_log(to_obj(new_obj)->getRootRefCount() != 0,
     " clone in jvmti %p(rc=%d)\n", new_obj, to_obj(new_obj)->getRootRefCount());
-  if (AUTO_TRACKABLE_MARK_BY_ADDRESS && to_node(new_obj)->isTrackable()) {
+  if (to_node(new_obj)->isTrackable()) {
     if (!rtHeap::useModifyFlag()) RTGC::lock_heap();
-    RTGC_CloneClosure<true> c(new_obj);
+    RTGC_CloneClosure<false> c(new_obj);
     if (!rtHeap::useModifyFlag()) RTGC::unlock_heap();
     new_obj->oop_iterate(&c);
   } else if (rtHeap::useModifyFlag() && to_node(src)->isTrackable()) {
     rtgc_log(LOG_OPT(11), "clone_post_barrier %p\n", new_obj); 
-    RTGC_CloneClosure<false> c(new_obj);
+    RTGC_CloneClosure<true> c(new_obj);
     new_obj->oop_iterate(&c);
   }
 }

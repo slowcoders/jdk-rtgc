@@ -274,8 +274,9 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   for (; c != NULL; c = c->_next, idx = 0) {
     juint size = Atomic::load_acquire(&c->_size);
     for (; idx < size; idx++) {
-      if (c->_data[idx] != NULL) {
-        oop* p = &c->_data[idx];
+      oop* p = &c->_data[idx];
+      oop old_p = *p;
+      if (old_p != NULL && !rtHeap::is_trackable(old_p)) {
         f->do_oop(p);
         oop new_p = *p;
         debug_only(cnt_handle ++;)
