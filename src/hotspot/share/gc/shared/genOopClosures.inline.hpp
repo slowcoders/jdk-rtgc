@@ -132,9 +132,10 @@ void ScanTrackableClosure<resurrect>::barrier(T* p, oop new_p) {
   _is_young_root = true;
   rt_assert(!rtHeap::is_trackable(new_p));
   if (!resurrect) {
-    // rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
-    //     (void*)_trackable_anchor, p, (void*)new_p);
     rtHeap::add_trackable_link(_trackable_anchor, new_p);
+  } else {
+    rtgc_debug_log(_trackable_anchor, "barrier %p[%p] = %p\n", 
+        (void*)_trackable_anchor, p, (void*)new_p);
   }
 }
 

@@ -198,6 +198,7 @@ void MarkSweep::follow_stack() {
     if (EnableRTGC) {
       if (!_resurrect_stack.is_empty()) {
         oop obj = _resurrect_stack.pop();
+        // rtgc_log(true, "_resurrect_stack.pop %p", (void*)obj);
         rt_assert(!EnableRTGC || rtHeap::is_trackable(obj));
         follow_object<true>(obj);
       }
@@ -233,7 +234,7 @@ void MarkSweep::FollowRootClosure::do_oop(oop* p)       { follow_root(p); }
 void MarkSweep::FollowRootClosure::do_oop(narrowOop* p) { follow_root(p); }
 
 void PreservedMark::adjust_pointer() {
-  MarkSweep::adjust_pointer(&_obj, false);
+  MarkSweep::adjust_pointer(&_obj);
 }
 
 void PreservedMark::restore() {
@@ -276,7 +277,7 @@ void MarkSweep::adjust_marks() {
   StackIterator<oop, mtGC> iter(_preserved_oop_stack);
   while (!iter.is_empty()) {
     oop* p = iter.next_addr();
-    adjust_pointer(p, false);
+    adjust_pointer(p);
   }
 }
 

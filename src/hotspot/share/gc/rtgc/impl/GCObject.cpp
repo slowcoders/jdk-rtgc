@@ -83,6 +83,9 @@ void GCObject::addReferrer(GCObject* referrer) {
     /**
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
+    rtgc_debug_log(this, "referrer %p added to %p(acyclic=%d rc=%d refs_=%x)", 
+        referrer, this, this->isAcyclic(), this->getRootRefCount(), this->getReferrerCount());
+
     // rtgc_log(this->klass()->is_acyclic(), 
     //     "referrer %p added to %p(%s)", referrer, this, this->klass()->name()->bytes());
     rt_assert(this->is_adjusted_trackable());
@@ -92,7 +95,6 @@ void GCObject::addReferrer(GCObject* referrer) {
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
         this->incrementRootRefCount();
-
         return;
     }
 
@@ -135,6 +137,10 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     rt_assert(referrer != this);
     rt_assert(this->is_adjusted_trackable());
 
+    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from acyclic=%d " PTR_DBG_SIG, 
+            referrer, RTGC::getClassName(referrer), 
+            cast_to_oop(referrer)->is_gc_marked(), this->isAcyclic(), PTR_DBG_INFO(this)); 
+
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
         return this->decrementRootRefCount();
@@ -148,9 +154,6 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
     rt_assert_f(this->mayHaveAnchor(), "no referrer %p(%s) in empty %p(%s)", 
         referrer, RTGC::getClassName(referrer, true),
         this, RTGC::getClassName(this));
-    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from " PTR_DBG_SIG, 
-            referrer, RTGC::getClassName(referrer), 
-            cast_to_oop(referrer)->is_gc_marked(), PTR_DBG_INFO(this)); 
 
     if (!this->hasMultiRef()) {
         if (!must_exist &&this->getSingleAnchor() != referrer) return -1;
@@ -266,7 +269,7 @@ void GCObject::invalidateAnchorList_unsafe() {
 }
 
 void GCObject::clearAnchorList() {
-    rtgc_debug_log(this, "all anchor removed from " PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rtgc_debug_log(this, "remove all anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert(!this->hasShortcut());
     if (this->hasMultiRef()) {
         ReferrerList* referrers = this->getAnchorList();

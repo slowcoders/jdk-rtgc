@@ -127,21 +127,9 @@ inline void MarkAndPushClosure::do_klass(Klass* k)           { MarkSweep::follow
 inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow_cld(cld); }
 
 template <class T>
-inline oopDesc* MarkSweep::adjust_pointer(T* p, bool clear_modified, oop* new_oop) {
+inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
-  if (EnableRTGC && !clear_modified) {
-    // YG-Object 의 modified-field 는 무시된다.
-    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_in_trackable_space(p));
-  }
-  if (CompressedOops::is_null(heap_oop)) {
-#if INCLUDE_RTGC // useModifyFlag() zzzzz
-    if (clear_modified && rtHeap::useModifyFlag()) {
-      if (rtHeap::is_modified(heap_oop)) {
-        *p = rtHeap::to_unmodified((T)0);
-      }
-    }
-#endif
-  } else {
+  if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
     assert(Universe::heap()->is_in(obj), "should be in heap");
 
@@ -174,7 +162,7 @@ inline oopDesc* MarkSweep::adjust_pointer(T* p, bool clear_modified, oop* new_oo
 }
 
 template <typename T>
-void AdjustPointerClosure::do_oop_work(T* p)           { MarkSweep::adjust_pointer(p, false); }
+void AdjustPointerClosure::do_oop_work(T* p)           { MarkSweep::adjust_pointer(p); }
 inline void AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
 inline void AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 

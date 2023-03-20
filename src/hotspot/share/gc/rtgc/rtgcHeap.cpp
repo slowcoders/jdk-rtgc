@@ -200,14 +200,11 @@ void rtHeap::mark_promoted_trackable(oopDesc* new_p) {
 
 void rtHeap::mark_young_root(oopDesc* tenured_p, bool is_young_root) {
   GCObject* node = to_obj(tenured_p);
-  if (!is_young_root) {
-    if (node->isYoungRoot()) {
-      node->unmarkYoungRoot();
-    }
-  } else if (!node->isYoungRoot()) {
+  // full-gc marking 단계에서는 Weak/Soft Reference 를 scan 하지 않는다.
+  // 이에, youngRoot 추가만 하고, 삭제는 하지 않는다.
+  if (is_young_root && !node->isYoungRoot()) {
     rtHeap::add_young_root(tenured_p, tenured_p);
   }
-
 }
 
 void rtHeapUtil::resurrect_young_root(GCObject* node) {
@@ -257,7 +254,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   rt_assert(EnableRTGC);
   GCObject* node = to_obj(new_p);
-  rt_assert_f(node->is_adjusted_trackable(), "must be trackable\n" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
+  rt_assert_f(node->is_adjusted_trackable(), "must be trackable" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   if (node->isGarbageMarked()) {
     rt_assert_f(node->isTrackable(), "not yr " PTR_DBG_SIG, PTR_DBG_INFO(node));
     rtHeapUtil::resurrect_young_root(node);
@@ -286,7 +283,7 @@ void rtHeap__clearStack() {
     for (; src < end; src++) {
       GCObject* erased = src[0];
       rt_assert(erased->is_adjusted_trackable());
-      rt_assert_f(erased->isSurvivorReachable(), "cls %p\n" PTR_DBG_SIG, 
+      rt_assert_f(erased->isSurvivorReachable(), "cls %p" PTR_DBG_SIG, 
           (void*)cast_to_oop(erased)->klass()->java_mirror_no_keepalive(), PTR_DBG_INFO(erased));
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->hasSafeAnchor() && !erased->isUnstableMarked()) {
@@ -453,20 +450,29 @@ template <typename T>
 void RtAdjustPointerClosure::do_oop_work(T* p) { 
   rt_assert_f(!rtHeap::useModifyFlag() || 
       !_trackable_old_anchor || !rtHeap::is_modified(*p), 
-      "modified field [%d] v = %x(%s)\n" PTR_DBG_SIG, 
-      (int)((address)p - (address)_old_anchor_p), *(int32_t*)p, 
+      "modified field [%d] v = %p(%s)" PTR_DBG_SIG, 
+      (int)((address)p - (address)_old_anchor_p), (void*)CompressedOops::decode(*p), 
       RTGC::getClassName(CompressedOops::decode(*p)),
       PTR_DBG_INFO(_old_anchor_p));
 
+  rtgc_debug_log(_old_anchor_p, " adjust_pointer (%p/%s)[%d]", 
+      _old_anchor_p, _old_anchor_p->klass()->name()->bytes(),
+      (int)((address)p - (address)_old_anchor_p));
+
+
   oop new_p;
-  oopDesc* old_p = MarkSweep::adjust_pointer(p, _trackable_old_anchor, &new_p); 
-  rt_assert(!rtHeap::is_modified(*p) || !rtHeap::is_in_trackable_space(p));
-  // if (_trackable_old_anchor) {
-  //   if (rtHeap::useModifyFlag() && _is_trackable_forwardee) {
-  //     *p = rtHeap::to_unmodified(*p);
-  //   }
-  // }
+  bool is_tenured = _trackable_old_anchor || _new_anchor_p != NULL;
+  oopDesc* old_p = MarkSweep::adjust_pointer(p, &new_p); 
+  rt_assert(old_p == NULL || !to_obj(old_p)->isGarbageMarked());
+  if (rtHeap::useModifyFlag() && _is_trackable_forwardee) {
+    *p = rtHeap::to_unmodified(*p);
+  }
   if (old_p == NULL || old_p == _old_anchor_p) return;
+
+  rt_assert_f(_was_young_root || !to_obj(_old_anchor_p)->isTrackable_unsafe() || to_obj(old_p)->isTrackable_unsafe(),
+     " adjust_pointer %p(%s ygRoot=%d tr=%d)[%d] -> %p/%p(%s))", 
+      _old_anchor_p, _old_anchor_p->klass()->name()->bytes(), _was_young_root, is_tenured, 
+      (int)((address)p - (address)_old_anchor_p), old_p, (void*)new_p, old_p->klass()->name()->bytes());
 
 #ifdef ASSERT
   rtHeapUtil::ensure_alive_or_deadsapce(old_p, _old_anchor_p);
@@ -475,15 +481,16 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   bool new_p_in_YG = is_in_young(new_p);
   this->_has_young_ref |= new_p_in_YG;
 
-  rtgc_debug_log(old_p, " adjust_pointer (%p/%p ygRoot=%d)  -> (%p/%p)", 
-      _old_anchor_p, (void*)_old_anchor_p->forwardee(), _was_young_root, old_p, (void*)new_p);
+  rtgc_debug_log(_old_anchor_p, " adjust_pointer (%p/%p ygRoot=%d tr=%d)[%d] -> %p/%p(%s))", 
+      _old_anchor_p, (void*)_old_anchor_p->forwardee(), _was_young_root, is_tenured, 
+      (int)((address)p - (address)_old_anchor_p), old_p, (void*)new_p, old_p->klass()->name()->bytes());
   if (new_p_in_YG || (_was_young_root ? !is_in_young(old_p) : _new_anchor_p == NULL)) {
     return;
   }
 
   int max_count = (1 << 21) - 1;
   if ((to_obj(old_p)->getRootRefCount() & max_count) >= max_count/3) {
-      rtgc_log((to_obj(old_p)->getRootRefCount() % 1000) == 0, "big array %p %d\n" PTR_DBG_SIG, 
+      rtgc_log((to_obj(old_p)->getRootRefCount() % 1000) == 0, "big array %p %d" PTR_DBG_SIG, 
           (void*)old_p, to_obj(old_p)->getRootRefCount(), PTR_DBG_INFO(_old_anchor_p));
       // if (_old_anchor_p->klass()->is_objArray_klass()) {
       //     objArrayOopDesc* array = (objArrayOopDesc*)_old_anchor_p;
@@ -513,7 +520,7 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
 
 static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
   GCObject* old_p = p[0];
-  rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p\n" PTR_DBG_SIG, 
+  rt_assert_f(!old_p->isGarbageMarked(), "anchor = %p, mark=%p" PTR_DBG_SIG, 
       old_p, cast_to_oop(old_p)->mark().to_pointer(), PTR_DBG_INFO(old_p));
   debug_only(g_cnt_ref_anchor++;)
   GCObject* new_obj = to_obj(cast_to_oop(old_p)->forwardee());
@@ -657,7 +664,7 @@ void rtHeap__onCompactionFinishied() {
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
     rt_assert(this->isTrackable());
-    rtgc_debug_log(this, "garbage marking on %p(%s) %s", this, getClassName(this), reason);
+    rtgc_debug_log(this, "garbage marking on %p(%s) rc=%d %s", this, getClassName(this), this->getRootRefCount(), reason);
   }
   rt_assert_f(!this->isGarbageMarked(),
       "already marked garbage %p(%s)", this, getClassName(this));
@@ -767,7 +774,7 @@ class ClearWeakHandleRef: public OopClosure {
 } clear_weak_handle_ref;
 
 void rtHeap::prepare_rtgc() {
-  rtgc_log(LOG_OPT(1), "prepare_rtgc\n");
+  rtgc_log(LOG_OPT(1), "prepare_rtgc");
   debug_only(cnt_resurrect = 0;)
   debug_only(g_cnt_skip_garbage = 0;)
   is_gc_started = true;
@@ -861,7 +868,7 @@ void rtHeap__mark_dead_space(oopDesc* deadObj) {
 
 void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
-    rt_assert_f(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
+    rt_assert_f(rtHeap::is_alive(obj), "must not a garbage " PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
     rt_assert_f(to_obj(obj)->isAcyclic() || !to_obj(obj)->isTrackable() ||
        to_obj(obj)->hasReferrer(to_obj(anchor)), 
         "anchor=" PTR_DBG_SIG "link=" PTR_DBG_SIG,

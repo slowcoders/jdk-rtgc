@@ -17,6 +17,7 @@ const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
     int max_count = survivor_reachable_value - 1;
+    rtgc_debug_log(this, "incrementRootRefCount %p(%s) rc=%d\n", this, RTGC::getClassName(this), this->getRootRefCount() + 2);
     rt_assert_f((_flags.rootRefCount & max_count) < max_count/2, PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
     return (_flags.rootRefCount += 2);
@@ -68,7 +69,6 @@ void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
          "not locked");
 
     assigned->incrementRootRefCount();
-    rtgc_debug_log(assigned, "root assigned %p(%s) rc=%d\n", assigned, RTGC::getClassName(assigned), assigned->getRootRefCount());
     // rt_assert(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
 }
 

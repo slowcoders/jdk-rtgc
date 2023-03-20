@@ -83,7 +83,10 @@ static void check_field_addr(oopDesc* base, volatile void* addr, oopDesc* new_v,
     "mismatch is_array=%d %s\n", is_array, base->klass()->name()->bytes());
 #ifdef ASSERT
   // System.out 이 final 필드이면서 초기값이 null 이다. ㅜ,.ㅠ
-  if (!base->klass()->is_array_klass() && base->klass() != vmClasses::Class_klass()) {
+  // ResolvedMethodName(MemberName.java 의 innerClass) 클래스는 내부 필드 구조를 runtim 에 생성한다.
+  if (!base->klass()->is_array_klass() && 
+    base->klass() != vmClasses::Class_klass() &&
+    base->klass() != vmClasses::ResolvedMethodName_klass()) {
     int offset = (address)addr - (address)base;
     Klass* klass = base->klass();
     int field_found = find_field(klass, offset, false, is_final, false);

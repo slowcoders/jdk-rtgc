@@ -156,7 +156,7 @@ public:
 		rt_assert(isSurvivorReachable());
 		rt_assert(!isGarbageMarked());
 		_flags.rootRefCount &= ~survivor_reachable_value;
-		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d\n", this, this->getRootRefCount());
+		rtgc_debug_log(this, "unmarkSurvivorReachable %p rc=%d", this, this->getRootRefCount());
 		return _flags.rootRefCount;
 	}
 
@@ -164,7 +164,7 @@ public:
 
 	void markSurvivorReachable_unsafe() {
 		rt_assert(!isSurvivorReachable());
-		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d\n",    
+		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d",    
 			this, this->getRootRefCount(), this->getReferrerCount());
 		_flags.rootRefCount |= survivor_reachable_value;
 	}
