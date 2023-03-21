@@ -131,8 +131,8 @@ void RtThreadLocalData::reset_gc_context() {
   }
 }
 
-void UpdateLogBuffer::reset_gc_context() {
 
+void UpdateLogBuffer::reset_gc_context() {
   DefNewGeneration* newGen = (DefNewGeneration*)GenCollectedHeap::heap()->young_gen();
   ContiguousSpace* to = newGen->to();
   g_buffer_area_start = (address)to->bottom();
@@ -159,6 +159,7 @@ void UpdateLogBuffer::reset_gc_context() {
 
   RtThreadLocalData::reset_gc_context();
 }
+
 
 UpdateLogBuffer* UpdateLogBuffer::allocate() {
   rt_assert(rtHeap::useModifyFlag());
@@ -191,57 +192,59 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
   return buffer;
 }
 
+
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
   rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
   rt_assert(buffer > (void*)0x100);
-  rt_assert(! is_gc_started);
 // java/lang/invoke/MethodHandlesGeneralTest/hs_err_pid45346.log
 // #  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:195), pid=45346, tid=41731
 // #  assert(! is_gc_started) failed: precond
 
   RTGC::lock_heap();
-  rt_assert(! is_gc_started);
   UpdateLogBuffer* prev = g_active_buffer_q; 
-  rt_assert_f(prev > (void*)0xFF, "g_active_buffer_q=%p, g_inactive_buffer_q=%p, g_free_buffer_q=%p",
-      g_active_buffer_q, g_inactive_buffer_q, g_free_buffer_q);
-
-  if (prev == buffer) {
-    g_active_buffer_q = buffer->_next;
+  if (prev == NULL) {
+    rt_assert(g_inactive_buffer_q == NULL);
+    rt_assert(g_free_buffer_q == NULL);
   } else {
-    while (prev->_next != buffer) {
-      prev = prev->_next;
+    if (prev == buffer) {
+      g_active_buffer_q = buffer->_next;
+    } else {
+      while (prev->_next != buffer) {
+        prev = prev->_next;
 #ifdef ASSERT
-      if (prev <= (void*)0x100) {
-        int idx = 0;
-        printf("fail to find %p (%p)\n", buffer, prev);
-        printf("g_active_buffer_q\n");
-        prev = g_active_buffer_q; 
-        while (prev > (void*)0x100) {
-          printf("q(%d) %p\n", idx++, prev);
-          prev = prev->_next;
+        if (prev <= (void*)0x100) {
+          int idx = 0;
+          printf("fail to find %p (%p)\n", buffer, prev);
+          printf("g_active_buffer_q\n");
+          prev = g_active_buffer_q; 
+          while (prev > (void*)0x100) {
+            printf("q(%d) %p\n", idx++, prev);
+            prev = prev->_next;
+          }
+          prev = g_inactive_buffer_q; 
+          idx = 0;
+          while (prev > (void*)0x100) {
+            printf("q(%d) %p\n", idx++, prev);
+            prev = prev->_next;
+          }
+          prev = g_free_buffer_q; 
+          idx = 0;
+          while (prev > (void*)0x100) {
+            printf("q(%d) %p\n", idx++, prev);
+            prev = prev->_next;
+          }
         }
-        prev = g_inactive_buffer_q; 
-        idx = 0;
-        while (prev > (void*)0x100) {
-          printf("q(%d) %p\n", idx++, prev);
-          prev = prev->_next;
-        }
-        prev = g_free_buffer_q; 
-        idx = 0;
-        while (prev > (void*)0x100) {
-          printf("q(%d) %p\n", idx++, prev);
-          prev = prev->_next;
-        }
-      }
 #endif
-      rt_assert(prev > (void*)0x100);
+        rt_assert(prev > (void*)0x100);
+      }
+      prev->_next = buffer->_next;
     }
-    prev->_next = buffer->_next;
+    buffer->_next = g_inactive_buffer_q;
+    g_inactive_buffer_q = buffer;
   }
-  buffer->_next = g_inactive_buffer_q;
-  g_inactive_buffer_q = buffer;
   RTGC::unlock_heap();
 }
+
 
 template <bool _atomic>
 void UpdateLogBuffer::flush_pending_logs() {
@@ -254,8 +257,8 @@ void UpdateLogBuffer::flush_pending_logs() {
   _sp = this->end_of_log();
 }
 
-void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData) {
 
+void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData) {
   rt_assert(rtData == RtThreadLocalData::data(Thread::current()));
   rt_assert(!Thread::current()->is_VM_thread());
 
@@ -318,7 +321,6 @@ RtThreadLocalData::RtThreadLocalData() {
     this->_next = g_active_thread_q;
     if (this->_next == Atomic::cmpxchg(&g_active_thread_q, this->_next, this)) break;
   }
-
 }
 
 RtThreadLocalData::~RtThreadLocalData() {
@@ -348,14 +350,19 @@ void UpdateLogBuffer::process_update_logs() {
   rtgc_log(LOG_OPT(1), "process_update_logs %p, %p, %p\n", 
       g_free_buffer_q, g_active_buffer_q, g_inactive_buffer_q);
   Klass* intArrayKlass = Universe::intArrayKlassObj();
-  for (UpdateLogBuffer* buffer = g_active_buffer_q; buffer != NULL; buffer = buffer->_next) {
-    buffer->flush_pending_logs<false>();
-  }
-  for (UpdateLogBuffer* buffer = g_inactive_buffer_q; buffer != NULL; buffer = buffer->_next) {
-    buffer->flush_pending_logs<false>();
-  }  
+
+  RTGC::lock_heap();
+  UpdateLogBuffer* top_active_buffer = g_active_buffer_q;
+  UpdateLogBuffer* top_inactive_buffer = g_inactive_buffer_q;
   g_free_buffer_q = NULL;
   g_active_buffer_q = NULL;
   g_inactive_buffer_q = NULL;
-
+  RTGC::unlock_heap();
+ 
+  for (UpdateLogBuffer* buffer = top_active_buffer; buffer != NULL; buffer = buffer->_next) {
+    buffer->flush_pending_logs<false>();
+  }
+  for (UpdateLogBuffer* buffer = top_inactive_buffer; buffer != NULL; buffer = buffer->_next) {
+    buffer->flush_pending_logs<false>();
+  }  
 }

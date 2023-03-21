@@ -109,6 +109,18 @@ bash configure --with-jvm-variants=client \
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
 
+
+==============================
+Test summary 2022 03/21 Acyclic/AnchorList-LinkTrackable-Only
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1572    29     9 <<
+>> jtreg:test/jdk:tier1                               2062  2056     1     5 <<
+>> jtreg:test/langtools:tier1                         4215  4196     1    18 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
 Test summary 2022 12/11 UseModifyFlag
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   

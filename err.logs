@@ -11,6 +11,7 @@ V  [libjvm.dylib+0xb70fb1]  VM_Exit::doit()+0x51
 sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader
 sh exec_test.sh gc/g1/humongousObjects/TestHumongousNonArrayAllocation
 make test CONF=macosx-x86_64-client-fastdebug TEST=tools/javac/Paths/Help.sh
+sh exec_test.sh tools/javac/Paths/Diagnostics
 
 #  Internal Error (../../src/hotspot/share/classfile/javaClasses.cpp:766), pid=61127, tid=5635
 #  assert(java_string->klass() == vmClasses::String_klass()) failed: must be java_string
@@ -24,7 +25,8 @@ V  [libjvm.dylib+0xa3e065]  StringTable::intern(oop, JavaThread*)+0x1a5
 V  [libjvm.dylib+0x60727b]  JVM_InternString+0xdb
 sh exec_test.sh gc/arguments/TestShrinkHeapInSteps
 sh exec_test.sh serviceability/dcmd/framework/InvalidCommandTest
-sh exec_test.sh tools/javac/Paths/Help
+sh runtime/modules/PatchModule/PatchModuleCDS
+make test CONF=macosx-x86_64-client-fastdebug TEST=tools/javac/Paths/Help.sh
 
 #  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=82734, tid=6147
 #  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
