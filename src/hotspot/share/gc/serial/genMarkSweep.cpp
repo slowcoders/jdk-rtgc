@@ -210,7 +210,7 @@ class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClo
   bool _is_young_root;
 public:
   
-  bool iterate_tenured_young_root_oop(oopDesc* obj) {
+  bool iterate_tenured_young_root_oop(oopDesc* obj, bool is_strong_rechable) {
     precond(rtHeap::is_trackable(obj));
     if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
       return true;
@@ -258,7 +258,7 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
   void do_object(oop obj) {
-    iterate_tenured_young_root_oop(obj);
+    iterate_tenured_young_root_oop(obj, false);
   }
 
 };

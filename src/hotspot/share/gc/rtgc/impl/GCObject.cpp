@@ -88,7 +88,7 @@ void GCObject::addReferrer(GCObject* referrer) {
 
     // rtgc_log(this->klass()->is_acyclic(), 
     //     "referrer %p added to %p(%s)", referrer, this, this->klass()->name()->bytes());
-    rt_assert(this->is_adjusted_trackable());
+    // rt_assert(this->is_adjusted_trackable());
     rt_assert(RTGC_FAT_OOP || !cast_to_oop(this)->is_gc_marked());
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
 

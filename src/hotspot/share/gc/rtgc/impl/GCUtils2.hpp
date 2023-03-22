@@ -155,11 +155,11 @@ public:
 private:
     typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
     
-    static  ChunkPool g_chunkPool;
-
-    const ShortOOP* extend_tail(Chunk* last_chunk);
+    static ChunkPool g_chunkPool;
 
     static void dealloc_chunk(Chunk* chunk);
+
+    const ShortOOP* extend_tail(Chunk* last_chunk);
 
     void set_last_item_ptr(const ShortOOP* pLast) {
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];

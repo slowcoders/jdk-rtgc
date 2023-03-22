@@ -550,6 +550,59 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   age_table()->print_age_table(_tenuring_threshold);
 }
 
+#if INCLUDE_RTGC
+template <bool clear_modified_flag>
+class YoungRootReachableClosure : public YoungRootClosureBase<YoungRootReachableClosure<clear_modified_flag>, clear_modified_flag> {
+public:
+  void barrier(oop old_p, oop new_p) {
+    rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, old_p);
+  }
+
+  void trackable_barrier(oop old_p, oop new_p) {
+    if (clear_modified_flag) {
+      rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
+    } else {
+      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
+    }
+  }
+
+  void promoted_trackable_barrier(oop old_p, oop new_p) {
+    if (clear_modified_flag) {
+      rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
+    } else {
+      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
+    }
+  }
+
+  void do_object(oop obj) {
+    RtYoungRootClosure::_current_anchor = obj;
+    obj->oop_iterate(this);
+  }
+};
+
+bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_strong_rechable) {
+  _has_young_ref = false;
+  oop old_anchor = _current_anchor;
+  _current_anchor = obj;
+  obj->oop_iterate(this);
+  _current_anchor = old_anchor;
+  if (is_strong_rechable) {
+    _complete_closure->do_void();
+  } else {
+    do_complete();
+  }
+  return _has_young_ref;
+}
+
+void YoungRootClosure::do_complete() {
+  do {
+    young_gen()->oop_since_save_marks_iterate((YoungRootReachableClosure<false>*)this);
+    ((TenuredGeneration*)_old_gen)->oop_since_save_marks_iterate((YoungRootReachableClosure<true>*)this);
+  } while (!young_gen()->no_allocs_since_save_marks() ||
+           !((TenuredGeneration*)_old_gen)->no_allocs_since_save_marks());
+}
+#endif
+
 void DefNewGeneration::collect(bool   full,
                                bool   clear_all_soft_refs,
                                size_t size,
@@ -623,7 +676,7 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (RtNoDirtyCardMarking) {
-    YoungRootClosure        young_root_closure(this, &evacuate_followers);
+    YoungRootClosure        young_root_closure(this, _old_gen, &evacuate_followers);
     rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
   }
 #endif

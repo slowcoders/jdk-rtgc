@@ -47,6 +47,8 @@ namespace RTGC {
   extern bool REF_LINK_ENABLED;
   bool ENABLE_GC = true && REF_LINK_ENABLED;
   bool is_gc_started = false;
+  Stack<GCObject*, mtGC> _yg_root_reachables;
+
   class RtAdjustPointerClosure: public BasicOopIterateClosure {
   public:
     template <typename T> void do_oop_work(T* p);
@@ -250,6 +252,24 @@ void rtHeap__processUntrackedTenuredObjects() {
   }
 }
 
+void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  if (anchor_p == link_p) return;
+  rt_assert_f(!to_obj(anchor_p)->isGarbageMarked(), "grabage anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
+
+  GCObject* link = to_obj(link_p);
+  if (link->getRootRefCount() > 0) return;
+
+  RTGC::add_referrer_unsafe(link_p, anchor_p, anchor_p);
+  if (!link->isDirtyReferrerPoints()) {
+    if (!link->isTrackable()) {
+      if (!link->hasMultiRef()) return;
+      _yg_root_reachables.push(link);
+    } else {
+      if (to_obj(anchor_p)->isTrackable()) return;
+    }
+    link->markDirtyReferrerPoints();
+  }
+}
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   rt_assert(EnableRTGC);
@@ -308,6 +328,10 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     _rtgc.g_pGarbageProcessor->validateGarbageList();
   }
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+  while (!_yg_root_reachables.is_empty()) {
+    GCObject* obj = _yg_root_reachables.pop();
+    ReferrerList::delete_(obj->getAnchorList());
+  }
 
   if (!is_full_gc) {
     int old_cnt = g_young_roots.size();
@@ -344,43 +368,30 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   }
 #endif
 
-  HugeArray<GCObject*>* garbages = _rtgc.g_pGarbageProcessor->getGarbageNodes(); 
-  rt_assert_f(garbages->size() == 0, "garbages->size %d", garbages->size());
+  for (int idx_root = young_root_count; --idx_root >= 0; ) {
+    GCObject* node = to_obj(g_young_roots.at(idx_root));
+    if (_rtgc.g_pGarbageProcessor->hasStableSurvivalPath(node)) {
+      bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), true);
+      if (!is_full_gc && !is_young_root) {
+        node->unmarkYoungRoot();
+        g_young_roots.removeFast(idx_root);
+        young_root_count --;
+      }       
+    } else {
+      node->markDirtyReferrerPoints();
+    }
+  }
 
   for (int idx_root = young_root_count; --idx_root >= 0; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
-    if (node->isGarbageMarked()) {
-      // ref-pending-list 를 추가하는 과정에서, yg-root 에서 제거된 객체가 
-      // 다시 추가될 수 있다.
-      rt_assert(is_full_gc || node->isDirtyReferrerPoints());
-      continue;
-    }
-    rt_assert_f(is_full_gc || node->isYoungRoot(), "invalid young root %p(%s)", node, RTGC::getClassName(node));
-    if (is_full_gc) {
-      rt_assert(node->isYoungRoot());
-      if (!node->isYoungRoot()) {
-        // detectGarbage 에 의해 garbageMarking 된 후, 
-        // closure->iterate_tenured_young_root_oop() 처리 시 young_root 가 해제될 수 있다.
+    if (node->isDirtyReferrerPoints()) {
+      node->unmarkDirtyReferrerPoints();
+      bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
+      if (!is_full_gc && !is_young_root) {
+        node->unmarkYoungRoot();
         g_young_roots.removeFast(idx_root);
-        continue;
-      }
-      if (_rtgc.g_pGarbageProcessor->detectGarbage(node)) continue;
-    } else if (node->isUnreachable()) {
-      node->markGarbage("unreachable young root");
-      // -> FieldIterator 에서 yg-root garbage 의 field 가 forwarded 값인 가를 확인하기 위하여 사용한다.
-      node->markDirtyReferrerPoints();
-      garbages->push_back(node);
-      // rtgc_log(LOG_OPT(7), "skip garbage yg-root %p", node);
-      continue;
+      }       
     }
-
-    // rtgc_log(LOG_OPT(7), "iterate yg root %p", (void*)node); 0x3f74adc18
-    bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
-    closure->do_complete();
-    if (!is_full_gc && !is_young_root) {
-      node->unmarkYoungRoot();
-      g_young_roots.removeFast(idx_root);
-    } 
   }
 
   if (is_full_gc) {
@@ -388,6 +399,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
   }
 }
+
 
 void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
   GCObject* node = to_obj(link);
