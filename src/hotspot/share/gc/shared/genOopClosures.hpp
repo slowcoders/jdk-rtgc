@@ -138,7 +138,7 @@ public:
   void do_complete();
 
   void barrier(oop old_p, oop new_p) {
-    rtHeap::mark_young_root_reachable(_current_anchor, old_p);
+    rtHeap::mark_young_root_reachable(_current_anchor, new_p);
     _has_young_ref = true;
   }
 

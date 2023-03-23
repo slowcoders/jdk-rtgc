@@ -58,6 +58,8 @@ public:
 
 	void clearAnchorList();
 
+	void removeDirtyAnchors();
+
 	bool clearEmptyAnchorList();
 
 	void invalidateAnchorList_unsafe();

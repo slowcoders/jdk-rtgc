@@ -268,6 +268,22 @@ void GCObject::invalidateAnchorList_unsafe() {
 	this->removeSingleAnchor();
 }
 
+void GCObject::removeDirtyAnchors() {
+    rtgc_log(true, "remove dirty anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rt_assert(!this->hasShortcut());
+    if (!this->hasMultiRef()) {
+        GCObject* anchor = this->getSafeAnchor();
+        if (anchor->isDirtyAnchor()) {
+            this->removeSingleAnchor();    
+        }
+    }
+    else {
+        ReferrerList* referrers = this->getAnchorList();
+        referrers->removeDirtyItems();
+        clearEmptyAnchorList();
+    }
+}
+
 void GCObject::clearAnchorList() {
     rtgc_debug_log(this, "remove all anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert(!this->hasShortcut());

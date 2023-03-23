@@ -18,7 +18,8 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/security/ProtectionDomain$Key",
+  "java/util/HashMap$Node",
+  "[Ljava/util/HashMap$Node;",
   // "java/util/WeakHashMap$Entry",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",

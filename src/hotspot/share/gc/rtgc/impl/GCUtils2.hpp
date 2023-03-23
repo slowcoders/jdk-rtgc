@@ -109,6 +109,8 @@ public:
     // returns lowerest removed item pointer (the memory may not accessable);
     const void* removeMatchedItems(ShortOOP item);
 
+    void removeDirtyItems();
+
     const ShortOOP* getItemPtr(ShortOOP item);
 
     int approximated_item_count() {

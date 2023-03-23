@@ -555,7 +555,7 @@ template <bool clear_modified_flag>
 class YoungRootReachableClosure : public YoungRootClosureBase<YoungRootReachableClosure<clear_modified_flag>, clear_modified_flag> {
 public:
   void barrier(oop old_p, oop new_p) {
-    rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, old_p);
+    rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
   }
 
   void trackable_barrier(oop old_p, oop new_p) {

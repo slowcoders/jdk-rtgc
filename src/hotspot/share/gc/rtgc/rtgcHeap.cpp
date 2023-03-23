@@ -386,6 +386,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     if (node->isDirtyReferrerPoints()) {
       node->unmarkDirtyReferrerPoints();
+      rtgc_log(true, "martk dirty young root %p", node);
       bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
       if (!is_full_gc && !is_young_root) {
         node->unmarkYoungRoot();

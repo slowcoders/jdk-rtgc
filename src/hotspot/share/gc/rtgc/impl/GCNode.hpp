@@ -107,6 +107,10 @@ public:
 		return this->isTrackable_unsafe();
 	}
 
+	bool isDirtyAnchor() {
+		return !isTrackable();
+	}
+	
 	bool isAcyclic() {
 		return _flags.isAyclic;
 	}

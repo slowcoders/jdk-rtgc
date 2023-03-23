@@ -100,7 +100,7 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
         _head._last_item_offset --;
     } else if (pLast - last_chunk->_items == MAX_COUNT_IN_CHUNK - 1) {
         Chunk* tail = last_chunk->getNextChunk();
-    Chunk* prev = (Chunk*)(&last_chunk->_items[MAX_COUNT_IN_CHUNK] + last_chunk->_last_item_offset);
+        Chunk* prev = (Chunk*)(&last_chunk->_items[MAX_COUNT_IN_CHUNK] + last_chunk->_last_item_offset);
         rt_assert(prev == tail);
         dealloc_chunk(last_chunk);
         if (tail == &_head) {
@@ -227,6 +227,43 @@ const void* ReferrerList::removeMatchedItems(ShortOOP item) {
 
     return last_removed;
 }
+
+void ReferrerList::removeDirtyItems() {
+    const void* last_removed = NULL;
+    const ShortOOP* pItem = lastItemPtr();
+    int cnt_removed = 0;
+    if (this->hasMultiChunk()) {
+        Chunk* chunk = getContainingChunck(pItem);
+        do {
+            while (pItem != &chunk->_items[MAX_COUNT_IN_CHUNK]) {
+                if (!pItem[0]->isDirtyAnchor()) {
+                    this->set_last_item_ptr(pItem);
+                    rtgc_log(true, "dirty anchor removed %d", cnt_removed);
+                    return;
+                }
+                cnt_removed ++;
+                pItem ++;
+            }
+            Chunk* next_chunk = chunk->getNextChunk();
+            dealloc_chunk(chunk);
+            chunk = next_chunk;
+            pItem = chunk->_items;
+        } while (pItem != &this->_head._items[0]);
+        rtgc_log(true, "dirty chunk overflow %d", cnt_removed);
+        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
+    } 
+    for (;; pItem--) {
+        if (!pItem[0]->isDirtyAnchor()) {
+            this->set_last_item_ptr(pItem);
+            rtgc_log(true, "dirty anchor removed %d", cnt_removed);
+            return;
+        }
+        cnt_removed ++;
+        if (pItem == _head._items) break;
+    }
+    return;
+}
+
 
 void AnchorIterator::initialize(GCObject* obj) {
     if (!obj->mayHaveAnchor()) {

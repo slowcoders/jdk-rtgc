@@ -186,6 +186,22 @@ void GarbageProcessor::constructShortcut() {
             precond (lastShortcut == NULL || obj == lastShortcut->anchor());
         }
 
+        if (obj->isDirtyAnchor()) {
+            if (link != NULL) {
+                rtHeap::mark_survivor_reachable(cast_to_oop(link));
+                SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
+                rtgc_log(LOG_OPT(11), "dirty anchor  Shortcut %d\n", s2->getIndex());
+                link = NULL;
+            } else {
+                rtgc_log(LOG_OPT(11), "skip yg-obj %p\n", obj);
+            }
+            lastShortcut = NULL;
+            continue;
+        } else if (obj->isDirtyReferrerPoints()) {
+            obj->removeDirtyAnchors();
+        }
+
+
         rt_assert_f(SafeShortcut::isValidIndex(obj->getShortcutId()),
             "invalid shortcut id %p:%d\n", obj, obj->getShortcutId());
 		SafeShortcut* ss = obj->getShortcut();
@@ -305,7 +321,9 @@ void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isT
         for (; ppNode < end; ppNode++) {
             GCObject* obj = *ppNode;
             if (obj->isGarbageMarked()) {
-                destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
+                if (!obj->isDirtyAnchor()) {
+                    destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
+                }
             } else {
                 // garbage resurrected!
             }
