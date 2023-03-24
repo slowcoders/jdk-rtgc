@@ -261,6 +261,12 @@ public:
         return found;
     }
 
+    void swap(int idx1, int idx2) {
+        T tmp = _data->_items[idx1];
+        _data->_items[idx1] = _data->_items[idx2];
+        _data->_items[idx2] = tmp;
+    }
+
     void removeFast(int idx) {
         rt_assert(idx >= 0 && idx < this->size());
         int newSize = this->size() - 1;

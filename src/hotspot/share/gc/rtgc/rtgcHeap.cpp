@@ -262,7 +262,7 @@ void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
   RTGC::add_referrer_unsafe(link_p, anchor_p, anchor_p);
   if (!link->isDirtyReferrerPoints()) {
     if (!link->isTrackable()) {
-      if (!link->hasMultiRef()) return;
+      // if (!link->hasMultiRef()) return;
       _yg_root_reachables.push(link);
     } else {
       if (to_obj(anchor_p)->isTrackable()) return;
@@ -330,7 +330,22 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
   while (!_yg_root_reachables.is_empty()) {
     GCObject* obj = _yg_root_reachables.pop();
-    ReferrerList::delete_(obj->getAnchorList());
+    if (obj->hasMultiRef()) {
+      ReferrerList* list = obj->getAnchorList();
+      if (false) {
+        rtgc_log(true, "destroy ref_list %p %p:%p/%d (%s)", obj, list, list->lastItemPtr(), list->approximated_item_count(), getClassName(obj));
+        if(list->hasMultiChunk()) {
+          ReferrerList::Chunk* chunk = ReferrerList::getContainingChunck(list->lastItemPtr());
+          while (chunk != &list->_head) {
+            rtgc_log(true, "  chunk %p", chunk);
+            chunk = chunk->getNextChunk();
+          }
+        }
+      }
+      ReferrerList::delete_(list);
+      obj->setHasMultiRef(false);
+    }
+    obj->removeSingleAnchor();
   }
 
   if (!is_full_gc) {
@@ -368,32 +383,67 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   }
 #endif
 
-  for (int idx_root = young_root_count; --idx_root >= 0; ) {
+  int not_anchored_root_count = 0;
+  int unknown_state_root_start = young_root_count;
+  for (int idx_root = young_root_count - 1; idx_root >= not_anchored_root_count; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
-    if (_rtgc.g_pGarbageProcessor->hasStableSurvivalPath(node)) {
+    AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
+    if (state == AnchorState::NotAnchored) {
+      rtgc_log(true, "skip not anchored %p", node);
+      g_young_roots.swap(not_anchored_root_count++, idx_root);
+      continue;
+    }
+
+    if (state == AnchorState::AnchoredToRoot) {
+      rtgc_log(true, "mark stable young root %p", node);
       bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), true);
       if (!is_full_gc && !is_young_root) {
         node->unmarkYoungRoot();
-        g_young_roots.removeFast(idx_root);
-        young_root_count --;
+        // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
+        // g_young_roots.removeFast(young_root_count);
       }       
     } else {
-      node->markDirtyReferrerPoints();
+      g_young_roots.swap(--unknown_state_root_start, idx_root);
     }
+    idx_root --;
   }
 
-  for (int idx_root = young_root_count; --idx_root >= 0; ) {
+  rtgc_log(true, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unknown_state_root_start, young_root_count, g_young_roots.size());
+  for (int idx_root = unknown_state_root_start; idx_root < young_root_count; idx_root ++) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
-    if (node->isDirtyReferrerPoints()) {
-      node->unmarkDirtyReferrerPoints();
-      rtgc_log(true, "martk dirty young root %p", node);
-      bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
-      if (!is_full_gc && !is_young_root) {
-        node->unmarkYoungRoot();
-        g_young_roots.removeFast(idx_root);
-      }       
-    }
+    rtgc_log(true, "mark unknown state  young root %p", node);
+    bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
+    if (!is_full_gc && !is_young_root) {
+      node->unmarkYoungRoot();
+      // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
+      // g_young_roots.removeFast(young_root_count);
+    }       
   }
+
+  bool need_rescan;
+  do {
+    need_rescan = false;
+    rtgc_log(true, "mark resurrected young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unknown_state_root_start, young_root_count, g_young_roots.size());
+    for (int idx_root = not_anchored_root_count - 1; idx_root >= 0; ) {
+      GCObject* node = to_obj(g_young_roots.at(idx_root));
+      AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
+      if (state != AnchorState::NotAnchored) {
+        rtgc_log(true, "mark resurrected young root %p", node);
+        bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
+        if (!is_full_gc && !is_young_root) {
+          node->unmarkYoungRoot();
+          // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
+          // g_young_roots.removeFast(young_root_count);
+        }       
+        g_young_roots.swap(--not_anchored_root_count, idx_root);
+        need_rescan = true;
+      } else {
+        idx_root --;
+      }
+    }
+  } while (need_rescan);
+  // floating yg 객체를 다시 marking 하기 위하여 필요.
+  g_saved_young_root_count = young_root_count;
 
   if (is_full_gc) {
     rtCLDCleaner::clear_cld_locks(g_young_root_closure);

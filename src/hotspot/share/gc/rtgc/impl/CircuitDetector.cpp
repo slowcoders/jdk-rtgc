@@ -430,3 +430,21 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
     } 
     return true;
 }
+
+AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* node) {
+    bool multi_anchor_found = false;
+    const int MAX_PATH_LENGTH_FOR_FAST_CHECK = 20;
+    for (int i = MAX_PATH_LENGTH_FOR_FAST_CHECK; --i >= 0; ) {
+        if (node->getRootRefCount() == 0) return AnchorState::AnchoredToRoot;
+        rt_assert(!node->isGarbageMarked());
+
+        if (!node->hasSafeAnchor()) {
+            if (!multi_anchor_found && !node->hasAnchor()) return AnchorState::NotAnchored;
+            break;
+        }
+        multi_anchor_found |= node->hasMultiRef();
+        /* shortcut 사용하지 않는다. */
+        node = node->getSafeAnchor();
+    } 
+    return AnchorState::Unknown;
+}

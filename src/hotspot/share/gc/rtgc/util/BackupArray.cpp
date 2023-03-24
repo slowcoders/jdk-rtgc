@@ -34,6 +34,8 @@ BackupPart* BackupArray::getMutablePartByIndex(int idx) {
     BackupPart* part = _parts[idx / ITEMS_PER_PART];
     if (part == NULL) {
         part = _parts[slot] = new BackupPart();
+        part[idx % ITEMS_PER_PART] = activeArray[idx];
+
         part->top = part->_bottom = idx;
     }
     return part;
@@ -45,10 +47,7 @@ void BackupArray::erase(int idx) {
         part->top = idx;
     } else if (part->_bottom <= idx) {
         part->_bottom = idx + 1;
-    } else {
-        return;
     }
-    part[idx % ITEMS_PER_PART] = activeArray[idx];
 }
 
 void BackupArray::erase(int idx, int len) {

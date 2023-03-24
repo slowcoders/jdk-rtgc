@@ -15,6 +15,11 @@ public:
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
+enum AnchorState {
+	NotAnchored,
+	Unknown,
+	AnchoredToRoot,
+};
 
 class GarbageProcessor {
 public:
@@ -30,6 +35,7 @@ public:
 	bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
+	AnchorState checkAnchorStateFast(GCObject* node);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:

@@ -22,7 +22,7 @@ public:
         int32_t _last_item_offset;
         
         Chunk*  getNextChunk()  { 
-            rt_assert((_last_item_offset % 8) != 0);  
+            rt_assert_f((_last_item_offset % 8) != 0, "wrong offset %d", _last_item_offset);  
             return (Chunk*)(&_last_item_offset + _last_item_offset); 
         }
         
@@ -154,6 +154,10 @@ public:
         return g_chunkPool.getAllocatedItemCount();
     }
 
+    static Chunk* getContainingChunck(const ShortOOP* pItem) {
+        return (Chunk*)((uintptr_t)pItem & ~CHUNK_MASK);
+    }
+
 private:
     typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
     
@@ -165,11 +169,8 @@ private:
 
     void set_last_item_ptr(const ShortOOP* pLast) {
         _head._last_item_offset = pLast - &_head._items[MAX_COUNT_IN_CHUNK];
+        rt_assert(_head._last_item_offset != 0);
         rt_assert(_head.isAlive());
-    }
-
-    static Chunk* getContainingChunck(const ShortOOP* pItem) {
-        return (Chunk*)((uintptr_t)pItem & ~CHUNK_MASK);
     }
 
     void cut_tail_end(ShortOOP* copy_to);
