@@ -177,7 +177,39 @@ void GarbageProcessor::constructShortcut() {
     int cntNode = 0;
     for (; ait < end; ait++) {
         GCObject* obj = ait->peekPrev();        
-        rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
+        rtgc_log(LOG_OPT(10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
+
+        if (obj->isDirtyAnchor()) {
+            rt_assert(link == NULL);
+            rt_assert(lastShortcut == NULL);
+            if (tail != NULL) {
+                rtgc_log(LOG_OPT(10), "mark_dirty_survivor_reachable %p -> %p", obj, tail);
+                rtHeap::mark_survivor_reachable(cast_to_oop(tail));
+                tail = NULL;
+            }
+            continue;
+        }
+
+        if (obj->isDirtyReferrerPoints()) {
+            rtgc_log(LOG_OPT(10), "remove dirty anchors from %p", obj);
+            obj->removeDirtyAnchors();
+            obj->unmarkDirtyReferrerPoints();
+
+            if (!obj->hasAnchor()) {
+                rtgc_log(LOG_OPT(10), "no anchors of %p", obj);
+                if (link != NULL) {
+                    SafeShortcut* s2 = SafeShortcut::create(obj, tail, cntNode);
+                    rtgc_log(LOG_OPT(10), "dirty anchor  Shortcut %d\n", s2->getIndex());
+                    link = NULL;
+                }
+                cntNode = 0;
+                tail = obj;
+                lastShortcut = NULL;
+                continue;
+            }
+        }
+
+
         if (link != NULL) {
             rt_assert_f(link->hasAnchor(),
                 "link has no anchor %p:%d\n", obj, obj->getShortcutId());
@@ -185,22 +217,6 @@ void GarbageProcessor::constructShortcut() {
         } else {
             precond (lastShortcut == NULL || obj == lastShortcut->anchor());
         }
-
-        if (obj->isDirtyAnchor()) {
-            if (link != NULL) {
-                rtHeap::mark_survivor_reachable(cast_to_oop(link));
-                SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
-                rtgc_log(LOG_OPT(11), "dirty anchor  Shortcut %d\n", s2->getIndex());
-                link = NULL;
-            } else {
-                rtgc_log(LOG_OPT(11), "skip yg-obj %p\n", obj);
-            }
-            lastShortcut = NULL;
-            continue;
-        } else if (obj->isDirtyReferrerPoints()) {
-            obj->removeDirtyAnchors();
-        }
-
 
         rt_assert_f(SafeShortcut::isValidIndex(obj->getShortcutId()),
             "invalid shortcut id %p:%d\n", obj, obj->getShortcutId());
@@ -435,16 +451,26 @@ AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* node) {
     bool multi_anchor_found = false;
     const int MAX_PATH_LENGTH_FOR_FAST_CHECK = 20;
     for (int i = MAX_PATH_LENGTH_FOR_FAST_CHECK; --i >= 0; ) {
-        if (node->getRootRefCount() == 0) return AnchorState::AnchoredToRoot;
         rt_assert(!node->isGarbageMarked());
 
+        if (node->getRootRefCount() > 0) {
+            return AnchorState::AnchoredToRoot;
+        }
+
         if (!node->hasSafeAnchor()) {
-            if (!multi_anchor_found && !node->hasAnchor()) return AnchorState::NotAnchored;
+            if (!multi_anchor_found && !node->hasAnchor()) {
+                return AnchorState::NotAnchored;
+            }
             break;
         }
-        multi_anchor_found |= node->hasMultiRef();
-        /* shortcut 사용하지 않는다. */
-        node = node->getSafeAnchor();
+        if (node->hasShortcut()) {
+            /* shortcut 은 multi_ref 로 간주한다. */
+            multi_anchor_found = true;
+            node = node->getShortcut()->anchor();
+        } else {
+            multi_anchor_found |= node->hasMultiRef();
+            node = node->getSafeAnchor();
+        }
     } 
     return AnchorState::Unknown;
 }

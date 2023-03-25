@@ -71,7 +71,7 @@ SafeShortcut* GCNode::getShortcut() const {
 }
 
 
-int GCNode::getReferrerCount() {
+int GCNode::getAnchorCount() {
     if (!this->mayHaveAnchor()) return 0;
     if (!this->hasMultiRef()) return 1;
     ReferrerList* referrers = this->getAnchorList();
@@ -84,7 +84,7 @@ void GCObject::addReferrer(GCObject* referrer) {
      * 주의!) referrer 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
     rtgc_debug_log(this, "referrer %p added to %p(acyclic=%d rc=%d refs_=%x)", 
-        referrer, this, this->isAcyclic(), this->getRootRefCount(), this->getReferrerCount());
+        referrer, this, this->isAcyclic(), this->getRootRefCount(), this->getAnchorCount());
 
     // rtgc_log(this->klass()->is_acyclic(), 
     //     "referrer %p added to %p(%s)", referrer, this, this->klass()->name()->bytes());
@@ -109,12 +109,28 @@ void GCObject::addReferrer(GCObject* referrer) {
         ReferrerList* referrers;
         if (!this->hasMultiRef()) {
             referrers = ReferrerList::allocate();
+            // old_p 가 항상 앞 쪽에
+            rt_assert_f(!this->is_adjusted_trackable() ||
+                      !referrer->is_adjusted_trackable() || 
+                      this->getSingleAnchor()->is_adjusted_trackable(),
+                      "mixed dirty anchor %p -> %p (anchored=%p)", 
+                      referrer, this, (GCObject*)this->getSingleAnchor());
             referrers->init(this->getSingleAnchor(), referrer);
             this->setAnchorList(referrers);
         }
         else {
             referrers = this->getAnchorList();
-            referrers->push_back(referrer);
+            // old_p 가 항상 앞 쪽에
+            if (this->isDirtyReferrerPoints()) {
+                referrers->add(referrer, referrer->isTrackable_unsafe());
+            } else {
+                rt_assert_f(!this->is_adjusted_trackable() ||
+                      !referrer->is_adjusted_trackable() || 
+                      referrers->lastItemPtr()[0]->is_adjusted_trackable(),
+                      "mixed dirty anchor %p -> %p (last_anchor=%p)", 
+                      referrer, this, (GCObject*)referrers->lastItemPtr()[0]);
+                referrers->push_back(referrer);
+            }
         }
     }
 }
@@ -269,8 +285,6 @@ void GCObject::invalidateAnchorList_unsafe() {
 }
 
 void GCObject::removeDirtyAnchors() {
-    rtgc_log(true, "remove dirty anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    rt_assert(!this->hasShortcut());
     if (!this->hasMultiRef()) {
         GCObject* anchor = this->getSafeAnchor();
         if (anchor->isDirtyAnchor()) {
@@ -282,10 +296,11 @@ void GCObject::removeDirtyAnchors() {
         referrers->removeDirtyItems();
         clearEmptyAnchorList();
     }
+    rtgc_log(this->getAnchorCount() == 0, "removed dirty anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
 }
 
 void GCObject::clearAnchorList() {
-    rtgc_debug_log(this, "remove all anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rtgc_debug_log(this, "clearAnchorList from " PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert(!this->hasShortcut());
     if (this->hasMultiRef()) {
         ReferrerList* referrers = this->getAnchorList();
@@ -307,6 +322,7 @@ bool GCObject::clearEmptyAnchorList() {
         this->setHasMultiRef(false);
         if (referrers->empty()) {
             this->removeSingleAnchor();
+            rtgc_log(true, "all anchor removed from %p", this);
         } else {
             this->setSingleAnchor(referrers->front());
         }

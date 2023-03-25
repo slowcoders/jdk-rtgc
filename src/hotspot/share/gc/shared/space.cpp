@@ -677,7 +677,9 @@ void OffsetTableContigSpace::verify() const {
     }
 
     if (objs == OBJ_SAMPLE_INTERVAL) {
-      oopDesc::verify(cast_to_oop(p));
+      // rtgc_log(true, "verify %p %s", p, cast_to_oop(p)->klass()->name()->bytes());
+      RTGC_ONLY(if (!rtHeap::is_in_trackable_space(p) || !rtHeap::is_destroyed(cast_to_oop(p))))
+        oopDesc::verify(cast_to_oop(p));
       objs = 0;
     } else {
       objs++;

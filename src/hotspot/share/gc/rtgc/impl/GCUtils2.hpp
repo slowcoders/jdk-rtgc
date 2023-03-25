@@ -91,10 +91,10 @@ public:
     void replaceFirst(ShortOOP first);
 
     void push_back(ShortOOP item) {
-        add(item);
+        add(item, false);
     }
 
-    void add(ShortOOP item);
+    void add(ShortOOP item, bool isDirty);
 
     bool contains(ShortOOP item) {
         return getItemPtr(item) != NULL;

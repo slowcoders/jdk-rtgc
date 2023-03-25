@@ -384,7 +384,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 #endif
 
   int not_anchored_root_count = 0;
-  int unknown_state_root_start = young_root_count;
+  int unstable_root_start = young_root_count;
   for (int idx_root = young_root_count - 1; idx_root >= not_anchored_root_count; ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
@@ -403,13 +403,13 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
         // g_young_roots.removeFast(young_root_count);
       }       
     } else {
-      g_young_roots.swap(--unknown_state_root_start, idx_root);
+      g_young_roots.swap(--unstable_root_start, idx_root);
     }
     idx_root --;
   }
 
-  rtgc_log(true, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unknown_state_root_start, young_root_count, g_young_roots.size());
-  for (int idx_root = unknown_state_root_start; idx_root < young_root_count; idx_root ++) {
+  rtgc_log(true, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
+  for (int idx_root = unstable_root_start; idx_root < young_root_count; idx_root ++) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     rtgc_log(true, "mark unknown state  young root %p", node);
     bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
@@ -423,23 +423,27 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   bool need_rescan;
   do {
     need_rescan = false;
-    rtgc_log(true, "mark resurrected young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unknown_state_root_start, young_root_count, g_young_roots.size());
+    rtgc_log(true, "mark resurrected young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
     for (int idx_root = not_anchored_root_count - 1; idx_root >= 0; ) {
       GCObject* node = to_obj(g_young_roots.at(idx_root));
       AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
       if (state != AnchorState::NotAnchored) {
-        rtgc_log(true, "mark resurrected young root %p", node);
+        rtgc_log(true, "mark resurrected young root %p %d", node, idx_root);
         bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
         if (!is_full_gc && !is_young_root) {
           node->unmarkYoungRoot();
           // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
           // g_young_roots.removeFast(young_root_count);
-        }       
-        g_young_roots.swap(--not_anchored_root_count, idx_root);
-        need_rescan = true;
+        }
+        if (--not_anchored_root_count != idx_root) {     
+          g_young_roots.swap(not_anchored_root_count, idx_root);
+          need_rescan = true;
+          continue;
+        }
       } else {
-        idx_root --;
+        rtgc_log(true, "skip dead young root %p %d", node, idx_root);
       }
+      idx_root --;
     }
   } while (need_rescan);
   // floating yg 객체를 다시 marking 하기 위하여 필요.
@@ -470,7 +474,11 @@ void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
 
 void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   if (anchor == link) return;
+
   GCObject* node = to_obj(link);
+  rt_assert(node->isTrackable());
+  rt_assert(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
+
   rt_assert_f(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)", anchor, anchor->klass()->name()->bytes());
   if (node->isGarbageMarked()) {
     rt_assert_f(node->hasAnchor() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
@@ -484,11 +492,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
 
   // rtgc_debug_log(link, "add_trackable_link anchor %p link: %p", anchor, link);
 
-  rt_assert(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
-  // young_root 검사는 caller 가 처리한다. add_referrer_ex 대신엔 add_referrer_unsafe 호출.
-  if (node->isTrackable()) {
-    RTGC::add_referrer_unsafe(link, anchor, anchor);
-  }
+  RTGC::add_referrer_unsafe(link, anchor, anchor);
 }
 
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
@@ -795,9 +799,9 @@ void rtHeap::destroy_trackable(oopDesc* p) {
 
   rt_assert_f(is_destroyed(p), "wrong on garbage %p[%d](%s) unreachable=%d tr=%d rc=%d ac=%d isUnsafe=%d ghost=%d", 
         node, node->getShortcutId(), RTGC::getClassName(node), node->isUnreachable(),
-        node->isTrackable(), node->getRootRefCount(), node->getReferrerCount(), node->isUnstableMarked(),
+        node->isTrackable(), node->getRootRefCount(), node->getAnchorCount(), node->isUnstableMarked(),
         rtHeapEx::print_ghost_anchors(to_obj(p)));
-  rt_assert(node->isTrackable() ? node->isUnreachable() : node->getReferrerCount() == 0);
+  rt_assert(node->isTrackable() ? node->isUnreachable() : node->getAnchorCount() == 0);
   return;
 }
 

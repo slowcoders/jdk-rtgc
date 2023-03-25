@@ -106,8 +106,8 @@ void FieldUpdateLog::add(oopDesc* anchor, volatile narrowOop* field, narrowOop e
 
 
 void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
-  rtgc_debug_log(anchor, "add log(%p) [%d] %p\n", 
-      anchor, erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
+  rtgc_debug_log(anchor, "add log(%p yr=%d) [%d] %p\n", 
+      anchor, to_obj(anchor)->isYoungRoot(), erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
   rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d\n", 
       anchor->size(), erasedField._offset);
 

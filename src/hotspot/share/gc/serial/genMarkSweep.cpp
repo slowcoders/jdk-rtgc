@@ -246,10 +246,10 @@ public:
           rtHeap::mark_survivor_reachable(obj);
         } 
         if (is_tracked && !rtHeap::DoCrossCheck) return;
+        if (!is_tracked) {
+          rtHeap::add_trackable_link(_current_anchor, obj);
+        }
       } 
-      if (!is_tracked) {
-        rtHeap::add_trackable_link(_current_anchor, obj);
-      }
       MarkSweep::mark_and_push_internal<true>(obj);
     }
   }

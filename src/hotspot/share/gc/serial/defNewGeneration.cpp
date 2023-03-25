@@ -553,8 +553,12 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
 #if INCLUDE_RTGC
 template <bool clear_modified_flag>
 class YoungRootReachableClosure : public YoungRootClosureBase<YoungRootReachableClosure<clear_modified_flag>, clear_modified_flag> {
+  bool _has_young_ref;
 public:
   void barrier(oop old_p, oop new_p) {
+    if (clear_modified_flag) {
+      _has_young_ref = true;
+    }
     rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
   }
 
@@ -576,7 +580,13 @@ public:
 
   void do_object(oop obj) {
     RtYoungRootClosure::_current_anchor = obj;
+    if (clear_modified_flag) {
+      _has_young_ref = false;
+    }
     obj->oop_iterate(this);
+    if (clear_modified_flag && _has_young_ref) {
+      rtHeap::mark_young_root(RtYoungRootClosure::_current_anchor, true);
+    }
   }
 };
 
@@ -595,11 +605,14 @@ bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_stro
 }
 
 void YoungRootClosure::do_complete() {
+  TenuredGeneration* old_gen = (TenuredGeneration*)_old_gen;
   do {
+    do {
+      old_gen->oop_since_save_marks_iterate((YoungRootReachableClosure<true>*)this);
+    } while(!old_gen->no_allocs_since_save_marks());
     young_gen()->oop_since_save_marks_iterate((YoungRootReachableClosure<false>*)this);
-    ((TenuredGeneration*)_old_gen)->oop_since_save_marks_iterate((YoungRootReachableClosure<true>*)this);
   } while (!young_gen()->no_allocs_since_save_marks() ||
-           !((TenuredGeneration*)_old_gen)->no_allocs_since_save_marks());
+           !old_gen->no_allocs_since_save_marks());
 }
 #endif
 

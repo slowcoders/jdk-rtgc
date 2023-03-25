@@ -110,7 +110,7 @@ public:
 	bool isDirtyAnchor() {
 		return !isTrackable();
 	}
-	
+
 	bool isAcyclic() {
 		return _flags.isAyclic;
 	}
@@ -164,12 +164,12 @@ public:
 		return _flags.rootRefCount;
 	}
 
-	int getReferrerCount();
+	int getAnchorCount();
 
 	void markSurvivorReachable_unsafe() {
 		rt_assert(!isSurvivorReachable());
 		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d",    
-			this, this->getRootRefCount(), this->getReferrerCount());
+			this, this->getRootRefCount(), this->getAnchorCount());
 		_flags.rootRefCount |= survivor_reachable_value;
 	}
 

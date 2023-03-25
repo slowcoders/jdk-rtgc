@@ -119,7 +119,7 @@ ReferrerList* ReferrerList::allocate() {
     return list;
 }
 
-void ReferrerList::add(ShortOOP item) {
+void ReferrerList::add(ShortOOP item, bool isDirty) {
     const ShortOOP* pLast = lastItemPtr();
     if (!hasMultiChunk()) {
         if (pLast == &_head._items[MAX_COUNT_IN_CHUNK - 1]) {
@@ -139,7 +139,7 @@ void ReferrerList::add(ShortOOP item) {
             _head._last_item_offset --;
         }
     }
-    rt_assert(_head.isAlive());
+    rt_assert(_head.isAlive());    
     *(ShortOOP*)pLast = item;
 }
 
@@ -241,7 +241,7 @@ void ReferrerList::removeDirtyItems() {
                     return;
                 }
                 cnt_removed ++;
-                rtgc_log(true, "dirty anchor removed %d", cnt_removed);
+                rtgc_log(true, "dirty anchor removed in multi-chunk %d", cnt_removed);
                 pItem ++;
             }
             Chunk* next_chunk = chunk->getNextChunk();
@@ -252,15 +252,11 @@ void ReferrerList::removeDirtyItems() {
         rtgc_log(true, "dirty chunk overflow %d", cnt_removed);
         pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
     } 
-    for (;; pItem--) {
-        if (!pItem[0]->isDirtyAnchor()) {
-            this->set_last_item_ptr(pItem);
-            return;
-        }
+    for (; pItem >= _head._items && pItem[0]->isDirtyAnchor(); pItem--) {
         cnt_removed ++;
-        rtgc_log(true, "dirty anchor removed %d", cnt_removed);
-        if (pItem == _head._items) break;
+        // rtgc_log(true, "dirty anchor removed %d", cnt_removed);
     }
+    this->set_last_item_ptr(pItem);
     return;
 }
 

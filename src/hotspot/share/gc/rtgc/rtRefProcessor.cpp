@@ -268,7 +268,7 @@ namespace RTGC {
               "invalid gargabe %p(%s) policy=%d old_gen_start=%p tr=%d, rc=%d ac=%d ghost=%d", 
               (void*)_curr_ref, RTGC::getClassName(to_obj(_curr_ref)), policy, 
               GenCollectedHeap::heap()->old_gen()->reserved().start(),
-              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->getReferrerCount(), 
+              to_obj(_curr_ref)->isTrackable(), to_obj(_curr_ref)->getRootRefCount(), to_obj(_curr_ref)->getAnchorCount(), 
               rtHeapEx::print_ghost_anchors(to_obj(_curr_ref)));
           this->remove_curr_ref(false);
           continue;
@@ -665,7 +665,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
           "damaged referent %p(%s) gc_mark=%d rc=%d, unsafe=%d ac=%d garbage=%d ghost=%d", 
           referent, RTGC::getClassName(referent), is_gc_marked, referent->getRootRefCount(), 
           referent->isUnstableMarked(), 
-          referent->getReferrerCount(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
+          referent->getAnchorCount(), referent->isGarbageMarked(), rtHeapEx::print_ghost_anchors(referent));
     }
     
     if (!is_alive) {

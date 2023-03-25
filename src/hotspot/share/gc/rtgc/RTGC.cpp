@@ -151,7 +151,7 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   if (RTGC::is_debug_pointer(p)) {
      rtgc_log(1, "referrer %p/%p(%s) added to %p(rc=%d refs_=%x)", 
         debug_base, base, RTGC::getClassName(debug_base), p, 
-        to_obj(p)->getRootRefCount(), to_obj(p)->getReferrerCount());
+        to_obj(p)->getRootRefCount(), to_obj(p)->getAnchorCount());
   }
 #endif
   GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
@@ -280,21 +280,21 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
     rtgc_log(1, "debug_obj moved %p -> %p rc=%d", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+      old_p, new_p, to_obj(old_p)->getAnchorCount());
   }
   else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
     rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+      old_p, new_p, to_obj(old_p)->getAnchorCount());
   } 
   else if ((type = is_debug_pointer(old_p)) != 0) {
     // || ((uintptr_t)new_p & ~0xFFF) == 0x3f5b06000) {
     rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d", 
-      type, old_p, new_p, to_obj(old_p)->getReferrerCount());
+      type, old_p, new_p, to_obj(old_p)->getAnchorCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
     rtgc_log(1, "debug_ref moved %p -> %p rc=%d", 
-      old_p, new_p, to_obj(old_p)->getReferrerCount());
+      old_p, new_p, to_obj(old_p)->getAnchorCount());
   }
 }
 
