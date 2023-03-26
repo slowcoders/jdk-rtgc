@@ -426,7 +426,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 
     if (state == AnchorState::AnchoredToRoot) {
       rtgc_log(true, "mark stable young root %p", node);
-      bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), true);
+      bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
       if (!is_full_gc && !is_young_root) {
         node->unmarkYoungRoot();
         // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
@@ -437,6 +437,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     }
     idx_root --;
   }
+  closure->do_complete(true);
 
   // dirty trackable 저장 위치.
   g_saved_stack_root_count = g_stack_roots.size();
@@ -445,13 +446,14 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   for (int idx_root = unstable_root_start; idx_root < young_root_count; idx_root ++) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     rtgc_log(true, "mark unknown state  young root %p", node);
-    bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
+    bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
     if (!is_full_gc && !is_young_root) {
       node->unmarkYoungRoot();
       // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
       // g_young_roots.removeFast(young_root_count);
     }       
   }
+  closure->do_complete(false);
 
   bool need_rescan;
   do {
@@ -462,7 +464,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
       if (state != AnchorState::NotAnchored) {
         rtgc_log(true, "mark resurrected young root %p %d", node, idx_root);
-        bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), false);
+        bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
         if (!is_full_gc && !is_young_root) {
           node->unmarkYoungRoot();
           // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
@@ -478,6 +480,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       }
       idx_root --;
     }
+    closure->do_complete(false);
   } while (need_rescan);
 
   if (is_full_gc) {

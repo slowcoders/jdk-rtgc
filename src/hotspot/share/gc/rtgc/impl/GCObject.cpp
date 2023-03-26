@@ -86,6 +86,11 @@ void GCObject::addAnchor(GCObject* anchor) {
     rtgc_debug_log(this, "anchor %p added to %p(acyclic=%d rc=%d refs_=%x)", 
         anchor, this, this->isAcyclic(), this->getRootRefCount(), this->getAnchorCount());
 
+    if (!rtHeap::in_full_gc) {
+        rtgc_debug_log(anchor, "anchor %p added to %p(acyclic=%d rc=%d refs_=%x)", 
+            anchor, this, this->isAcyclic(), this->getRootRefCount(), this->getAnchorCount());
+    }
+
     rt_assert(tenuredSelf ? this->is_adjusted_trackable() : !this->isTrackable_unsafe());
 
     assert_valid_link(cast_to_oop(this), cast_to_oop(anchor));
@@ -144,7 +149,8 @@ void GCObject::addTemporalAnchor(GCObject* anchor) {
 
 bool GCObject::addDirtyAnchor(GCObject* anchor) {
     bool was_clean = !this->isDirtyReferrerPoints();
-    rtgc_log(true, "addDirtyAnchor %p -> %p(%d/%d)", anchor, this, was_clean, this->hasMultiRef());
+    rtgc_log(true, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
+        anchor, this, was_clean, this->hasMultiRef(), anchor->isYoungRoot());
     if (was_clean) {
       if (this->hasMultiRef()) {
         ReferrerList* anchors = getAnchorList();

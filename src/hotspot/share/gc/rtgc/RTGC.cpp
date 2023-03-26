@@ -20,7 +20,7 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "[Ljava/util/HashMap$Node;",
-  "jdk/internal/jrtfs/ExplodedImage$PathNode",
+  "java/util/HashMap",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",

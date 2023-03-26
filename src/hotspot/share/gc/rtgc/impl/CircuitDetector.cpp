@@ -36,7 +36,7 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 
 bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly) {
     rtgc_log(true, "scanSurvivalPath %p(%s)", node, getClassName(node));
-    
+
     ShortOOP tail = node;
     rt_assert(EnableRTGC);
     rt_assert(node->isTrackable());
@@ -117,7 +117,6 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         GCObject* R = it->next();
-        rtgc_log(true, "scan %p(%s)", R, getClassName(R));
         SafeShortcut* shortcut = R->getShortcut();
 
         if (R->isGarbageMarked() || shortcut->inContiguousTracing(R, &shortcut)) {

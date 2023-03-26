@@ -590,21 +590,21 @@ public:
   }
 };
 
-bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_strong_rechable) {
+bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj) {
   _has_young_ref = false;
-  oop old_anchor = _current_anchor;
+  // oop old_anchor = _current_anchor;
   _current_anchor = obj;
   obj->oop_iterate(this);
-  _current_anchor = old_anchor;
-  if (is_strong_rechable) {
-    _complete_closure->do_void();
-  } else {
-    do_complete();
-  }
-  return _has_young_ref;
+  // _current_anchor = old_anchor;
+  bool is_young_root = _has_young_ref;
+  return is_young_root;
 }
 
-void YoungRootClosure::do_complete() {
+void YoungRootClosure::do_complete(bool is_strong_rechable) {
+  if (is_strong_rechable) {
+    _complete_closure->do_void();
+    return;
+  }
   TenuredGeneration* old_gen = (TenuredGeneration*)_old_gen;
   do {
     do {
