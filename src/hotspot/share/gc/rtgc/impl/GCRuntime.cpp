@@ -42,7 +42,8 @@ void GCRuntime::connectReferenceLink(
     GCObject* assigned, 
     GCObject* owner 
 ) {
-    assigned->addReferrer(owner);
+    fatal("not implemented");
+    // assigned->addAnchor(owner);
 }
 
 void GCRuntime::disconnectReferenceLink(

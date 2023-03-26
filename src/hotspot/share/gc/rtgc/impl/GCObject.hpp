@@ -40,7 +40,14 @@ public:
 
 	bool containsReferrer(GCObject* node);
 
-	void addReferrer(GCObject* referrer);
+	template <bool isTrackable, bool dirtyAnchor>
+	void addAnchor(GCObject* referrer);
+
+	void addTrackableAnchor(GCObject* referrer);
+
+	bool addDirtyAnchor(GCObject* referrer);
+
+	void addTemporalAnchor(GCObject* referrer);
 
 	// return true if safe_anchor removed;
 	void removeReferrer(GCObject* referrer);

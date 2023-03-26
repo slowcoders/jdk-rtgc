@@ -84,6 +84,7 @@ namespace RTGC {
   int g_cntTrackable = 0;
   int g_cntScan = 0;
   int g_saved_young_root_count = 0;
+  int g_saved_stack_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   RtYoungRootClosure* g_young_root_closure;
   const bool USE_PENDING_TRACKABLES = false;
@@ -254,20 +255,22 @@ void rtHeap__processUntrackedTenuredObjects() {
 
 void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
   if (anchor_p == link_p) return;
-  rt_assert_f(!to_obj(anchor_p)->isGarbageMarked(), "grabage anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
+  GCObject* anchor = to_obj(anchor_p);
+  rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
 
   GCObject* link = to_obj(link_p);
   if (link->getRootRefCount() > 0) return;
 
-  RTGC::add_referrer_unsafe(link_p, anchor_p, anchor_p);
-  if (!link->isDirtyReferrerPoints()) {
-    if (!link->isTrackable()) {
-      // if (!link->hasMultiRef()) return;
-      _yg_root_reachables.push(link);
-    } else {
-      if (to_obj(anchor_p)->isTrackable()) return;
+  // RTGC::add_referrer_unsafe(link_p, anchor_p, anchor_p);
+  if (!link->isTrackable()) {
+    link->addTemporalAnchor(anchor);
+    // if (!link->hasMultiRef()) return;
+    // _yg_root_reachables.push(link);
+  } else if (!anchor->isTrackable()) {
+    if (link->addDirtyAnchor(anchor)) {
+      g_stack_roots.push_back(link);
     }
-    link->markDirtyReferrerPoints();
+    // mark tenured_link has yg anchor 
   }
 }
 
@@ -322,31 +325,58 @@ void rtHeap__clearStack() {
   }
 }
 
+void rtHeap__clearTemporalAnchorList(oopDesc* old_p) {
+  GCObject* old = to_obj(old_p);
+  rt_assert(!old->isTrackable());
+  ((HeapWord*)old)[1] = 0;
+}
 
 void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
-  if (!is_full_gc) {
-    _rtgc.g_pGarbageProcessor->validateGarbageList();
-  }
-  _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
-  while (!_yg_root_reachables.is_empty()) {
-    GCObject* obj = _yg_root_reachables.pop();
-    if (obj->hasMultiRef()) {
-      ReferrerList* list = obj->getAnchorList();
-      if (false) {
-        rtgc_log(true, "destroy ref_list %p %p:%p/%d (%s)", obj, list, list->lastItemPtr(), list->approximated_item_count(), getClassName(obj));
-        if(list->hasMultiChunk()) {
-          ReferrerList::Chunk* chunk = ReferrerList::getContainingChunck(list->lastItemPtr());
-          while (chunk != &list->_head) {
-            rtgc_log(true, "  chunk %p", chunk);
-            chunk = chunk->getNextChunk();
-          }
+  if (true) {
+    // dirty links 에 대한 GC 를 먼저 실행한 후, dirtyAnchor 들을 모두 제거한다. (더 이상 survivalPath 검색에 불필요.)
+    GCObject** dirtyLinks = &g_stack_roots.at(g_saved_stack_root_count);
+    int cnt_dirty_link = g_stack_roots.size() - g_saved_stack_root_count;
+    _rtgc.g_pGarbageProcessor->scanGarbage(dirtyLinks, cnt_dirty_link);
+
+    for (; --cnt_dirty_link >= 0; ) {
+      GCObject* node = *dirtyLinks++;
+      if (!node->isGarbageMarked()) {
+        node->removeDirtyAnchors();
+        if (node->isSurvivorReachable()) {
+          g_stack_roots.at(g_saved_stack_root_count++) = node;
         }
       }
-      ReferrerList::delete_(list);
-      obj->setHasMultiRef(false);
     }
-    obj->removeSingleAnchor();
+    g_stack_roots.resize(g_saved_stack_root_count);
+    /* Now no object has dirty anchors. */
   }
+
+  if (!is_full_gc) {
+    // _rtgc.g_pGarbageProcessor->validateGarbageList();
+  }
+  _rtgc.g_pGarbageProcessor->collectAndDestroyGarbage(is_full_gc);
+  
+  ReferrerList::clearTemporalChunkPool();
+
+  // while (!_yg_root_reachables.is_empty()) {
+  //   GCObject* obj = _yg_root_reachables.pop();
+  //   if (obj->hasMultiRef()) {
+  //     ReferrerList* list = obj->getAnchorList();
+  //     if (false) {
+  //       rtgc_log(true, "destroy ref_list %p %p:%p/%d (%s)", obj, list, list->lastItemPtr(), list->approximated_item_count(), getClassName(obj));
+  //       if(list->hasMultiChunk()) {
+  //         ReferrerList::Chunk* chunk = ReferrerList::getContainingChunck(list->lastItemPtr());
+  //         while (chunk != &list->_head) {
+  //           rtgc_log(true, "  chunk %p", chunk);
+  //           chunk = chunk->getNextChunk();
+  //         }
+  //       }
+  //     }
+  //     ReferrerList::delete_(list);
+  //     obj->setHasMultiRef(false);
+  //   }
+  //   obj->removeSingleAnchor();
+  // }
 
   if (!is_full_gc) {
     int old_cnt = g_young_roots.size();
@@ -367,7 +397,7 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   } else {
     // rtCLDCleaner::clear_cld_locks(g_young_root_closure);
     // rtCLDCleaner::collect_garbage_clds(g_young_root_closure);
-    // _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+    // _rtgc.g_pGarbageProcessor->collectAndDestroyGarbage(is_full_gc);
   }
 }
 
@@ -408,6 +438,9 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     idx_root --;
   }
 
+  // dirty trackable 저장 위치.
+  g_saved_stack_root_count = g_stack_roots.size();
+
   rtgc_log(true, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
   for (int idx_root = unstable_root_start; idx_root < young_root_count; idx_root ++) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
@@ -446,8 +479,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       idx_root --;
     }
   } while (need_rescan);
-  // floating yg 객체를 다시 marking 하기 위하여 필요.
-  g_saved_young_root_count = young_root_count;
 
   if (is_full_gc) {
     rtCLDCleaner::clear_cld_locks(g_young_root_closure);
@@ -472,27 +503,27 @@ void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
   }
 }
 
-void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
+void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
+  GCObject* link = to_obj(link_p);
+  GCObject* anchor = to_obj(anchor_p);
   if (anchor == link) return;
 
-  GCObject* node = to_obj(link);
-  rt_assert(node->isTrackable());
-  rt_assert(to_obj(anchor)->isTrackable() && !to_obj(anchor)->isGarbageMarked());
+  rt_assert(link->isTrackable());
+  rt_assert(anchor->isTrackable());
+  rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", 
+      anchor, anchor_p->klass()->name()->bytes());
+  if (link->isGarbageMarked()) {
+    rt_assert_f(link->hasAnchor() || (link->isYoungRoot() && link->isDirtyReferrerPoints()), 
+        "invalid link_p %p(%s) -> %p(%s)", 
+        anchor_p, RTGC::getClassName(anchor), link, RTGC::getClassName(link));
 
-  rt_assert_f(!to_obj(anchor)->isGarbageMarked(), "grabage anchor %p(%s)", anchor, anchor->klass()->name()->bytes());
-  if (node->isGarbageMarked()) {
-    rt_assert_f(node->hasAnchor() || (node->isYoungRoot() && node->isDirtyReferrerPoints()), 
-        "invalid link %p(%s) -> %p(%s)", 
-        anchor, RTGC::getClassName(to_obj(anchor)), node, RTGC::getClassName(node));
-
-    rt_assert_f(in_full_gc || node->isYoungRoot(), "no y-root %p(%s)",
-        node, RTGC::getClassName(node));
-    rtHeapUtil::resurrect_young_root(node);
+    rt_assert_f(in_full_gc || link->isYoungRoot(), "no y-root %p(%s)",
+        link, RTGC::getClassName(link));
+    rtHeapUtil::resurrect_young_root(link);
   }
 
-  // rtgc_debug_log(link, "add_trackable_link anchor %p link: %p", anchor, link);
-
-  RTGC::add_referrer_unsafe(link, anchor, anchor);
+  // rtgc_debug_log(link_p, "add_trackable_link anchor_p %p link_p: %p", anchor_p, link_p);
+  link->addTrackableAnchor(anchor);
 }
 
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
@@ -576,10 +607,10 @@ void RtAdjustPointerClosure::do_oop_work(T* p) {
   // old_p 내부 field 에 대한 adjust_pointers 가 처리되지 않았으면...
   if (BATCH_UPDATE_ANCHORS || to_obj(old_p)->isDirtyReferrerPoints()) {
     // old_p 에 대해 adjust_pointers 를 수행하기 전.
-    RTGC::add_referrer_unsafe(old_p, _old_anchor_p, _old_anchor_p);
+    to_obj(old_p)->addTrackableAnchor(to_obj(_old_anchor_p));
   }
   else {
-    RTGC::add_referrer_unsafe(old_p, _new_anchor_p, _old_anchor_p);
+    to_obj(old_p)->addTrackableAnchor(to_obj(_new_anchor_p));
     debug_only(g_cnt_ref_anchor += (int)to_obj(old_p)->mayHaveAnchor();)
   }
 }
@@ -1004,7 +1035,7 @@ intptr_t RtHashLock::initHash(markWord mark) {
 
 int RtHashLock::allocateHashSlot(ShortOOP* first) {
   RTGC::lock_heap();
-  ReferrerList* refList = ReferrerList::allocate();
+  ReferrerList* refList = ReferrerList::allocate(true);
   int hash = ReferrerList::getIndex(refList);
   RTGC::unlock_heap();
   if (first == NULL) {

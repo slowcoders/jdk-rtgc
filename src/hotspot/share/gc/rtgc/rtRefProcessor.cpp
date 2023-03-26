@@ -99,7 +99,7 @@ namespace RTGC {
 
       rt_assert(!to_obj(link)->isGarbageMarked());
       if (to_node(anchor)->isTrackable()) {
-        RTGC::add_referrer_ex(link, anchor);
+        RTGC::add_trackable_link_or_mark_young_root(link, anchor);
       } else if (to_obj(link)->isTrackable()) {
         rt_assert(true && rtHeap::is_alive(link));
         rtHeap::mark_survivor_reachable(link);
@@ -411,10 +411,9 @@ namespace RTGC {
         if (is_alive) {
           GCObject* ref = to_obj(_curr_ref);
           if (ref->isTrackable()) {
-            referent->addReferrer(ref);
+            referent->addTrackableAnchor(ref);
           }
         }
-
       } else {
         is_alive = _referent_p->is_gc_marked();
         if (!is_alive) referent->clearAnchorList();
@@ -548,7 +547,7 @@ void rtHeap::link_discovered_pending_reference(oopDesc* ref_q, oopDesc* end) {
   for (oopDesc* obj = ref_q; obj != end; obj = discovered) {
     discovered = java_lang_ref_Reference::discovered(obj);
     if (to_obj(obj)->isTrackable()) {
-      RTGC::add_referrer_ex(discovered, obj);
+      RTGC::add_trackable_link_or_mark_young_root(discovered, obj);
     } else if (to_obj(discovered)->isTrackable()) {
         rt_assert(true && rtHeap::is_alive(discovered));
       rtHeap::mark_survivor_reachable(discovered);      
@@ -702,7 +701,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       if (ref->isTrackable()) {
         // ref-count -> ref-link 로 변환. 
         // RTGC-TODO Finalizable 객체 생성 시 acyclic marking 후, pending Q에 넣기 전에 acyclic 해제.
-        RTGC::add_referrer_ex(cast_to_oop(referent), cast_to_oop(ref));
+        RTGC::add_trackable_link_or_mark_young_root(cast_to_oop(referent), cast_to_oop(ref));
         if (referent->isTrackable() && !referent->hasSafeAnchor()) {
           referent->setSafeAnchor(ref);
           referent->setShortcutId_unsafe(INVALID_SHORTCUT);
@@ -968,7 +967,7 @@ void rtHeap::init_java_reference(oopDesc* ref, oopDesc* referent_p) {
     // 참고) JNI 함수 호출 도중에 GC가 발생한 경우, ref 가 trackble 상태일 수 있다.
     rtgc_log(LOG_OPT(2), "weird ref %p of %p", (void*)ref, (void*)referent_p);
     RTGC::lock_heap();
-    RTGC::add_referrer_ex(referent_p, ref);
+    RTGC::add_trackable_link_or_mark_young_root(referent_p, ref);
     RTGC::unlock_heap();
   }
 

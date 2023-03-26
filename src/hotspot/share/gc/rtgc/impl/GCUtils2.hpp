@@ -91,10 +91,10 @@ public:
     void replaceFirst(ShortOOP first);
 
     void push_back(ShortOOP item) {
-        add(item, false);
+        add(item);
     }
 
-    void add(ShortOOP item, bool isDirty);
+    void add(ShortOOP item);
 
     bool contains(ShortOOP item) {
         return getItemPtr(item) != NULL;
@@ -109,7 +109,7 @@ public:
     // returns lowerest removed item pointer (the memory may not accessable);
     const void* removeMatchedItems(ShortOOP item);
 
-    void removeDirtyItems();
+    void removeDirtyItems(ShortOOP dirtyStartMark);
 
     const ShortOOP* getItemPtr(ShortOOP item);
 
@@ -125,22 +125,24 @@ public:
         return &_head._items[MAX_COUNT_IN_CHUNK];
     }    
 
+
     static bool isEndOfChunk(const ShortOOP* ptr) {
         return ((uintptr_t)ptr & CHUNK_MASK) == (sizeof(Chunk) - sizeof(ShortOOP));
     }
 
-    static void initialize() {
-        g_chunkPool.initialize();
-    }
+    static void initialize();
 
-    static ReferrerList* allocate();
+    static void clearTemporalChunkPool();
+    
+    static ReferrerList* allocate(bool isTenured);
 
     static int getIndex(ReferrerList* referrers) {
-        return g_chunkPool.getIndex(&referrers->_head) | RTGC_NO_HASHCODE;
+        rt_assert(g_chunkPool.contains(referrers) || g_tempChunkPool.contains(referrers));
+        return (&referrers->_head - g_chunkPool.getPointer(0)) | RTGC_NO_HASHCODE;
     }
 
     static ReferrerList* getPointer(uint32_t idx) {
-        return (ReferrerList*)g_chunkPool.getPointer(idx & ~RTGC_NO_HASHCODE);
+        return (ReferrerList*)g_chunkPool.getPointer(0) + (idx & ~RTGC_NO_HASHCODE);
     }
 
     static void deleteSingleChunkList(ReferrerList* list) {
@@ -158,10 +160,13 @@ public:
         return (Chunk*)((uintptr_t)pItem & ~CHUNK_MASK);
     }
 
+    void cut_tail_end(ShortOOP* copy_to);
+
 private:
-    typedef MemoryPool<Chunk, 64*1024*1024, 1, -1> ChunkPool;
+    typedef MemoryPool<Chunk, 80*1024*1024, 1, -1> ChunkPool;
     
     static ChunkPool g_chunkPool;
+    static ChunkPool g_tempChunkPool;
 
     static void dealloc_chunk(Chunk* chunk);
 
@@ -173,7 +178,7 @@ private:
         rt_assert(_head.isAlive());
     }
 
-    void cut_tail_end(ShortOOP* copy_to);
+    const ShortOOP* getFirstDirtyItemPtr();
 
 public:
     template <typename T>
@@ -220,7 +225,7 @@ public:
     const ShortOOP* next_ptr() {
         rt_assert(hasNext());
         const ShortOOP* oop = _ptr ++;
-        rt_assert((GCObject*)*oop != NULL);
+        rt_assert(oop->getOffset() != 0);
         if (_ptr != _end) {
             if (ReferrerList::isEndOfChunk(_ptr)) {
                 _ptr = _ptr + *(int32_t*)_ptr;

@@ -110,7 +110,7 @@ public:
 	bool isDirtyAnchor() {
 		return !isTrackable();
 	}
-
+	
 	bool isAcyclic() {
 		return _flags.isAyclic;
 	}

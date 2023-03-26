@@ -51,7 +51,7 @@ inline FastScanClosure<Derived, clear_modified_flag>::FastScanClosure(DefNewGene
     _young_gen_end(g->reserved().end()) {}
 
 template <typename Derived, bool clear_modified_flag>
-template <typename T>
+template <typename T> 
 inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (EnableRTGC && !clear_modified_flag) {

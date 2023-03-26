@@ -18,9 +18,9 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/util/HashMap$Node",
+  // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "[Ljava/util/HashMap$Node;",
-  // "java/util/WeakHashMap$Entry",
+  "jdk/internal/jrtfs/ExplodedImage$PathNode",
   // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
     // "java/lang/ref/Finalizer",
     // "jdk/nio/zipfs/ZipFileSystem",
@@ -134,6 +134,7 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
+#if 0
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   rt_assert(p != NULL);
   check_valid_obj(p, debug_base);
@@ -154,13 +155,15 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
         to_obj(p)->getRootRefCount(), to_obj(p)->getAnchorCount());
   }
 #endif
-  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
+  to_obj(p)->addAnchor(to_obj(base)); 
 }
+#endif
 
 
-void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base) {
+void RTGC::add_trackable_link_or_mark_young_root(oopDesc* p, oopDesc* base) {
   if (to_obj(p)->isTrackable()) {
-    add_referrer_unsafe(p, base, base);
+    to_obj(p)->addTrackableAnchor(to_obj(base)); 
+    //add_referrer_unsafe(p, base, base);
   }
   else if (!to_obj(base)->isYoungRoot()) {
     rtHeap::add_young_root(base, base);
@@ -184,7 +187,7 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p", 
       fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
-    add_referrer_ex(newValue, base);
+    add_trackable_link_or_mark_young_root(newValue, base);
   }
   if (!REF_LINK_ENABLED) return;
   if (oldValue != NULL && oldValue != base) {
