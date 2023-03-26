@@ -261,7 +261,7 @@ void rtCLDCleaner::clear_cld_locks(RtYoungRootClosure* tenuredScanner) {
   rt_assert(rtHeap::in_full_gc);
   debug_only(idx_cld = 0;)
   ClassLoaderDataGraph::roots_cld_do(NULL, &release_cld_holder);
-  tenuredScanner->do_complete();
+  tenuredScanner->do_complete(true);
 }
 
 void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
@@ -273,7 +273,7 @@ void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
     ClassLoaderDataGraph::roots_cld_do(NULL, &unload_cld_holder);
   }
 
-  tenuredScanner->do_complete();
+  tenuredScanner->do_complete(true);
   _rtgc.g_pGarbageProcessor->validateGarbageList();
 }
 
