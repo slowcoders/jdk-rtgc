@@ -167,7 +167,7 @@ void GCObject::removeDirtyAnchors() {
     if (!this->isDirtyReferrerPoints()) return;
 
     this->unmarkDirtyReferrerPoints();
-    rtgc_log(true, "removing dirty anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
+    rtgc_debug_log(this, "removing dirty anchors from " PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert(this->hasAnchor());
     rt_assert(!this->hasSafeAnchor() || this->getSafeAnchor()->isTrackable());
     if (!this->hasMultiRef()) {
@@ -204,6 +204,7 @@ int  GCObject::removeReferrer_impl(GCObject* anchor) {
             cast_to_oop(anchor)->is_gc_marked(), this->isAcyclic(), PTR_DBG_INFO(this)); 
 
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
+        rt_assert(!this->mayHaveAnchor());
         rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
         return this->decrementRootRefCount();
     }

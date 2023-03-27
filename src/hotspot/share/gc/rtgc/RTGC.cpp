@@ -20,20 +20,8 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "[Ljava/util/HashMap$Node;",
-  "java/util/HashMap",
-  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "java/lang/ref/Finalizer",
-    // "jdk/nio/zipfs/ZipFileSystem",
-  //  "java/lang/invoke/LambdaFormEditor$Transform",
-    // "java/lang/invoke/MethodTypeForm",
-    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
-    // "java/lang/invoke/MethodType",
-    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-    // "java/lang/ref/SoftReference",
-    // "java/util/HashMap$Node", 
-    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "jdk/nio/zipfs/ZipFileSystem",
-    // "java/lang/ref/Finalizer"
+  "java/lang/Object",
+  "java/util/concurrent/ConcurrentHashMap$Node",
 };
 
 

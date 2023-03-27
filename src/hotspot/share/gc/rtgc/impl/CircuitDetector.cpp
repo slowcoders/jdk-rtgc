@@ -35,7 +35,7 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 }
 
 bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly) {
-    rtgc_log(true, "scanSurvivalPath %p(%s)", node, getClassName(node));
+    rtgc_debug_log(node, "scanSurvivalPath %p(%s)", node, getClassName(node));
 
     ShortOOP tail = node;
     rt_assert(EnableRTGC);
@@ -338,7 +338,7 @@ void GarbageProcessor::collectAndDestroyGarbage(bool isTenured) {
 }
 
 void GarbageProcessor::scanGarbage(GCObject** ppNode, int cntUnsafe) {
-    rtgc_log(LOG_OPT(14), "scanGarbage cntUnsafe %d\n", cntUnsafe); 
+    rtgc_log(LOG_OPT(1), "scanGarbage cntUnsafe %d\n", cntUnsafe); 
     GCObject** end = ppNode + cntUnsafe;
     for (; ppNode < end; ppNode ++) {
         GCObject* node = *ppNode;
@@ -352,7 +352,7 @@ void GarbageProcessor::scanGarbage(GCObject** ppNode, int cntUnsafe) {
 }
 
 void GarbageProcessor::destroyDetectedGarbage(bool isTenured) {
-    rtgc_log(LOG_OPT(14), "destroyGarbages %d\n", _visitedNodes.size()); 
+    rtgc_log(LOG_OPT(1), "destroyGarbages %d\n", _visitedNodes.size()); 
     GCObject** ppNode = _visitedNodes.adr_at(0);
     GCObject** end = ppNode + _visitedNodes.size();
     for (; ppNode < end; ppNode++) {

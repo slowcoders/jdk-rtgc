@@ -558,15 +558,17 @@ public:
   void barrier(oop old_p, oop new_p) {
     if (clear_modified_flag) {
       _has_young_ref = true;
+      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
+    } else {
+      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
     }
-    rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
   }
 
   void trackable_barrier(oop old_p, oop new_p) {
     if (clear_modified_flag) {
       rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
     } else {
-      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
+      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
     }
   }
 
@@ -574,7 +576,7 @@ public:
     if (clear_modified_flag) {
       rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
     } else {
-      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
+      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
     }
   }
 

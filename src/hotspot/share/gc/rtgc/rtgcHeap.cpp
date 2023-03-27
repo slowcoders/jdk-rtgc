@@ -256,21 +256,39 @@ void rtHeap__processUntrackedTenuredObjects() {
 void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
   if (anchor_p == link_p) return;
   GCObject* anchor = to_obj(anchor_p);
+  GCObject* link = to_obj(link_p);
+  rt_assert_f(anchor->isTrackable(), "not tenured anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
+  rt_assert_f(!link->isTrackable(), "not young link %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
+  rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
+  if (link->isAcyclic()) return;
+  link->addTemporalAnchor(anchor);
+}
+
+void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  if (anchor_p == link_p) return;
+  GCObject* anchor = to_obj(anchor_p);
+  rt_assert_f(!anchor->isTrackable(), "not young anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
   rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
 
   GCObject* link = to_obj(link_p);
-  if (link->getRootRefCount() > 0) return;
-
-  // RTGC::add_referrer_unsafe(link_p, anchor_p, anchor_p);
   if (!link->isTrackable()) {
     link->addTemporalAnchor(anchor);
-    // if (!link->hasMultiRef()) return;
-    // _yg_root_reachables.push(link);
-  } else if (!anchor->isTrackable()) {
+  } else {
+    if (link->getRootRefCount() > 0) {
+      if (link->isSurvivorReachable()) return;
+
+      if (link->isAcyclic()) {
+        // acyclic tenured link 가 이미 refCount 를 가지고 있는 경우, findSurvivorPath 수행이 불가하다.
+        // refCount 를 swap 하여 0 으로 변경하면, old 영역의 path 검색이 불가능하다..
+        link->markSurvivorReachable();        
+        g_stack_roots.push_back(link);
+        return;
+      }
+    }
+
     if (link->addDirtyAnchor(anchor)) {
       g_stack_roots.push_back(link);
     }
-    // mark tenured_link has yg anchor 
   }
 }
 
@@ -306,7 +324,7 @@ void rtHeap__clearStack() {
     for (; src < end; src++) {
       GCObject* erased = src[0];
       rt_assert(erased->is_adjusted_trackable());
-      rt_assert_f(erased->isSurvivorReachable(), "cls %p" PTR_DBG_SIG, 
+      rt_assert_f(erased->isSurvivorReachable(), "cls %p " PTR_DBG_SIG, 
           (void*)cast_to_oop(erased)->klass()->java_mirror_no_keepalive(), PTR_DBG_INFO(erased));
       if (erased->unmarkSurvivorReachable() <= ZERO_ROOT_REF) {
         if (!erased->hasSafeAnchor() && !erased->isUnstableMarked()) {
@@ -342,6 +360,11 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
       GCObject* node = *dirtyLinks++;
       if (!node->isGarbageMarked()) {
         node->removeDirtyAnchors();
+        // bool isSurvivorReachable = node->isSurvivorReachable();
+        // if (!isSurvivorReachable) {
+        //   if (node->hasSafeAnchor()) continue;
+        //   node->markSurvivorReachable();
+        // }
         if (node->isSurvivorReachable()) {
           g_stack_roots.at(g_saved_stack_root_count++) = node;
         }
@@ -429,8 +452,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
       bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
       if (!is_full_gc && !is_young_root) {
         node->unmarkYoungRoot();
-        // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
-        // g_young_roots.removeFast(young_root_count);
       }       
     } else {
       g_young_roots.swap(--unstable_root_start, idx_root);
@@ -449,8 +470,6 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
     if (!is_full_gc && !is_young_root) {
       node->unmarkYoungRoot();
-      // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
-      // g_young_roots.removeFast(young_root_count);
     }       
   }
   closure->do_complete(false);
@@ -515,6 +534,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
   rt_assert(anchor->isTrackable());
   rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", 
       anchor, anchor_p->klass()->name()->bytes());
+  rt_assert_f(!link->isGarbageMarked(), "grabage link " PTR_DBG_SIG "\n anchor" PTR_DBG_SIG, PTR_DBG_INFO(link), PTR_DBG_INFO(anchor));
   if (link->isGarbageMarked()) {
     rt_assert_f(link->hasAnchor() || (link->isYoungRoot() && link->isDirtyReferrerPoints()), 
         "invalid link_p %p(%s) -> %p(%s)", 
