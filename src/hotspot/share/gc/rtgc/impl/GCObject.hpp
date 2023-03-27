@@ -179,7 +179,7 @@ public:
 		_anchor = anchor; _tail = tail;
 	}
 
-	void vailidateShortcut();
+	void vailidateShortcut(GCObject* debug_obj = NULL);
 
 	void extendTail(GCObject* tail);
 

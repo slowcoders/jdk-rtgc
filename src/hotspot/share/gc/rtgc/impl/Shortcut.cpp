@@ -88,7 +88,8 @@ bool SafeShortcut::inContiguousTracing(GCObject* obj, SafeShortcut** ppShortcut)
 }
 
 
-void SafeShortcut::vailidateShortcut() {
+void SafeShortcut::vailidateShortcut(GCObject* debug_obj) {
+#ifdef ASSERT
     rt_assert(_anchor->getShortcut() != this);
     GCObject* anchor = _anchor;
     rt_assert_f(anchor->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
@@ -97,10 +98,20 @@ void SafeShortcut::vailidateShortcut() {
     for (GCObject* obj = _tail; obj != anchor; obj = obj->getSafeAnchor()) {
         rt_assert_f(obj->isTrackable(), "not trackable " PTR_DBG_SIG, PTR_DBG_INFO(obj));
         //rtgc_debug_log(tail, "debug shortcut[%d] %d:%p\n", this->getIndex(this), ++cnt, obj);
-        rt_assert_f(obj->getShortcut() == this, "invalid anchor %p(%s) in shortcut[%d]", 
-            obj, RTGC::getClassName(obj), getIndex(this));
+        if (obj->getShortcut() != this) {
+            if (debug_obj != NULL) {
+                rtgc_log(1, "invalid shortcut referenced by %p(%s:%d)", 
+                        debug_obj, RTGC::getClassName(debug_obj), debug_obj->getShortcutId());
+            }
+            for (GCObject* obj2 = _tail; obj2 != obj; obj2 = obj2->getSafeAnchor()) {
+                rtgc_log(1, "   node %p(%s:%d) in shortcut[%d]", 
+                    obj2, RTGC::getClassName(obj2), obj2->getShortcutId(), getIndex(this));
+            }
+        }
+        rt_assert_f(obj->getShortcut() == this, "invalid node %p(%s:%d) in shortcut[%d]", 
+            obj, RTGC::getClassName(obj), obj->getShortcutId(), getIndex(this));
     }
-    //rtgc_debug_log(tail, "debug shortcut[%d] end:%p\n", this->getIndex(this), anchor);
+#endif
 }
 
 void SafeShortcut::split(GCObject* leftTail, GCObject* rightAnchor) {

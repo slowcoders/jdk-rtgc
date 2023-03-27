@@ -492,9 +492,9 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
           // g_young_roots.at(idx_root) = g_young_roots.at(--young_root_count);
           // g_young_roots.removeFast(young_root_count);
         }
+        need_rescan = true;
         if (--not_anchored_root_count != idx_root) {     
           g_young_roots.swap(not_anchored_root_count, idx_root);
-          need_rescan = true;
           continue;
         }
       } else {

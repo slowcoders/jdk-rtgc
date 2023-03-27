@@ -136,7 +136,7 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         if (R->hasAnchor()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
-                debug_only(shortcut->vailidateShortcut();)
+                debug_only(shortcut->vailidateShortcut(R);)
                 GCObject* warp_target = shortcut->anchor_ref();
                 if (!warp_target->isGarbageMarked()) {//} && !warp_target->getShortcut()->inTracing()) {
                     it->initSingleIterator(&shortcut->anchor_ref());

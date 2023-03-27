@@ -88,8 +88,8 @@ void FieldUpdateLog::updateAnchorList() {
 #endif
 
   rtgc_debug_log(to_obj(CompressedOops::decode(erased())), 
-      "updateAnchorList %p[%d] = %p -> %p\n", 
-      _anchor, offset(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
+      "updateAnchorList %p[%d yr=%d] = %p -> %p\n", 
+      _anchor, offset(), to_obj(_anchor)->isYoungRoot(), (void*)CompressedOops::decode(erased()), (void*)CompressedOops::decode(new_p));
 
   if (rtHeap::useModifyFlag() && new_p != erased()) {
     RTGC::on_field_changed((oopDesc*)_anchor, CompressedOops::decode(erased()), CompressedOops::decode(new_p), NULL, NULL);
