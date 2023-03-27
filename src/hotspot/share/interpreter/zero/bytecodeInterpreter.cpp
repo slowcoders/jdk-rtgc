@@ -1884,8 +1884,8 @@ run:
               // Initialize header
               assert(!UseBiasedLocking, "Not implemented");
               obj->set_mark(markWord::prototype());
-#ifdef INCLUDE_RTGC
-              if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+#ifdef INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+              if (EnableRTGC) {
                 obj->set_klass_gap(ik->is_acyclic());
               } else
 #endif

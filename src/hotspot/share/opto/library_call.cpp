@@ -2778,8 +2778,8 @@ bool LibraryCallKit::inline_unsafe_allocate() {
     // Note:  The argument might still be an illegal value like
     // Serializable.class or Object[].class.   The runtime will handle it.
     // But we must make an explicit check for initialization.
-#if INCLUDE_RTGC
-    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+    if (EnableRTGC) {
       Node* insp = basic_plus_adr(kls, in_bytes(Klass::node_type_offset()));
       // Use T_BOOLEAN for InstanceKlass::_init_state so the compiler
       // can generate code to load it as unsigned byte.

@@ -184,8 +184,8 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
 #ifdef _LP64
   NOT_RTGC(else) if (UseCompressedClassPointers) {
-#if INCLUDE_RTGC 
-    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) { 
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+    if (EnableRTGC) { 
       movl(t1, Address(klass, Klass::node_type_offset()));
       andl(t1, 1);
     } else 
@@ -314,8 +314,8 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
   // check for negative or excessive length
   cmpptr(len, (int32_t)max_array_allocation_length);  
   jcc(Assembler::above, slow_case);
-#if INCLUDE_RTGC
-  if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT && (elementType == T_OBJECT || elementType == T_ARRAY)) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  if (EnableRTGC && (elementType == T_OBJECT || elementType == T_ARRAY)) {
     cmpb(Address(klass, Klass::node_type_offset()), rtNodeType::Cyclic);
     jcc(Assembler::less, slow_case);
   }

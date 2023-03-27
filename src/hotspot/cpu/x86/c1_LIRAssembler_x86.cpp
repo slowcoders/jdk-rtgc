@@ -1616,8 +1616,8 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) {
   if (op->init_check()) {
     add_debug_info_for_null_check_here(op->stub()->info());
-#if INCLUDE_RTGC
-    if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+    if (EnableRTGC) {
       __ cmpl(Address(op->klass()->as_register(), 
                       Klass::node_type_offset()), 
                       InstanceKlass::clinit_check_value());

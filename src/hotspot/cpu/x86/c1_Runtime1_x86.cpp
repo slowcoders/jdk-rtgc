@@ -1054,8 +1054,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
           if (id == fast_new_instance_init_check_id) {
             // make sure the klass is initialized
-#if INCLUDE_RTGC
-            if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+            if (EnableRTGC) {
               __ cmpl(Address(klass, Klass::node_type_offset()), InstanceKlass::clinit_check_value());
               __ jcc(Assembler::less, slow_path);
             } else 

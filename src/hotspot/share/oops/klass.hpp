@@ -325,7 +325,7 @@ protected:
     return false;
   }
 
-  rtNodeType resolve_node_type(JavaThread* thread) {}
+  rtNodeType resolve_node_type(JavaThread* thread) { return rtNodeType::Cyclic; }
 #else
   rtNodeType node_type() { return (rtNodeType)_node_type; }
 

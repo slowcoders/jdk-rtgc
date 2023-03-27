@@ -124,7 +124,7 @@ protected:
 public:
   // Has this klass been initialized?
   bool                   is_initialized() {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
     if (EnableRTGC) {
       if (_is_shared && (_init_state != InstanceKlass::fully_initialized || _node_type < rtNodeType::Cyclic)) {
         if (is_loaded()) compute_shared_init_state();

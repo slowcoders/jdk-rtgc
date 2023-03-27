@@ -90,7 +90,7 @@
   // header_size: size of object header in words
   // f          : element scale factor
   // slow_case  : exit to slow case implementation if fast allocation fails
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   void allocate_array(Register obj, Register len, Register t1, Register t2, BasicType elementType, Register klass, Label& slow_case);
 #else
   void allocate_array(Register obj, Register len, Register t, Register t2, int header_size, Address::ScaleFactor f, Register klass, Label& slow_case);

@@ -49,7 +49,7 @@ class ObjArrayKlass : public ArrayKlass {
   ObjArrayKlass(int n, Klass* element_klass, Symbol* name);
   static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, TRAPS);
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
 #endif
 

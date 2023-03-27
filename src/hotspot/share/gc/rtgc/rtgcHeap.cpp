@@ -116,6 +116,8 @@ void rtHeap::init_allocated_object(HeapWord* mem, Klass* klass) {
 #endif
 #if RTGC_ENABLE_ACYCLIC_REF_COUNT
   oopDesc::set_klass_gap(mem, (int)klass->is_acyclic());
+#else
+  oopDesc::set_klass_gap(mem, 0);
 #endif
 }      
 

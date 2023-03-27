@@ -4122,8 +4122,8 @@ void MacroAssembler::clinit_barrier(Register klass, Register thread, Label* L_fa
   }
 
   // Fast path check: class is fully initialized
-#if INCLUDE_RTGC
-  if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT) {
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
+  if (EnableRTGC) {
     cmpl(Address(klass, Klass::node_type_offset()), InstanceKlass::clinit_check_value());
     jcc(Assembler::greaterEqual, *L_fast_path);
   } else 
