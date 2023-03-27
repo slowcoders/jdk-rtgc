@@ -38,6 +38,9 @@
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
    * Array-Item 은 64bit 로??
    * CDS 지원 : AnchorList 에 대한 reallocation 필요.
+   * !RTGC_FAT_OOP 지원: Lock 정보를 미리 swapping 한 후, normalized 된 data 를 scan 한다.
+      MonitorChunk / BasicObjectLock 참고, ObjectLocker 가 문제될 수 있음.
+      JavaThread::oops_do_no_frames 에서 MonitorChunk 에 대한 iteration 예제가 있음.
 
 1) Flags
 2) RootRefCount

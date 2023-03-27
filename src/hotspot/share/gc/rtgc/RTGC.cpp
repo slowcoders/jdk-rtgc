@@ -20,8 +20,8 @@ const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
   // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
   // "[Ljava/util/HashMap$Node;",
-  "java/lang/Object",
-  "java/util/concurrent/ConcurrentHashMap$Node",
+  // "java/lang/Object",
+  // "java/util/concurrent/ConcurrentHashMap$Node",
 };
 
 

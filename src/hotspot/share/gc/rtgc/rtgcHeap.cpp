@@ -279,7 +279,8 @@ void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
 
       if (link->isAcyclic()) {
         // acyclic tenured link 가 이미 refCount 를 가지고 있는 경우, findSurvivorPath 수행이 불가하다.
-        // refCount 를 swap 하여 0 으로 변경하면, old 영역의 path 검색이 불가능하다..
+        // refCount 를 swap 하여 0 으로 변경하면, old 영역의 path 검색이 불가능하기 때문이다..
+        // RTGC-TODO. 임시로 acyclic marking 한 객체를 따로 모은 후, GC 종료 단계에서 예외 처리하다.
         link->markSurvivorReachable();        
         g_stack_roots.push_back(link);
         return;
@@ -442,13 +443,13 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     GCObject* node = to_obj(g_young_roots.at(idx_root));
     AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
     if (state == AnchorState::NotAnchored) {
-      rtgc_log(true, "skip not anchored %p", node);
+      rtgc_log(is_full_gc, "skip not anchored %p", node);
       g_young_roots.swap(not_anchored_root_count++, idx_root);
       continue;
     }
 
     if (state == AnchorState::AnchoredToRoot) {
-      rtgc_log(true, "mark stable young root %p", node);
+      rtgc_log(is_full_gc, "mark stable young root %p", node);
       bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
       if (!is_full_gc && !is_young_root) {
         node->unmarkYoungRoot();
@@ -463,10 +464,10 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   // dirty trackable 저장 위치.
   g_saved_stack_root_count = g_stack_roots.size();
 
-  rtgc_log(true, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
+  rtgc_log(is_full_gc, "mark unknown state young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
   for (int idx_root = unstable_root_start; idx_root < young_root_count; idx_root ++) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
-    rtgc_log(true, "mark unknown state  young root %p", node);
+    rtgc_log(is_full_gc, "mark unknown state  young root %p", node);
     bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
     if (!is_full_gc && !is_young_root) {
       node->unmarkYoungRoot();
@@ -477,12 +478,12 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   bool need_rescan;
   do {
     need_rescan = false;
-    rtgc_log(true, "mark resurrected young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
+    rtgc_log(is_full_gc, "mark resurrected young roots n %d / u %d / y0 %d / y2 %d", not_anchored_root_count, unstable_root_start, young_root_count, g_young_roots.size());
     for (int idx_root = not_anchored_root_count - 1; idx_root >= 0; ) {
       GCObject* node = to_obj(g_young_roots.at(idx_root));
       AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
       if (state != AnchorState::NotAnchored) {
-        rtgc_log(true, "mark resurrected young root %p %d", node, idx_root);
+        rtgc_log(is_full_gc, "mark resurrected young root %p %d", node, idx_root);
         bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
         if (!is_full_gc && !is_young_root) {
           node->unmarkYoungRoot();
@@ -495,7 +496,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
           continue;
         }
       } else {
-        rtgc_log(true, "skip dead young root %p %d", node, idx_root);
+        rtgc_log(is_full_gc, "skip dead young root %p %d", node, idx_root);
       }
       idx_root --;
     }

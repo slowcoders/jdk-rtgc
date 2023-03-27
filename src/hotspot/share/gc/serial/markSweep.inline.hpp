@@ -47,6 +47,8 @@ inline void MarkSweep::mark_object(oop obj) {
   if (EnableRTGC) {
     rt_assert(!rtHeap::is_trackable(obj));
     precond(rtHeap::is_alive(obj));
+    void rtHeap__clearTemporalAnchorList(oopDesc* oop);
+    rtHeap__clearTemporalAnchorList(obj);
   }
 #endif
   // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));

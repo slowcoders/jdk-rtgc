@@ -149,7 +149,7 @@ void GCObject::addTemporalAnchor(GCObject* anchor) {
 
 bool GCObject::addDirtyAnchor(GCObject* anchor) {
     bool was_clean = !this->isDirtyReferrerPoints();
-    rtgc_log(true, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
+    rtgc_log(rtHeap::in_full_gc, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
         anchor, this, was_clean, this->hasMultiRef(), anchor->isYoungRoot());
     if (was_clean) {
       if (this->hasMultiRef()) {
@@ -359,7 +359,7 @@ bool GCObject::clearEmptyAnchorList() {
         if (anchors->empty()) {
             rt_assert_f(!this->hasShortcut(), " shortcut attached %p %d", this, this->getShortcutId());
             this->removeSingleAnchor();
-            rtgc_log(true, "all anchor removed from %p", this);
+            rtgc_log(rtHeap::in_full_gc, "all anchor removed from %p", this);
         } else {
             this->setSingleAnchor(anchors->front());
         }

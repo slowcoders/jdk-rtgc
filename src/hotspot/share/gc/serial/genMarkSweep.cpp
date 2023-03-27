@@ -241,7 +241,13 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {
         _is_young_root = true;
+        if (is_tracked) {
+          rtHeap::mark_young_root_reachable(_current_anchor, obj);
+        } else {
+          rtHeap::mark_young_survivor_reachable(_current_anchor, obj);
+        }
       } else {
+        rt_assert(rtHeap::is_alive(obj));
         if (!rtHeap::is_alive(obj)) {
           rtHeap::mark_survivor_reachable(obj);
         } 
