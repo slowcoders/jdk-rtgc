@@ -125,10 +125,10 @@ public:
 	}
 
 	bool is_adjusted_trackable() {
-		if (this->isTrackable_unsafe()) return true;
-		return AUTO_TRACKABLE_MARK_BY_ADDRESS && 
-			rtHeap::in_full_gc && 
-			((GCNode*)(void*)cast_to_oop(this)->forwardee())->isTrackable_unsafe();
+		if (AUTO_TRACKABLE_MARK_BY_ADDRESS || !in_progress_adjust_pointers) 
+			return this->isTrackable_unsafe();
+		oop forwarded_p = cast_to_oop(this)->forwardee();
+		return to_obj(forwarded_p)->isTrackable_unsafe();
 	}	
 
 	void markTrackable() {

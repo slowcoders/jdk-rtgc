@@ -77,7 +77,7 @@ public:
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
-      rtgc_log(true, "add resurrect link %p(tr=%d) -> %p", (void*)_anchor, tenured_anchor, (void*)obj);
+      // rtgc_log(true, "add resurrect link %p(tr=%d) -> %p", (void*)_anchor, tenured_anchor, (void*)obj);
       if (tenured_anchor) {
         if (MarkSweep::mark_and_push_internal(obj, true)) {
           _is_young_root = true;

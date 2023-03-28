@@ -35,7 +35,7 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 }
 
 bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly) {
-    rtgc_debug_log(node, "scanSurvivalPath %p(%s)", node, getClassName(node));
+    // rtgc_debug_log(node, "scanSurvivalPath %p(%s)", node, getClassName(node));
 
     ShortOOP tail = node;
     rt_assert(EnableRTGC);
@@ -286,9 +286,10 @@ void GarbageProcessor::constructShortcut() {
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     rt_assert(!rtHeapEx::g_lock_unsafe_list);
     rt_assert(garbageAnchor->isTrackable());
-    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
     if (true) {
         link->removeReferrer(garbageAnchor);
+        rtgc_debug_log(link, "clear_garbage_links %p->%p(ac=%d, remain=%d)\n", 
+                garbageAnchor, link, link->getAnchorCount(), link->hasReferrer(garbageAnchor));
         return false;//link->isUnstableMarked();
     }
 
@@ -362,7 +363,7 @@ void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, 
     rt_assert(!obj->hasShortcut());
     rt_assert(obj->isGarbageMarked());
     obj->clearAnchorList();
-    rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
+    rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
     RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects, isTenured);
     RuntimeHeap::reclaimObject(obj);
@@ -454,11 +455,34 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
     return true;
 }
 
-AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* node) {
+AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* tail) {
     bool multi_anchor_found = false;
     const int MAX_PATH_LENGTH_FOR_FAST_CHECK = 20;
+    GCObject* node = tail;
     for (int i = MAX_PATH_LENGTH_FOR_FAST_CHECK; --i >= 0; ) {
-        rt_assert(!node->isGarbageMarked());
+        if (node->isGarbageMarked()) {
+            rtgc_log(1, "garbage anchor at %d ", i);
+            node = tail;
+            for (int j = MAX_PATH_LENGTH_FOR_FAST_CHECK; --j >= i; ) {
+                rtgc_log(1, "garbage anchor %d " PTR_DBG_SIG, j, PTR_DBG_INFO(node));
+                if (j == i + 1) {
+                    for (AnchorIterator ai(node); ai.hasNext(); ) {
+                        GCObject* p = ai.next();
+                        rtgc_log(true, "__ %p", p);
+                    }
+                }
+
+                rt_assert(!node->isGarbageMarked());
+                if (node->hasShortcut()) {
+                    /* shortcut 은 multi_ref 로 간주한다. */
+                    multi_anchor_found = true;
+                    node = node->getShortcut()->anchor();
+                } else {
+                    multi_anchor_found |= node->hasMultiRef();
+                    node = node->getSafeAnchor();
+                }
+            }
+        }
 
         if (node->getRootRefCount() > 0) {
             return AnchorState::AnchoredToRoot;

@@ -18,7 +18,7 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "jdk/tools/jlink/internal/JmodArchive$JmodEntry",
+  "java/util/TreeSet",
   // "[Ljava/util/HashMap$Node;",
   // "java/util/TreeMap$Entry",
   // "java/util/concurrent/ConcurrentHashMap$Node",
