@@ -205,9 +205,9 @@ int  GCObject::removeReferrer_impl(GCObject* anchor) {
     rt_assert(anchor != this);
     rt_assert(this->is_adjusted_trackable());
 
-    rtgc_debug_log(this, "removing anchor %p(%s)(gc_m=%d) from acyclic=%d " PTR_DBG_SIG, 
+    rtgc_debug_log(this, "removing anchor %p(%s) from %p(%s acyclic=%d)", 
             anchor, RTGC::getClassName(anchor), 
-            cast_to_oop(anchor)->is_gc_marked(), this->isAcyclic(), PTR_DBG_INFO(this)); 
+            this, RTGC::getClassName(this), this->isAcyclic()); 
 
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert(!this->mayHaveAnchor());
