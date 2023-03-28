@@ -189,35 +189,25 @@ void GarbageProcessor::constructShortcut() {
                 }
                 rtgc_log(LOG_OPT(10), "dirty anchor  Shortcut %d\n", s2->getIndex());
                 cntNode = 0;
+                if (lastShortcut != NULL) {
+                    if (link != lastShortcut->anchor()) {
+                        rtgc_log(LOG_OPT(10), "extend Shortcut anchor 22 %p:%d\n", link, lastShortcut->getIndex());
+                        lastShortcut->extendAnchor(link);
+                    }
+                    lastShortcut = NULL;
+                }
                 link = NULL;
             }
-            rt_assert(lastShortcut == NULL);
-            rt_assert(cntNode == 0);
+            else {
+                rt_assert(cntNode == 0);
+                lastShortcut = NULL;
+            }
             // if (tail != NULL) {
             //     rtgc_log(LOG_OPT(10), "mark_dirty_survivor_reachable %p -> %p", obj, tail);
             //     rtHeap::mark_survivor_reachable(cast_to_oop(tail));
             //     tail = NULL;
             // }
             continue;
-        }
-
-        if (false && obj->isDirtyReferrerPoints()) {
-            rtgc_log(LOG_OPT(10), "remove dirty anchors from %p", obj);
-            obj->removeDirtyAnchors();
-            obj->unmarkDirtyReferrerPoints();
-
-            if (!obj->hasAnchor()) {
-                rtgc_log(LOG_OPT(10), "no anchors of %p", obj);
-                if (link != NULL) {
-                    SafeShortcut* s2 = SafeShortcut::create(obj, tail, cntNode);
-                    rtgc_log(LOG_OPT(10), "dirty anchor  Shortcut %d\n", s2->getIndex());
-                    link = NULL;
-                }
-                cntNode = 0;
-                tail = obj;
-                lastShortcut = NULL;
-                continue;
-            }
         }
 
 
@@ -253,7 +243,7 @@ void GarbageProcessor::constructShortcut() {
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {
-                    rtgc_log(LOG_OPT(10), "extend Shortcut anchor %d\n", ss->getIndex());
+                    rtgc_log(LOG_OPT(10), "extend Shortcut anchor %p:%d\n", obj, ss->getIndex());
                     lastShortcut->extendAnchor(obj);
                 }
                 else {

@@ -224,7 +224,11 @@ public:
   }
 
   void do_complete(bool is_strong_rechable) {
-    MarkSweep::follow_stack();
+    if (is_strong_rechable) {
+      MarkSweep::follow_stack<true>();
+    } else {
+      MarkSweep::follow_stack<false>();
+    }
   }
 
   template <typename T>
@@ -239,24 +243,17 @@ public:
     }
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
-      if (!rtHeap::is_trackable(obj)) {
+      if (MarkSweep::mark_and_push_internal(obj, true)) {
         _is_young_root = true;
         if (is_tracked) {
           rtHeap::mark_young_root_reachable(_current_anchor, obj);
-        } else {
-          rtHeap::mark_young_survivor_reachable(_current_anchor, obj);
         }
+      }
+      else if (!is_tracked) {
+        rtHeap::add_trackable_link(_current_anchor, obj);
       } else {
-        rt_assert(rtHeap::is_alive(obj));
-        if (!rtHeap::is_alive(obj)) {
-          rtHeap::mark_survivor_reachable(obj);
-        } 
-        if (is_tracked && !rtHeap::DoCrossCheck) return;
-        if (!is_tracked) {
-          rtHeap::add_trackable_link(_current_anchor, obj);
-        }
-      } 
-      MarkSweep::mark_and_push_internal<true>(obj);
+        rtHeap::ensure_trackable_link(_current_anchor, obj);
+      }
     }
   }
 

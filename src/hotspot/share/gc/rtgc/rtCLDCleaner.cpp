@@ -116,7 +116,7 @@ namespace rtCLDCleaner {
         }
 
         if (!node->isTrackable() && !obj->is_gc_marked()) {
-          MarkSweep::mark_and_push_internal<false>(obj);
+          MarkSweep::mark_and_push(&obj);
         }
       }
     }

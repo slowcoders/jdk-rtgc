@@ -377,7 +377,7 @@ public:
     }
 
     bool contains(void* mem) {
-        return mem >= _items && mem < _items + getReservedMemorySize();
+        return mem >= _items && mem < _next;
     }
 };
 

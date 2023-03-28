@@ -143,8 +143,7 @@ public:
   }
 
   void trackable_barrier(oop old_p, oop new_p) {
-    void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
-    rtHeap__ensure_trackable_link(_current_anchor, new_p);
+    rtHeap::ensure_trackable_link(_current_anchor, new_p);
   }
 
   void promoted_trackable_barrier(oop old_p, oop new_p) {

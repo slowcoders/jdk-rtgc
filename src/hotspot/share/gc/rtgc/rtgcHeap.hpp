@@ -55,6 +55,8 @@ public:
   static void mark_young_root_reachable(oopDesc* anchor, oopDesc* link);
   static void mark_young_survivor_reachable(oopDesc* anchor, oopDesc* link);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
+  static void ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
+
   static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);
 

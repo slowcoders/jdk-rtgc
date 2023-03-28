@@ -137,19 +137,14 @@ void GCObject::addTrackableAnchor(GCObject* anchor) {
 }
 
 void GCObject::addTemporalAnchor(GCObject* anchor) {
-    rtgc_debug_log(this, "addTemporalAnchor %p -> %p:%d(%s)", anchor, this, this->getAnchorCount(), getClassName(this));
     this->addAnchor<false, false>(anchor);
-    if (RTGC::is_debug_pointer(this)) {
-        AnchorIterator ai(this);
-        while (ai.hasNext()) {
-            rt_assert(ai.next_ptr()->getOffset() != 0);
-        }
-    }
+    rtgc_debug_log(this, "addTemporalAnchor %p -> " PTR_DBG_SIG, anchor, PTR_DBG_INFO(this));
 }
 
 bool GCObject::addDirtyAnchor(GCObject* anchor) {
+    rt_assert_f(anchor->hasAnchor(), "not anchored dirty anchor " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
     bool was_clean = !this->isDirtyReferrerPoints();
-    rtgc_log(rtHeap::in_full_gc, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
+    rtgc_debug_log(this, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
         anchor, this, was_clean, this->hasMultiRef(), anchor->isYoungRoot());
     if (was_clean) {
       if (this->hasMultiRef()) {
@@ -359,7 +354,7 @@ bool GCObject::clearEmptyAnchorList() {
         if (anchors->empty()) {
             rt_assert_f(!this->hasShortcut(), " shortcut attached %p %d", this, this->getShortcutId());
             this->removeSingleAnchor();
-            rtgc_log(rtHeap::in_full_gc, "all anchor removed from %p", this);
+            // rtgc_log(rtHeap::in_full_gc, "all anchor removed from %p", this);
         } else {
             this->setSingleAnchor(anchors->front());
         }

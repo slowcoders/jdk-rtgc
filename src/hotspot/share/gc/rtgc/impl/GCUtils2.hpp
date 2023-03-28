@@ -142,7 +142,9 @@ public:
     }
 
     static ReferrerList* getPointer(uint32_t idx) {
-        return (ReferrerList*)g_chunkPool.getPointer(0) + (idx & ~RTGC_NO_HASHCODE);
+        ReferrerList* refs = (ReferrerList*)g_chunkPool.getPointer(0) + (idx & ~RTGC_NO_HASHCODE);
+        rt_assert(g_chunkPool.contains(refs) || g_tempChunkPool.contains(refs));
+        return refs;
     }
 
     static void deleteSingleChunkList(ReferrerList* list) {

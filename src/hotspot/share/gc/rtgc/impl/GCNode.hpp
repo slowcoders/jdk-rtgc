@@ -76,6 +76,7 @@ public:
 	}
 
 	void markDirtyReferrerPoints() {
+		rt_assert(!isDirtyReferrerPoints());
 		_flags.dirtyReferrerPoints = true;
 	}	
 

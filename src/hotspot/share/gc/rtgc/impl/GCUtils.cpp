@@ -341,7 +341,7 @@ void ReferrerList::removeDirtyItems(ShortOOP dirtyStartMark) {
                         return;
                     }
                     cnt_removed ++;
-                    rtgc_log(rtHeap::in_full_gc, "dirty anchor removed in multi-chunk %d", cnt_removed);
+                    // rtgc_log(rtHeap::in_full_gc, "dirty anchor removed in multi-chunk %d", cnt_removed);
                     pItem ++;
                 }
                 Chunk* next_chunk = chunk->getNextChunk();
@@ -349,7 +349,7 @@ void ReferrerList::removeDirtyItems(ShortOOP dirtyStartMark) {
                 chunk = next_chunk;
                 pItem = chunk->_items;
             } while (pItem != &this->_head._items[0]);
-            rtgc_log(rtHeap::in_full_gc, "dirty chunk overflow %d", cnt_removed);
+            // rtgc_log(rtHeap::in_full_gc, "dirty chunk overflow %d", cnt_removed);
             pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
         } 
         for (; pItem >= _head._items && pItem[0]->isDirtyAnchor(); pItem--) {

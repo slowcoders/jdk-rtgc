@@ -18,7 +18,7 @@ using namespace RTGC;
 
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
+  // "jdk/tools/jlink/internal/JmodArchive$JmodEntry",
   // "[Ljava/util/HashMap$Node;",
   // "java/util/TreeMap$Entry",
   // "java/util/concurrent/ConcurrentHashMap$Node",
