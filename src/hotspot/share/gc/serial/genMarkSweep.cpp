@@ -245,9 +245,7 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (MarkSweep::mark_and_push_internal<false>(obj)) {
         _is_young_root = true;
-        // if (is_tracked) {
-          rtHeap::mark_young_root_reachable(_current_anchor, obj);
-        // }
+        rtHeap::mark_young_root_reachable(_current_anchor, obj);
       } else if (is_tracked || AUTO_TRACKABLE_MARK_BY_ADDRESS) {
         rtHeap::ensure_trackable_link(_current_anchor, obj);
       } else {
@@ -257,7 +255,18 @@ public:
   }
 
   virtual void do_oop(oop* p) { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { 
+#ifdef ASSSERT    
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop result = CompressedOops::decode_raw(heap_oop);
+      assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d)  anchor = %p(%s)", 
+          (void*)result, rtHeap::is_alive(result, false),
+          (void*)_current_anchor, _current_anchor->klass()->name()->bytes());
+    }
+#endif
+    do_oop_work(p); 
+  }
 
   void do_object(oop obj) {
     iterate_tenured_young_root_oop(obj);
