@@ -8,9 +8,11 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
-#define RTGC_FAT_OOP                  true
-#define RTGC_SHARE_GC_MARK            false
-#define RTGC_ENABLE_ACYCLIC_REF_COUNT false
+
+#define RTGC_FAT_OOP                    true
+#define RTGC_SHARE_GC_MARK              false
+#define RTGC_ENABLE_ACYCLIC_REF_COUNT   false
+#define AUTO_TRACKABLE_MARK_BY_ADDRESS  true
 
 class Thread;
 class oopDesc;

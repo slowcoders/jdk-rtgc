@@ -43,28 +43,37 @@ inline void MarkSweep::mark_object(oop obj) {
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
-  // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
+#if INCLUDE_RTGC
+  if (EnableRTGC) {
+    rt_assert(!rtHeap::is_trackable(obj));
+    precond(rtHeap::is_alive(obj));
+    void rtHeap__clearTemporalAnchorList(oopDesc* oop);
+    rtHeap__clearTemporalAnchorList(obj);
+  }
+#endif
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
 }
 
-void rtHeap__clearTemporalAnchorList(oopDesc* oop);
+template <bool root_reachable>
+inline bool MarkSweep::mark_and_push_internal(oop obj) {
+  rt_assert(obj != NULL);
 
-inline bool MarkSweep::mark_and_push_internal(oop obj, bool young_ref_only) {
-  rt_assert(EnableRTGC);
-
-  bool is_young_link = !rtHeap::is_trackable(obj);
-  if (young_ref_only && !is_young_link) return false;
+  if (rtHeap::is_trackable(obj)) {
+    if (root_reachable) {
+      rtHeap::mark_survivor_reachable(obj);
+    } else {
+      rt_assert(rtHeap::is_alive(obj));
+    }
+    return false;
+  }
   
   if (!obj->mark().is_marked()) {
-    if (is_young_link) {
-      rtHeap__clearTemporalAnchorList(obj);
-    }
     mark_object(obj);
     _marking_stack.push(obj);
   }
-  return is_young_link;
+  return true;
 }
 
 template <class T> 
@@ -72,24 +81,15 @@ inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-    if (rtHeap::is_trackable(obj)) {
-      rtHeap::mark_survivor_reachable(obj);
-    }
-    else if (!obj->mark().is_marked()) {
-  #if INCLUDE_RTGC
-      if (EnableRTGC) {
-        rtHeap__clearTemporalAnchorList(obj);
-      }
-  #endif
-      mark_object(obj);
-      _marking_stack.push(obj);
-    }
+    mark_and_push_internal<true>(obj);
   }
 }
 
 inline void MarkSweep::follow_klass(Klass* klass) {
   oop obj = klass->class_loader_data()->holder_no_keepalive();
-  MarkSweep::mark_and_push(&obj);
+  if (obj != NULL) {
+    MarkSweep::mark_and_push_internal<true>(obj);
+  }
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
@@ -100,7 +100,7 @@ inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
       oop holder = cld->holder_no_keepalive();
       if (holder != NULL) {
-        mark_and_push(&holder);
+        mark_and_push_internal<true>(holder);
       } 
       cld->incremental_oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
       return;

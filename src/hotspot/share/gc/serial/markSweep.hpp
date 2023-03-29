@@ -150,7 +150,7 @@ class MarkSweep : AllStatic {
 
   static int adjust_pointers(oop obj);
 
-  RTGC_ONLY(template <bool young_ref_only=true>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_stack();   // Empty marking stack.
 
   static void follow_klass(Klass* klass);
@@ -164,31 +164,26 @@ class MarkSweep : AllStatic {
   template <class T>
   static void mark_and_push(T* p);
 
-  static inline bool mark_and_push_internal(oop p, bool young_ref_only);
+  template <bool root_reachable>
+  static inline bool mark_and_push_internal(oop p);
 
-#if INCLUDE_RTGC  
- public:
-#else
  private:
-#endif
   // Call backs for marking
   static void mark_object(oop obj);
-
- private:
 
   // Mark pointer and follow contents.  Empty marking stack afterwards.
   template <class T> static inline void follow_root(T* p);
 
-  RTGC_ONLY(template <bool young_ref_only=true>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static inline void push_objarray(oop obj, size_t index);
 
-  RTGC_ONLY(template <bool young_ref_only=true>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_object(oop obj);
 
-  RTGC_ONLY(template <bool young_ref_only=true>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_array(objArrayOop array);
 
-  RTGC_ONLY(template <bool young_ref_only=true>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_array_chunk(objArrayOop array, int index);
 };
 

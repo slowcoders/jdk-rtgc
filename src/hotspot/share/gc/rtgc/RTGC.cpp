@@ -17,7 +17,7 @@ using namespace RTGC;
 */
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "java/util/TreeSet",
+  "java/util/TreeMap$Entry",
   // "[Ljava/util/HashMap$Node;",
   "jdk/tools/jlink/internal/ImagePluginStack$OrderedResourcePoolManager$OrderedResourcePool",
   // "java/util/concurrent/ConcurrentHashMap$Node",
