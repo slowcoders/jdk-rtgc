@@ -185,6 +185,7 @@ void GarbageProcessor::constructShortcut() {
             if (link != NULL) {
                 SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
                 if (!link->isSurvivorReachable()) {
+                    rt_assert(link->isDirtyReferrerPoints());
                     link->markSurvivorReachable_unsafe();
                 }
                 rtgc_log(LOG_OPT(10), "dirty anchor  Shortcut %d\n", s2->getIndex());
@@ -263,6 +264,7 @@ void GarbageProcessor::constructShortcut() {
         if (root->isDirtyAnchor()) {
             SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
             if (!link->isSurvivorReachable()) {
+                rt_assert(link->isDirtyReferrerPoints());
                 link->markSurvivorReachable_unsafe();
             }
         } 
@@ -309,7 +311,7 @@ void GarbageProcessor::addUnstable_ex(GCObject* obj) {
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
-    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
+    rtgc_debug_log(obj, "add unsafe=%p", obj);
     rt_assert(!rtHeapEx::g_lock_unsafe_list);
     rt_assert(obj->isTrackable());
     rt_assert(!obj->isUnstableMarked());

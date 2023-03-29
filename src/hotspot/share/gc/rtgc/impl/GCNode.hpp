@@ -103,6 +103,10 @@ public:
 		_flags.isYoungRoot = false;
 	}
 
+	bool isAcyclic() {
+		return _flags.isAcyclic;
+	}
+
 	bool isTrackable() {
 		rt_assert(!in_progress_adjust_pointers);
 		return this->isTrackable_unsafe();
@@ -112,10 +116,6 @@ public:
 		return !isTrackable();
 	}
 	
-	bool isAcyclic() {
-		return _flags.isAcyclic;
-	}
-
 	bool isTrackable_unsafe() {
 		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
 			return _flags.isTrackableOrDestroyed;
@@ -125,10 +125,11 @@ public:
 	}
 
 	bool is_adjusted_trackable() {
-		if (AUTO_TRACKABLE_MARK_BY_ADDRESS || !in_progress_adjust_pointers) 
+		if (!in_progress_adjust_pointers) 
 			return this->isTrackable_unsafe();
 		oop forwarded_p = cast_to_oop(this)->forwardee();
-		return to_obj(forwarded_p)->isTrackable_unsafe();
+		if (forwarded_p == NULL) forwarded_p = cast_to_oop(this);
+		return to_node(forwarded_p)->isTrackable_unsafe();
 	}	
 
 	void markTrackable() {

@@ -15,12 +15,11 @@ using namespace RTGC;
     "sun/nio/fs/NativeBuffers$1",
     "[I",
 */
-
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "java/util/TreeSet",
+  // "java/util/TreeSet",
   // "[Ljava/util/HashMap$Node;",
-  // "java/util/TreeMap$Entry",
+  "jdk/tools/jlink/internal/ImagePluginStack$OrderedResourcePoolManager$OrderedResourcePool",
   // "java/util/concurrent/ConcurrentHashMap$Node",
 };
 

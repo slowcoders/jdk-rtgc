@@ -78,9 +78,11 @@ int GCNode::getAnchorCount() {
     return count;
 }
 
-void* getAdjustedAnchorPoint(GCObject* obj) {
-    if (!rtHeap::in_full_gc) return obj;
-    oop new_p = cast_to_oop(obj)->forwardee
+static void* __getAdjustedAnchorPoint(GCObject* obj) {
+    if (!GCNode::in_progress_adjust_pointers) return obj;
+    oop new_p = cast_to_oop(obj)->forwardee();
+    if (new_p == NULL) return obj;
+    return to_obj(new_p);
 }
 
 template <bool tenuredSelf, bool tenuredAnchor>
@@ -89,13 +91,16 @@ void GCObject::addAnchor(GCObject* anchor) {
      * 주의!) anchor 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
 #ifdef ASSERT    
-    if (RTGC::is_debug_pointer(this)) {// || (!rtHeap::in_full_gc && (RTGC::is_debug_pointer(anchor))) ) {
+    // if (RTGC::is_debug_pointer(this)) {// || 
+    if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
         rtgc_log(1, "anchor %p added to %p(acyclic=%d rc=%d refs_=%x)", 
                 anchor, this, this->isAcyclic(), this->getRootRefCount(), this->getAnchorCount());
     }
 #endif
 
-    rt_assert(tenuredSelf ? this->is_adjusted_trackable() : !this->isTrackable_unsafe());
+    rt_assert_f(tenuredSelf ? this->is_adjusted_trackable() : !this->isTrackable_unsafe(), 
+            "bad anchor %p added to %p/%p (in_progress_adjust_pointers=%d rc=%d refs_=%x)", 
+            anchor, this, __getAdjustedAnchorPoint(this), in_progress_adjust_pointers, this->getRootRefCount(), this->getAnchorCount());
 
     assert_valid_link(cast_to_oop(this), cast_to_oop(anchor));
 
@@ -120,13 +125,6 @@ void GCObject::addAnchor(GCObject* anchor) {
     }
     else {
         ReferrerList* anchors;
-#ifdef ASSERT            
-            if (strstr((char*)getClassName(this), "java/util/TreeMap$Entry") && this->hasReferrer(anchor)) {
-                static int cnt_dupliacted = 0;
-                cnt_dupliacted ++;
-                rtgc_log(1, "duplicated anchor (%d) %p added to %p", cnt_dupliacted, anchor, this);
-            }
-#endif
         if (!this->hasMultiRef()) {
             anchors = ReferrerList::allocate(tenuredSelf);
             anchors->init(this->getSingleAnchor(), anchor);
@@ -205,9 +203,14 @@ int  GCObject::removeReferrer_impl(GCObject* anchor) {
     rt_assert(anchor != this);
     rt_assert(this->is_adjusted_trackable());
 
-    rtgc_debug_log(this, "removing anchor %p(%s) from %p(%s acyclic=%d)", 
+#ifdef ASSERT
+    // if (RTGC::is_debug_pointer(this)) {// || 
+    if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
+        rtgc_log(true, "removing anchor %p(%s) from %p(%s acyclic=%d)", 
             anchor, RTGC::getClassName(anchor), 
             this, RTGC::getClassName(this), this->isAcyclic()); 
+    }
+#endif
 
     if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
         rt_assert(!this->mayHaveAnchor());
