@@ -201,6 +201,10 @@ void GenMarkSweep::deallocate_stacks() {
   _preserved_mark_stack.clear(true);
   _preserved_oop_stack.clear(true);
   _marking_stack.clear();
+#if INCLUDE_RTGC  
+  _resurrect_stack.clear();
+  _resurrect_objarray_stack.clear();
+#endif
   _objarray_stack.clear(true);
 }
 
@@ -208,13 +212,11 @@ void GenMarkSweep::deallocate_stacks() {
 template<bool is_tracked>
 class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure, public ObjectClosure {
   bool _is_young_root;
+  bool _is_strong_rechable;
 public:
   
   bool iterate_tenured_young_root_oop(oopDesc* obj) {
     precond(rtHeap::is_trackable(obj));
-    if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
-      return true;
-    }
     _is_young_root = false;
     // oop old_anchor = _current_anchor;
     _current_anchor = obj;
@@ -243,7 +245,8 @@ public:
     }
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
-      if (MarkSweep::mark_and_push_internal<false>(obj)) {
+      if (!rtHeap::is_trackable(obj)) {
+        MarkSweep::mark_and_push_internal<true>(obj);
         _is_young_root = true;
         rtHeap::mark_young_root_reachable(_current_anchor, obj);
       } else if (is_tracked || AUTO_TRACKABLE_MARK_BY_ADDRESS) {
@@ -269,6 +272,7 @@ public:
   }
 
   void do_object(oop obj) {
+    rt_assert(!is_tracked);
     iterate_tenured_young_root_oop(obj);
   }
 
@@ -325,6 +329,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
     assert(_marking_stack.is_empty(), "Marking should have completed");
+    assert(_resurrect_stack.is_empty(), "Marking should have completed");
   }
 #endif
 

@@ -49,7 +49,7 @@ void ReferrerList::initialize() {
     char* memory = (char*)VirtualMemory::reserve_memory(g_chunkPool.getReservedMemorySize() * 2);
     g_chunkPool.initialize((Chunk*)memory);
     g_tempChunkPool.initialize((Chunk*)(memory + g_chunkPool.getReservedMemorySize()));
-    printf("chunk-pool: %p %zx temp: %p", g_chunkPool.getPointer(0), g_chunkPool.getReservedMemorySize(), g_tempChunkPool.getPointer(0));
+    // printf("chunk-pool: %p %zx temp: %p", g_chunkPool.getPointer(0), g_chunkPool.getReservedMemorySize(), g_tempChunkPool.getPointer(0));
     rt_assert(g_chunkPool.getPointer(0) < g_tempChunkPool.getPointer(0));
     rt_assert((((address)g_tempChunkPool.getPointer(0) - (address)g_chunkPool.getPointer(0)) % sizeof(Chunk)) == 0);
 }

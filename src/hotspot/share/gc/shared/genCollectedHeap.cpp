@@ -693,7 +693,7 @@ void GenCollectedHeap::do_collection(bool           full,
   if (EnableRTGC) {
     rtHeap::finish_rtgc(true, true);
 #ifdef ASSERT
-    this->verify(VerifyOption_Default);
+    // this->verify(VerifyOption_Default);
     rtHeap::print_heap_after_gc(do_full_collection);
 #endif
   }

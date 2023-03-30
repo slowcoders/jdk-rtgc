@@ -114,11 +114,11 @@ void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
     if (EnableRTGC) {
       rtHeap::oop_recycled_iterate(_scan_older);
-      while (!MarkSweep::_resurrect_stack.is_empty()) {
-        oop obj = MarkSweep::_resurrect_stack.pop();
-        //rt_assert(!rtHeap::is_yto_obj(obj)->isYoungRoot());
-        resurrector.do_object(obj);
-      }      
+      // while (!MarkSweep::_resurrect_stack.is_empty()) {
+      //   oop obj = MarkSweep::_resurrect_stack.pop();
+      //   //rt_assert(!rtHeap::is_yto_obj(obj)->isYoungRoot());
+      //   resurrector.do_object(obj);
+      // }      
     }
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
@@ -594,12 +594,9 @@ public:
 
 bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj) {
   _has_young_ref = false;
-  // oop old_anchor = _current_anchor;
   _current_anchor = obj;
   obj->oop_iterate(this);
-  // _current_anchor = old_anchor;
-  bool is_young_root = _has_young_ref;
-  return is_young_root;
+  return _has_young_ref;
 }
 
 void YoungRootClosure::do_complete(bool is_strong_rechable) {
@@ -607,6 +604,7 @@ void YoungRootClosure::do_complete(bool is_strong_rechable) {
     _complete_closure->do_void();
     return;
   }
+
   TenuredGeneration* old_gen = (TenuredGeneration*)_old_gen;
   do {
     do {
@@ -834,8 +832,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   size_t s = old->size();
 
   if (EnableRTGC) {
-    void rtHeap__clearTemporalAnchorList(oopDesc* oop);
-    rtHeap__clearTemporalAnchorList(old);
+    rtHeap::clear_temporal_anchor_list(old);
   }
 
   oop obj = NULL;

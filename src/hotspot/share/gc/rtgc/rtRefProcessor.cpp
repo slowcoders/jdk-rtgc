@@ -636,6 +636,53 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
   }
 }
 
+template <bool is_full_gc>
+static bool __mark_and_clear_young_finalize_reachables() {
+  GCObject* ref;
+  bool changed = false;
+  for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
+    GCObject* referent = to_obj(iter.referent());
+    if (referent->isTrackable() || rtHeap::is_alive(referent)) continue;
+
+    referent->unmarkActiveFinalizerReachable();
+
+    mark_and_push 실행 필요. referent 주소도 변경되어야 한다....
+    
+    if (ref->isTrackable()) {
+      // if (referent->isTrackable()) {
+      //   rtHeap::add_trackable_link(ref, referent);
+      // } else {
+
+        rtHeap::mark_young_root_reachable(ref, referent);
+      // }
+      // // ref-count -> ref-link 로 변환. 
+      // // RTGC-TODO Finalizable 객체 생성 시 acyclic marking 후, pending Q에 넣기 전에 acyclic 해제.
+      // RTGC::add_trackable_link_or_mark_young_root(cast_to_oop(referent), cast_to_oop(ref));
+      // if (referent->isTrackable() && !referent->hasSafeAnchor()) {
+      //   referent->setSafeAnchor(ref);
+      //   referent->setShortcutId_unsafe(INVALID_SHORTCUT);
+      // }
+    } else { // if (referent->isTrackable()) {
+      rtHeap::mark_young_survivor_reachable(ref, referent);
+      // gc 종료 후 Unsafe List 등록되도록 한다.
+      // rtgc_log(LOG_OPT(3), "yg-reachable final referent %p", referent);
+      // rt_assert(true && rtHeap::is_alive(cast_to_oop(referent)));
+      // rtHeap::mark_survivor_reachable(cast_to_oop(referent));
+    }
+    ref->unmarkActiveFinalizer();
+    iter.enqueue_curr_ref(false);      
+    changed = true;
+  }
+  return changed;
+}
+bool rtHeapEx::mark_and_clear_young_finalize_reachables(bool is_full_gc) {
+  if (is_full_gc) {
+    return __mark_and_clear_young_finalize_reachables<true>();
+  } else {
+    return __mark_and_clear_young_finalize_reachables<false>();
+  }
+}
+
 
 template<typename T, bool is_full_gc>
 static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* complete_gc) {
@@ -667,6 +714,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     }
     
     if (!is_alive) {
+      rt_assert(referent->isTrackable());
       if (true) {
         rtgc_log(LOG_OPT(3), "resurrect final ref %p of %p", ref, referent);
         if (is_full_gc) {
@@ -804,7 +852,6 @@ void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosur
 
   if (is_tenure_gc) {
     __process_final_phantom_references<true>();
-    g_in_progress_marking = false;
   } else {
     __process_final_phantom_references<false>();
   }

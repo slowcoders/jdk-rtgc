@@ -106,9 +106,9 @@ void FieldUpdateLog::add(oopDesc* anchor, volatile narrowOop* field, narrowOop e
 
 
 void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
-  rtgc_debug_log(anchor, "add log(%p yr=%d) [%d] %p\n", 
+  rtgc_debug_log(anchor, "add log(%p yr=%d) [%d] %p", 
       anchor, to_obj(anchor)->isYoungRoot(), erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
-  rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d\n", 
+  rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d", 
       anchor->size(), erasedField._offset);
 
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
@@ -140,11 +140,11 @@ void UpdateLogBuffer::reset_gc_context() {
 
 #ifdef ASSERT    
   rt_assert(g_buffer_area_start < g_buffer_area_end);
-  rtgc_log(LOG_OPT(1), "heap old %p eden=%p(%x) young-from=%p young-to=%p cnt_update=%d cnt_update_log=%d\n", 
+  rtgc_log(LOG_OPT(1), "heap old %p eden=%p(%x) young-from=%p young-to=%p cnt_update=%d cnt_update_log=%d", 
     GenCollectedHeap::heap()->old_gen()->reserved().start(),
     newGen->eden()->bottom(), (int)newGen->eden()->capacity(),
     newGen->from()->bottom(), newGen->to()->bottom(), g_cnt_update, g_cnt_update_log);
-  rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x\n", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
+  rtgc_log(LOG_OPT(1), "reset log chunk area %p size=%x", g_buffer_area_start, (int)(g_buffer_area_end - g_buffer_area_start));
 #endif    
 
   g_active_buffer_q = NULL;
@@ -170,10 +170,10 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
   RTGC::lock_heap();
   rt_assert(! is_gc_started);
   if ((buffer = g_inactive_buffer_q) != NULL) {
-    rtgc_log(LOG_OPT(1), "recycle inactive LogBuffer %p s=%p e=%p\n", buffer, g_buffer_area_start, g_buffer_area_end);
+    rtgc_log(LOG_OPT(1), "recycle inactive LogBuffer %p s=%p e=%p", buffer, g_buffer_area_start, g_buffer_area_end);
     g_inactive_buffer_q = buffer->_next;
   } else if ((buffer = g_free_buffer_q) != NULL) {
-    rtgc_log(LOG_OPT(10), "Allocate LogBuffer %p s=%p e=%p\n", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
+    rtgc_log(LOG_OPT(10), "Allocate LogBuffer %p s=%p e=%p", g_free_buffer_q, g_buffer_area_start, g_buffer_area_end);
     g_free_buffer_q = buffer->_next;
   } 
   if (buffer != NULL) {
@@ -194,7 +194,7 @@ UpdateLogBuffer* UpdateLogBuffer::allocate() {
 
 
 void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
-  rtgc_log(LOG_OPT(1), "add inactive buffer %p\n", buffer);
+  rtgc_log(LOG_OPT(1), "add inactive buffer %p", buffer);
   rt_assert(buffer > (void*)0x100);
 // java/lang/invoke/MethodHandlesGeneralTest/hs_err_pid45346.log
 // #  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:195), pid=45346, tid=41731
@@ -250,7 +250,7 @@ template <bool _atomic>
 void UpdateLogBuffer::flush_pending_logs() {
   FieldUpdateLog* log = first_log();
   FieldUpdateLog* end = end_of_log();
-  rtgc_log(LOG_OPT(10), "flush_pending_logs atomic=%d buffer:%p cnt:%ld\n", _atomic, this, end-log);
+  rtgc_log(LOG_OPT(10), "flush_pending_logs atomic=%d buffer:%p cnt:%ld", _atomic, this, end-log);
   for (; log < end; log++) {
     log->updateAnchorList<_atomic>();
   }
@@ -278,13 +278,13 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
       reuse_curr_buffer = true;
-      rtgc_log(LOG_OPT(1), "Reuse CurrBuffer %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
+      rtgc_log(LOG_OPT(1), "Reuse CurrBuffer %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
       buffer_full = true;
-      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x\n", anchor, erasedField._offset, (int32_t)erasedField._obj);
+      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();
@@ -347,7 +347,7 @@ RtThreadLocalData::~RtThreadLocalData() {
 
 
 void UpdateLogBuffer::process_update_logs() {
-  rtgc_log(LOG_OPT(1), "process_update_logs %p, %p, %p\n", 
+  rtgc_log(LOG_OPT(1), "process_update_logs %p, %p, %p", 
       g_free_buffer_q, g_active_buffer_q, g_inactive_buffer_q);
   Klass* intArrayKlass = Universe::intArrayKlassObj();
 

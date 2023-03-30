@@ -91,8 +91,8 @@ void GCObject::addAnchor(GCObject* anchor) {
      * 주의!) anchor 는 아직, memory 내용이 복사되지 않은 주소일 수 있다.
      */
 #ifdef ASSERT    
-    // if (RTGC::is_debug_pointer(this)) {// || 
-    if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
+    if (RTGC::is_debug_pointer(this)) {// || 
+    // if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
         rtgc_log(1, "anchor %p added to %p(acyclic=%d rc=%d refs_=%x)", 
                 anchor, this, this->isAcyclic(), this->getRootRefCount(), this->getAnchorCount());
     }
@@ -151,7 +151,7 @@ void GCObject::addTemporalAnchor(GCObject* anchor) {
 }
 
 bool GCObject::addDirtyAnchor(GCObject* anchor) {
-    rt_assert_f(anchor->hasAnchor(), "not anchored dirty anchor " PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+    rt_assert_f(anchor->hasAnchor(), "dirty anchor must have dirty anchor or young root" PTR_DBG_SIG, PTR_DBG_INFO(anchor));
     bool was_clean = !this->isDirtyReferrerPoints();
     // rtgc_debug_log(this, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
     //     anchor, this, was_clean, this->hasMultiRef(), anchor->isYoungRoot());
@@ -204,8 +204,8 @@ int  GCObject::removeReferrer_impl(GCObject* anchor) {
     rt_assert(this->is_adjusted_trackable());
 
 #ifdef ASSERT
-    // if (RTGC::is_debug_pointer(this)) {// || 
-    if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
+    if (RTGC::is_debug_pointer(this)) {// || 
+    // if (!rtHeap::in_full_gc && RTGC::is_debug_pointer(anchor)) {
         rtgc_log(true, "removing anchor %p(%s) from %p(%s acyclic=%d)", 
             anchor, RTGC::getClassName(anchor), 
             this, RTGC::getClassName(this), this->isAcyclic()); 

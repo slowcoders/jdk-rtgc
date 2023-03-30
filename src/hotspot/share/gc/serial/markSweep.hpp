@@ -120,6 +120,7 @@ class MarkSweep : AllStatic {
 
 #if INCLUDE_RTGC
   static Stack<oop, mtGC>               _resurrect_stack;
+  static Stack<ObjArrayTask, mtGC>      _resurrect_objarray_stack;
   static bool _is_rt_anchor_trackable;
   static void* _marking_klass;
   static int   _marking_klass_count;

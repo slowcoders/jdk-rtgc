@@ -34,7 +34,7 @@ public:
 	bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
-	AnchorState checkAnchorStateFast(GCObject* node);
+	AnchorState checkAnchorStateFast(GCObject* node, bool enableShortcut);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:

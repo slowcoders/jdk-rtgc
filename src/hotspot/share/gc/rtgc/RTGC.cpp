@@ -17,9 +17,9 @@ using namespace RTGC;
 */
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  "java/util/TreeMap$Entry",
+  // "java/util/TreeMap$Entry",
   // "[Ljava/util/HashMap$Node;",
-  "jdk/tools/jlink/internal/ImagePluginStack$OrderedResourcePoolManager$OrderedResourcePool",
+  // "jdk/tools/jlink/internal/ImagePluginStack$OrderedResourcePoolManager$OrderedResourcePool",
   // "java/util/concurrent/ConcurrentHashMap$Node",
 };
 
@@ -298,7 +298,7 @@ int RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj2) return -1;
 
   // if (((uintptr_t)ptr & ~0xFFF) == 0x3f5b06000) return true;
-  if (to_obj(obj)->isActiveFinalizer()) return true;
+  if (to_obj(obj)->isYoungRoot()) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -353,8 +353,7 @@ void RTGC::initialize() {
   RTGC_DEBUG = 1;
   logOptions[0] = -1;
 
-
-  printf("init rtgc narrowOop=%d tr_heap= %p", rtHeap::useModifyFlag(),  GCNode::g_trackable_heap_start);
+  // printf("init rtgc narrowOop=%d tr_heap= %p", rtHeap::useModifyFlag(),  GCNode::g_trackable_heap_start);
 #else
   rt_assert(false);
 #endif

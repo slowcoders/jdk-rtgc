@@ -457,7 +457,7 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
     return true;
 }
 
-AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* tail) {
+AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* tail, bool enableShortcut) {
     bool multi_anchor_found = false;
     const int MAX_PATH_LENGTH_FOR_FAST_CHECK = 20;
     GCObject* node = tail;
@@ -475,7 +475,7 @@ AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* tail) {
                 }
 
                 rt_assert(!node->isGarbageMarked());
-                if (node->hasShortcut()) {
+                if (enableShortcut && node->hasShortcut()) {
                     /* shortcut 은 multi_ref 로 간주한다. */
                     multi_anchor_found = true;
                     node = node->getShortcut()->anchor();

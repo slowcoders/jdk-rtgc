@@ -32,12 +32,12 @@ static const int LOG_OPT(int function) {
 }
 
 using namespace RTGC;
-Stack<oop, mtGC> MarkSweep::_resurrect_stack;
 
 namespace RTGC {
   const bool BATCH_UPDATE_ANCHORS = false & MARK_ALIVE_CHUNK;
   // bool yg_root_locked = false;
-  bool g_in_progress_marking = false;
+  bool g_in_progress_marking_unstable_young_root = false;
+
   int cnt_resurrect = 0;
   int g_cnt_skip_garbage = 0;
   int g_cnt_multi_anchored_obj;
@@ -83,6 +83,7 @@ namespace RTGC {
   int g_cntScan = 0;
   int g_saved_young_root_count = 0;
   int g_saved_stack_root_count = 0;
+  int g_marked_root_count = 0;
   RtAdjustPointerClosure g_adjust_pointer_closure;
   RtYoungRootClosure* g_young_root_closure;
   const bool USE_PENDING_TRACKABLES = false;
@@ -154,9 +155,8 @@ void rtHeap::add_young_root(oopDesc* old_p, oopDesc* new_p) {
   // rt_assert(g_young_roots.indexOf(old_p) < 0);
   // rt_assert(g_young_roots.indexOf(new_p) < 0);
   node->markYoungRoot();
-  g_young_roots.push_back(new_p);
-  rtgc_log(LOG_OPT(7), "add YG Root (%p)->%p idx=%d", old_p, new_p, g_young_roots.size());
   rtgc_debug_log(old_p, "add YG Root (%p)->%p idx=%d", old_p, new_p, g_young_roots.size());
+  g_young_roots.push_back(new_p);
 }
 
 bool rtHeap::is_trackable(oopDesc* p) {
@@ -250,6 +250,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 }
 
 void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  if (!g_in_progress_marking_unstable_young_root) return;
   if (anchor_p == link_p) return;
   GCObject* anchor = to_obj(anchor_p);
   GCObject* link = to_obj(link_p);
@@ -260,7 +261,13 @@ void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
   link->addTemporalAnchor(anchor);
 }
 
+void rtHeap__ensure_resurrect_mode() {
+  rt_assert(g_in_progress_marking_unstable_young_root);
+}
+
 void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  rt_assert(g_in_progress_marking_unstable_young_root);
+  rt_assert(g_marked_root_count == 0);
   if (anchor_p == link_p) return;
   GCObject* anchor = to_obj(anchor_p);
   rt_assert_f(!anchor->isTrackable(), "not young anchor %p(%s)", anchor_p, anchor_p->klass()->name()->bytes());
@@ -290,7 +297,9 @@ void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
 }
 
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
+  rt_assert(in_full_gc || !g_in_progress_marking_unstable_young_root);
   rt_assert(EnableRTGC);
+  rt_assert(g_marked_root_count == 0);
   GCObject* node = to_obj(new_p);
   rt_assert_f(node->is_adjusted_trackable(), "must be trackable" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   rt_assert(!node->isGarbageMarked());
@@ -341,7 +350,7 @@ void rtHeap__clearStack() {
 }
 
 
-void rtHeap__clearTemporalAnchorList(oopDesc* old_p) {
+void rtHeap::clear_temporal_anchor_list(oopDesc* old_p) {
   GCObject* old = to_obj(old_p);
   rt_assert(!old->isTrackable());
   ((HeapWord*)old)[1] = 0;
@@ -375,6 +384,17 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   }
   _rtgc.g_pGarbageProcessor->collectAndDestroyGarbage(is_full_gc);
   
+  if (RTGC_DEBUG) {
+    for (int idx_root = g_marked_root_count; idx_root < g_saved_young_root_count; idx_root ++) {
+      GCObject* node = to_obj(g_young_roots.at(idx_root));
+      if (!node->isGarbageMarked()) {
+        AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node, false);
+        rt_assert_f(state == AnchorState::NotAnchored, "misdetected garbage root %p/%d " PTR_DBG_SIG, node, idx_root, PTR_DBG_INFO(node));
+        rt_assert_f(node->isGarbageMarked(), "misdetected garbage root %p/%d " PTR_DBG_SIG, node, idx_root, PTR_DBG_INFO(node));
+      }
+    }
+  }
+
   // while (!_yg_root_reachables.is_empty()) {
   //   GCObject* obj = _yg_root_reachables.pop();
   //   if (obj->hasMultiRef()) {
@@ -407,7 +427,9 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
     }
     rtgc_log(LOG_OPT(1), "rtHeap__clear_garbage_young_roots done %d->%d garbages=%d", 
         old_cnt, g_young_roots.size(), _rtgc.g_pGarbageProcessor->getGarbageNodes()->size());
-
+    
+    // young-gc 실패 후, 연이어 full_gc 가 수행되는 것을 대비.
+    g_saved_young_root_count = g_young_roots.size();
     rtHeap__clearStack<false>();
 
     rtHeapEx::g_lock_garbage_list = true;
@@ -422,18 +444,19 @@ template <bool mark_strong>
 inline int mark_young_root_reachables(int marked_root_count, RtYoungRootClosure* closure, bool is_full_gc) {
   int cnt_stack_root = -1;
   int young_root_count = g_saved_young_root_count;
+  rt_assert(young_root_count <= g_young_roots.size());
 
   for (bool need_rescan = true; cnt_stack_root < g_stack_roots.size(); ) {
     cnt_stack_root = g_stack_roots.size();
     rtgc_log(true, "mark %s young roots n %d / y0 %d / y2 %d", 
         mark_strong ? "strong" : "uncertain",
         marked_root_count, young_root_count, g_young_roots.size());
+    bool use_shortcut = marked_root_count == 0;
 
     for (int idx_root = marked_root_count; idx_root < young_root_count; idx_root ++) {
       GCObject* node = to_obj(g_young_roots.at(idx_root));
-      AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node);
+      AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node, use_shortcut);
       if (mark_strong ? (state == AnchorState::AnchoredToRoot) : (state != AnchorState::NotAnchored)) {
-        // rtgc_log(true, "mark strong young root %p %d", node, idx_root);
         rtgc_debug_log(node, "mark young root %p %d", node, idx_root);
         bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
         closure->do_complete(mark_strong);
@@ -460,18 +483,35 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   rtHeapEx::g_lock_garbage_list = false;
 
 #ifdef ASSERT
-  for (int idx_root = young_root_count; --idx_root >= 0; ) {
+  for (int idx_root = 0; idx_root < g_young_roots.size(); idx_root++ ) {
     GCObject* node = to_obj(g_young_roots.at(idx_root));
+    rtgc_log(LOG_OPT(99), "registered young root %p %d", node, idx_root);
+
     rt_assert_f(!node->isGarbageMarked(), "invalid yg-root %p(%s)", node, RTGC::getClassName(node));
   }
 #endif
 
-  int marked_root_start = mark_young_root_reachables<true>(0, closure, is_full_gc);
+  int marked_root_count = mark_young_root_reachables<true>(0, closure, is_full_gc);
   // !!! save valid stack root count 
   g_saved_stack_root_count = g_stack_roots.size();
 
-  marked_root_start = mark_young_root_reachables<false>(marked_root_start, closure, is_full_gc);
+  g_in_progress_marking_unstable_young_root = true;
+  marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
+  if (rtHeapEx::mark_and_clear_young_finalize_reachables(is_full_gc)) {
+    marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
+  }
 
+  g_marked_root_count = marked_root_count;
+  g_in_progress_marking_unstable_young_root = false;
+
+  if (RTGC_DEBUG) {
+    for (int idx_root = g_marked_root_count; idx_root < g_saved_young_root_count; idx_root ++) {
+      GCObject* node = to_obj(g_young_roots.at(idx_root));
+      rtgc_debug_log(node, "skipped young root %p %d", node, idx_root);
+      AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node, false);
+      rt_assert(state == AnchorState::NotAnchored);
+    }
+  }
 
   if (is_full_gc) {
     rtCLDCleaner::clear_cld_locks(g_young_root_closure);
@@ -495,6 +535,7 @@ void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
     node->setSafeAnchor(to_obj(anchor));
   }
 }
+
 
 void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
   GCObject* link = to_obj(link_p);
@@ -538,7 +579,7 @@ void rtHeap::mark_forwarded_trackable(oopDesc* p) {
     }
   } else {
     rt_assert(p->is_gc_marked());
-    rtHeap__clearTemporalAnchorList(p);
+    rtHeap::clear_temporal_anchor_list(p);
   }
 }
 
@@ -643,9 +684,6 @@ static void adjust_anchor_pointer(ShortOOP* p, GCObject* node) {
 
 
 size_t rtHeap::adjust_pointers(oopDesc* old_node_p) {
-#ifdef ASSERT
-  g_cntScan ++;
-#endif
 
   GCObject* old_node = to_obj(old_node_p);
   // 참고) 모든 dead-space 는 trakable 이 아니어도 명시적으로 garbage marking 되어야 한다.
@@ -893,14 +931,17 @@ void rtHeap::prepare_rtgc() {
   rtgc_log(LOG_OPT(1), "prepare_rtgc");
   debug_only(cnt_resurrect = 0;)
   debug_only(g_cnt_skip_garbage = 0;)
+  debug_only(g_marked_root_count = 0;)
   is_gc_started = true;
   rt_assert(g_stack_roots.size() == 0);
   if (rtHeap::useModifyFlag()) {
     UpdateLogBuffer::process_update_logs();
   }
   g_saved_young_root_count = g_young_roots.size();
+  debug_only(g_cntScan ++);
+  rtgc_log(true, "--- g_saved_young_root_count=%d", g_saved_young_root_count);
+
 #if TRACE_UPDATE_LOG
-  log_trace_p(gc)("field_update count = %d, inverse_graph_update_cnt = %d", g_field_update_cnt, g_inverse_graph_update_cnt);
   g_field_update_cnt = 0;
   g_inverse_graph_update_cnt = 0;
 #endif
@@ -915,7 +956,6 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
       WeakProcessor::oops_do(&clear_weak_handle_ref);
     }
     in_full_gc = 1;
-    g_in_progress_marking = true;
     rtHeapEx::break_reference_links(policy);
   }
   rtHeap__processUntrackedTenuredObjects();
@@ -939,6 +979,7 @@ void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused)
   rt_assert(MarkSweep::_resurrect_stack.size() == 0);
   MarkSweep::_resurrect_stack.clear();
   in_full_gc = 0;
+  g_saved_young_root_count = 0;
 }
 
 
@@ -969,7 +1010,7 @@ size_t CollectedHeap::filler_array_min_size() {
   return align_object_size(filler_array_hdr_size()); // align to MinObjAlignment
 }
 
-void rtHeap__mark_dead_space(oopDesc* deadObj) {
+void rtHeap::mark_dead_space(oopDesc* deadObj) {
   GCObject* obj = to_obj(deadObj);
   rt_assert(!deadObj->is_gc_marked());
   if (obj->isTrackable_unsafe()) {
@@ -1102,7 +1143,7 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
     if (node->isGarbageMarked()) {
       debug_only(rt_assert(in_full_gc && idx < g_debug_cnt_untracked));
     } else {
-      rtgc_log(LOG_OPT(7), "oop_recycled_iterate %p", node);
+      rtgc_debug_log(node, "oop_recycled_iterate %p", node);
       closure->do_object(cast_to_oop(node));
     }
   }

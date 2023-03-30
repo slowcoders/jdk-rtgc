@@ -47,8 +47,7 @@ inline void MarkSweep::mark_object(oop obj) {
   if (EnableRTGC) {
     rt_assert(!rtHeap::is_trackable(obj));
     precond(rtHeap::is_alive(obj));
-    void rtHeap__clearTemporalAnchorList(oopDesc* oop);
-    rtHeap__clearTemporalAnchorList(obj);
+    rtHeap::clear_temporal_anchor_list(obj);
   }
 #endif
   if (obj->mark_must_be_preserved(mark)) {
@@ -71,7 +70,13 @@ inline bool MarkSweep::mark_and_push_internal(oop obj) {
   
   if (!obj->mark().is_marked()) {
     mark_object(obj);
-    _marking_stack.push(obj);
+    if (root_reachable) {
+      _marking_stack.push(obj);
+    } else {
+      void rtHeap__ensure_resurrect_mode();
+      rtHeap__ensure_resurrect_mode();
+      _resurrect_stack.push(obj);
+    }
   }
   return true;
 }

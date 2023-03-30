@@ -129,6 +129,7 @@ public:
 
 class YoungRootClosure : public YoungRootClosureBase<YoungRootClosure, true> {
   bool _has_young_ref;
+  bool _is_strong_rechable;
 public:
   YoungRootClosure(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure)
    : YoungRootClosureBase(young_gen, old_gen, complete_closure) {}

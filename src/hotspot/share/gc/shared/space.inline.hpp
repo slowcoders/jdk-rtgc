@@ -221,8 +221,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
         oop obj = cast_to_oop(cur_obj);
         if (EnableRTGC) {
-          void rtHeap__mark_dead_space(oopDesc* obj);
-          rtHeap__mark_dead_space(obj);
+          rtHeap::mark_dead_space(obj);
         }
         compact_top = cp->space->forward(obj, obj->size(), cp, compact_top);
         end_of_live = end;

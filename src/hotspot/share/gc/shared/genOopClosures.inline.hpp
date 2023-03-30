@@ -132,6 +132,7 @@ void ScanTrackableClosure<resurrect>::barrier(oop old_p, oop new_p) {
   if (!resurrect) {
     // rtHeap::add_trackable_link(_trackable_anchor, new_p);
   } else {
+    rtHeap::mark_young_root_reachable(_trackable_anchor, new_p);
     rtgc_debug_log(_trackable_anchor, "barrier %p => %p -> %p\n", 
         (void*)_trackable_anchor, (void*)old_p, (void*)new_p);
   }

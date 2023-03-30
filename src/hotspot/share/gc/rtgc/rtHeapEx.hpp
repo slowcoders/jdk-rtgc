@@ -56,6 +56,8 @@ public:
 
   static void check_immortal_heap_objects();
 
+  static bool mark_and_clear_young_finalize_reachables(bool is_full_gc);
+
   static jlong _soft_ref_timestamp_clock;
 
   static bool g_lock_unsafe_list;
