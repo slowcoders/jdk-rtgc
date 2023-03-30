@@ -32,6 +32,7 @@ public:
 
   virtual bool iterate_tenured_young_root_oop(oopDesc* root) = 0;
   virtual void do_complete(bool is_strong_rechable) = 0;
+  virtual oop  keep_alive_young_referent(oop p) = 0;
 };
 
 class rtHeap : AllStatic {

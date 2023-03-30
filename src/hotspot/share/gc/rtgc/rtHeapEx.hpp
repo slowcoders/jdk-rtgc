@@ -56,7 +56,7 @@ public:
 
   static void check_immortal_heap_objects();
 
-  static bool mark_and_clear_young_finalize_reachables(bool is_full_gc);
+  static bool keep_alive_young_final_referents(RtYoungRootClosure* closure, bool is_full_gc);
 
   static jlong _soft_ref_timestamp_clock;
 

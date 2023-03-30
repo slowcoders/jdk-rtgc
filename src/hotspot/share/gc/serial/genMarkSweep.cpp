@@ -215,7 +215,7 @@ class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClo
   bool _is_strong_rechable;
 public:
   
-  bool iterate_tenured_young_root_oop(oopDesc* obj) {
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj) {
     precond(rtHeap::is_trackable(obj));
     _is_young_root = false;
     // oop old_anchor = _current_anchor;
@@ -225,12 +225,19 @@ public:
     return _is_young_root;
   }
 
-  void do_complete(bool is_strong_rechable) {
+  virtual void do_complete(bool is_strong_rechable) {
     if (is_strong_rechable) {
       MarkSweep::follow_stack<true>();
     } else {
       MarkSweep::follow_stack<false>();
     }
+  }
+
+  oop keep_alive_young_referent(oop obj) {
+    rt_assert(!obj->mark().is_marked());
+    MarkSweep::mark_object(obj);
+    MarkSweep::_marking_stack.push(obj);
+    return obj;
   }
 
   template <typename T>

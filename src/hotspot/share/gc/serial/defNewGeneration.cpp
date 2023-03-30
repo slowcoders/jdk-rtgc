@@ -592,6 +592,16 @@ public:
   }
 };
 
+class RtKeepAliveClosure : FastScanClosure<RtKeepAliveClosure, false> {
+  void barrier(oop old_p, oop new_p) {}
+
+  void trackable_barrier(oop old_p, oop new_p) { 
+    fatal("Should not reach here!");
+  }
+
+  void promoted_trackable_barrier(oop old_p, oop new_p) { }
+};
+
 bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj) {
   _has_young_ref = false;
   _current_anchor = obj;
@@ -610,9 +620,18 @@ void YoungRootClosure::do_complete(bool is_strong_rechable) {
     do {
       old_gen->oop_since_save_marks_iterate((YoungRootReachableClosure<true>*)this);
     } while(!old_gen->no_allocs_since_save_marks());
+    rtHeap::oop_recycled_iterate(((DefNewGeneration::FastEvacuateFollowersClosure*)_complete_closure)->_scan_older);
     young_gen()->oop_since_save_marks_iterate((YoungRootReachableClosure<false>*)this);
   } while (!young_gen()->no_allocs_since_save_marks() ||
            !old_gen->no_allocs_since_save_marks());
+}
+
+oop YoungRootClosure::keep_alive_young_referent(oop obj) {
+    rt_assert(cast_from_oop<HeapWord*>(obj) < young_gen()->reserved().end());
+    rt_assert_f(!young_gen()->to()->is_in_reserved(obj), "Scanning field twice?");
+    rt_assert(!obj->is_forwarded());
+    oop new_obj = young_gen()->copy_to_survivor_space(obj);
+    return new_obj;
 }
 #endif
 

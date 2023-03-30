@@ -134,9 +134,11 @@ public:
   YoungRootClosure(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure)
    : YoungRootClosureBase(young_gen, old_gen, complete_closure) {}
   
-  bool iterate_tenured_young_root_oop(oopDesc* obj);
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj);
 
-  void do_complete(bool is_strong_rechable);
+  virtual void do_complete(bool is_strong_rechable);
+
+  virtual oop keep_alive_young_referent(oop p);
 
   void barrier(oop old_p, oop new_p) {
     rtHeap::mark_young_root_reachable(_current_anchor, new_p);

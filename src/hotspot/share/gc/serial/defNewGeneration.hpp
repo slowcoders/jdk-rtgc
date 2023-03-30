@@ -183,6 +183,9 @@ protected:
   };
 
   class FastEvacuateFollowersClosure: public VoidClosure {
+#if INCLUDE_RTGC
+    friend class YoungRootClosure;
+#endif    
     SerialHeap* _heap;
     DefNewScanClosure* _scan_cur_or_nonheap;
     DefNewYoungerGenClosure* _scan_older;

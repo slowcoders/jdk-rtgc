@@ -87,6 +87,9 @@ class MarkSweep : AllStatic {
   friend class AdjustPointerClosure;
   friend class KeepAliveClosure;
   friend class VM_MarkSweep;
+#if INCLUDE_RTGC
+  template <bool is_tracked> friend class TenuredYoungRootClosure;
+#endif
 
   //
   // Vars

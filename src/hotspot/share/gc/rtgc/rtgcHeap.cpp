@@ -497,7 +497,7 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
 
   g_in_progress_marking_unstable_young_root = true;
   marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
-  if (rtHeapEx::mark_and_clear_young_finalize_reachables(is_full_gc)) {
+  if (rtHeapEx::keep_alive_young_final_referents(closure, is_full_gc)) {
     marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
   }
 
