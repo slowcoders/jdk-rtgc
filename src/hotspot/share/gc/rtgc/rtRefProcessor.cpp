@@ -586,22 +586,7 @@ void rtHeapEx::break_reference_links(ReferencePolicy* policy) {
 }
 
 
-void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_full_gc) {
-  // const char* ref_type$ = reference_type_to_string(clear_ref);
-  // __process_java_references<REF_NONE, true>(keep_alive, complete_gc);
-  // rtgc_log(LOG_OPT(3), "_soft_ref_timestamp_clock * %lu", rtHeapEx::_soft_ref_timestamp_clock);
-
-  jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
-  // if (is_full_gc) {
-  //   ReferencePolicy* policy = RefList::g_ref_policy;
-  //   rt_assert(rtHeap::in_full_gc);
-    
-  //   rtHeap::iterate_younger_gen_roots(NULL, true);
-  //   complete_gc->do_void();
-  // }
-
-
-  if (is_full_gc) {
+void rtHeapEx::process_weak_soft_references() {
     jlong soft_ref_timestamp = rtHeapEx::_soft_ref_timestamp_clock;
     GCObject* ref;
     rtgc_log(LOG_OPT(1), "g_softList 1-2 %d", g_softList._refs.size());
@@ -609,14 +594,6 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
       if (ref->getContextFlag()) {
         ref->unmarkContextFlag();
         rt_assert(rtHeap::is_alive(iter.referent()));
-        // GCObject* referent = to_obj(iter.referent());
-        // if (!referent->isTrackable() && !referent_p->is_gc_marked()) {
-        //   if (UseCompressedOops) {
-        //     keep_alive->do_oop((narrowOop*)iter.referent_addr());
-        //   } else {
-        //     keep_alive->do_oop((oop*)iter.referent_addr());
-        //   }
-        // }
       } else {
         rtgc_log(LOG_OPT(3), "clear dirty soft %p tr=%d", ref, ref->isTrackable());
         iter.clear_weak_soft_garbage_referent();
@@ -629,42 +606,39 @@ void rtHeap::process_weak_soft_references(OopClosure* keep_alive, VoidClosure* c
         iter.clear_weak_soft_garbage_referent();
       }
     }
-  }
-  
-  if (!rtHeap::DoCrossCheck) {
-    rtHeapEx::update_soft_ref_master_clock();
-  }
 }
 
 template <bool is_full_gc>
 static bool __keep_alive_young_final_referents(RtYoungRootClosure* closure) {
-  GCObject* ref;
   bool changed = false;
+  GCObject* ref;
   for (RefIterator<is_full_gc> iter(g_finalList); (ref = iter.next_ref(SkipNone)) != NULL; ) {
     oop referent_p = iter.referent();
     GCObject* referent = to_obj(referent_p);
     if (referent->isTrackable() || rtHeap::is_alive(referent_p)) continue;
 
     rtgc_debug_log(referent, "keep alive ref %p -> %p", ref, referent);
-    oop ref_p = cast_to_oop(ref);
     referent->unmarkActiveFinalizerReachable();
     ref->unmarkActiveFinalizer();
 
-    oop new_p = closure->keep_alive_young_referent(referent_p);
+    referent_p = closure->keep_alive_young_referent(referent_p);
     if (!is_full_gc) {
+      referent = to_obj(referent_p);
+      iter.adjust_ref_pointer();
+      oop ref_p = iter.ref();
+      ref = to_obj(ref_p);
+
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_p, RefList::_referent_off, referent_p);
+      if (ref->isTrackable()) {
+        RTGC::add_trackable_link_or_mark_young_root(referent_p, ref_p);
+      } else if (referent->isTrackable()) {
+        rtHeap::mark_survivor_reachable(referent_p);
+      }
     } else {
-      rt_assert(!rtHeap::is_in_trackable_space(new_p));
-    }
-    
-    if (!ref->isTrackable()) {
-      // final referent 는 unstable reachable 이 아니다.
-      // rtHeap::mark_young_survivor_reachable(ref_p, referent_p);
-    } else if (!is_full_gc && rtHeap::is_in_trackable_space(new_p)) {
-      rtHeap::add_trackable_link(ref_p, referent_p);
-    } else {
-      // 불필요.
-      // rtHeap::mark_young_root_reachable(ref_p, referent_p);
+      rt_assert(!to_obj(referent_p)->isTrackable());
+      if (ref->isTrackable()) {
+        rtHeap::mark_young_root(cast_to_oop(ref), true);
+      }
     }
     iter.enqueue_curr_ref(false);      
     changed = true;
@@ -694,7 +668,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
     } else {
       is_alive = cast_to_oop(referent)->is_gc_marked();
-      rt_assert(is_full_gc || is_alive);
+      rt_assert(is_alive);
     }
 
     if (!is_full_gc) {
@@ -783,6 +757,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
 
 
 void rtHeapEx::keep_alive_final_referents(RefProcProxyTask* proxy_task) {
+
   SerialGCRefProcProxyTask* task = (SerialGCRefProcProxyTask*)proxy_task;
   OopClosure* keep_alive = task->keep_alive_closure();
   VoidClosure* complete_gc = task->complete_gc_closure();
@@ -835,6 +810,14 @@ void __process_final_phantom_references() {
 }
 
 void rtHeap::process_final_phantom_references(OopClosure* keep_alive, VoidClosure* complete_gc, bool is_tenure_gc) {
+  if (rtHeap::in_full_gc) {
+    rtHeapEx::process_weak_soft_references();
+  }
+  if (!rtHeap::DoCrossCheck) {
+    rtHeapEx::update_soft_ref_master_clock();
+  }
+
+
   if (!rtHeap::DoCrossCheck) {
     if (rtHeap::in_full_gc) {
       if (UseCompressedOops) {

@@ -716,7 +716,7 @@ void DefNewGeneration::collect(bool   full,
   ReferenceProcessorPhaseTimes pt(_gc_timer, rp->max_num_queues());
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (EnableRTGC) {
-    rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, false);
+    // rtHeap::process_weak_soft_references(&scan_closure, &evacuate_followers, false);
   }
   if (!EnableRTGC || rtHeap::DoCrossCheck)
 #endif

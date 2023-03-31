@@ -500,9 +500,8 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   g_saved_stack_root_count = g_stack_roots.size();
 
   marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
-  if (!is_full_gc && rtHeapEx::keep_alive_young_final_referents(closure, is_full_gc)) {
-    // YG-GC 의 경우, weak/soft ref 를 예외 처리하지 않으므로, YG-객체에 한정하여 final-referent 의 keep-alive 를 바로 처리할 수 있다.
-    // Full-GC 의 경우엔, weak/soft ref 의 garbage 여부를 먼저 확인한 후, keep_alive 처리를 해야 한다.
+  if (rtHeapEx::keep_alive_young_final_referents(closure, is_full_gc)) {
+    // YG-referent 만 한정하며, weak/soft ref 의 가비지 여부 검사와 관계없이 keep_alive 처리가 가능하다.
     marked_root_count = mark_young_root_reachables<true>(marked_root_count, closure, is_full_gc);
     marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
   }
@@ -553,7 +552,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
   rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", 
       anchor, anchor_p->klass()->name()->bytes());
   rt_assert_f(!link->isGarbageMarked(), "grabage link " PTR_DBG_SIG "\n anchor" PTR_DBG_SIG, PTR_DBG_INFO(link), PTR_DBG_INFO(anchor));
-  if (link->isGarbageMarked()) {
+  if (false && link->isGarbageMarked()) {
     rt_assert_f(link->hasAnchor() || (link->isYoungRoot() && link->isDirtyReferrerPoints()), 
         "invalid link_p %p(%s) -> %p(%s)", 
         anchor_p, RTGC::getClassName(anchor), link, RTGC::getClassName(link));
