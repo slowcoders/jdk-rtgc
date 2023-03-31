@@ -151,7 +151,8 @@ void GCObject::addTemporalAnchor(GCObject* anchor) {
 }
 
 bool GCObject::addDirtyAnchor(GCObject* anchor) {
-    rt_assert_f(anchor->hasAnchor(), "dirty anchor must have dirty anchor or young root" PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+    rt_assert_f(anchor->hasAnchor(), "dirty anchor must have dirty anchor or young root " PTR_DBG_SIG "anchor: "
+        PTR_DBG_SIG, PTR_DBG_INFO(this), PTR_DBG_INFO(anchor));
     bool was_clean = !this->isDirtyReferrerPoints();
     // rtgc_debug_log(this, "addDirtyAnchor %p -> %p(c=%d/mluti=%d/y-r=%d)", 
     //     anchor, this, was_clean, this->hasMultiRef(), anchor->isYoungRoot());

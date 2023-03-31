@@ -250,6 +250,7 @@ void rtHeap__processUntrackedTenuredObjects() {
 }
 
 void rtHeap::mark_young_root_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  // rtgc_log(true, "mark_young_root_reachable %p -> %p = %d", anchor_p, link_p, g_in_progress_marking_unstable_young_root);
   if (!g_in_progress_marking_unstable_young_root) return;
   if (anchor_p == link_p) return;
   GCObject* anchor = to_obj(anchor_p);
@@ -266,6 +267,7 @@ void rtHeap__ensure_resurrect_mode() {
 }
 
 void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
+  // rtgc_log(true, "mark_young_survivor_reachable %p -> %p", anchor_p, link_p);
   rt_assert(g_in_progress_marking_unstable_young_root);
   rt_assert(g_marked_root_count == 0);
   if (anchor_p == link_p) return;
@@ -299,7 +301,7 @@ void rtHeap::mark_young_survivor_reachable(oopDesc* anchor_p, oopDesc* link_p) {
 void rtHeap::mark_survivor_reachable(oopDesc* new_p) {
   rt_assert(in_full_gc || !g_in_progress_marking_unstable_young_root);
   rt_assert(EnableRTGC);
-  rt_assert(g_marked_root_count == 0);
+  // rt_assert(in_full_gc || g_marked_root_count == 0);
   GCObject* node = to_obj(new_p);
   rt_assert_f(node->is_adjusted_trackable(), "must be trackable" PTR_DBG_SIG, PTR_DBG_INFO(new_p));
   rt_assert(!node->isGarbageMarked());
@@ -440,27 +442,28 @@ void rtHeap__clear_garbage_young_roots(bool is_full_gc) {
   }
 }
 
-template <bool mark_strong> 
+template <bool is_root_reachable> 
 inline int mark_young_root_reachables(int marked_root_count, RtYoungRootClosure* closure, bool is_full_gc) {
   int cnt_stack_root = -1;
   int young_root_count = g_saved_young_root_count;
   rt_assert(young_root_count <= g_young_roots.size());
+  debug_only(g_in_progress_marking_unstable_young_root = !is_root_reachable;)
 
   for (bool need_rescan = true; cnt_stack_root < g_stack_roots.size(); ) {
     cnt_stack_root = g_stack_roots.size();
-    rtgc_log(true, "mark %s young roots n %d / y0 %d / y2 %d", 
-        mark_strong ? "strong" : "uncertain",
+    rtgc_log(true, "mark young roots %s n %d / y0 %d / y2 %d", 
+        is_root_reachable ? "strong" : "uncertain",
         marked_root_count, young_root_count, g_young_roots.size());
     bool use_shortcut = marked_root_count == 0;
 
     for (int idx_root = marked_root_count; idx_root < young_root_count; idx_root ++) {
       GCObject* node = to_obj(g_young_roots.at(idx_root));
       AnchorState state = _rtgc.g_pGarbageProcessor->checkAnchorStateFast(node, use_shortcut);
-      if (mark_strong ? (state == AnchorState::AnchoredToRoot) : (state != AnchorState::NotAnchored)) {
-        rtgc_debug_log(node, "mark young root %p %d", node, idx_root);
-        bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
-        closure->do_complete(mark_strong);
-        if (!mark_strong) {
+      if (is_root_reachable ? (state == AnchorState::AnchoredToRoot) : (state != AnchorState::NotAnchored)) {
+        rtgc_debug_log(node, "scan young root %p %d", node, idx_root);
+        bool is_young_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), is_root_reachable);
+        closure->do_complete(is_root_reachable);
+        if (!is_root_reachable) {
           cnt_stack_root = -1;
         }
         if (!is_full_gc && !is_young_root) {
@@ -474,6 +477,7 @@ inline int mark_young_root_reachables(int marked_root_count, RtYoungRootClosure*
       }
     }
   };
+  debug_only(g_in_progress_marking_unstable_young_root = false;)
   return marked_root_count;
 }
 
@@ -495,14 +499,15 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
   // !!! save valid stack root count 
   g_saved_stack_root_count = g_stack_roots.size();
 
-  g_in_progress_marking_unstable_young_root = true;
   marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
-  if (rtHeapEx::keep_alive_young_final_referents(closure, is_full_gc)) {
+  if (!is_full_gc && rtHeapEx::keep_alive_young_final_referents(closure, is_full_gc)) {
+    // YG-GC 의 경우, weak/soft ref 를 예외 처리하지 않으므로, YG-객체에 한정하여 final-referent 의 keep-alive 를 바로 처리할 수 있다.
+    // Full-GC 의 경우엔, weak/soft ref 의 garbage 여부를 먼저 확인한 후, keep_alive 처리를 해야 한다.
+    marked_root_count = mark_young_root_reachables<true>(marked_root_count, closure, is_full_gc);
     marked_root_count = mark_young_root_reachables<false>(marked_root_count, closure, is_full_gc);
   }
 
   g_marked_root_count = marked_root_count;
-  g_in_progress_marking_unstable_young_root = false;
 
   if (RTGC_DEBUG) {
     for (int idx_root = g_marked_root_count; idx_root < g_saved_young_root_count; idx_root ++) {
@@ -538,6 +543,7 @@ void rtHeap::mark_resurrected_link(oopDesc* anchor, oopDesc* link) {
 
 
 void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
+  // rtgc_log(true, "add trackble link %p - %p", anchor_p, link_p);
   GCObject* link = to_obj(link_p);
   GCObject* anchor = to_obj(anchor_p);
   if (anchor == link) return;
@@ -950,6 +956,7 @@ void rtHeap::prepare_rtgc() {
 void rtHeap::init_reference_processor(ReferencePolicy* policy) {
   rt_assert(is_gc_started);
   rtgc_log(LOG_OPT(1), "init_reference_processor %p", policy);
+  debug_only(g_marked_root_count = 0;)
   if (policy != NULL) {
     FreeMemStore::clearStore();
     if (RtLazyClearWeakHandle) {
@@ -1145,6 +1152,7 @@ void rtHeap::oop_recycled_iterate(ObjectClosure* closure) {
     } else {
       rtgc_debug_log(node, "oop_recycled_iterate %p", node);
       closure->do_object(cast_to_oop(node));
+      rtgc_debug_log(node, ">> oop_recycled_iterate %p", node);
     }
   }
 #ifdef ASSERT  

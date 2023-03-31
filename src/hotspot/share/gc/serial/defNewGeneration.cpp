@@ -100,16 +100,9 @@ FastKeepAliveClosure(DefNewGeneration* g, ScanWeakRefClosure* cl) :
 void DefNewGeneration::FastKeepAliveClosure::do_oop(oop* p)       { DefNewGeneration::FastKeepAliveClosure::do_oop_work(p); }
 void DefNewGeneration::FastKeepAliveClosure::do_oop(narrowOop* p) { DefNewGeneration::FastKeepAliveClosure::do_oop_work(p); }
 
-DefNewGeneration::FastEvacuateFollowersClosure::
-FastEvacuateFollowersClosure(SerialHeap* heap,
-                             DefNewScanClosure* cur,
-                             DefNewYoungerGenClosure* older) :
-  _heap(heap), _scan_cur_or_nonheap(cur), _scan_older(older)
-{
-}
-
-void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
-  ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
+template <typename ScanYoung, typename ScanOlder>
+void DefNewGeneration::FastEvacuateFollowersClosure<ScanYoung, ScanOlder>::do_void() {
+  // ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
     if (EnableRTGC) {
@@ -551,60 +544,60 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
 }
 
 #if INCLUDE_RTGC
-template <bool clear_modified_flag>
-class YoungRootReachableClosure : public YoungRootClosureBase<YoungRootReachableClosure<clear_modified_flag>, clear_modified_flag> {
+template <bool is_promoted, bool is_root_reachable>
+class ScanEvacuatedObjClosure : public ObjectClosure, 
+    public FastScanClosure<ScanEvacuatedObjClosure<is_promoted, is_root_reachable>, is_promoted> {
+  oop _current_anchor;
   bool _has_young_ref;
+
 public:
+  ScanEvacuatedObjClosure(DefNewGeneration* g, Generation* old_gen = NULL) : 
+      FastScanClosure<ScanEvacuatedObjClosure<is_promoted, is_root_reachable>, is_promoted>(g) {}
+
   void barrier(oop old_p, oop new_p) {
-    if (clear_modified_flag) {
+    if (is_promoted) {
       _has_young_ref = true;
-      rtHeap::mark_young_root_reachable(RtYoungRootClosure::_current_anchor, new_p);
-    } else {
-      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
+      if (!is_root_reachable) {
+        rtHeap::mark_young_root_reachable(_current_anchor, new_p);
+      }
+    } else if (!is_root_reachable) {
+      rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
     }
   }
 
   void trackable_barrier(oop old_p, oop new_p) {
-    if (clear_modified_flag) {
-      rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
-    } else {
-      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
+    if (is_promoted) {
+      rtHeap::add_trackable_link(_current_anchor, new_p);
+    } else if (!is_root_reachable) {
+      rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
     }
   }
 
   void promoted_trackable_barrier(oop old_p, oop new_p) {
-    if (clear_modified_flag) {
-      rtHeap::add_trackable_link(RtYoungRootClosure::_current_anchor, new_p);
-    } else {
-      rtHeap::mark_young_survivor_reachable(RtYoungRootClosure::_current_anchor, new_p);
+    if (is_promoted) {
+      rtHeap::add_trackable_link(_current_anchor, new_p);
+    } else if (!is_root_reachable) {
+      rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
     }
   }
 
   void do_object(oop obj) {
-    RtYoungRootClosure::_current_anchor = obj;
-    if (clear_modified_flag) {
+    _current_anchor = obj;
+    if (is_promoted) {
       _has_young_ref = false;
     }
     obj->oop_iterate(this);
-    if (clear_modified_flag && _has_young_ref) {
-      rtHeap::mark_young_root(RtYoungRootClosure::_current_anchor, true);
+    if (is_promoted && _has_young_ref) {
+      rtHeap::mark_young_root(_current_anchor, true);
     }
   }
 };
 
-class RtKeepAliveClosure : FastScanClosure<RtKeepAliveClosure, false> {
-  void barrier(oop old_p, oop new_p) {}
 
-  void trackable_barrier(oop old_p, oop new_p) { 
-    fatal("Should not reach here!");
-  }
-
-  void promoted_trackable_barrier(oop old_p, oop new_p) { }
-};
-
-bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj) {
+bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachable) {
   _has_young_ref = false;
   _current_anchor = obj;
+  _is_root_reachable = is_root_reachable;
   obj->oop_iterate(this);
   return _has_young_ref;
 }
@@ -612,18 +605,9 @@ bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj) {
 void YoungRootClosure::do_complete(bool is_strong_rechable) {
   if (is_strong_rechable) {
     _complete_closure->do_void();
-    return;
+  } else {
+    _unstable_complete_closure->do_void();
   }
-
-  TenuredGeneration* old_gen = (TenuredGeneration*)_old_gen;
-  do {
-    do {
-      old_gen->oop_since_save_marks_iterate((YoungRootReachableClosure<true>*)this);
-    } while(!old_gen->no_allocs_since_save_marks());
-    rtHeap::oop_recycled_iterate(((DefNewGeneration::FastEvacuateFollowersClosure*)_complete_closure)->_scan_older);
-    young_gen()->oop_since_save_marks_iterate((YoungRootReachableClosure<false>*)this);
-  } while (!young_gen()->no_allocs_since_save_marks() ||
-           !old_gen->no_allocs_since_save_marks());
 }
 
 oop YoungRootClosure::keep_alive_young_referent(oop obj) {
@@ -683,12 +667,15 @@ void DefNewGeneration::collect(bool   full,
         "save marks have not been newly set.");
 
   DefNewScanClosure       scan_closure(this);
+#if INCLUDE_RTGC  
+  typedef ScanEvacuatedObjClosure<true, true> DefNewYoungerGenClosure;
+#endif
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
 
   CLDScanClosure cld_scan_closure(&scan_closure);
 
   set_promo_failure_scan_stack_closure(&scan_closure);
-  FastEvacuateFollowersClosure evacuate_followers(heap,
+  FastEvacuateFollowersClosure<DefNewScanClosure, DefNewYoungerGenClosure> evacuate_followers(heap,
                                                   &scan_closure,
                                                   &younger_gen_closure);
 
@@ -708,7 +695,16 @@ void DefNewGeneration::collect(bool   full,
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
   if (RtNoDirtyCardMarking) {
-    YoungRootClosure        young_root_closure(this, _old_gen, &evacuate_followers);
+    typedef ScanEvacuatedObjClosure<false, false> YoungClosure;
+    typedef ScanEvacuatedObjClosure<true, false>  OldClosure;
+    YoungClosure young_scan_closure(this);
+    OldClosure old_scan_closure(this);
+    FastEvacuateFollowersClosure<YoungClosure, OldClosure> yg_followers(heap,
+                                              &young_scan_closure,
+                                              &old_scan_closure);
+
+
+    YoungRootClosure        young_root_closure(this, _old_gen, &evacuate_followers, &yg_followers);
     rtHeap::iterate_younger_gen_roots(&young_root_closure, false);
   }
 #endif

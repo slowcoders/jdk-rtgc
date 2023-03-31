@@ -81,67 +81,30 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool resurrect> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<resurrect>, true>, public ObjectClosure {
-private:
-  Generation*  _old_gen;
-  oopDesc* _trackable_anchor;
-  bool _is_young_root;
 
-public:
-  ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<resurrect>, true>(young_gen), 
-    _old_gen(old_gen) {}
-
-  Generation*  old_gen() { return _old_gen; }
-
-  void barrier(oop old_p, oop forwardee);
-
-  void trackable_barrier(oop old_p, oop new_p);
-
-  void promoted_trackable_barrier(oop old_p, oop new_p);
-
-  void do_object(oop obj);
-};
-
-class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
-public:  
-  DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<false>(young_gen, old_gen) {}
-};
-
-class ResurrectTrackableClosure : public ScanTrackableClosure<true> {
-public:  
-  ResurrectTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<true>(young_gen, old_gen) {}
-};
-
-template <typename Derived, bool clear_modified_flag>
-class YoungRootClosureBase : public RtYoungRootClosure, public FastScanClosure<Derived, clear_modified_flag> {
+class YoungRootClosure : public RtYoungRootClosure, public FastScanClosure<YoungRootClosure, true> {
 public:    
   Generation* _old_gen;
   VoidClosure* _complete_closure;
-
-  YoungRootClosureBase(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure)
-      : FastScanClosure<Derived, clear_modified_flag>(young_gen), 
-        _old_gen(old_gen), _complete_closure(complete_closure) {}
-};
-
-class YoungRootClosure : public YoungRootClosureBase<YoungRootClosure, true> {
+  VoidClosure* _unstable_complete_closure;
+  bool _is_root_reachable;
   bool _has_young_ref;
   bool _is_strong_rechable;
-public:
-  YoungRootClosure(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure)
-   : YoungRootClosureBase(young_gen, old_gen, complete_closure) {}
+
+  YoungRootClosure(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure, VoidClosure* unstable_complete_closure)
+      : FastScanClosure<YoungRootClosure, true>(young_gen), 
+        _old_gen(old_gen), _complete_closure(complete_closure), _unstable_complete_closure(unstable_complete_closure) {}
   
-  virtual bool iterate_tenured_young_root_oop(oopDesc* obj);
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachble);
 
   virtual void do_complete(bool is_strong_rechable);
 
   virtual oop keep_alive_young_referent(oop p);
 
   void barrier(oop old_p, oop new_p) {
-    rtHeap::mark_young_root_reachable(_current_anchor, new_p);
+    if (!_is_root_reachable) {
+      rtHeap::mark_young_root_reachable(_current_anchor, new_p);
+    }
     _has_young_ref = true;
   }
 

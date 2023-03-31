@@ -645,25 +645,32 @@ static bool __keep_alive_young_final_referents(RtYoungRootClosure* closure) {
     GCObject* referent = to_obj(referent_p);
     if (referent->isTrackable() || rtHeap::is_alive(referent_p)) continue;
 
+    rtgc_debug_log(referent, "keep alive ref %p -> %p", ref, referent);
+    oop ref_p = cast_to_oop(ref);
     referent->unmarkActiveFinalizerReachable();
     ref->unmarkActiveFinalizer();
 
-    oop ref_p = cast_to_oop(ref);
     oop new_p = closure->keep_alive_young_referent(referent_p);
-    if (is_full_gc) {
-      // mark_and_push 실행 필요. referent 주소도 변경되어야 한다....
+    if (!is_full_gc) {
       HeapAccess<AS_NO_KEEPALIVE>::oop_store_at(ref_p, RefList::_referent_off, referent_p);
+    } else {
+      rt_assert(!rtHeap::is_in_trackable_space(new_p));
     }
     
-    if (ref->isTrackable()) {
-      rtHeap::mark_young_root_reachable(ref_p, referent_p);
-    } else { 
-      rtHeap::mark_young_survivor_reachable(ref_p, referent_p);
+    if (!ref->isTrackable()) {
+      // final referent 는 unstable reachable 이 아니다.
+      // rtHeap::mark_young_survivor_reachable(ref_p, referent_p);
+    } else if (!is_full_gc && rtHeap::is_in_trackable_space(new_p)) {
+      rtHeap::add_trackable_link(ref_p, referent_p);
+    } else {
+      // 불필요.
+      // rtHeap::mark_young_root_reachable(ref_p, referent_p);
     }
     iter.enqueue_curr_ref(false);      
     changed = true;
   }
   if (changed) {
+    rtgc_log(true, "complete marking final referent followers");
     closure->do_complete(true);
   }
   return changed;
@@ -687,7 +694,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
       is_alive = _rtgc.g_pGarbageProcessor->resolveStrongSurvivalPath(referent);
     } else {
       is_alive = cast_to_oop(referent)->is_gc_marked();
-      rt_assert(is_alive);
+      rt_assert(is_full_gc || is_alive);
     }
 
     if (!is_full_gc) {
@@ -708,7 +715,7 @@ static void __keep_alive_final_referents(OopClosure* keep_alive, VoidClosure* co
     }
     
     if (!is_alive) {
-      rt_assert(referent->isTrackable());
+      rt_assert(is_full_gc || referent->isTrackable());
       if (true) {
         rtgc_log(LOG_OPT(3), "resurrect final ref %p of %p", ref, referent);
         if (is_full_gc) {

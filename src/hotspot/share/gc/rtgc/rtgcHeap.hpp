@@ -30,7 +30,7 @@ protected:
 public:  
   RtYoungRootClosure() : _current_anchor(0) {}
 
-  virtual bool iterate_tenured_young_root_oop(oopDesc* root) = 0;
+  virtual bool iterate_tenured_young_root_oop(oopDesc* root, bool is_root_reachable) = 0;
   virtual void do_complete(bool is_strong_rechable) = 0;
   virtual oop  keep_alive_young_referent(oop p) = 0;
 };

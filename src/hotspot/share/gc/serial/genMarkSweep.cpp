@@ -210,23 +210,23 @@ void GenMarkSweep::deallocate_stacks() {
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
 template<bool is_tracked>
-class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure, public ObjectClosure {
+class TenuredYoungRootClosure : public RtYoungRootClosure, public MarkAndPushClosure, public ObjectClosure {
   bool _is_young_root;
-  bool _is_strong_rechable;
+  bool _is_root_reachable;
 public:
   
-  virtual bool iterate_tenured_young_root_oop(oopDesc* obj) {
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachable) {
     precond(rtHeap::is_trackable(obj));
-    _is_young_root = false;
-    // oop old_anchor = _current_anchor;
+    _is_root_reachable = is_root_reachable;
     _current_anchor = obj;
+
+    _is_young_root = false;
     obj->oop_iterate(this);
-    // _current_anchor = old_anchor;
     return _is_young_root;
   }
 
-  virtual void do_complete(bool is_strong_rechable) {
-    if (is_strong_rechable) {
+  virtual void do_complete(bool is_root_reachable) {
+    if (is_root_reachable) {
       MarkSweep::follow_stack<true>();
     } else {
       MarkSweep::follow_stack<false>();
@@ -255,7 +255,9 @@ public:
       if (!rtHeap::is_trackable(obj)) {
         MarkSweep::mark_and_push_internal<true>(obj);
         _is_young_root = true;
-        rtHeap::mark_young_root_reachable(_current_anchor, obj);
+        if (!_is_root_reachable) {
+          rtHeap::mark_young_root_reachable(_current_anchor, obj);
+        }
       } else if (is_tracked || AUTO_TRACKABLE_MARK_BY_ADDRESS) {
         rtHeap::ensure_trackable_link(_current_anchor, obj);
       } else {
@@ -280,7 +282,7 @@ public:
 
   void do_object(oop obj) {
     rt_assert(!is_tracked);
-    iterate_tenured_young_root_oop(obj);
+    iterate_tenured_young_root_oop(obj, true);
   }
 
 };
