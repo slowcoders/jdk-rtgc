@@ -50,7 +50,7 @@ private:
   jobject                _loader;
   jobject                _protection_domain;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // && RTGC_ENABLE_ACYCLIC_REF_COUNT
   u2                     _node_type;
   u2                     _init_state;
 #else

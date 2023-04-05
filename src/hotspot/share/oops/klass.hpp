@@ -75,7 +75,7 @@ class ParCompactionManager;
 class PSPromotionManager;
 class vtableEntry;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 enum rtNodeType {
   Unknown = 0,
   MayCyclic = 2,
@@ -195,7 +195,7 @@ private:
   CDS_JAVA_HEAP_ONLY(int _archived_mirror_index;)
 
 protected:
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   u2  _node_type;
   u2  _init_state;
 #endif  
@@ -317,7 +317,7 @@ protected:
   ClassLoaderData* class_loader_data() const               { return _class_loader_data; }
   void set_class_loader_data(ClassLoaderData* loader_data) {  _class_loader_data = loader_data; }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 #if !RTGC_ENABLE_ACYCLIC_REF_COUNT
   rtNodeType node_type() { return rtNodeType::Cyclic; }
 

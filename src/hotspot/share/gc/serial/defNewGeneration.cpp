@@ -543,7 +543,7 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   age_table()->print_age_table(_tenuring_threshold);
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RtYoungRootClosure
 template <bool is_promoted, bool is_root_reachable>
 class ScanEvacuatedObjClosure : public ObjectClosure, 
     public FastScanClosure<ScanEvacuatedObjClosure<is_promoted, is_root_reachable>, is_promoted> {
@@ -658,7 +658,7 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // init reference processor 
   if (EnableRTGC) { 
     rtHeap::init_reference_processor(NULL);
   }
@@ -667,7 +667,7 @@ void DefNewGeneration::collect(bool   full,
         "save marks have not been newly set.");
 
   DefNewScanClosure       scan_closure(this);
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // RtYoungRootClosure
   typedef ScanEvacuatedObjClosure<true, true> DefNewYoungerGenClosure;
 #endif
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
@@ -864,7 +864,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC  // RtYoungRootClosure
     if (true || EnableRTGC) { /* UseCommpressedOpp 와 무관 */
       precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
       rtHeap::mark_promoted_trackable(obj);
@@ -886,7 +886,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // debug logging
   if (EnableRTGC) {
 #ifdef ASSERT
     RTGC::adjust_debug_pointer(old, obj, true);

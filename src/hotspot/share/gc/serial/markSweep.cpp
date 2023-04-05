@@ -50,7 +50,7 @@ uint                    MarkSweep::_total_invocations = 0;
 Stack<oop, mtGC>              MarkSweep::_marking_stack;
 Stack<ObjArrayTask, mtGC>     MarkSweep::_objarray_stack;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
 Stack<oop, mtGC>              MarkSweep::_resurrect_stack;
 Stack<ObjArrayTask, mtGC>     MarkSweep::_resurrect_objarray_stack;
 #endif
@@ -70,7 +70,7 @@ MarkAndPushClosure MarkSweep::mark_and_push_closure;
 CLDToOopClosure    MarkSweep::follow_cld_closure(&mark_and_push_closure, ClassLoaderData::_claim_strong);
 CLDToOopClosure    MarkSweep::adjust_cld_closure(&adjust_pointer_closure, ClassLoaderData::_claim_strong);
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
 template <bool tenured_anchor>
 class ResurrectedStackClosure : public MarkAndPushClosure {
   oop _anchor;
@@ -147,7 +147,7 @@ inline void MarkSweep::follow_array(objArrayOop array) {
   }
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // MARK_AND_LINK 
 int cnt_rtgc_referent_mark = 0;
 bool MarkSweep::_is_rt_anchor_trackable = false;
 void* MarkSweep::_marking_klass = 0;
@@ -162,7 +162,7 @@ inline void MarkSweep::follow_object(oop obj) {
     // be split into chunks if needed.
     MarkSweep::follow_array<root_reachable>((objArrayOop)obj);
   } else {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // MARK_AND_LINK 
     if (!root_reachable) {
         ResurrectedStackClosure<false> mark_and_resurrect_closure;
         mark_and_resurrect_closure.do_iterate(obj);
@@ -184,7 +184,7 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int stride = MIN2(len - beg_index, (int) ObjArrayMarkingStride);
   const int end_index = beg_index + stride;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
   if (!root_reachable) {
     ResurrectedStackClosure<false> mark_and_resurrect_closure;
     mark_and_resurrect_closure.do_iterate_array(array, beg_index, end_index);
@@ -207,7 +207,7 @@ void MarkSweep::follow_stack() {
       follow_object<true>(obj);
     }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
     while (!_resurrect_stack.is_empty()) {
       oop obj = _resurrect_stack.pop();
       assert (obj->is_gc_marked(), "p must be marked");
@@ -245,7 +245,7 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
     if (EnableRTGC && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
     } else 

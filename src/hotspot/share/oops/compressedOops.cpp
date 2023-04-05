@@ -58,7 +58,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   precond(UseCompressedOops);
   if ((uint64_t)heap_space.end() > UnscaledOopHeapMax) {
     // Didn't reserve heap below 4Gb.  Must shift.
-  #if INCLUDE_RTGC
+  #if INCLUDE_RTGC // useModifyFlag
     if (rtHeap::useModifyFlag()) {
       set_shift(LogMinObjAlignmentInBytes-1);
     } else 

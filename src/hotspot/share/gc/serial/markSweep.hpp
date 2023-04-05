@@ -87,7 +87,7 @@ class MarkSweep : AllStatic {
   friend class AdjustPointerClosure;
   friend class KeepAliveClosure;
   friend class VM_MarkSweep;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RtYoungRootClosure
   template <bool is_tracked> friend class TenuredYoungRootClosure;
 #endif
 
@@ -121,9 +121,11 @@ class MarkSweep : AllStatic {
  public:
   static void initialize();
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
   static Stack<oop, mtGC>               _resurrect_stack;
   static Stack<ObjArrayTask, mtGC>      _resurrect_objarray_stack;
+#endif
+#if INCLUDE_RTGC // REF_LINK
   static bool _is_rt_anchor_trackable;
   static void* _marking_klass;
   static int   _marking_klass_count;

@@ -117,7 +117,7 @@ public:
   static void     print_mode(outputStream* st);
 
   static bool is_null(oop v)       { 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // useModifyFlag
     if (rtHeap::useModifyFlag()) {
       // remove unmodified flag
       return (uintptr_t)(void*)v <= 1; 
@@ -126,7 +126,7 @@ public:
     return v == NULL; 
   }
   static bool is_null(narrowOop v) { 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC  // useModifyFlag
     if (rtHeap::useModifyFlag()) {
       // remove unmodified flag
       return (uint32_t)v <= 1; 

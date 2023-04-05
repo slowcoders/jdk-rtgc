@@ -3061,7 +3061,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   Label notVolatile, Done;
   __ movl(rdx, flags);
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // FINAL_FIELD_UPDATE
   if (EnableRTGC) {
     __ testl(rdx, 1 << ConstantPoolCacheEntry::is_volatile_shift);
   } else
@@ -3095,7 +3095,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
 
   Label notByte, notBool, notInt, notShort, notChar,
         notLong, notFloat, notObj;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // FINAL_FIELD_UPDATE
   Label notFinal;
 #endif        
   Label Done;
@@ -3142,7 +3142,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   {
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // FINAL_FIELD_UPDATE
     if (EnableRTGC) {
 
       __ testl(rdx, 1 << ConstantPoolCacheEntry::is_final_shift);

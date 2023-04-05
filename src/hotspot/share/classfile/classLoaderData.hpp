@@ -165,7 +165,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // Support for walking class loader data objects
   ClassLoaderData* _next; /// Next loader_datas created
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // CLD UNLOADING
   int _holder_state; /// Next dirty loader_datas
   int _holder_ref_count;
 #endif
@@ -188,7 +188,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void record_modified_oops()            { _modified_oops = true; }
   bool has_modified_oops()               { return _modified_oops; }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // CLD UNLOADING
   void set_holder_state(int state)       { _holder_state = state; }
   int  holder_state() const              { return _holder_state; }
 

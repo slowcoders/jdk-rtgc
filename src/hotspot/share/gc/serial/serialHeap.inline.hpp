@@ -33,7 +33,7 @@
 template <typename OopClosureType1, typename OopClosureType2>
 void SerialHeap::oop_since_save_marks_iterate(OopClosureType1* cur,
                                               OopClosureType2* older) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // oop_since_save_marks_iterate
   do {
     old_gen()->oop_since_save_marks_iterate(older);
   } while (!old_gen()->no_allocs_since_save_marks());

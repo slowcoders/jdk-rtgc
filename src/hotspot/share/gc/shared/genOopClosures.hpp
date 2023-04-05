@@ -134,7 +134,7 @@ public:
 
   void barrier(oop old_p, oop new_p);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RtToungRootClosure
   void trackable_barrier(oop old_p, oop new_p) { 
     rtHeap::mark_survivor_reachable(new_p);
   }

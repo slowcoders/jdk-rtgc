@@ -479,7 +479,7 @@ char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
 void VM_PopulateDumpSharedSpace::doit() {
   HeapShared::run_full_gc_in_vm_thread();
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // CDS
   if (EnableRTGC) {
     RTGC::rtHeapEx::mark_immortal_heap_objects();
   }

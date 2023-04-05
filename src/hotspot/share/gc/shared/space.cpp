@@ -381,7 +381,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   // store the forwarding pointer into the mark word
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
-#if INCLUDE_RTGC 
+#if INCLUDE_RTGC // debug logging
 #ifdef ASSERT
     if (EnableRTGC) {
       assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");
@@ -394,7 +394,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-#if INCLUDE_RTGC 
+#if INCLUDE_RTGC // debug assert
     rt_assert_f(!EnableRTGC || rtHeap::is_destroyed(q) || rtHeap::is_alive(q), 
         "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
 #endif

@@ -224,7 +224,7 @@ class InstanceKlass: public Klass {
   // _misc_flags.
   bool            _is_marked_dependent;     // used for marking during flushing and deoptimization
 
-#if !INCLUDE_RTGC
+#if !INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   // Class states are defined as ClassState (see above).
   // Place the _init_state here to utilize the unused 2-byte after
   // _idnum_allocated_count.
@@ -439,7 +439,7 @@ class InstanceKlass: public Klass {
   friend class fieldDescriptor;
   FieldInfo* field(int index) const { return FieldInfo::from_field_array(_fields, index); }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
   rtNodeType         resolve_node_type_internal(JavaThread* thread);
 #endif

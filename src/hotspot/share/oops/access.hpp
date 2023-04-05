@@ -184,7 +184,7 @@ public:
 
   template <typename T>
   static inline void oop_store_at(oop base, ptrdiff_t offset, T value) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // FINAL_FIELD_UPDATE
     verify_heap_oop_decorators<store_mo_decorators | IS_FINAL_FIELD>();
 #else
     verify_heap_oop_decorators<store_mo_decorators>();

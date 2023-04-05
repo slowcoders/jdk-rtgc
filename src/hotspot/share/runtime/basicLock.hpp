@@ -36,7 +36,7 @@ class BasicLock {
   volatile markWord _displaced_header;
  public:
 
- #if INCLUDE_RTGC
+ #if INCLUDE_RTGC // displaced_header_addr
   volatile markWord* displaced_header_addr() const {
     return (markWord*)&_displaced_header;
   }

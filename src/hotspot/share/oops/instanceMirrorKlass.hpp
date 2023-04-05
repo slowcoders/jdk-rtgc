@@ -50,7 +50,7 @@ class InstanceMirrorKlass: public InstanceKlass {
  private:
   static int _offset_of_static_fields;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   static rtNodeType _rt_node_type;
 #endif
   InstanceMirrorKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_mirror, ID) {

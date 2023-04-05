@@ -37,7 +37,7 @@
 #include "utilities/macros.hpp"
 
 int InstanceMirrorKlass::_offset_of_static_fields = 0;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 rtNodeType InstanceMirrorKlass::_rt_node_type = rtNodeType::Acyclic;
 #endif
 

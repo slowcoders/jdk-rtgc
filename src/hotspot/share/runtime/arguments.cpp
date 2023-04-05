@@ -1514,7 +1514,7 @@ void set_object_alignment() {
 
   // Oop encoding heap max
   OopEncodingHeapMax = (uint64_t(max_juint) + 1) << LogMinObjAlignmentInBytes;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // useModifyFlag
 #ifdef ASSERT    
   extern bool rtHeapEx__useModifyFlag;
 #else
@@ -1548,12 +1548,12 @@ void Arguments::set_use_compressed_oops() {
   // to use UseCompressedOops are InitialHeapSize and MinHeapSize.
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
-#if INCLUDE_RTGC
-#ifndef ASSERT
-  FLAG_SET_ERGO(UseCompressedOops, true);
-  return;
-#endif
-#endif
+// #if INCLUDE_RTGC // RTGC_RELEASE
+// #ifndef ASSERT
+//   FLAG_SET_ERGO(UseCompressedOops, true);
+//   return;
+// #endif
+// #endif
   if (max_heap_size <= max_heap_for_compressed_oops()) {
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);
@@ -1630,7 +1630,7 @@ jint Arguments::set_ergonomics_flags() {
   // in vm_version initialization code.
 #endif // _LP64
 
-#if INCLUDE_RTGC // NO_BIASED_LOCKING
+#if INCLUDE_RTGC // RTGC_RELEASE + NO_BIASED_LOCKING
 #ifdef ASSERT
   EnableRTGC = UseSerialGC && UseCompressedClassPointers;
   /**

@@ -77,7 +77,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 void oopDesc::init_mark() {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // oopDesc::init_mark
   if (EnableRTGC) {
     rtHeap::init_mark(this);
   } else 
@@ -226,7 +226,7 @@ inline oop  oopDesc::obj_field_access(int offset) const             { return Hea
 inline oop  oopDesc::obj_field(int offset) const                    { return HeapAccess<>::oop_load_at(as_oop(), offset);  }
 
 inline void oopDesc::obj_field_put(int offset, oop value)           { HeapAccess<>::oop_store_at(as_oop(), offset, value); }
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // FINAL_FIELD_UPDATE
 inline void oopDesc::obj_field_put_final(int offset, oop value)     { HeapAccess<IS_FINAL_FIELD>::oop_store_at(as_oop(), offset, value); }
 #endif
 

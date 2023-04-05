@@ -98,7 +98,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // include..
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 #endif
@@ -604,8 +604,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   // as implemented in the classic virtual machine; return 0 if object is NULL
   if (handle == NULL) return 0;
   jint hash = ObjectSynchronizer::FastHashCode (THREAD, JNIHandles::resolve_non_null(handle));
-#if INCLUDE_RTGC
-  if (EnableRTGC && !RTGC_FAT_OOP) {
+#if INCLUDE_RTGC && !RTGC_FAT_OOP
+  if (EnableRTGC) {
     //rtgc_log(true, "hash %p %x\n", (void*)JNIHandles::resolve_non_null(handle), hash);
     assert(hash > 0, "hash %x\n", hash);
   }

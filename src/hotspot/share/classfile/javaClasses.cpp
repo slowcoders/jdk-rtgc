@@ -1472,7 +1472,7 @@ void java_lang_Class::set_protection_domain(oop java_class, oop pd) {
 
 void java_lang_Class::set_component_mirror(oop java_class, oop comp_mirror) {
   assert(_component_mirror_offset != 0, "must be set");
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // Final Field Update
   if (EnableRTGC) {
     java_class->obj_field_put_final(_component_mirror_offset, comp_mirror);
   } else
@@ -1492,7 +1492,7 @@ oop java_lang_Class::init_lock(oop java_class) {
 
 void java_lang_Class::set_init_lock(oop java_class, oop init_lock) {
   assert(_init_lock_offset != 0, "must be set");
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // Final Field Update
   if (EnableRTGC) {
     java_class->obj_field_put_final(_init_lock_offset, init_lock);
   } else
@@ -1520,7 +1520,7 @@ void java_lang_Class::set_class_data(oop java_class, oop class_data) {
 
 void java_lang_Class::set_class_loader(oop java_class, oop loader) {
   assert(_class_loader_offset != 0, "offsets should have been initialized");
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // Final Field Update
   if (EnableRTGC) {
     java_class->obj_field_put_final(_class_loader_offset, loader);
   } else

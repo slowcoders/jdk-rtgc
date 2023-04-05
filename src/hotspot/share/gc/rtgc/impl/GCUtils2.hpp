@@ -143,7 +143,7 @@ public:
 
     static ReferrerList* getPointer(uint32_t idx) {
         ReferrerList* refs = (ReferrerList*)g_chunkPool.getPointer(0) + (idx & ~RTGC_NO_HASHCODE);
-        rt_assert(g_chunkPool.contains(refs) || g_tempChunkPool.contains(refs));
+        rt_assert_f(g_chunkPool.contains(refs) || g_tempChunkPool.contains(refs), "wrong index %d(%x)", idx, idx);
         return refs;
     }
 

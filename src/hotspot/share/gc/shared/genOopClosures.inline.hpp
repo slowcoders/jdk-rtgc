@@ -70,7 +70,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   } else {
     oop obj = CompressedOops::decode_not_null(heap_oop);
 
-#if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if !INCLUDE_RTGC // RtYoungRootClosure
     if (cast_from_oop<HeapWord*>(obj) < _young_gen_end) {
       assert(!_young_gen->to()->is_in_reserved(obj), "Scanning field twice?");
       oop new_obj = obj->is_forwarded() ? obj->forwardee()
@@ -107,7 +107,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(oop* p)       
 template <typename Derived, bool clear_modified_flag>
 inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(narrowOop* p) { ((Derived*)this)->do_oop_work(p); }
 
-#if !INCLUDE_RTGC 
+#if !INCLUDE_RTGC // RtYoungRootClosure
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :
     FastScanClosure<DefNewYoungerGenClosure>(young_gen),
     _old_gen(old_gen),

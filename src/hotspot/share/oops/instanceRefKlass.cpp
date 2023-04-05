@@ -92,7 +92,7 @@ void InstanceRefKlass::oop_verify_on(oop obj, outputStream* st) {
   }
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 rtNodeType InstanceRefKlass::resolve_node_type_impl(JavaThread* thread) {
   _node_type = reference_type() == REF_FINAL ? rtNodeType::Acyclic : rtNodeType::Cyclic;
   return (rtNodeType)_node_type;

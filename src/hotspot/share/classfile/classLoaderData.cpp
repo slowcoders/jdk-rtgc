@@ -149,7 +149,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _jmethod_ids(NULL),
   _deallocate_list(NULL),
   _next(NULL),
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // RTGC_OPT_CLD_SCAN
   _holder_state(0),
   _holder_ref_count(0),
 #endif  

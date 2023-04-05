@@ -1871,7 +1871,7 @@ run:
               //   - in debug mode, ThreadLocalAllocBuffer::allocate mangles
               //     this area, and we still need to initialize it
               if (DEBUG_ONLY(true ||) !ZeroTLAB) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // rtgc opt
                 Copy::fill_to_words(result, obj_size, 0);
 #else                
                 size_t hdr_size = oopDesc::header_size();

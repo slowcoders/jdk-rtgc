@@ -494,13 +494,13 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
   _nest_host_index(0),  
-#if !INCLUDE_RTGC  
+#if !INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   _init_state(allocated),
 #endif
   _reference_type(parser.reference_type()),
   _init_thread(NULL)
 {
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   _init_state = allocated;
 #endif
   set_vtable_length(parser.vtable_size());
@@ -794,7 +794,7 @@ void InstanceKlass::eager_initialize_impl() {
       ResourceMark rm(THREAD);
       log_info(class, init)("[Initialized %s without side effects]", external_name());
     }
-// #if INCLUDE_RTGC
+// #if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 //     this->resolve_node_type(THREAD);
 // #endif    
   }
@@ -1358,7 +1358,7 @@ objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
   Klass* ak = array_klass(n, CHECK_NULL);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   ak->resolve_node_type(THREAD);
 #endif  
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
@@ -3711,19 +3711,19 @@ class VerifyFieldClosure: public BasicOopIterateClosure {
       Universe::print_on(tty);
       guarantee(false, "boom");
     }
-#if INCLUDE_RTGC    
+#if INCLUDE_RTGC // debug logging
     if (EnableRTGC && obj != NULL) {
       rt_assert(!rtHeap::is_trackable(_anchor) || !rtHeap::is_trackable(obj) || rtHeap::is_alive(obj));
     }
 #endif
   }
  public:
-#if INCLUDE_RTGC    
+#if INCLUDE_RTGC // debug logging
   VerifyFieldClosure(oop anchor) { this->_anchor = anchor; }
 #endif
   virtual void do_oop(oop* p)       { VerifyFieldClosure::do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { 
-#if INCLUDE_RTGC    
+#if INCLUDE_RTGC // debug logging
     narrowOop heap_oop = *p;
     if (!CompressedOops::is_null(heap_oop)) {
       oop result = CompressedOops::decode_raw(heap_oop);
@@ -4233,7 +4233,7 @@ void ClassHierarchyIterator::next() {
   return; // visit next sibling subclass
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
 #include "ci/ciUtilities.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"

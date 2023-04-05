@@ -1629,7 +1629,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 #undef __
 
 const char *Runtime1::pd_name_for_address(address entry) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // AD HOC method name 
   return "rtgc method";
 #endif
   return "<unknown function>";

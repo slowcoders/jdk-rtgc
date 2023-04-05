@@ -245,8 +245,10 @@ bool MacroAssembler::needs_explicit_null_check(intptr_t offset) {
   // and may lie outside of the zero-trapping page, and thus we need to ensure we're forcing
   // an explicit null check for -1.
   
-#if INCLUDE_RTGC  
-  if (RtExplictNullCheckAlways) {
+#if INCLUDE_RTGC  // RtExplictNullCheckAlways + !useModifyFlag
+  if (RtExplictNullCheckAlways) { 
+    // SetField 를 함수로 치환한 경우에 NullPointerException 처리를 위해 사용함.
+    // RTGC-TODO	-> ModifyFlag 사용 시 불필요하다 ??
     return offset < 0 || offset > oopDesc::klass_offset_in_bytes();
   }
 #endif

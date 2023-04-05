@@ -60,7 +60,7 @@ class InstanceRefKlass: public InstanceKlass {
     assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); 
   }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RTGC_ENABLE_ACYCLIC_REF_COUNT
   virtual rtNodeType resolve_node_type_impl(JavaThread* thread);
 #endif
   // Oop fields (and metadata) iterators

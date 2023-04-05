@@ -377,7 +377,7 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
   assert(mem != NULL, "cannot initialize NULL object");
   const size_t hs = oopDesc::header_size();
   assert(_word_size >= hs, "unexpected object size");
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // oopDesc::init_mark
   if (EnableRTGC) {
     rtHeap::init_allocated_object(mem, _klass);
   } else      
@@ -423,7 +423,7 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   if (_do_zero) {
     mem_clear(mem);
   }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // oopDesc::init_mark
   else if (EnableRTGC) {
     rtHeap::init_allocated_object(mem, _klass);
   } else

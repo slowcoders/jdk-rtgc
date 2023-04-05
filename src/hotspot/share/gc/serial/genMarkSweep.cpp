@@ -93,7 +93,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
-#if INCLUDE_RTGC 
+#if INCLUDE_RTGC // init ref processor
   if (EnableRTGC) {
     precond(ref_policy != NULL);
     rtHeap::init_reference_processor(ref_policy);
@@ -110,7 +110,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // prepare adjust pointer
   if (EnableRTGC) {
     HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
     rtHeap::prepare_adjust_pointers(old_gen_heap_start);
@@ -119,7 +119,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // finish adjust pointers
   if (EnableRTGC) {
     rtHeap::finish_adjust_pointers();
   }
@@ -127,7 +127,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase4();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // notify compaction finished
   if (EnableRTGC) {
     void rtHeap__onCompactionFinishied();
     rtHeap__onCompactionFinishied();
@@ -201,14 +201,14 @@ void GenMarkSweep::deallocate_stacks() {
   _preserved_mark_stack.clear(true);
   _preserved_oop_stack.clear(true);
   _marking_stack.clear();
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
   _resurrect_stack.clear();
   _resurrect_objarray_stack.clear();
 #endif
   _objarray_stack.clear(true);
 }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RtYoungRootClosure
 template<bool is_tracked>
 class TenuredYoungRootClosure : public RtYoungRootClosure, public MarkAndPushClosure, public ObjectClosure {
   bool _is_young_root;
@@ -310,7 +310,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
                             &follow_cld_closure);
   }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   if (EnableRTGC) {
     young_root_closure.set_ref_discoverer(_ref_processor);
     rtHeap::oop_recycled_iterate(&untracked_closure);  // resuurection 전용으로 활용한다.??
@@ -334,7 +334,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
   // This is the point where the entire marking should have completed.
   assert(_marking_stack.is_empty(), "Marking should have completed");
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // process final/phantom references
   if (EnableRTGC) {
     rtHeap::process_final_phantom_references(&keep_alive, &follow_stack_closure, true);
     assert(_marking_stack.is_empty(), "Marking should have completed");
