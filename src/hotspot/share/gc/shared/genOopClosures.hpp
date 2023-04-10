@@ -57,8 +57,6 @@ protected:
 public:
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
-  template <typename T>
-  void trackable_barrier(T* p, oop new_p) { fatal("not implemented"); }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -83,85 +81,48 @@ public:
 };
 
 #else // RTGC_OPT_YOUNG_ROOTS
-template <bool resurrect> 
-class ScanTrackableClosure : public FastScanClosure<ScanTrackableClosure<resurrect>, true>, public ObjectClosure {
-private:
+
+class YoungRootClosure : public RtYoungRootClosure, public FastScanClosure<YoungRootClosure, true> {
+public:    
   Generation*  _old_gen;
-  oopDesc* _trackable_anchor;
-  bool _is_young_root;
-
-public:
-  ScanTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen)
-    : FastScanClosure<ScanTrackableClosure<resurrect>, true>(young_gen), 
-    _old_gen(old_gen) {}
-
-  Generation*  old_gen() { return _old_gen; }
-
-  template <typename T>
-  void barrier(T* p, oop forwardee);
-
-  template <typename T>
-  void trackable_barrier(T* p, oop new_p);
-
-  void do_object(oop obj);
-};
-
-class DefNewYoungerGenClosure : public ScanTrackableClosure<false> {
-public:  
-  DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<false>(young_gen, old_gen) {}
-};
-
-class ResurrectTrackableClosure : public ScanTrackableClosure<true> {
-public:  
-  ResurrectTrackableClosure(DefNewGeneration* young_gen, Generation* old_gen) 
-    : ScanTrackableClosure<true>(young_gen, old_gen) {}
-};
-
-class YoungRootClosure : public FastScanClosure<YoungRootClosure>, public RtYoungRootClosure {
-  bool _has_young_ref;
   VoidClosure* _complete_closure;
-public:
-  YoungRootClosure(DefNewGeneration* young_gen, VoidClosure* complete_closure)
-   : FastScanClosure(young_gen), _complete_closure(complete_closure) {}
+  VoidClosure* _unstable_complete_closure;
+  bool _is_root_reachable;
+  bool _has_young_ref;
+  bool _is_strong_rechable;
+
+  YoungRootClosure(DefNewGeneration* young_gen, Generation* old_gen, VoidClosure* complete_closure, VoidClosure* unstable_complete_closure)
+      : FastScanClosure<YoungRootClosure, true>(young_gen), 
+        _old_gen(old_gen), _complete_closure(complete_closure), _unstable_complete_closure(unstable_complete_closure) {}
   
-  bool iterate_tenured_young_root_oop(oopDesc* obj) {
-    _has_young_ref = false;
-    oop old_anchor = _current_anchor;
-    _current_anchor = obj;
-    obj->oop_iterate(this);
-    _current_anchor = old_anchor;
-    return _has_young_ref;
-  }
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachble);
 
-  void do_complete() {
-      _complete_closure->do_void();
-  }
+  virtual void do_complete(bool is_strong_rechable);
 
-  template <typename T>
-  void barrier(T* p, oop new_p) {
-    // precond(!rtHeap::is_modified(*p));
-    rtgc_debug_log(_current_anchor, "yg-barrier %p[%p] = %p\n", 
-        (void*)_current_anchor, p, (void*)new_p);
+  virtual oop keep_alive_young_referent(oop p);
+
+  void barrier(oop old_p, oop new_p) {
+    if (!_is_root_reachable) {
+      rtHeap::mark_young_root_reachable(_current_anchor, new_p);
+    }
     _has_young_ref = true;
   }
 
-  template <typename T>
-  void trackable_barrier(T* p, oop new_p) {
-    assert(!rtHeap::useModifyFlag() || sizeof(T) == sizeof(oop) || !rtHeap::is_modified(*p),
-        "yg-barrier %p(%s)[%d] = %x\n", 
-        (void*)_current_anchor, _current_anchor->klass()->name()->bytes(),
-        (int)((address)p - (address)_current_anchor), (int32_t)(intptr_t)(void*)*p);
-    void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
-    rtHeap__ensure_trackable_link(_current_anchor, new_p);
+  void trackable_barrier(oop old_p, oop new_p) {
+    rtHeap::ensure_trackable_link(_current_anchor, new_p);
   }
+
+  void promoted_trackable_barrier(oop old_p, oop new_p) {
+    rtHeap::add_trackable_link(_current_anchor, new_p);
+  }
+
 };
 #endif
 
 // Closure for scanning DefNewGeneration when *not* iterating over the old generation.
 //
 // This closures records changes to oops in CLDs.
-class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, true> {
+class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, false> {
   ClassLoaderData* _scanned_cld;
 public:
   DefNewScanClosure(DefNewGeneration* g);
@@ -171,12 +132,15 @@ public:
     _scanned_cld = cld;
   }
 
-  template <typename T>
-  void barrier(T* p, oop new_p);
+  void barrier(oop old_p, oop new_p);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-  template <typename T>
-  void trackable_barrier(T* p, oop new_p) { 
+#if INCLUDE_RTGC // RtToungRootClosure
+  void trackable_barrier(oop old_p, oop new_p) { 
+    rtHeap::mark_survivor_reachable(new_p);
+  }
+
+  void promoted_trackable_barrier(oop old_p, oop new_p) { 
+    // RTGC-TODO 생략할 수 있다(?)
     rtHeap::mark_survivor_reachable(new_p);
   }
 

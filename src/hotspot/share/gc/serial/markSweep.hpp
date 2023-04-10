@@ -87,6 +87,9 @@ class MarkSweep : AllStatic {
   friend class AdjustPointerClosure;
   friend class KeepAliveClosure;
   friend class VM_MarkSweep;
+#if INCLUDE_RTGC // RtYoungRootClosure
+  template <bool is_tracked> friend class TenuredYoungRootClosure;
+#endif
 
   //
   // Vars
@@ -118,8 +121,11 @@ class MarkSweep : AllStatic {
  public:
   static void initialize();
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
   static Stack<oop, mtGC>               _resurrect_stack;
+  static Stack<ObjArrayTask, mtGC>      _resurrect_objarray_stack;
+#endif
+#if INCLUDE_RTGC // REF_LINK
   static bool _is_rt_anchor_trackable;
   static void* _marking_klass;
   static int   _marking_klass_count;
@@ -150,6 +156,7 @@ class MarkSweep : AllStatic {
 
   static int adjust_pointers(oop obj);
 
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_stack();   // Empty marking stack.
 
   static void follow_klass(Klass* klass);
@@ -159,35 +166,29 @@ class MarkSweep : AllStatic {
   template <class T> static inline oopDesc* adjust_pointer(T* p, oop* new_oop = NULL);
 
   // Check mark and maybe push on marking stack
-  template <class T, bool is_anchored=false>
+  template <class T>
   static void mark_and_push(T* p);
 
-  template <bool is_anchored, bool is_resurrected=false>
-  static inline bool mark_and_push_internal(oop p, oopDesc* anchor=NULL);
+  template <bool root_reachable>
+  static inline bool mark_and_push_internal(oop p);
 
-#if INCLUDE_RTGC  
- public:
-#else
  private:
-#endif
   // Call backs for marking
   static void mark_object(oop obj);
-
- private:
 
   // Mark pointer and follow contents.  Empty marking stack afterwards.
   template <class T> static inline void follow_root(T* p);
 
-  RTGC_ONLY(template <bool resurrected=false>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static inline void push_objarray(oop obj, size_t index);
 
-  RTGC_ONLY(template <bool resurrected=false>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_object(oop obj);
 
-  RTGC_ONLY(template <bool resurrected=false>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_array(objArrayOop array);
 
-  RTGC_ONLY(template <bool resurrected=false>)
+  RTGC_ONLY(template <bool root_reachable=true>)
   static void follow_array_chunk(objArrayOop array, int index);
 };
 

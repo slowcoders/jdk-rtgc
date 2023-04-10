@@ -28,7 +28,7 @@
 #include "runtime/objectMonitor.inline.hpp"
 #include "utilities/ostream.hpp"
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // displaced_mark_addr_at_safepoint
 markWord* markWord::displaced_mark_addr_at_safepoint() const {
   assert(has_displaced_mark_helper(), "check");
   if (has_monitor()) {

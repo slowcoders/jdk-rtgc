@@ -10,7 +10,6 @@
 using namespace RTGC;
 
 namespace RTGC {
-
     void* _offset2Pointer(uint32_t offset) {
         rt_assert(offset != 0);
         rt_assert_f(!rtHeap::useModifyFlag() || (offset & 1) == 0, "wrong offset %x\n", offset); 
@@ -44,15 +43,62 @@ namespace RTGC {
 }
 
 ReferrerList::ChunkPool ReferrerList::g_chunkPool;
+ReferrerList::ChunkPool ReferrerList::g_tempChunkPool;
+
+void ReferrerList::initialize() {
+    char* memory = (char*)VirtualMemory::reserve_memory(g_chunkPool.getReservedMemorySize() * 2);
+    g_chunkPool.initialize((Chunk*)memory);
+    g_tempChunkPool.initialize((Chunk*)(memory + g_chunkPool.getReservedMemorySize()));
+    // printf("chunk-pool: %p %zx temp: %p", g_chunkPool.getPointer(0), g_chunkPool.getReservedMemorySize(), g_tempChunkPool.getPointer(0));
+    rt_assert(g_chunkPool.getPointer(0) < g_tempChunkPool.getPointer(0));
+    rt_assert((((address)g_tempChunkPool.getPointer(0) - (address)g_chunkPool.getPointer(0)) % sizeof(Chunk)) == 0);
+}
+
+template <typename Closure>
+static const ShortOOP* __getItemPtr(TailNodeIterator& iter, Closure* closure) {
+    while (iter.hasNext()) {
+        const ShortOOP* ptr = iter.next_ptr();
+        rt_assert(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
+        rt_assert(ptr != NULL && ptr->getOffset() != 0);
+        if (closure->visit(ptr)) {
+            return ptr;
+        }
+    }
+    return NULL;
+}
+
+template <typename Closure>
+const ShortOOP* reverse_iterate(ReferrerList* list, Closure* closure) {
+    const ShortOOP* pItem;
+    if (list->hasMultiChunk()) {
+        TailNodeIterator iter(list);
+        pItem = __getItemPtr(iter, closure);
+        if (pItem != NULL) return pItem;
+        pItem = list->_head._items + (ReferrerList::MAX_COUNT_IN_CHUNK - 1);
+    } else {
+        pItem = list->lastItemPtr();
+    }
+
+    for (; pItem >= list->_head._items; pItem--) {
+        rt_assert_f(pItem->getOffset() != 0, "pItem %p, base=%p count=%d\n", pItem, list, list->approximated_item_count());
+        if (closure->visit(pItem)) return pItem;
+    }
+    return NULL;
+}
 
 const ShortOOP* ReferrerList::extend_tail(Chunk* last_chunk) {
-    Chunk* tail = g_chunkPool.allocate();
+    // 주의) chnkPool 의 startOffset 은 1이다. 
+    ChunkPool* chunkPool = (void*)this <= g_tempChunkPool.getPointer(0) ? &g_chunkPool : &g_tempChunkPool;
+    rt_assert(chunkPool->contains(this));
+    rt_assert(chunkPool->contains(last_chunk));
+
+    Chunk* tail = chunkPool->allocate();
     if (MARK_ALIVE_CHUNK) {
         *(uintptr_t*)tail = 0; // clear nextFree address 
     }
     rt_assert(((uintptr_t)tail & CHUNK_MASK) == 0);
     tail->_last_item_offset = last_chunk->_items - &tail->_items[MAX_COUNT_IN_CHUNK];
-    rt_assert_f(tail->_last_item_offset != -8, "empty chunk %p", tail); 
+    rt_assert(tail->getNextChunk() == last_chunk); 
     rt_assert(tail->isAlive());
     return &tail->_items[MAX_COUNT_IN_CHUNK-1];
 }
@@ -88,7 +134,7 @@ void ReferrerList::delete_(ReferrerList* list) {
 void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
     rt_assert(!this->empty());
     const ShortOOP* pLast = lastItemPtr();
-    if (copy_to != NULL) {
+    if (copy_to != pLast) {
         *copy_to = *pLast;
     }
     // for opt scan
@@ -100,7 +146,7 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
         _head._last_item_offset --;
     } else if (pLast - last_chunk->_items == MAX_COUNT_IN_CHUNK - 1) {
         Chunk* tail = last_chunk->getNextChunk();
-    Chunk* prev = (Chunk*)(&last_chunk->_items[MAX_COUNT_IN_CHUNK] + last_chunk->_last_item_offset);
+        Chunk* prev = (Chunk*)(&last_chunk->_items[MAX_COUNT_IN_CHUNK] + last_chunk->_last_item_offset);
         rt_assert(prev == tail);
         dealloc_chunk(last_chunk);
         if (tail == &_head) {
@@ -114,9 +160,52 @@ void ReferrerList::cut_tail_end(ShortOOP* copy_to) {
     rt_assert(_head.isAlive());
 }
 
-ReferrerList* ReferrerList::allocate() {
-    ReferrerList* list = (ReferrerList*)g_chunkPool.allocate();
+ReferrerList* ReferrerList::allocate(bool isTenured) {
+    ReferrerList* list;
+    if (isTenured) {
+        list = (ReferrerList*)g_chunkPool.allocate();
+    } else {
+        list = (ReferrerList*)g_tempChunkPool.allocate();
+    }
     return list;
+}
+
+void ReferrerList::clearTemporalChunkPool() {
+    g_tempChunkPool.reset();
+}
+
+static const ShortOOP* __getFirstDirtyItemPtr(TailNodeIterator& iter) {
+    const ShortOOP* pLastItem = NULL;
+    while (iter.hasNext()) {
+        const ShortOOP* ptr = iter.next_ptr();
+        rt_assert(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
+        rt_assert(ptr != NULL && ptr->getOffset() != 0);
+        if (ptr[0]->isTrackable_unsafe()) {
+            return pLastItem;
+        }
+        pLastItem = ptr;
+    }
+    return NULL;
+}
+
+const ShortOOP* ReferrerList::getFirstDirtyItemPtr() {
+    const ShortOOP* pItem;
+    const ShortOOP* pLastItem = NULL;
+    if (this->hasMultiChunk()) {
+        TailNodeIterator iter(this);
+        pItem = __getFirstDirtyItemPtr(iter);
+        if (pItem != NULL) return pItem;
+        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
+    } else {
+        pItem = lastItemPtr();
+    }
+
+    for (; pItem >= _head._items; pItem--) {
+        if (pItem[0]->isTrackable_unsafe()) break;
+        pLastItem = pItem;
+    }
+    rt_assert(pLastItem != NULL);
+    return pLastItem;
 }
 
 void ReferrerList::add(ShortOOP item) {
@@ -139,38 +228,26 @@ void ReferrerList::add(ShortOOP item) {
             _head._last_item_offset --;
         }
     }
-    rt_assert(_head.isAlive());
+    rt_assert(_head.isAlive());   
     *(ShortOOP*)pLast = item;
 }
 
-static const ShortOOP* __getItemPtr(TailNodeIterator& iter, ShortOOP item) {
-    while (iter.hasNext()) {
-        const ShortOOP* ptr = iter.next_ptr();
-        rt_assert(!rtHeap::useModifyFlag() || (ptr->getOffset() & 1) == 0); 
-        rt_assert(ptr != NULL && ptr->getOffset() != 0);
-        if (*ptr == item) {
-            return ptr;
-        }
+
+
+
+class ItemFinder {
+    ShortOOP _item;
+public:
+    ItemFinder(ShortOOP item) : _item(item) {}
+
+    bool visit(const ShortOOP* pItem) {
+        return *pItem == _item; 
     }
-    return NULL;
-}
+};
 
 const ShortOOP* ReferrerList::getItemPtr(ShortOOP item) {
-    const ShortOOP* pItem;
-    if (this->hasMultiChunk()) {
-        TailNodeIterator iter(this);
-        pItem = __getItemPtr(iter, item);
-        if (pItem != NULL) return pItem;
-        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
-    } else {
-        pItem = lastItemPtr();
-    }
-
-    for (; pItem >= _head._items; pItem--) {
-        rt_assert_f(pItem->getOffset() != 0, "pItem %p, base=%p count=%d\n", pItem, this, this->approximated_item_count());
-        if (*pItem == item) return pItem;
-    }
-    return NULL;
+    ItemFinder finder(item);
+    return reverse_iterate(this, &finder);
 }
 
 void ReferrerList::replaceFirst(ShortOOP new_first) {
@@ -201,43 +278,99 @@ const void* ReferrerList::replace(ShortOOP old_p, ShortOOP new_p) {
     return pItem;
 }
 
+class MatcheItemEraser {
+public:
+    ShortOOP _item;
+    ReferrerList* _list;
+    const void* _last_removed;
+    MatcheItemEraser(ShortOOP item, ReferrerList* list) : _item(item), _list(list), _last_removed(NULL) {}
+
+    bool visit(const ShortOOP* pItem) {
+        if (*pItem == _item) {
+            _list->cut_tail_end((ShortOOP*)pItem);
+            _last_removed = pItem;
+        }
+        return false;
+    }
+};
 
 const void* ReferrerList::removeMatchedItems(ShortOOP item) {
-    const void* last_removed = NULL;
-    const ShortOOP* pItem;
-    if (this->hasMultiChunk()) {
-        TailNodeIterator iter(this);
-        while ((pItem = __getItemPtr(iter, item)) != NULL) {
-            cut_tail_end((ShortOOP*)pItem);
-            last_removed = pItem;
-        }
-        pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
-    } else {
-        rt_assert(!this->empty());
-        pItem = lastItemPtr();
-    }
-
-    for (;; pItem--) {
-        if (*pItem == item) {
-            cut_tail_end((ShortOOP*)pItem);
-            last_removed = pItem;
-        }
-        if (pItem == _head._items) break;
-    }
-
-    return last_removed;
+    MatcheItemEraser eraser(item, this);
+    reverse_iterate(this, &eraser);
+    return eraser._last_removed;
 }
 
+class DirtyItemRemover {
+public:
+    ReferrerList* _list;
+    ShortOOP _dirtyStartMark;
+    debug_only(bool _end);
+    DirtyItemRemover(ReferrerList* list, ShortOOP dirtyStartMark) : _list(list), _dirtyStartMark(dirtyStartMark) {
+        debug_only(_end = false;)
+    }
+
+    bool visit(const ShortOOP* pItem) {
+        debug_only(if (_end) { rt_assert(pItem[0]->isTrackable()); return false; })
+        bool end = *pItem == _dirtyStartMark;
+        if (end || !pItem[0]->isTrackable_unsafe()) {
+            _list->cut_tail_end((ShortOOP*)pItem);
+        }
+        debug_only(_end = end; return false;)
+        return end;
+    }
+};
+
+
+void ReferrerList::removeDirtyItems(ShortOOP dirtyStartMark) {
+    DirtyItemRemover remover(this, dirtyStartMark);
+    reverse_iterate(this, &remover);
+    if (false) {
+        const void* last_removed = NULL;
+        const ShortOOP* pFirstDirty = NULL;
+        if (pFirstDirty == NULL) {
+            pFirstDirty = this->firstItemPtr();
+        }
+        const ShortOOP* pItem = lastItemPtr();
+        int cnt_removed = 0;
+        if (this->hasMultiChunk()) {
+            Chunk* chunk = getContainingChunck(pItem);
+            do {
+                while (pItem != &chunk->_items[MAX_COUNT_IN_CHUNK]) {
+                    if (!pItem[0]->isDirtyAnchor()) {
+                        this->set_last_item_ptr(pItem);
+                        return;
+                    }
+                    cnt_removed ++;
+                    // rtgc_log(rtHeap::in_full_gc, "dirty anchor removed in multi-chunk %d", cnt_removed);
+                    pItem ++;
+                }
+                Chunk* next_chunk = chunk->getNextChunk();
+                dealloc_chunk(chunk);
+                chunk = next_chunk;
+                pItem = chunk->_items;
+            } while (pItem != &this->_head._items[0]);
+            // rtgc_log(rtHeap::in_full_gc, "dirty chunk overflow %d", cnt_removed);
+            pItem = _head._items + (MAX_COUNT_IN_CHUNK - 1);
+        } 
+        for (; pItem >= _head._items && pItem[0]->isDirtyAnchor(); pItem--) {
+            cnt_removed ++;
+            // rtgc_log(true, "dirty anchor removed %d", cnt_removed);
+        }
+        this->set_last_item_ptr(pItem);
+    }
+    return;
+}
+
+
 void AnchorIterator::initialize(GCObject* obj) {
-    const RtNode* nx = obj->node_();
-    if (!nx->mayHaveAnchor()) {
+    if (!obj->mayHaveAnchor()) {
         this->initEmpty();
     }
-    else if (!nx->hasMultiRef()) {
-        this->initSingleIterator(&nx->getSingleAnchor());
+    else if (!obj->hasMultiRef()) {
+        this->initSingleIterator(&obj->getSingleAnchor());
     }
     else {
-        ReferrerList* referrers = nx->getAnchorList();
+        ReferrerList* referrers = obj->getAnchorList();
         this->initIterator(referrers);
     }
 }
@@ -256,7 +389,7 @@ void AnchorIterator::initialize(GCObject* obj) {
 #define _USE_MMAP 1
 #define _ULIMIT 1
 void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
-    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_ALIGN_SIZE == 0);
     void* addr;    
 #if _USE_JVM
     size_t total_reserved = bytes;
@@ -280,12 +413,12 @@ void* RTGC::VirtualMemory::reserve_memory(size_t bytes) {
 }
 
 void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) {
-    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_ALIGN_SIZE == 0);
 #if _USE_JVM
     rtgc_log(1, "commit_memory\n");
     return;
 #elif defined(_MSC_VER)
-    addr = VirtualAlloc(bucket, MEM_BUCKET_SIZE, MEM_COMMIT, PAGE_READWRITE);
+    addr = VirtualAlloc(bucket, MEM_BUCKET_ALIGN_SIZE, MEM_COMMIT, PAGE_READWRITE);
     if (addr != 0) return;
 #elif _USE_MMAP
     int res = mprotect(bucket, bytes, PROT_READ|PROT_WRITE);
@@ -299,7 +432,7 @@ void RTGC::VirtualMemory::commit_memory(void* addr, void* bucket, size_t bytes) 
 }
 
 void RTGC::VirtualMemory::free(void* addr, size_t bytes) {
-    rt_assert(bytes % MEM_BUCKET_SIZE == 0);
+    rt_assert(bytes % MEM_BUCKET_ALIGN_SIZE == 0);
 #if _USE_JVM
     fatal(1, "free_memory\n");
     return;

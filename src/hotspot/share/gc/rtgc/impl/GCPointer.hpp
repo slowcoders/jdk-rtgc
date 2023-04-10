@@ -39,6 +39,11 @@ public:
         rt_assert(_ofs != 0);
     }
 
+    ShortOOP(struct UnsafeOffset* ptr) {
+        _ofs = (uint32_t)(uintptr_t)ptr;
+        rt_assert(_ofs != 0);
+    }
+
     operator GCObject* () const {
         return (GCObject*)_offset2Pointer(_ofs);
     }

@@ -43,73 +43,69 @@ inline void MarkSweep::mark_object(oop obj) {
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
   if (EnableRTGC) {
     rt_assert(!rtHeap::is_trackable(obj));
     precond(rtHeap::is_alive(obj));
+    rtHeap::clear_temporal_anchor_list(obj);
   }
 #endif
-  // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
 }
 
-template <bool is_anchored, bool is_resurrected>
-inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
+template <bool root_reachable>
+inline bool MarkSweep::mark_and_push_internal(oop obj) {
+  rt_assert(obj != NULL);
+
     if (rtHeap::is_trackable(obj)) {
-      if (is_resurrected) {
-        rtHeap::mark_resurrected_link(anchor, obj);
-      } else if (is_anchored) {
-        precond(rtHeap::is_alive(obj));
-      } else {
+    if (root_reachable) {
         rtHeap::mark_survivor_reachable(obj);
+      } else {
+        rt_assert(rtHeap::is_alive(obj));
       }
-      if (!rtHeap::DoCrossCheck) return false;
+    return false;
     }
-  } 
-#endif
+  
   if (!obj->mark().is_marked()) {
     mark_object(obj);
-    _marking_stack.push(obj);
+    if (root_reachable) {
+      _marking_stack.push(obj);
+    } else {
+      //void rtHeap__ensure_resurrect_mode();
+      //rtHeap__ensure_resurrect_mode();
+      _resurrect_stack.push(obj);
+    }
   }
   return true;
 }
 
-template <class T, bool is_anchored> 
+template <class T> 
 inline void MarkSweep::mark_and_push(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-    mark_and_push_internal<is_anchored>(obj);
+    mark_and_push_internal<true>(obj);
   }
 }
 
 inline void MarkSweep::follow_klass(Klass* klass) {
   oop obj = klass->class_loader_data()->holder_no_keepalive();
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
-    if (obj != NULL) {
-      mark_and_push_internal<false>(obj);
-    } 
-  } else
-#endif
-  {
-    MarkSweep::mark_and_push(&obj);
+  if (obj != NULL) {
+    MarkSweep::mark_and_push_internal<true>(obj);
   }
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
+#if INCLUDE_RTGC // REF_LINK
+  if (EnableRTGC) { // REF_LINK
     _is_rt_anchor_trackable = false;
     if (!rtHeap::DoCrossCheck) {
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
       oop holder = cld->holder_no_keepalive();
       if (holder != NULL) {
-        mark_and_push_internal<false>(holder);
+        mark_and_push_internal<true>(holder);
       } 
       cld->incremental_oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
       return;
@@ -126,17 +122,10 @@ inline void MarkAndPushClosure::do_oop(narrowOop* p)         { do_oop_work(p); }
 inline void MarkAndPushClosure::do_klass(Klass* k)           { MarkSweep::follow_klass(k); }
 inline void MarkAndPushClosure::do_cld(ClassLoaderData* cld) { MarkSweep::follow_cld(cld); }
 
-template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
+template <class T>
+inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop) {
   T heap_oop = RawAccess<>::oop_load(p);
-  if (CompressedOops::is_null(heap_oop)) {
-#if INCLUDE_RTGC // useModifyFlag()
-    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
-      if (rtHeap::is_modified(heap_oop)) {
-        *p = rtHeap::to_unmodified((T)0);
-      }
-    }
-#endif
-  } else {
+  if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
     assert(Universe::heap()->is_in(obj), "should be in heap");
 
@@ -152,13 +141,13 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned %p\n", (void*)new_obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
       if (new_oop != NULL) {
         *new_oop = new_obj;
       }
 #endif      
     }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
     else if (new_oop != NULL) {
       *new_oop = obj;
     }

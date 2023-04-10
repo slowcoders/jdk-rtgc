@@ -171,7 +171,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
         ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // rtHeap::mark_forwarded_trackable
       if (EnableRTGC) {
         rtHeap::mark_forwarded_trackable(cast_to_oop(cur_obj));
       }
@@ -183,7 +183,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
     } else {
       // run over all the contiguous dead objects
       HeapWord* end = cur_obj;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // init dead space
       if (EnableRTGC) {
         if (space->scanned_block_is_obj(cur_obj)) {
           // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
@@ -221,8 +221,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       if (cur_obj == compact_top && dead_spacer.insert_deadspace(cur_obj, end)) {
         oop obj = cast_to_oop(cur_obj);
         if (EnableRTGC) {
-          void rtHeap__mark_dead_space(oopDesc* obj);
-          rtHeap__mark_dead_space(obj);
+          rtHeap::mark_dead_space(obj);
         }
         compact_top = cp->space->forward(obj, obj->size(), cp, compact_top);
         end_of_live = end;
@@ -274,7 +273,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
         (EnableRTGC ? rtHeap::is_alive(cast_to_oop(cur_obj), false) : cast_to_oop(cur_obj)->is_gc_marked())) {
       // cur_obj is alive
       // point all the oops to the new location
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // debug logging
       size_t size;
       if (EnableRTGC) {
         size = rtHeap::adjust_pointers(cast_to_oop(cur_obj));

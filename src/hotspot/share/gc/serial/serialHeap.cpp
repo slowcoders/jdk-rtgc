@@ -107,7 +107,7 @@ void SerialHeap::young_process_roots(OopIterateClosure* root_closure,
   process_roots(SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RtNoDirtyCardMarking
   if (!RtNoDirtyCardMarking)  
 #endif
   {

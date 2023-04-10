@@ -16,14 +16,17 @@ const static bool USE_TINY_MEM_POOL = true;
 const static bool IS_MULTI_LAYER_NODE = false;
 
 int GCNode::incrementRootRefCount() {
+    int max_count = survivor_reachable_value - 1;
+    rtgc_debug_log(this, "incrementRootRefCount %p(%s) rc=%d\n", this, RTGC::getClassName(this), this->getRootRefCount() + 2);
+    rt_assert_f((_flags.rootRefCount & max_count) < max_count/2, PTR_DBG_SIG, PTR_DBG_INFO(this));
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    return (flags().rootRefCount += 2);
+    return (_flags.rootRefCount += 2);
 }
 
 int GCNode::decrementRootRefCount() {
     rt_assert_f(!this->isGarbageTrackable(), "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    rt_assert_f(flags().rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
-    return (flags().rootRefCount -= 2);
+    rt_assert_f(_flags.rootRefCount > 1, "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(this)); 
+    return (_flags.rootRefCount -= 2);
 }
 
 bool GCRuntime::detectUnsafeObject(GCObject* erased) {
@@ -39,14 +42,18 @@ void GCRuntime::connectReferenceLink(
     GCObject* assigned, 
     GCObject* owner 
 ) {
-    assigned->addReferrer(owner);
+    fatal("not implemented");
+    // assigned->addAnchor(owner);
 }
 
 void GCRuntime::disconnectReferenceLink(
     GCObject* erased, 
     GCObject* owner 
 ) {
-    erased->removeReferrer(owner);
+    rt_assert(owner->isTrackable_unsafe());
+    if (erased->isTrackable_unsafe()) {
+        erased->removeReferrer(owner);
+    }
 }
 
 bool GCRuntime::tryDisconnectReferenceLink(
@@ -63,7 +70,6 @@ void GCRuntime::onAssignRootVariable_internal(GCObject* assigned) {
          "not locked");
 
     assigned->incrementRootRefCount();
-    rtgc_debug_log(assigned, "root assigned %p(%s) rc=%d\n", assigned, RTGC::getClassName(assigned), assigned->getRootRefCount());
     // rt_assert(!RTGC::is_debug_pointer(assigned));// || assigned->getRootRefCount() == ZERO_ROOT_REF);
 }
 
@@ -163,7 +169,7 @@ void GCRuntime::adjustShortcutPoints() {
         if (p->isValid()) {
 #ifdef ASSERT
             if (!rtHeap::is_alive(cast_to_oop((GCObject*)p->anchor()))) {
-                for (GCObject* node = p->tail(); node != p->anchor(); node = node->node_()->getSafeAnchor()) {
+                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
                     rtgc_log(1, "invalid shortcut node %p g=%d\n", node, node->isGarbageMarked());
                 }
             }

@@ -49,7 +49,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // include..
   #include "gc/rtgc/RTGC.hpp"
   #include "gc/rtgc/rtHeapEx.hpp"
 #endif  
@@ -137,7 +137,7 @@ jint init_globals() {
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // CDS
   if (EnableRTGC) {
     RTGC::initialize();
     RTGC::rtHeapEx::check_immortal_heap_objects();

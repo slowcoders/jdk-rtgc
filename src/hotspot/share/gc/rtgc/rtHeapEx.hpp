@@ -56,6 +56,10 @@ public:
 
   static void check_immortal_heap_objects();
 
+  static void process_weak_soft_references();
+
+  static bool keep_alive_young_final_referents(RtYoungRootClosure* closure, bool is_full_gc);
+
   static jlong _soft_ref_timestamp_clock;
 
   static bool g_lock_unsafe_list;

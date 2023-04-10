@@ -15,6 +15,11 @@ public:
 	static void scanInstanceGraph(GCObject* obj, RefTracer2 tracer, HugeArray<GCObject*>* stack, bool isTenured);
 };
 
+enum AnchorState {
+	NotAnchored,
+	Unknown,
+	AnchoredToRoot,
+};
 
 class GarbageProcessor {
 public:
@@ -22,14 +27,14 @@ public:
 	void addUnstable(GCObject* node);
 	void addUnstable_ex(GCObject* node);
 	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
-	void collectGarbage(bool isTenured);
-	template <bool scanUnstableOnly>
-	void collectGarbage(GCObject** ppNode, int cntNode, bool isTenured);
+	void collectAndDestroyGarbage(bool isTenured);
+	void scanGarbage(GCObject** ppNode, int cntNode);
 
 	bool detectGarbage(GCObject* node);
 	bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
 	bool hasStableSurvivalPath(GCObject* node);
+	AnchorState checkAnchorStateFast(GCObject* node, bool enableShortcut);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:
@@ -44,6 +49,7 @@ private:
     bool scanSurvivalPath(GCObject* tail, bool scanStrongPathOnly);
     void constructShortcut();
     void clearReachableShortcutMarks();
+	void destroyDetectedGarbage(bool isTenured);
 
 	static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor);
 };

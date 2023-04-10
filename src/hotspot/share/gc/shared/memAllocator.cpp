@@ -364,11 +364,6 @@ oop MemAllocator::allocate() const {
     HeapWord* mem = mem_allocate(allocation);
     if (mem != NULL) {
       obj = initialize(mem);
-#if INCLUDE_RTGC
-      if (EnableRTGC) {
-        oopDesc::clear_rt_node(mem);
-      }      
-#endif  
     } else {
       // The unhandled oop detector will poison local variable obj,
       // so reset it to NULL if mem is NULL.
@@ -382,6 +377,11 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
   assert(mem != NULL, "cannot initialize NULL object");
   const size_t hs = oopDesc::header_size();
   assert(_word_size >= hs, "unexpected object size");
+#if INCLUDE_RTGC // oopDesc::init_mark
+  if (EnableRTGC) {
+    rtHeap::init_allocated_object(mem, _klass);
+  } else      
+#endif  
   oopDesc::set_klass_gap(mem, 0);
   Copy::fill_to_aligned_words(mem + hs, _word_size - hs);
 }
@@ -423,6 +423,12 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
   if (_do_zero) {
     mem_clear(mem);
   }
+#if INCLUDE_RTGC // oopDesc::init_mark
+  else if (EnableRTGC) {
+    rtHeap::init_allocated_object(mem, _klass);
+  } else
+#endif  
+  oopDesc::set_klass_gap(mem, 0);
   arrayOopDesc::set_length(mem, _length);
   return finish(mem);
 }

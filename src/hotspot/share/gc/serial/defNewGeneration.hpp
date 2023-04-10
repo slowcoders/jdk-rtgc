@@ -182,14 +182,17 @@ protected:
     virtual void do_oop(narrowOop* p);
   };
 
+  template <typename ScanYoung, typename ScanOlder>
   class FastEvacuateFollowersClosure: public VoidClosure {
     SerialHeap* _heap;
-    DefNewScanClosure* _scan_cur_or_nonheap;
-    DefNewYoungerGenClosure* _scan_older;
+    ScanYoung* _scan_cur_or_nonheap;
+    ScanOlder* _scan_older;
   public:
     FastEvacuateFollowersClosure(SerialHeap* heap,
-                                 DefNewScanClosure* cur,
-                                 DefNewYoungerGenClosure* older);
+                                 ScanYoung* cur,
+                                 ScanOlder* older)
+      : _heap(heap), _scan_cur_or_nonheap(cur), _scan_older(older) {}
+
     void do_void();
   };
 

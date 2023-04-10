@@ -298,7 +298,7 @@ class markWord {
   bool has_displaced_mark_helper() const {
     return ((value() & unlocked_value) == 0);
   }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // displaced_mark_addr_at_safepoint
   markWord* displaced_mark_addr_at_safepoint() const;
 #endif
   markWord displaced_mark_helper() const;
@@ -306,8 +306,8 @@ class markWord {
   markWord copy_set_hash(intptr_t hash) const {
     uintptr_t tmp = value() & (~hash_mask_in_place);
     tmp |= ((hash & hash_mask) << hash_shift);
-#if defined(_LP64) && INCLUDE_RTGC 
-    if (EnableRTGC && !RTGC_FAT_OOP) { 
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    if (EnableRTGC) { 
       tmp |= 0x80; // psuedo multiAnchor
     }
 #endif

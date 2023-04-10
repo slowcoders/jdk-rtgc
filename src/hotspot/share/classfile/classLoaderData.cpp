@@ -149,7 +149,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool has_class_mirror_ho
   _jmethod_ids(NULL),
   _deallocate_list(NULL),
   _next(NULL),
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // RTGC_OPT_CLD_SCAN
   _holder_state(0),
   _holder_ref_count(0),
 #endif  
@@ -274,8 +274,9 @@ bool ClassLoaderData::ChunkedHandleList::incremental_oops_do(OopClosure* f) {
   for (; c != NULL; c = c->_next, idx = 0) {
     juint size = Atomic::load_acquire(&c->_size);
     for (; idx < size; idx++) {
-      if (c->_data[idx] != NULL) {
-        oop* p = &c->_data[idx];
+      oop* p = &c->_data[idx];
+      oop old_p = *p;
+      if (old_p != NULL && !rtHeap::is_trackable(old_p)) {
         f->do_oop(p);
         oop new_p = *p;
         debug_only(cnt_handle ++;)

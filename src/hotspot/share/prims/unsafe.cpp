@@ -760,7 +760,7 @@ UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, job
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
 #ifdef ASSERT
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // debug tools
   if (EnableRTGC) {
     if (e == (jlong)0x876543DB876543DB) {
       int32_t flag = (int32_t)x;

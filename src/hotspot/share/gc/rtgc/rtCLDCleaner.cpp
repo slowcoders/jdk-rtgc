@@ -109,15 +109,14 @@ namespace rtCLDCleaner {
             // CLD 가 계층적으로 참조된 경우, 하위 CLD 에 대한 detectGarbage 에 의해
             // 상위 handle이 garbageMarking 된 상태가 될 수 있다. 
             rt_assert_f(node->isTrackable(), "invalid handle %p(%s) cld=[%p] idx=%d rc=%d\n", 
-                node, RTGC::getClassName(node), _cld, idx_cld, node->getReferrerCount());
+                node, RTGC::getClassName(node), _cld, idx_cld, node->getAnchorCount());
             rtHeapUtil::resurrect_young_root(node);
           }
           rtHeap::lock_jni_handle_at_safepoint(obj);
         }
 
-        rt_assert((node->getRootRefCount() & 0x3FF) != 0);
         if (!node->isTrackable() && !obj->is_gc_marked()) {
-          MarkSweep::mark_and_push_internal<false>(obj);
+          MarkSweep::mark_and_push_internal<true>(obj);
         }
       }
     }
@@ -262,7 +261,7 @@ void rtCLDCleaner::clear_cld_locks(RtYoungRootClosure* tenuredScanner) {
   rt_assert(rtHeap::in_full_gc);
   debug_only(idx_cld = 0;)
   ClassLoaderDataGraph::roots_cld_do(NULL, &release_cld_holder);
-  tenuredScanner->do_complete();
+  tenuredScanner->do_complete(true);
 }
 
 void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
@@ -274,7 +273,7 @@ void rtCLDCleaner::collect_garbage_clds(RtYoungRootClosure* tenuredScanner) {
     ClassLoaderDataGraph::roots_cld_do(NULL, &unload_cld_holder);
   }
 
-  tenuredScanner->do_complete();
+  tenuredScanner->do_complete(true);
   _rtgc.g_pGarbageProcessor->validateGarbageList();
 }
 

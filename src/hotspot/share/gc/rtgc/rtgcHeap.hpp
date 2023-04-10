@@ -8,8 +8,11 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
+
 #define RTGC_FAT_OOP        true
 #define RTGC_SHARE_GC_MARK  false
+#define RTGC_ENABLE_ACYCLIC_REF_COUNT   false
+#define AUTO_TRACKABLE_MARK_BY_ADDRESS  true
 
 class Thread;
 class oopDesc;
@@ -27,9 +30,9 @@ protected:
 public:  
   RtYoungRootClosure() : _current_anchor(0) {}
 
-  virtual bool iterate_tenured_young_root_oop(oopDesc* root) = 0;
-  virtual void do_complete() = 0;
-  oopDesc* current_anchor() { return _current_anchor; }
+  virtual bool iterate_tenured_young_root_oop(oopDesc* root, bool is_root_reachable) = 0;
+  virtual void do_complete(bool is_strong_rechable) = 0;
+  virtual oop  keep_alive_young_referent(oop p) = 0;
 };
 
 class rtHeap : AllStatic {
@@ -37,19 +40,26 @@ public:
   static int  DoCrossCheck;
   static int  in_full_gc;
 
+  static void init_allocated_object(HeapWord* mem, Klass* klass);
+
   static void init_mark(oopDesc* p);
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);
+  static bool is_in_trackable_space(void* p);
 
   static void prepare_rtgc();
   static void init_reference_processor(ReferencePolicy* policy);
   static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc(bool is_full_gc, bool promotion_finished);
 
-  // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
+  static void mark_young_root_reachable(oopDesc* anchor, oopDesc* link);
+  static void mark_young_survivor_reachable(oopDesc* anchor, oopDesc* link);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
+  static void ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
+  static void clear_temporal_anchor_list(oopDesc* oop);
+
   static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);
 
@@ -57,7 +67,8 @@ public:
   static void mark_young_root(oopDesc* tenured_p, bool is_young_root);
   static void oop_recycled_iterate(ObjectClosure* closure);
 
-  // for full gc
+  static void mark_dead_space(oopDesc* obj);
+  
   static void mark_forwarded_trackable(oopDesc* p);
   static void destroy_trackable(oopDesc* p);
   static void prepare_adjust_pointers(HeapWord* old_gen_heap_start);
@@ -93,7 +104,6 @@ public:
   }
 
   static inline bool is_modified(oop p) {
-    if (true) return true;
     return (((uintptr_t)(void*)p) & 1) != 0;
   }
 
@@ -102,7 +112,6 @@ public:
   }
 
   static inline oop to_modified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) | 1);
   }
 
@@ -111,7 +120,6 @@ public:
   }
 
   static inline oop to_unmodified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) & ~1);
   }
 

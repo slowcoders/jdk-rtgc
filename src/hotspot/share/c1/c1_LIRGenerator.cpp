@@ -3125,7 +3125,7 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_compareAndSetReference:
 #if INCLUDE_RTGC // Exact Array Upate Detection
 #ifdef ASSERT
-    if (EnableRTGC) {
+    if (EnableRTGC) { // Maybe Usafe Access on array item
       do_CompareAndSwap(x, objectType, ON_UNKNOWN_OOP_REF);
     } else 
 #endif

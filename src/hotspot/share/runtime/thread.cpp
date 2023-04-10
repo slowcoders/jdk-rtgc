@@ -1536,7 +1536,7 @@ void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
-#if INCLUDE_RTGC    
+#if INCLUDE_RTGC // local jni handle owner
     JNIHandleBlock::release_block(block, this);
 #else
     JNIHandleBlock::release_block(block);
@@ -1546,7 +1546,7 @@ void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
   if (free_handle_block() != NULL) {
     JNIHandleBlock* block = free_handle_block();
     set_free_handle_block(NULL);
-#if INCLUDE_RTGC    
+#if INCLUDE_RTGC// local jni handle owner
     JNIHandleBlock::release_block(block, this);
 #else
     JNIHandleBlock::release_block(block);

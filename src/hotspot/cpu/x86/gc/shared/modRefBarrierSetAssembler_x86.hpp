@@ -33,7 +33,7 @@
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // INCLUDE RTGC Barrier
 #include "gc/rtgc/rtgcBarrierSetAssembler.hpp"
 
 class ModRefBarrierSetAssembler: public RtgcBarrierSetAssembler {
@@ -49,7 +49,7 @@ protected:
                             Address dst, Register val, Register tmp1, Register tmp2) = 0;
 public:
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // ENABLE_ARRAY_COPY_HOOK
   virtual void arraycopy_prologue_ex(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register src, Register dst, Register count, 
                                   Register dst_array, Label& copy_done, Register saved_count = noreg) {

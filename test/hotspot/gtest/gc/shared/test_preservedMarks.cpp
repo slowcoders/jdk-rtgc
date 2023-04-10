@@ -29,8 +29,22 @@
 class ScopedDisabledBiasedLocking {
   bool _orig;
 public:
-  ScopedDisabledBiasedLocking() : _orig(UseBiasedLocking) { UseBiasedLocking = false; }
-  ~ScopedDisabledBiasedLocking() { UseBiasedLocking = _orig; }
+  ScopedDisabledBiasedLocking() : _orig(UseBiasedLocking) { 
+#ifdef ASSERT
+    UseBiasedLocking = false;
+#else
+    RTGC_ONLY(precond(!UseBiasedLocking);)
+    NOT_RTGC(UseBiasedLocking = false;)
+#endif
+  }
+  ~ScopedDisabledBiasedLocking() { 
+#ifdef ASSERT
+    UseBiasedLocking = _orig;
+#else
+    RTGC_ONLY(precond(!UseBiasedLocking);)
+    NOT_RTGC(UseBiasedLocking = _orig;)
+#endif
+  }
 };
 
 // Class to create a "fake" oop with a mark that will

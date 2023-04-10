@@ -88,9 +88,6 @@ class oopDesc {
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
   static inline void set_klass_gap(HeapWord* mem, int z);
-#if INCLUDE_RTGC
-  static inline void clear_rt_node(HeapWord* mem);
-#endif  
 
   // size of object header, aligned to platform wordSize
   static int header_size() { return sizeof(oopDesc)/HeapWordSize; }
