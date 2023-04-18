@@ -75,6 +75,7 @@ namespace RTGC {
   HugeArray<oop> g_young_roots;
   HugeArray<GCObject*> g_stack_roots;
   HugeArray<GCObject*> g_recycled;
+  HugeArray<GCObject*> g_trace_stack;
   Thread* gcThread = NULL;
 #ifdef ASSERT  
   int g_debug_cnt_untracked = 0;
@@ -103,6 +104,8 @@ namespace RTGC_unused {
 };
 
 using namespace RTGC;
+
+bool rtHeap::UseRefCount = false;
 
 static oopDesc* __get_discovered(oop obj) {
   return obj->klass()->id() != InstanceRefKlassID ? NULL
@@ -813,7 +816,6 @@ void rtHeap__onCompactionFinishied() {
   GCNode::in_progress_adjust_pointers = false;
 }
 
-
 void GCNode::markGarbage(const char* reason)  {
   if (reason != NULL) {
     rt_assert(this->isTrackable());
@@ -1165,4 +1167,42 @@ void rtHeap__initialize() {
   UpdateLogBuffer::reset_gc_context();
 
 }
+
+void rtHeap::push_trace_stack(oopDesc* p, int stackDepth) {
+  GCObject* obj = to_obj(p);
+  g_trace_stack.push_back(obj);
+  // marking-gray. (trace_depth != 0)
+  obj->setTraceDepth(stackDepth + 1);
+}
+
+bool rtHeap::is_white_node(oopDesc* p) {
+  rt_assert(p->is_gc_marked());
+  return to_obj(p)->getTraceDepth() == 0;
+}
+
+bool rtHeap::is_black_node(oopDesc* p) {
+  rt_assert(p->is_gc_marked());
+  return to_obj(p)->getTraceDepth() < 0;
+}
+
+bool rtHeap::is_in_tracing(oopDesc* p) {
+  rt_assert(p->is_gc_marked());
+  return to_obj(p)->getTraceDepth() > 0;
+}
+
+void rtHeap::clear_trace_stack(int stack_bottom) {
+    int idx_top = g_trace_stack.size();
+    while (--idx_top >= 0) {
+      GCObject* top = g_trace_stack.at(idx_top);
+      if (top->getTraceDepth() <= stack_bottom) break;
+
+      top->setTraceDepth(-1);
+      g_trace_stack.resize(idx_top);
+    }
+}
+
+void rtHeap::create_circuit_node(oop circularNode) {
+
+}
+
 

@@ -38,9 +38,21 @@ public:
 class rtHeap : AllStatic {
 public:
   static int  DoCrossCheck;
+#ifdef ASSERT  
+  static bool UseRefCount;
+#else 
+  static const bool UseRefCount = 0;
+#endif
   static int  in_full_gc;
 
   static void init_allocated_object(HeapWord* mem, Klass* klass);
+
+  static void push_trace_stack(oopDesc* obj, int stack_depth);
+  static bool is_white_node(oopDesc* obj);
+  static bool is_black_node(oopDesc* obj);
+  static bool is_in_tracing(oopDesc* obj);
+  static void clear_trace_stack(int stack_depth);
+  static void create_circuit_node(oop circularNode);
 
   static void init_mark(oopDesc* p);
   static bool is_trackable(oopDesc* p);

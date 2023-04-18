@@ -55,22 +55,23 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
-template <bool root_reachable>
+template <bool tenure_reachable>
 inline bool MarkSweep::mark_and_push_internal(oop obj) {
   rt_assert(obj != NULL);
 
-    if (rtHeap::is_trackable(obj)) {
-    if (root_reachable) {
-        rtHeap::mark_survivor_reachable(obj);
-      } else {
-        rt_assert(rtHeap::is_alive(obj));
-      }
-    return false;
+  bool is_trackable = rtHeap::is_trackable(obj);
+  if (is_trackable) {
+    if (!tenure_reachable) {
+      rtHeap::mark_survivor_reachable(obj);
+    } else {
+      rt_assert(rtHeap::is_alive(obj));
     }
+    if (!rtHeap::UseRefCount) return false;
+  }
   
   if (!obj->mark().is_marked()) {
     mark_object(obj);
-    if (root_reachable) {
+    if (!tenure_reachable) {
       _marking_stack.push(obj);
     } else {
       //void rtHeap__ensure_resurrect_mode();
@@ -78,7 +79,18 @@ inline bool MarkSweep::mark_and_push_internal(oop obj) {
       _resurrect_stack.push(obj);
     }
   }
-  return true;
+  else if (rtHeap::UseRefCount) {
+    if (rtHeap::is_white_node(obj)) {
+      // Not traced object in marking stack.
+      int mark_bottom = _marking_stack.size();
+      follow_object(obj);
+      follow_stack(mark_bottom);
+    }
+    else if (rtHeap::is_in_tracing(obj)) {
+      rtHeap::create_circuit_node(obj);
+    }
+  }
+  return !is_trackable;
 }
 
 template <class T> 

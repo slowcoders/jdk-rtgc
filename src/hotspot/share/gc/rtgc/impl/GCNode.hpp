@@ -56,7 +56,7 @@ class GCNode {
 	struct {
 		uint32_t _jvmFlags: 7;
 		uint32_t _hasMultiRef: 1;
-		uint32_t _shortcutId: 24;
+		int32_t _shortcutId: 24;
 	}; 
 
 	int32_t _refs;
@@ -72,6 +72,14 @@ public:
 
 	static int flags_offset() {
 		return oopDesc::klass_gap_offset_in_bytes();
+	}
+
+	int getTraceDepth() {
+		return _shortcutId;
+	}
+
+	void setTraceDepth(int depth) {
+		_shortcutId = depth;
 	}
 
 	void markDirtyReferrerPoints() {

@@ -126,24 +126,38 @@ template <class T> inline void MarkSweep::KeepAliveClosure::do_oop_work(T* p) {
   mark_and_push(p);
 }
 
-RTGC_ONLY(template <bool root_reachable>)
+RTGC_ONLY(template <bool tenure_reachable>)
 void MarkSweep::push_objarray(oop obj, size_t index) {
-  ObjArrayTask task(obj, index, root_reachable);
+  ObjArrayTask task(obj, index, tenure_reachable);
   assert(task.is_valid(), "bad ObjArrayTask");
-  if (root_reachable) {
+  if (!tenure_reachable) {
     _objarray_stack.push(task);
   } else {
     _resurrect_objarray_stack.push(task);
   }
 }
 
-RTGC_ONLY(template <bool root_reachable>)
+RTGC_ONLY(template <bool tenure_reachable>)
 inline void MarkSweep::follow_array(objArrayOop array) {
-  RTGC_ONLY(if (root_reachable))
+  RTGC_ONLY(if (!tenure_reachable))
   MarkSweep::follow_klass(array->klass());
   // Don't push empty arrays to avoid unnecessary work.
-  if (array->length() > 0) {
-    MarkSweep::push_objarray<root_reachable>(array, 0);
+  const int len = array->length();
+  if (len > 0) {
+    if (rtHeap::UseRefCount) {
+      int beg_index = 0;
+      const int stride = ObjArrayMarkingStride;
+      const int mark_bottom = _marking_stack.size();
+      for (int end_index; beg_index < (end_index = beg_index + stride); ) {
+        array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
+        beg_index = end_index;
+        follow_stack(mark_bottom);
+      }
+      array->oop_iterate_range(&mark_and_push_closure, beg_index, len);
+      follow_stack(mark_bottom);
+    } else {
+      MarkSweep::push_objarray<tenure_reachable>(array, 0);
+    }
   }
 }
 
@@ -153,17 +167,20 @@ bool MarkSweep::_is_rt_anchor_trackable = false;
 void* MarkSweep::_marking_klass = 0;
 int  MarkSweep::_marking_klass_count = 0;
 #endif
-RTGC_ONLY(template <bool root_reachable>)
+RTGC_ONLY(template <bool tenure_reachable>)
 inline void MarkSweep::follow_object(oop obj) {
   assert(obj->is_gc_marked(), "should be marked");
   
+  if (rtHeap::UseRefCount) {
+    rtHeap::push_trace_stack(obj, _marking_stack.size());
+  }
   if (obj->is_objArray()) {
     // Handle object arrays explicitly to allow them to
     // be split into chunks if needed.
-    MarkSweep::follow_array<root_reachable>((objArrayOop)obj);
+    MarkSweep::follow_array<!tenure_reachable>((objArrayOop)obj);
   } else {
 #if INCLUDE_RTGC // MARK_AND_LINK 
-    if (!root_reachable) {
+    if (tenure_reachable) {
       ResurrectedStackClosure<false> mark_and_resurrect_closure;
       mark_and_resurrect_closure.do_iterate(obj);
     } else 
@@ -175,7 +192,7 @@ inline void MarkSweep::follow_object(oop obj) {
   }
 }
 
-RTGC_ONLY(template <bool root_reachable>)
+RTGC_ONLY(template <bool tenure_reachable>)
 void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int len = array->length();
   const int beg_index = index;
@@ -185,7 +202,7 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   const int end_index = beg_index + stride;
 
 #if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
-  if (!root_reachable) {
+  if (tenure_reachable) {
     ResurrectedStackClosure<false> mark_and_resurrect_closure;
     mark_and_resurrect_closure.do_iterate_array(array, beg_index, end_index);
   } else 
@@ -193,41 +210,61 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
 
   if (end_index < len) {
-    MarkSweep::push_objarray<root_reachable>(array, end_index); // Push the continuation.
+    MarkSweep::push_objarray<!tenure_reachable>(array, end_index); // Push the continuation.
   }
 }
 
-RTGC_ONLY(template <bool root_reachable>)
-void MarkSweep::follow_stack() {
+RTGC_ONLY(template <bool tenure_reachable>)
+void MarkSweep::follow_stack(int bottom) {
   do {
-    while (!_marking_stack.is_empty()) {
+    while (rtHeap::UseRefCount || !_marking_stack.is_empty()) {
+      if (rtHeap::UseRefCount) {
+        int cntStack = _marking_stack.size();
+        rt_assert(cntStack >= bottom);
+        rtHeap::clear_trace_stack(cntStack);
+        rt_assert(_objarray_stack.is_empty());
+        if (cntStack == bottom) break;
+      }
+
       oop obj = _marking_stack.pop();
+      if (rtHeap::UseRefCount) {
+        // is white??
+        if (!rtHeap::is_white_node(obj)) {
+          /* must be black*/
+          rt_assert(rtHeap::is_black_node(obj));
+          continue;
+        }
+      }
       assert (obj->is_gc_marked(), "p must be marked");
       rt_assert(!rtHeap::is_trackable(obj));
-      follow_object<true>(obj);
+      follow_object<tenure_reachable>(obj);
     }
 
 #if INCLUDE_RTGC // TEMP_YOUNG_ANCHOR
-    while (!_resurrect_stack.is_empty()) {
-      oop obj = _resurrect_stack.pop();
-      assert (obj->is_gc_marked(), "p must be marked");
-      rt_assert(!rtHeap::is_trackable(obj));
-      follow_object<false>(obj);
-    }
+    if (!rtHeap::UseRefCount) {
+      while (!_resurrect_stack.is_empty()) {
+        oop obj = _resurrect_stack.pop();
+        assert (obj->is_gc_marked(), "p must be marked");
+        rt_assert(!rtHeap::is_trackable(obj));
+        follow_object<true>(obj);
+      }
 
-    while (!_resurrect_objarray_stack.is_empty()) {
-      ObjArrayTask task = _resurrect_objarray_stack.pop();
-      rt_assert(!rtHeap::is_trackable(task.obj()));
-      follow_array_chunk<false>(objArrayOop(task.obj()), task.index());
+      while (!_resurrect_objarray_stack.is_empty()) {
+        ObjArrayTask task = _resurrect_objarray_stack.pop();
+        rt_assert(!rtHeap::is_trackable(task.obj()));
+        follow_array_chunk<true>(objArrayOop(task.obj()), task.index());
+      }
     }
 #endif
-
     // Process ObjArrays one at a time to avoid marking stack bloat.
     if (!_objarray_stack.is_empty()) {
       ObjArrayTask task = _objarray_stack.pop();
       rt_assert(!rtHeap::is_trackable(task.obj()));
-        follow_array_chunk<true>(objArrayOop(task.obj()), task.index());
+        follow_array_chunk<false>(objArrayOop(task.obj()), task.index());
     }
+
+
+
   } while (!_marking_stack.is_empty() || !_objarray_stack.is_empty() RTGC_ONLY(|| !_resurrect_stack.is_empty() || !_resurrect_objarray_stack.is_empty()));
 }
 
@@ -237,6 +274,7 @@ void MarkSweep::FollowStackClosure::do_void() { follow_stack(); }
 
 void MarkSweep__followDirtyStack() {
   MarkSweep::follow_stack<false>();
+  MarkSweep::follow_stack<true>();
 }
 
 template <class T> inline void MarkSweep::follow_root(T* p) {
@@ -248,7 +286,8 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
 #if INCLUDE_RTGC // REF_LINK
     if (EnableRTGC && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
-    } else 
+      if (!rtHeap::UseRefCount) return;
+    }  
 #endif
     if (!obj->mark().is_marked()) {
       mark_object(obj);
