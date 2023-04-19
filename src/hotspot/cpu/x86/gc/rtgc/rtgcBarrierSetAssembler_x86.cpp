@@ -277,7 +277,8 @@ void RtgcBarrierSetAssembler::oop_replace_at(MacroAssembler* masm, DecoratorSet 
         __ cmpxchgl(val, Address(addr, 0));
         __ jcc(Assembler::equal, L_cmpxchg_success);
 
-        // clone 하거나, array item 을 young array 로 복사하는 경우, modified-bit 가 clear 되지 않는다.
+        // clone, arraycopy 를 통해 old 객체를 young 객체로 복사하는 경우, modified-bit 가 clear 되지 않는다.
+        // YG 객체의 modified-flag 는 무시된다.
         __ bind(L_cmpxchg_2nd); {
           __ orl(rscratch1, 1); // set modified bit
           __ cmpl(cmp_v, rscratch1); // *addr == (new_v | modified)

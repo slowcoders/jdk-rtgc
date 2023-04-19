@@ -80,7 +80,7 @@ void oopDesc::print_value_on(outputStream* st) const {
 
 void oopDesc::verify_on(outputStream* st, oopDesc* oop_desc) {
   if (oop_desc != NULL) {
-    RTGC_ONLY(if (EnableRTGC && rtHeap::is_destroyed(oop_desc)) return;)
+    // RTGC_ONLY(if (EnableRTGC && rtHeap::is_destroyed(oop_desc)) return;)
     oop_desc->klass()->oop_verify_on(oop_desc, st);
   }
 }

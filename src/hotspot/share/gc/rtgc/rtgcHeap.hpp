@@ -8,8 +8,11 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
+
 #define RTGC_FAT_OOP        true
 #define RTGC_SHARE_GC_MARK  false
+#define RTGC_ENABLE_ACYCLIC_REF_COUNT   false
+#define AUTO_TRACKABLE_MARK_BY_ADDRESS  true
 
 class Thread;
 class oopDesc;
@@ -35,12 +38,27 @@ public:
 class rtHeap : AllStatic {
 public:
   static int  DoCrossCheck;
+#ifdef ASSERT  
+  static bool UseRefCount;
+#else 
+  static const bool UseRefCount = 0;
+#endif
   static int  in_full_gc;
+
+  static void init_allocated_object(HeapWord* mem, Klass* klass);
+
+  static void push_trace_stack(oopDesc* obj, int stack_depth);
+  static bool is_white_node(oopDesc* obj);
+  static bool is_black_node(oopDesc* obj);
+  static bool is_in_tracing(oopDesc* obj);
+  static void clear_trace_stack(int stack_depth);
+  static void create_circuit_node(oop circularNode);
 
   static void init_mark(oopDesc* p);
   static bool is_trackable(oopDesc* p);
   static bool is_alive(oopDesc* p, bool must_not_destroyed = true);
   static bool is_destroyed(oopDesc* p);
+  static bool is_in_trackable_space(void* p);
 
   static void prepare_rtgc();
   static void init_reference_processor(ReferencePolicy* policy);
@@ -50,6 +68,7 @@ public:
   // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
+  static void ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
   static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);
 
@@ -58,6 +77,8 @@ public:
   static void oop_recycled_iterate(ObjectClosure* closure);
 
   // for full gc
+  static void mark_dead_space(oopDesc* obj);
+  
   static void mark_forwarded_trackable(oopDesc* p);
   static void destroy_trackable(oopDesc* p);
   static void prepare_adjust_pointers(HeapWord* old_gen_heap_start);
@@ -93,7 +114,6 @@ public:
   }
 
   static inline bool is_modified(oop p) {
-    if (true) return true;
     return (((uintptr_t)(void*)p) & 1) != 0;
   }
 
@@ -102,7 +122,6 @@ public:
   }
 
   static inline oop to_modified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) | 1);
   }
 
@@ -111,7 +130,6 @@ public:
   }
 
   static inline oop to_unmodified(oop p) {
-    if (true) return p;
     return cast_to_oop(((uintptr_t)(void*)p) & ~1);
   }
 

@@ -127,7 +127,7 @@ jint GenCollectedHeap::initialize() {
   ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
   
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // RtgcBarrier::init_barrier_runtime
   if (EnableRTGC) RtgcBarrier::init_barrier_runtime();
   if (RtNoDirtyCardMarking) {  
     bs = new RtgcBarrierSet(_rem_set);
@@ -139,7 +139,7 @@ jint GenCollectedHeap::initialize() {
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();
   }
-#if !INCLUDE_RTGC  
+#if !INCLUDE_RTGC  // RtgcBarrier::init_barrier_runtime
   BarrierSet::set_barrier_set(bs);
 #endif
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
@@ -149,7 +149,7 @@ jint GenCollectedHeap::initialize() {
   old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // RtgcBarrier::init_barrier_runtime
   BarrierSet::set_barrier_set(bs);
 #endif
   GCInitLogger::print();
@@ -498,12 +498,6 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-    // if (EnableRTGC) {
-    //   _young_gen->save_marks();
-    // } 
-    // else
-#endif    
     {
       save_marks();   // save marks for all gens
     }
@@ -577,7 +571,7 @@ void GenCollectedHeap::do_collection(bool           full,
   bool prepared_for_verification = false;
   bool do_full_collection = false;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // prepare rtgc
   if (EnableRTGC) { 
     rtHeap::prepare_rtgc();
   }
@@ -693,6 +687,7 @@ void GenCollectedHeap::do_collection(bool           full,
   if (EnableRTGC) {
     rtHeap::finish_rtgc(true, true);
 #ifdef ASSERT
+    if (RTGC_DEBUG) this->verify(VerifyOption_Default);
     rtHeap::print_heap_after_gc(do_full_collection);
 #endif
   }
@@ -853,14 +848,14 @@ void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
                                           OopClosure* root_closure,
                                           CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
-#if !INCLUDE_RTGC
+#if !INCLUDE_RTGC // full_process_roots
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
 #else 
   process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
 #endif  
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // ReMarkWeakReachableClosure
 class ReMarkWeakReachableClosure: public BoolObjectClosure {
   public:
   virtual bool do_object_b(oop p) {
@@ -872,7 +867,7 @@ class ReMarkWeakReachableClosure: public BoolObjectClosure {
 #endif
 
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // RtLazyClearWeakHandle
   if (RtLazyClearWeakHandle) {
     ReMarkWeakReachableClosure remark_closure;
     WeakProcessor::weak_oops_do(&remark_closure, root_closure);

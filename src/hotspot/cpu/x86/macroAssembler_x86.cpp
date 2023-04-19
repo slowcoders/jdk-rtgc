@@ -4750,7 +4750,7 @@ void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
 #endif
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 
-#if RTGC_FAT_OOP  
+#if RTGC_FAT_OOP  // rtNode
     xorptr(tmp, tmp);
 #ifdef _LP64    
     movq(Address(dst, 8), tmp);
@@ -4841,7 +4841,7 @@ void MacroAssembler::encode_heap_oop(Register r) {
   verify_oop_msg(r, "broken oop in encode_heap_oop");
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
       if (rtHeap::useModifyFlag()) {
         shrq(r, CompressedOops::shift());
       } else 
@@ -4856,7 +4856,7 @@ void MacroAssembler::encode_heap_oop(Register r) {
   testq(r, r);
   cmovq(Assembler::equal, r, r12_heapbase);
   subq(r, r12_heapbase);
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag  
   if (rtHeap::useModifyFlag()) {
     shrq(r, CompressedOops::shift());
   } else 
@@ -4881,7 +4881,7 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
   }
   
   if (CompressedOops::shift() != 0) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag  
     if (rtHeap::useModifyFlag()) {
       shrq(r, CompressedOops::shift());
     } else 
@@ -4912,7 +4912,7 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
     subq(dst, r12_heapbase);
   }
   if (CompressedOops::shift() != 0) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
     if (rtHeap::useModifyFlag()) {
       shrq(dst, CompressedOops::shift());
     } else 
@@ -4933,7 +4933,7 @@ void  MacroAssembler::decode_heap_oop(Register r) {
   }
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
       if (rtHeap::useModifyFlag()) {
         shlq(r, CompressedOops::shift());
       } else 
@@ -4945,7 +4945,7 @@ void  MacroAssembler::decode_heap_oop(Register r) {
     }
   } else {
     Label done;
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
     if (rtHeap::useModifyFlag()) {
       shlq(r, CompressedOops::shift());
     } else 
@@ -4966,14 +4966,14 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
   if (rtHeap::useModifyFlag()) {
     andl(r, ~1); // clear modified flag
   }
 #endif
 
   if (CompressedOops::shift() != 0) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
     if (rtHeap::useModifyFlag()) {
       shlq(r, CompressedOops::shift());
     } else 
@@ -5000,7 +5000,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   if (CompressedOops::shift() != 0) {
     assert(RTGC_ONLY(rtHeap::useModifyFlag() ||) LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
     if (LogMinObjAlignmentInBytes == Address::times_8) {
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
       if (rtHeap::useModifyFlag()) {
         leaq(dst, Address(r12_heapbase, src, Address::times_4, 0));
       } else
@@ -5010,7 +5010,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       if (dst != src) {
         movq(dst, src);
       }
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
       if (rtHeap::useModifyFlag()) {
         shlq(dst, CompressedOops::shift());
       } else 
@@ -5027,7 +5027,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       movq(dst, src);
     }
   }
-#if INCLUDE_RTGC      
+#if INCLUDE_RTGC // rtHeap::useModifyFlag
   if (rtHeap::useModifyFlag()) {
     andl(dst, ~7); // clear modified flag
   }

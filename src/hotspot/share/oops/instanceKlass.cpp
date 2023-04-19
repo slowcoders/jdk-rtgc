@@ -3684,6 +3684,7 @@ void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,
 // Verification
 
 class VerifyFieldClosure: public BasicOopIterateClosure {
+  RTGC_ONLY(oop _anchor;)
  protected:
   template <class T> void do_oop_work(T* p) {
     oop obj = RawAccess<>::oop_load(p);
@@ -3692,10 +3693,30 @@ class VerifyFieldClosure: public BasicOopIterateClosure {
       Universe::print_on(tty);
       guarantee(false, "boom");
     }
+#if INCLUDE_RTGC // debug logging
+    if (EnableRTGC && obj != NULL) {
+      rt_assert(!rtHeap::is_trackable(_anchor) || !rtHeap::is_trackable(obj) || rtHeap::is_alive(obj));
+    }
+#endif
   }
  public:
+#if INCLUDE_RTGC // debug logging
+  VerifyFieldClosure(oop anchor) { this->_anchor = anchor; }
+#endif
   virtual void do_oop(oop* p)       { VerifyFieldClosure::do_oop_work(p); }
-  virtual void do_oop(narrowOop* p) { VerifyFieldClosure::do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { 
+#if INCLUDE_RTGC // debug logging
+    narrowOop heap_oop = *p;
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop result = CompressedOops::decode_raw(heap_oop);
+      assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d)  anchor = %p(%s)", 
+          (void*)result, rtHeap::is_alive(result, false),
+          (void*)_anchor, _anchor->klass()->name()->bytes());
+
+    }
+#endif    
+    VerifyFieldClosure::do_oop_work(p); 
+  }
 };
 
 void InstanceKlass::verify_on(outputStream* st) {
@@ -3814,7 +3835,7 @@ void InstanceKlass::verify_on(outputStream* st) {
 
 void InstanceKlass::oop_verify_on(oop obj, outputStream* st) {
   Klass::oop_verify_on(obj, st);
-  VerifyFieldClosure blk;
+  VerifyFieldClosure blk(RTGC_ONLY(obj));
   obj->oop_iterate(&blk);
 }
 

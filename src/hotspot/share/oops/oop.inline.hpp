@@ -77,7 +77,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 void oopDesc::init_mark() {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // oopDesc::init_mark
   if (EnableRTGC) {
     rtHeap::init_mark(this);
   } else 
@@ -138,13 +138,6 @@ void oopDesc::set_klass_gap(HeapWord* mem, int v) {
   if (UseCompressedClassPointers) {
     *(int*)(((char*)mem) + klass_gap_offset_in_bytes()) = v;
   }
-}
-
-void oopDesc::clear_rt_node(HeapWord* mem) {
-#if RTGC_FAT_OOP 
-  cast_to_oop(mem)->_rtNode[0] = 0;
-#endif
-  cast_to_oop(mem)->set_klass_gap(0);
 }
 
 void oopDesc::set_klass_gap(int v) {

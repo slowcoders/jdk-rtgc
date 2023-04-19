@@ -868,7 +868,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     }
   }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // !RTGC_FAT_OOP
   RTGC::RtHashLock hashLock;
 #endif
   while (true) {

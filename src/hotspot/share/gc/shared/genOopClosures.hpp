@@ -57,8 +57,6 @@ protected:
 public:
 #if INCLUDE_RTGC // RTGC_OPT_CLD_SCAN
   DefNewGeneration* young_gen() { return _young_gen; }
-  template <typename T>
-  void trackable_barrier(T* p, oop new_p) { fatal("not implemented"); }
 #endif 
 
   virtual void do_oop(oop* p);
@@ -152,8 +150,7 @@ public:
         "yg-barrier %p(%s)[%d] = %x\n", 
         (void*)_current_anchor, _current_anchor->klass()->name()->bytes(),
         (int)((address)p - (address)_current_anchor), (int32_t)(intptr_t)(void*)*p);
-    void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
-    rtHeap__ensure_trackable_link(_current_anchor, new_p);
+    rtHeap::ensure_trackable_link(_current_anchor, new_p);
   }
 };
 #endif

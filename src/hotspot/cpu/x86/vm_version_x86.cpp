@@ -1760,7 +1760,12 @@ bool VM_Version::use_biased_locking() {
       FLAG_SET_DEFAULT(UseBiasedLocking, false);
     } else {
       warning("Biased locking is not supported with RTM locking; ignoring UseBiasedLocking flag." );
+#ifdef ASSERT
       UseBiasedLocking = false;
+#else
+      RTGC_ONLY(precond(!UseBiasedLocking);)
+      NOT_RTGC(UseBiasedLocking = false;)
+#endif
     }
   }
 #endif

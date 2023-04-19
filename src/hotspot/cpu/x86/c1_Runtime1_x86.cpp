@@ -1197,7 +1197,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
           __ bind(slow_path);
         }
-
+        // zee new_object_array
         __ enter();
         OopMap* map = save_live_registers(sasm, 3);
         int call_offset;
@@ -1621,7 +1621,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 #undef __
 
 const char *Runtime1::pd_name_for_address(address entry) {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // AD HOC method name 
   return "rtgc method";
 #endif
   return "<unknown function>";

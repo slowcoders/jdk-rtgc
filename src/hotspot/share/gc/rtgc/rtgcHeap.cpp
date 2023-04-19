@@ -103,6 +103,13 @@ static oopDesc* __get_discovered(oop obj) {
     : java_lang_ref_Reference::discovered(obj);
 }
 
+void rtHeap::init_allocated_object(HeapWord* mem, Klass* klass) {
+#if RTGC_FAT_OOP
+  mem[1] = 0;
+#endif
+  oopDesc::set_klass_gap(mem, 0);
+}      
+
 void rtHeap::init_mark(oopDesc* p) {
   if (UseBiasedLocking) {  
     p->set_mark(markWord::prototype_for_klass(p->klass()));
@@ -148,6 +155,10 @@ bool rtHeap::is_trackable(oopDesc* p) {
   GCObject* obj = to_obj(p);
   bool isTrackable = obj->isTrackable_unsafe();
   return isTrackable;
+}
+
+bool rtHeap::is_in_trackable_space(void* p) {
+  return GenCollectedHeap::heap()->old_gen()->is_in(p);
 }
 
 void rtHeap::lock_jni_handle_at_safepoint(oopDesc* p) {
@@ -792,7 +803,7 @@ size_t CollectedHeap::filler_array_min_size() {
   return align_object_size(filler_array_hdr_size()); // align to MinObjAlignment
 }
 
-void rtHeap__mark_dead_space(oopDesc* deadObj) {
+void rtHeap::mark_dead_space(oopDesc* deadObj) {
   GCObject* obj = to_obj(deadObj);
   rt_assert(!deadObj->is_gc_marked());
   if (obj->isTrackable_unsafe()) {
@@ -805,7 +816,7 @@ void rtHeap__mark_dead_space(oopDesc* deadObj) {
   }
 }
 
-void rtHeap__ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
+void rtHeap::ensure_trackable_link(oopDesc* anchor, oopDesc* obj) {
   if (anchor != obj) {
     rt_assert_f(rtHeap::is_alive(obj), "must not a garbage \n" PTR_DBG_SIG, PTR_DBG_INFO(obj)); 
     rt_assert_f(to_obj(obj)->hasReferrer(to_obj(anchor)), 

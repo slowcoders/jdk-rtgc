@@ -32,7 +32,7 @@
 // than T_OBJECT/T_ARRAY (oops). The oop accesses call one of the protected
 // accesses, which are overridden in the concrete BarrierSetAssembler.
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // INCLUDE rtgcBarrierSetC1
 #include "gc/rtgc/c1/rtgcBarrierSetC1.hpp"
 
 class ModRefBarrierSetC1: public RtgcBarrierSetC1 {

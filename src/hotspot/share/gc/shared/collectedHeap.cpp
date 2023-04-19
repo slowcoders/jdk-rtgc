@@ -423,7 +423,7 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 }
 #endif // ASSERT
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // init dead space
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
   precond(!rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
   if (UseBiasedLocking) {
@@ -456,7 +456,7 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
   const size_t len = payload_size * HeapWordSize / sizeof(jint);
   assert((int)len >= 0, "size too large " SIZE_FORMAT " becomes %d", words, (int)len);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // init dead space
   if (EnableRTGC) {
     init_dead_space(start, Universe::intArrayKlassObj(), len);
   }
@@ -477,7 +477,7 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
     fill_with_array(start, words, zap);
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // init dead space
     if (EnableRTGC) {
       init_dead_space(start, vmClasses::Object_klass(), -1);
     }
@@ -493,7 +493,7 @@ CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 void CollectedHeap::fill_with_object(HeapWord* start, size_t words, bool zap)
 {
   DEBUG_ONLY(fill_args_check(start, words);)
-#if !INCLUDE_RTGC  
+#if !INCLUDE_RTGC // init dead space
   HandleMark hm(Thread::current());  // Free handles before leaving.
 #endif
   fill_with_object_impl(start, words, zap);
@@ -502,7 +502,7 @@ void CollectedHeap::fill_with_object(HeapWord* start, size_t words, bool zap)
 void CollectedHeap::fill_with_objects(HeapWord* start, size_t words, bool zap)
 {
   DEBUG_ONLY(fill_args_check(start, words);)
-#if !INCLUDE_RTGC  
+#if !INCLUDE_RTGC // init dead space
   HandleMark hm(Thread::current());  // Free handles before leaving.
 #endif
   // Multiple objects may be required depending on the filler array maximum size. Fill

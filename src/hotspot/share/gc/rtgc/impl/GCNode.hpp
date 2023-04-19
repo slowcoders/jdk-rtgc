@@ -6,12 +6,12 @@
 #include "oops/oop.hpp"
 #include "GCPointer.hpp"
 #include "../rtgcGlobals.hpp"
+#include "../rtgcHeap.hpp"
 
 #define ZERO_ROOT_REF 		0
 static const int NO_SAFE_ANCHOR = 0;
 static const int INVALID_SHORTCUT = 1;
 
-static const bool AUTO_TRACKABLE_MARK_BY_ADDRESS = true;
 namespace RTGC {
 
 class ReferrerList;

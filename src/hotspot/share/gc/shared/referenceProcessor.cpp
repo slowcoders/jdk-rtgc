@@ -90,7 +90,7 @@ void ReferenceProcessor::enable_discovery(bool check_no_refs) {
   // field in ReferenceProcessor here so that we use the new
   // value during reference discovery.
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // _soft_ref_timestamp_clock
   if (EnableRTGC && rtHeap::DoCrossCheck) {
     extern jlong __get_soft_ref_timestamp_clock(bool reset);
     _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(true);
@@ -219,7 +219,7 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
   // here so that we use the new value during processing of the
   // discovered soft refs.
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // _soft_ref_timestamp_clock
   if (EnableRTGC && rtHeap::DoCrossCheck) {
     extern jlong __get_soft_ref_timestamp_clock(bool reset);
     _soft_ref_timestamp_clock = __get_soft_ref_timestamp_clock(false);
@@ -244,7 +244,7 @@ ReferenceProcessorStats ReferenceProcessor::process_discovered_references(RefPro
     process_soft_weak_final_refs(proxy_task, phase_times);
   }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // keep_alive_final_referents
   if (EnableRTGC) {
     RTGC::rtHeapEx::keep_alive_final_referents(&proxy_task);
   } else
@@ -395,7 +395,7 @@ size_t ReferenceProcessor::process_soft_ref_reconsider_work(DiscoveredList&    r
   return iter.removed();
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // debug assert
 void rtHeap__ensure_garbage_referent(oopDesc* ref, oopDesc* referent, bool clear_soft);
 #endif
 

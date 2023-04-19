@@ -1514,7 +1514,7 @@ void set_object_alignment() {
 
   // Oop encoding heap max
   OopEncodingHeapMax = (uint64_t(max_juint) + 1) << LogMinObjAlignmentInBytes;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // useModifyFlag
 #ifdef ASSERT    
   extern bool rtHeapEx__useModifyFlag;
 #else
@@ -1548,12 +1548,12 @@ void Arguments::set_use_compressed_oops() {
   // to use UseCompressedOops are InitialHeapSize and MinHeapSize.
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
-#if INCLUDE_RTGC
-#ifndef ASSERT
-  FLAG_SET_ERGO(UseCompressedOops, true);
-  return;
-#endif
-#endif
+// #if INCLUDE_RTGC // RTGC_RELEASE
+// #ifndef ASSERT
+//   FLAG_SET_ERGO(UseCompressedOops, true);
+//   return;
+// #endif
+// #endif
   if (max_heap_size <= max_heap_for_compressed_oops()) {
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);
@@ -1630,7 +1630,7 @@ jint Arguments::set_ergonomics_flags() {
   // in vm_version initialization code.
 #endif // _LP64
 
-#if INCLUDE_RTGC // NO_BIASED_LOCKING
+#if INCLUDE_RTGC // RTGC_RELEASE + NO_BIASED_LOCKING
 #ifdef ASSERT
   EnableRTGC = UseSerialGC && UseCompressedClassPointers;
   /**
@@ -1643,7 +1643,7 @@ jint Arguments::set_ergonomics_flags() {
   RtLazyClearWeakHandle = false;//EnableRTGC;
 #else
   rt_assert(!UseBiasedLocking);
-  if (!(UseSerialGC && UseCompressedClassPointers && UseCompressedOops)) {
+  if (!(UseSerialGC && UseCompressedOops)) {
     fatal("RTGC only support UseSerialGC && UseCompressedClassPointers");
   }
 #endif
@@ -3146,8 +3146,12 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   if (DumpSharedSpaces) {
     // Disable biased locking now as it interferes with the clean up of
     // the archived Klasses and Java string objects (at dump time only).
+#ifdef ASSERT
     UseBiasedLocking = false;
-
+#else
+    RTGC_ONLY(precond(!UseBiasedLocking);)
+    NOT_RTGC(UseBiasedLocking = false;)
+#endif
     // Compiler threads may concurrently update the class metadata (such as method entries), so it's
     // unsafe with DumpSharedSpaces (which modifies the class metadata in place). Let's disable
     // compiler just to be safe.
@@ -4078,7 +4082,12 @@ jint Arguments::apply_ergo() {
       warning("Biased Locking is not supported with locking debug flags"
               "; ignoring UseBiasedLocking flag." );
     }
+#ifdef ASSERT
     UseBiasedLocking = false;
+#else
+    RTGC_ONLY(precond(!UseBiasedLocking);)
+    NOT_RTGC(UseBiasedLocking = false;)
+#endif
   }
 
 #ifdef ZERO
@@ -4119,7 +4128,12 @@ jint Arguments::apply_ergo() {
   if (UseBiasedLocking) {
     if (!VM_Version::use_biased_locking() &&
         !(FLAG_IS_CMDLINE(UseBiasedLocking))) {
+#ifdef ASSERT
       UseBiasedLocking = false;
+#else
+      RTGC_ONLY(precond(!UseBiasedLocking);)
+      NOT_RTGC(UseBiasedLocking = false;)
+#endif
     }
   }
 #ifdef COMPILER2

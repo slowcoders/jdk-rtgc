@@ -68,7 +68,7 @@ void SharedRuntime::inline_check_hashcode_from_object_header(MacroAssembler* mas
     __ jcc(Assembler::notZero, slowCase);
   }
 
-#if defined(_LP64) && INCLUDE_RTGC
+#if defined(_LP64) && INCLUDE_RTGC // !RTGC_FAT_OOP
   if (EnableRTGC && !RTGC_FAT_OOP) {
     __ shrptr(result, markWord::hash_shift);
     __ testl(result, 0);

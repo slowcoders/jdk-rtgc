@@ -356,6 +356,10 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   // q is alive
   // First check if we should switch compaction space
   assert(this == cp->space, "'this' should be current compaction space.");
+  
+  /* RTGC TODO. YG-Space 와 OG-space 를 나눠서, trackable 크기를 최소화할 것.
+     OLD-GC 를 먼저 수행한 후, Younger-GC 를 추가적으로 수행하는 방법 고민할 것.
+  */
   size_t compaction_max_size = pointer_delta(end(), compact_top);
   while (size > compaction_max_size) {
     rt_assert_f(q->is_gc_marked(), "dead space 는 단일 generation 에서만 허용.");
@@ -377,7 +381,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   // store the forwarding pointer into the mark word
   if (cast_from_oop<HeapWord*>(q) != compact_top) {
     q->forward_to(cast_to_oop(compact_top));
-#ifdef INCLUDE_RTGC 
+#if INCLUDE_RTGC // debug logging
 #ifdef ASSERT
     if (EnableRTGC) {
       assert(rtHeap::is_alive(q), "encoding the pointer should preserve the mark");
@@ -402,6 +406,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
 
   compact_top += size;
 
+  /* RTGC-TODO. Block 단위 GC 처리에 대해서 연구해 볼 것*/
   // we need to update the offset table so that the beginnings of objects can be
   // found during scavenge.  Note that we are updating the offset table based on
   // where the object will be once the compaction phase finishes.
@@ -672,7 +677,11 @@ void OffsetTableContigSpace::verify() const {
     }
 
     if (objs == OBJ_SAMPLE_INTERVAL) {
+      // rtgc_log(true, "verify %p %s ", p, cast_to_oop(p)->klass()->name()->bytes());
+      // rtgc_debug_log(p, "verify %p %s ", p, cast_to_oop(p)->klass()->name()->bytes());
+      RTGC_ONLY(if (!rtHeap::is_in_trackable_space(p) || !rtHeap::is_destroyed(cast_to_oop(p))))
       oopDesc::verify(cast_to_oop(p));
+      // rtgc_debug_log(p, ">> verify %p %s", p, cast_to_oop(p)->klass()->name()->bytes());
       objs = 0;
     } else {
       objs++;

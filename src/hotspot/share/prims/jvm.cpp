@@ -98,7 +98,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // include..
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCObject.hpp"
 #endif

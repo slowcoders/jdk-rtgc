@@ -1,8 +1,10 @@
 ###
+   * MarkSweep::follow_klass 생략 가능(??)
    * lockfree set-field: modified history (modified bit);
       MacroAssembler::decode_heap_oop/encode_heap_oop
       참조) BarrierSetAssembler::eden_allocate
            ShenandoahBarrierSetC1::load_reference_barrier_impl
+           c1_Runtime1_x86.cpp:1201 (new_object_array_id)
       참고) thread::_gc_data -> GCThreadLocalData[19];
          thread->gc_data() 를 이용하여 참조. (SerialGC는 사용하지 않음)
 
@@ -19,7 +21,7 @@
       (promotion 처리 : modified history 로 구현하려면, 별도 heap 필요.
           -> iterate_young_gen_roots() 전에 history-clean)
       (anchorList memory compression)
-   * icrease/decreaseRootRefCount 다듬기 -> ROOT_REF_COUNT(n) 
+   * increase/decreaseRootRefCount 다듬기 -> ROOT_REF_COUNT(n) 
       -> isStrongRootReachable() { return _flags < ROOT_REF_COUNT(1); }
    * rt_node 데이터 최적화
    * isAcyclic()!!
@@ -36,6 +38,9 @@
    * handle_bit (optional -> 8 giga young memory, 8 giga old object handles)
    * Array-Item 은 64bit 로??
    * CDS 지원 : AnchorList 에 대한 reallocation 필요.
+   * !RTGC_FAT_OOP 지원: Lock 정보를 미리 swapping 한 후, normalized 된 data 를 scan 한다.
+      MonitorChunk / BasicObjectLock 참고, ObjectLocker 가 문제될 수 있음.
+      JavaThread::oops_do_no_frames 에서 MonitorChunk 에 대한 iteration 예제가 있음.
 
 1) Flags
 2) RootRefCount
@@ -186,9 +191,34 @@ void GenCollectedHeap::collect_generation()
 
 
 * MemAllocator
+
+TemplateTable::_new()
+   -> InterpreterRuntime::_new
+      -> klass->initialize(CHECK);
+         -> Klass::resolveNodeType()
+LIR_OpAllocObj 
+   -> __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::fast/new_instance/init_check_id))); 
+      -> Runtime1::new_instance
+         -> klass->initialize(CHECK);
+            -> Klass::resolveNodeType()
+
+TemplateTable::anewarray()
+   -> InterpreterRuntime::anewarray         
+      -> oopFactory::new_objArray
+         -> InstanceKlass::allocate_objArray
+         -> ArrayKlass::allocate_arrayArray
+            -> Klass::resolveNodeType()
+LIR_OpAllocArray 
+   -> __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+      -> Runtime1::new_object_array
+         -> oopFactory::new_objArray
+            -> InstanceKlass::allocate_objArray
+            -> ArrayKlass::allocate_arrayArray
+               -> Klass::resolveNodeType()
+
 void LIR_List::allocate_object(LIR_Opr dst..) 
    solw_path = new NewInstanceStub(klass_reg, Runtime1::fast_new_instance_id : ..)
-   append(new LIR_OpAllocObj..., slow_path = 
+   append(new LIR_OpAllocObj..., slow_path = new NewInstanceStub
    void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op, slow_path)
       void C1_MacroAssembler::allocate_object(..,, slow_path)
          C1_MacroAssembler::try_allocate(... , slow_path)
@@ -279,6 +309,22 @@ hash_bits : max_hash_bits > 31 ? 31 : max_hash_bits;
 0x7f992c008a20] RTGC.cpp:359 unused_gap_bits 0x1
 0x7f992c008a20] RTGC.cpp:360 unused_gap_bits_in_place 0x80
 
+## set field
+1) TemplateTable::putfield_or_static_helper 
+      do_oop_store() TemaplateTable_x86.cpp 
+         MacroAssembler::store_heap_oop()
+            MacroAssembler::access_store_at()
+               BarrierSetAssembler::store_at()
+2) c1_LIRGenerator::do_StoreField
+      LIRGenerator::access_store_at()
+         BarrierSetC1::store_at()
+3) array_item 에 대한 cmpxchg 문제.
+   LIRGenerator::do_CompareAndSwap 
+   // 관련 소스 한 곳만 수정한다(??)
+4) final field 에 대한 Unsafe.putReference()
+   // 관련 소스 한 곳만 수정한다(??)
+
+
 ## Reference 처리.
    !!! Referene 가 collect 되면, RefereceQueue 에 등록(enqueue)되지 않는다!
    JVM은 별도의 RefList 를 관리하지 않음. 객체 Marking 시, RefClass 에 대해서 예외처리 함.
@@ -338,3 +384,21 @@ make: *** [test] Error 2
 real    129m40.893s
 user    387m3.703s
 sys     12m12.053s
+--- acylic ref-count enabled -------------------
+alive objects 90914 anchors 52968 multi 5014
+alive objects 187646 anchors 240898 multi 57020
+alive objects 70578 anchors 52841 multi 5142
+alive objects 138120 anchors 82636 multi 5731
+alive objects 282307 anchors 122806 multi 5823
+alive objects 502519 anchors 629451 multi 170981
+alive objects 924497 anchors 1470441 multi 359440
+
+
+--- acylic ref-count disabled -------------------
+alive objects 90912 anchors 130308 multi 13358
+alive objects 187668 anchors 424694 multi 76289
+alive objects 70577 anchors 117607 multi 14308
+alive objects 138119 anchors 221506 multi 22470
+alive objects 282306 anchors 383748 multi 32340
+alive objects 502512 anchors 1177547 multi 233862
+alive objects 924416 anchors 2430149 multi 424139
