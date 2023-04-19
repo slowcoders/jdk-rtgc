@@ -125,6 +125,7 @@ void FreeMemStore::clearStore() {
 
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   rt_assert(!cast_to_oop(obj)->is_gc_marked());
+  rt_assert(obj->isGarbageMarked());
   rt_assert(obj->isTrackable());
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
   

@@ -15,23 +15,12 @@ using namespace RTGC;
     "sun/nio/fs/NativeBuffers$1",
     "[I",
 */
-
 const char* debugClassNames[] = {
   0, // reserved for -XX:AbortVMOnExceptionMessage=''
-  // "[B",
-  // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "java/lang/ref/Finalizer",
-    // "jdk/nio/zipfs/ZipFileSystem",
-  //  "java/lang/invoke/LambdaFormEditor$Transform",
-    // "java/lang/invoke/MethodTypeForm",
-    // "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
-    // "java/lang/invoke/MethodType",
-    // "java/lang/invoke/MethodType$ConcurrentWeakInternSet$WeakEntry",
-    // "java/lang/ref/SoftReference",
-    // "java/util/HashMap$Node", 
-    // "jdk/internal/ref/CleanerImpl$PhantomCleanableRef",
-    // "jdk/nio/zipfs/ZipFileSystem",
-    // "java/lang/ref/Finalizer"
+  // "java/util/TreeMap$Entry",
+  // "[Ljava/util/HashMap$Node;",
+  // "jdk/tools/jlink/internal/ImagePluginStack$OrderedResourcePoolManager$OrderedResourcePool",
+  // "java/util/concurrent/ConcurrentHashMap$Node",
 };
 
 
@@ -143,11 +132,11 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   if (!REF_LINK_ENABLED) return;
 #ifdef ASSERT    
   if (false && RTGC::is_debug_pointer(debug_base)) {
-     rtgc_log(1, "referrer %p(rc=%d) added to %p(%s)\n", 
+     rtgc_log(1, "referrer %p(rc=%d) added to %p(%s)", 
         base, to_obj(base)->getRootRefCount(), p, RTGC::getClassName(p));
   }
   if (RTGC::is_debug_pointer(p)) {
-     rtgc_log(1, "referrer %p/%p(%s) added to %p(rc=%d refs_=%x)\n", 
+     rtgc_log(1, "referrer %p/%p(%s) added to %p(rc=%d refs_=%x)", 
         debug_base, base, RTGC::getClassName(debug_base), p, 
         to_obj(p)->getRootRefCount(), to_obj(p)->getReferrerCount());
   }
@@ -167,17 +156,17 @@ void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue,
   check_valid_obj(newValue, base);
   check_valid_obj(oldValue, base);
   precond (oldValue != newValue);
-  rt_assert_f(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d\n", 
+  rt_assert_f(!to_obj(base)->isGarbageMarked(), "incorrect anchor %p(%s) rc=%d", 
           base, RTGC::getClassName((GCObject*)base), to_obj(base)->getRootRefCount());
   rt_assert_f(RTGC::heap_locked_bySelf() ||
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
-  rt_assert_f(to_obj(base)->isTrackable(), "not a anchor %p\n", base);
+  rt_assert_f(to_obj(base)->isTrackable(), "not a anchor %p", base);
 
   // rtgc_log(oldValue != NULL && oldValue->klass() == vmClasses::Module_klass(), 
-  //     "Module unlinked %p -> %p\n", (void*)base, (void*)oldValue);
+  //     "Module unlinked %p -> %p", (void*)base, (void*)oldValue);
 
-  rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p\n", 
+  rtgc_log(LOG_OPT(1), "field_changed(%s) %p[%d] : %p -> %p", 
       fn, base, (int)((address)addr - (address)base), oldValue, newValue);
   if (newValue != NULL && newValue != base) {
     add_referrer_ex(newValue, base, true);
@@ -224,7 +213,7 @@ bool RTGC::logEnabled(int logOption) {
 
 GCObject* RTGC::getForwardee(GCObject* obj, const char* tag) {
   oopDesc* p = cast_to_oop(obj)->forwardee();
-  rt_assert_f(p == NULL || cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)\n", 
+  rt_assert_f(p == NULL || cast_to_oop(obj)->is_gc_marked(), "getForwardee(%s) on garbage %p(%s)", 
       tag, obj, RTGC::getClassName(obj));
   return p == NULL ? obj : to_obj(p);
 }
@@ -239,7 +228,7 @@ const char* RTGC::getClassName(const void* obj, bool showClassInfo) {
         klass = k2;
       }
       if (showClassInfo) {
-        printf("Class of class\n");
+        printf("Class of class");
         cast_to_oop(obj)->print_on(tty);
       }
       // else {
@@ -275,21 +264,21 @@ void RTGC::adjust_debug_pointer(void* old_p, void* new_p, bool destroy_old_node)
   int type;
   if (RTGC::debug_obj == old_p || RTGC::debug_obj == new_p) {
     RTGC::debug_obj = new_p;
-    rtgc_log(1, "debug_obj moved %p -> %p rc=%d\n", 
+    rtgc_log(1, "debug_obj moved %p -> %p rc=%d", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
   else if (RTGC::debug_obj2 == old_p || RTGC::debug_obj2 == new_p) {
     RTGC::debug_obj2 = new_p;
-    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d\n", 
+    rtgc_log(1, "debug_obj2 moved %p -> %p rc=%d", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if ((type = is_debug_pointer(old_p)) != 0) {
     // || ((uintptr_t)new_p & ~0xFFF) == 0x3f5b06000) {
-    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d\n", 
+    rtgc_log(1, "debug_obj(%d) moved %p -> %p rc=%d", 
       type, old_p, new_p, to_obj(old_p)->getReferrerCount());
   } 
   else if (false && cast_to_oop(old_p)->klass() == vmClasses::SoftReference_klass()) {
-    rtgc_log(1, "debug_ref moved %p -> %p rc=%d\n", 
+    rtgc_log(1, "debug_ref moved %p -> %p rc=%d", 
       old_p, new_p, to_obj(old_p)->getReferrerCount());
   }
 }
@@ -304,6 +293,7 @@ int RTGC::is_debug_pointer(void* ptr) {
   if (ptr == debug_obj2) return -1;
 
   // if (((uintptr_t)ptr & ~0xFFF) == 0x3f5b06000) return true;
+  // if (to_obj(obj)->isYoungRoot()) return true;
 
   Klass* klass = obj->klass();
   for (int i = 0; i < CNT_DEBUG_CLASS; i ++) {
@@ -320,7 +310,7 @@ int RTGC::is_debug_pointer(void* ptr) {
     if (debugKlass[i] == NULL) {
       if (strstr((char*)klass->name()->bytes(), className)
           && obj->klass()->name()->utf8_length() == (int)strlen(className)) {
-        rtgc_log(1, "debug class resolved %s\n", klass->name()->bytes());
+        rtgc_log(1, "debug class resolved %s", klass->name()->bytes());
         debugKlass[i] = klass;
         return i+1;
       }
@@ -357,7 +347,8 @@ void RTGC::initialize() {
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
   // RTGC_DEBUG = 1;
   logOptions[0] = -1;
-  // printf("init rtgc narrowOop=%d  %s\n", rtHeap::useModifyFlag(),  AbortVMOnExceptionMessage);
+
+  // printf("init rtgc narrowOop=%d tr_heap= %p", rtHeap::useModifyFlag(),  GCNode::g_trackable_heap_start);
 #else
   rt_assert(false);
 #endif
@@ -372,7 +363,7 @@ void RTGC::initialize() {
   // LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
   if (RTGC_DEBUG) {
-    rtgc_log(1, "CDS base=%p end=%p\n", 
+    rtgc_log(1, "CDS base=%p end=%p", 
         MetaspaceObj::shared_metaspace_base(), MetaspaceObj::shared_metaspace_top());
     LogConfiguration::configure_stdout(LogLevel::Trace, true, LOG_TAGS(gc));
 
@@ -382,7 +373,7 @@ void RTGC::initialize() {
     debugOptions[0] = 1;
     debug_obj = NULL;//0x3e0013510;
 
-    rtgc_log(1, "debug_class '%s'\n", debugClassNames[0]);
+    rtgc_log(1, "debug_class '%s'", debugClassNames[0]);
 
     enableLog(LOG_REF_LINK, 0);
     enableLog(LOG_HEAP, 1);
@@ -395,21 +386,21 @@ void RTGC::initialize() {
     // enableLog(LOG_TLS, 10);
 
     if (false) {
-      rtgc_log(1, "lock_mask %p\n", (void*)markWord::lock_mask);
-      rtgc_log(1, "lock_mask_in_place %p\n", (void*)markWord::lock_mask_in_place);
-      rtgc_log(1, "biased_lock_mask %p\n", (void*)markWord::biased_lock_mask);
-      rtgc_log(1, "biased_lock_mask_in_place %p\n", (void*)markWord::biased_lock_mask_in_place);
-      rtgc_log(1, "biased_lock_bit_in_place %p\n", (void*)markWord::biased_lock_bit_in_place);
-      rtgc_log(1, "age_mask %p\n", (void*)markWord::age_mask);
-      rtgc_log(1, "age_mask_in_place %p\n", (void*)markWord::age_mask_in_place);
-      rtgc_log(1, "epoch_mask %p\n", (void*)markWord::epoch_mask);
-      rtgc_log(1, "epoch_mask_in_place %p\n", (void*)markWord::epoch_mask_in_place);
+      rtgc_log(1, "lock_mask %p", (void*)markWord::lock_mask);
+      rtgc_log(1, "lock_mask_in_place %p", (void*)markWord::lock_mask_in_place);
+      rtgc_log(1, "biased_lock_mask %p", (void*)markWord::biased_lock_mask);
+      rtgc_log(1, "biased_lock_mask_in_place %p", (void*)markWord::biased_lock_mask_in_place);
+      rtgc_log(1, "biased_lock_bit_in_place %p", (void*)markWord::biased_lock_bit_in_place);
+      rtgc_log(1, "age_mask %p", (void*)markWord::age_mask);
+      rtgc_log(1, "age_mask_in_place %p", (void*)markWord::age_mask_in_place);
+      rtgc_log(1, "epoch_mask %p", (void*)markWord::epoch_mask);
+      rtgc_log(1, "epoch_mask_in_place %p", (void*)markWord::epoch_mask_in_place);
 
-      rtgc_log(1, "hash_mask %p\n", (void*)markWord::hash_mask);
-      rtgc_log(1, "hash_mask_in_place %p\n", (void*)markWord::hash_mask_in_place);
+      rtgc_log(1, "hash_mask %p", (void*)markWord::hash_mask);
+      rtgc_log(1, "hash_mask_in_place %p", (void*)markWord::hash_mask_in_place);
 
-      rtgc_log(1, "unused_gap_bits %p\n", (void*)markWord::unused_gap_bits);
-      rtgc_log(1, "unused_gap_bits_in_place %p\n", (void*)(markWord::unused_gap_bits << markWord::unused_gap_shift));
+      rtgc_log(1, "unused_gap_bits %p", (void*)markWord::unused_gap_bits);
+      rtgc_log(1, "unused_gap_bits_in_place %p", (void*)(markWord::unused_gap_bits << markWord::unused_gap_shift));
     }
     // unused_gap_bits
   }

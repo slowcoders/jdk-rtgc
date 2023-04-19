@@ -93,7 +93,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   allocate_stacks();
 
-#if INCLUDE_RTGC 
+#if INCLUDE_RTGC // init ref processor
   if (EnableRTGC) {
     precond(ref_policy != NULL);
     rtHeap::init_reference_processor(ref_policy);
@@ -110,7 +110,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   DerivedPointerTable::set_active(false);
 #endif
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // prepare adjust pointer
   if (EnableRTGC) {
     HeapWord* old_gen_heap_start = GenCollectedHeap::heap()->old_gen()->reserved().start();
     rtHeap::prepare_adjust_pointers(old_gen_heap_start);
@@ -119,7 +119,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase3();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // finish adjust pointers
   if (EnableRTGC) {
     rtHeap::finish_adjust_pointers();
   }
@@ -127,7 +127,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
 
   mark_sweep_phase4();
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // notify compaction finished
   if (EnableRTGC) {
     void rtHeap__onCompactionFinishied();
     rtHeap__onCompactionFinishied();
@@ -204,7 +204,7 @@ void GenMarkSweep::deallocate_stacks() {
   _objarray_stack.clear(true);
 }
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC // RtYoungRootClosure
 template<bool is_tracked>
 class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure, public ObjectClosure {
   bool _is_young_root;
@@ -227,11 +227,18 @@ public:
     MarkSweep::follow_stack();
   }
 
+  oop keep_alive_young_referent(oop obj) {
+    rt_assert(!obj->mark().is_marked());
+    MarkSweep::mark_object(obj);
+    MarkSweep::_marking_stack.push(obj);
+    return obj;
+  }
+
   template <typename T>
   void do_oop_work(T* p) {
     T heap_oop = RawAccess<>::oop_load(p);
-    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
-      if (is_tracked) {
+    if (rtHeap::useModifyFlag()) {
+      if (is_tracked || AUTO_TRACKABLE_MARK_BY_ADDRESS) {
         precond(!rtHeap::is_modified(heap_oop));
       } else if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified(heap_oop);
@@ -255,7 +262,18 @@ public:
   }
 
   virtual void do_oop(oop* p) { do_oop_work(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { 
+#ifdef ASSSERT    
+    T heap_oop = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(heap_oop)) {
+      oop result = CompressedOops::decode_raw(heap_oop);
+      assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d)  anchor = %p(%s)", 
+          (void*)result, rtHeap::is_alive(result, false),
+          (void*)_current_anchor, _current_anchor->klass()->name()->bytes());
+    }
+#endif
+    do_oop_work(p); 
+  }
 
   void do_object(oop obj) {
     iterate_tenured_young_root_oop(obj);

@@ -273,12 +273,6 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
   _referent = java_lang_ref_Reference::unknown_referent_no_keepalive(_current_discovered);
   assert(Universe::heap()->is_in_or_null(_referent),
          "Wrong oop found in java.lang.Reference object");
-#if INCLUDE_RTGC
-  if (EnableRTGC && rtHeap::DoCrossCheck) {
-    precond(rtHeap::is_alive(_current_discovered));
-    precond(!_referent->is_gc_marked() || rtHeap::is_alive(_referent));
-  }
-#endif
   assert(allow_null_referent ?
              oopDesc::is_oop_or_null(_referent)
            : oopDesc::is_oop(_referent),
@@ -456,13 +450,6 @@ size_t ReferenceProcessor::process_final_keep_alive_work(DiscoveredList& refs_li
     iter.load_ptrs(DEBUG_ONLY(false /* allow_null_referent */));
     // keep the referent and followers around
     iter.make_referent_alive();
-#if INCLUDE_RTGC
-    if (EnableRTGC && rtHeap::DoCrossCheck) {
-      // iter.referent() 는 이미 forwarded 객체로 변경된 상태임;
-      rtHeap__ensure_garbage_referent(iter.obj(), java_lang_ref_Reference::unknown_referent_no_keepalive(iter.obj()), 
-          _current_soft_ref_policy != _default_soft_ref_policy);
-    }
-#endif    
 
     // Self-loop next, to mark the FinalReference not active.
     assert(java_lang_ref_Reference::next(iter.obj()) == NULL, "enqueued FinalReference");

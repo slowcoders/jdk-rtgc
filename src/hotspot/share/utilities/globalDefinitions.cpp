@@ -47,7 +47,7 @@ int MinObjAlignmentInBytesMask = 0;
 
 int LogMinObjAlignment         = -1;
 int LogMinObjAlignmentInBytes  = -1;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // useModifyFlag
 int CompressedOppShift         = -1;
 #else 
 #define CompressedOppShift  LogMinObjAlignmentInBytes

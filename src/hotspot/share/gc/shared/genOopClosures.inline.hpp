@@ -54,10 +54,14 @@ template <typename Derived, bool clear_modified_flag>
 template <typename T>
 inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
+  if (EnableRTGC && !clear_modified_flag) {
+    // YG-Object 의 modified-field 는 무시된다.
+    rt_assert(!rtHeap::is_modified(heap_oop) || !rtHeap::is_in_trackable_space(p));
+  }
   // Should we copy the obj?
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // useModifyFlag()
-    if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (clear_modified_flag && rtHeap::useModifyFlag()) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -87,7 +91,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop_work(T* p) {
       }
     }
     else if (EnableRTGC) {
-      if (clear_modified_flag && rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+      if (clear_modified_flag && rtHeap::useModifyFlag()) {
         if (rtHeap::is_modified(heap_oop)) {
           *p = rtHeap::to_unmodified(heap_oop);
         }
@@ -103,7 +107,7 @@ inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(oop* p)       
 template <typename Derived, bool clear_modified_flag>
 inline void FastScanClosure<Derived, clear_modified_flag>::do_oop(narrowOop* p) { ((Derived*)this)->do_oop_work(p); }
 
-#if !INCLUDE_RTGC
+#if !INCLUDE_RTGC // RtYoungRootClosure
 inline DefNewYoungerGenClosure::DefNewYoungerGenClosure(DefNewGeneration* young_gen, Generation* old_gen) :
     FastScanClosure<DefNewYoungerGenClosure>(young_gen),
     _old_gen(old_gen),

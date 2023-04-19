@@ -116,12 +116,26 @@ inline void MarkSweep::follow_array(objArrayOop array) {
   RTGC_ONLY(if (!resurrected))
   MarkSweep::follow_klass(array->klass());
   // Don't push empty arrays to avoid unnecessary work.
-  if (array->length() > 0) {
-    MarkSweep::push_objarray<resurrected>(array, 0);
+  const int len = array->length();
+  if (len > 0) {
+    if (rtHeap::UseRefCount) {
+      int beg_index = 0;
+      const int stride = ObjArrayMarkingStride;
+      const int mark_bottom = _marking_stack.size();
+      for (int end_index; beg_index < (end_index = beg_index + stride); ) {
+        array->oop_iterate_range(&mark_and_push_closure, beg_index, end_index);
+        beg_index = end_index;
+        follow_stack(mark_bottom);
+      }
+      array->oop_iterate_range(&mark_and_push_closure, beg_index, len);
+      follow_stack(mark_bottom);
+    } else {
+      MarkSweep::push_objarray<resurrected>(array, 0);
+    }
   }
 }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // MARK_AND_LINK 
 int cnt_rtgc_referent_mark = 0;
 bool MarkSweep::_is_rt_anchor_trackable = false;
 void* MarkSweep::_marking_klass = 0;
@@ -136,6 +150,9 @@ inline void MarkSweep::follow_object(oop obj) {
 #endif
   assert(obj->is_gc_marked(), "should be marked");
   
+  if (rtHeap::UseRefCount) {
+    rtHeap::push_trace_stack(obj, _marking_stack.size());
+  }
   if (obj->is_objArray()) {
     // Handle object arrays explicitly to allow them to
     // be split into chunks if needed.
@@ -175,10 +192,26 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   }
 }
 
-void MarkSweep::follow_stack() {
+void MarkSweep::follow_stack(int bottom) {
   do {
-    while (!_marking_stack.is_empty()) {
+    while (rtHeap::UseRefCount || !_marking_stack.is_empty()) {
+      if (rtHeap::UseRefCount) {
+        int cntStack = _marking_stack.size();
+        rt_assert(cntStack >= bottom);
+        rtHeap::clear_trace_stack(cntStack);
+        rt_assert(_objarray_stack.is_empty());
+        if (cntStack == bottom) break;
+      }
+
       oop obj = _marking_stack.pop();
+      if (rtHeap::UseRefCount) {
+        // is white??
+        if (!rtHeap::is_white_node(obj)) {
+          /* must be black*/
+          rt_assert(rtHeap::is_black_node(obj));
+          continue;
+        }
+      }
       assert (obj->is_gc_marked(), "p must be marked");
       rt_assert(!EnableRTGC || !rtHeap::is_trackable(obj));
       follow_object<false>(obj);
@@ -216,10 +249,11 @@ template <class T> inline void MarkSweep::follow_root(T* p) {
   T heap_oop = RawAccess<>::oop_load(p);
   if (!CompressedOops::is_null(heap_oop)) {
     oop obj = CompressedOops::decode_not_null(heap_oop);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
     if (EnableRTGC && rtHeap::is_trackable(obj)) {
       rtHeap::mark_survivor_reachable(obj);
-    } else 
+      if (!rtHeap::UseRefCount) return;
+    }  
 #endif
     if (!obj->mark().is_marked()) {
       mark_object(obj);

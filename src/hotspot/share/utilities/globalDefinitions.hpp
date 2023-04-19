@@ -520,7 +520,7 @@ extern int MinObjAlignmentInBytesMask;
 
 extern int LogMinObjAlignment;
 extern int LogMinObjAlignmentInBytes;
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // useModifyFlag
 extern int CompressedOppShift;
 #endif
 

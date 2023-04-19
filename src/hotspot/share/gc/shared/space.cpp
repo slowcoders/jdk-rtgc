@@ -394,9 +394,9 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-#if INCLUDE_RTGC 
-    rt_assert_f(!EnableRTGC || rtHeap::is_destroyed(q) || (rtHeap::is_trackable(q) ? (!q->is_gc_marked() && rtHeap::is_alive(q))
-        : q->is_gc_marked()), "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
+#if INCLUDE_RTGC // debug assert
+    rt_assert_f(!EnableRTGC || rtHeap::is_destroyed(q) || rtHeap::is_alive(q), 
+        "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
 #endif
     // copy_to_survior_space 실행 시 age 등의 값이 clear 되지 않은 상태이다.
     // 무조건으로 init_mark 필요.

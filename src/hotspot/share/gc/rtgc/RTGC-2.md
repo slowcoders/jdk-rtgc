@@ -384,6 +384,7 @@ make: *** [test] Error 2
 real    129m40.893s
 user    387m3.703s
 sys     12m12.053s
+
 --- acylic ref-count enabled -------------------
 alive objects 90914 anchors 52968 multi 5014
 alive objects 187646 anchors 240898 multi 57020

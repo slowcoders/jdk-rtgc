@@ -49,7 +49,6 @@ inline void MarkSweep::mark_object(oop obj) {
     precond(rtHeap::is_alive(obj));
   }
 #endif
-  // rtgc_debug_log(obj, "referent marked %p tr=%d [%d] %d\n", (void*)obj, rtHeap::is_trackable(obj), ++cnt_rtgc_referent_mark, __break__(obj));
   if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
@@ -102,8 +101,8 @@ inline void MarkSweep::follow_klass(Klass* klass) {
 }
 
 inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
-#if INCLUDE_RTGC
-  if (EnableRTGC) {
+#if INCLUDE_RTGC // REF_LINK
+  if (EnableRTGC) { // REF_LINK
     _is_rt_anchor_trackable = false;
     if (!rtHeap::DoCrossCheck) {
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
@@ -130,7 +129,7 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
   T heap_oop = RawAccess<>::oop_load(p);
   if (CompressedOops::is_null(heap_oop)) {
 #if INCLUDE_RTGC // useModifyFlag()
-    if (rtHeap::useModifyFlag() && sizeof(T) == sizeof(narrowOop)) {
+    if (rtHeap::useModifyFlag()) {
       if (rtHeap::is_modified(heap_oop)) {
         *p = rtHeap::to_unmodified((T)0);
       }
@@ -152,13 +151,13 @@ template <class T> inline oopDesc* MarkSweep::adjust_pointer(T* p, oop* new_oop)
     if (new_obj != NULL) {
       assert(is_object_aligned(new_obj), "oop must be aligned %p\n", (void*)new_obj);
       RawAccess<IS_NOT_NULL>::oop_store(p, new_obj);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
       if (new_oop != NULL) {
         *new_oop = new_obj;
       }
 #endif      
     }
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // REF_LINK
     else if (new_oop != NULL) {
       *new_oop = obj;
     }

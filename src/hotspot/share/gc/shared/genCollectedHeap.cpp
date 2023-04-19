@@ -498,6 +498,12 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
+// #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+    // if (EnableRTGC) {
+    //   _young_gen->save_marks();
+    // } 
+    // else
+// #endif    
     {
       save_marks();   // save marks for all gens
     }

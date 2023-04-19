@@ -589,7 +589,7 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // init reference processor 
   if (EnableRTGC) { 
     rtHeap::init_reference_processor(NULL);
   }
@@ -778,7 +778,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
       handle_promotion_failure(old);
       return old;
     }
-#ifdef INCLUDE_RTGC
+#if INCLUDE_RTGC  // RtYoungRootClosure
     if (true || EnableRTGC) { /* UseCommpressedOpp 와 무관 */
       precond(cast_from_oop<HeapWord*>(obj) >= this->reserved().end());
       rtHeap::mark_promoted_trackable(obj);
@@ -800,7 +800,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
 
-#ifdef INCLUDE_RTGC
+#if INCLUDE_RTGC // debug logging
   if (EnableRTGC) {
 #ifdef ASSERT
     RTGC::adjust_debug_pointer(old, obj, true);

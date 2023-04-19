@@ -87,6 +87,9 @@ class MarkSweep : AllStatic {
   friend class AdjustPointerClosure;
   friend class KeepAliveClosure;
   friend class VM_MarkSweep;
+#if INCLUDE_RTGC // RtYoungRootClosure
+  template <bool is_tracked> friend class TenuredYoungRootClosure;
+#endif
 
   //
   // Vars
@@ -150,7 +153,7 @@ class MarkSweep : AllStatic {
 
   static int adjust_pointers(oop obj);
 
-  static void follow_stack();   // Empty marking stack.
+  static void follow_stack(int bootom=0);   // Empty marking stack.
 
   static void follow_klass(Klass* klass);
 
@@ -165,15 +168,9 @@ class MarkSweep : AllStatic {
   template <bool is_anchored, bool is_resurrected=false>
   static inline bool mark_and_push_internal(oop p, oopDesc* anchor=NULL);
 
-#if INCLUDE_RTGC  
- public:
-#else
  private:
-#endif
   // Call backs for marking
   static void mark_object(oop obj);
-
- private:
 
   // Mark pointer and follow contents.  Empty marking stack afterwards.
   template <class T> static inline void follow_root(T* p);
