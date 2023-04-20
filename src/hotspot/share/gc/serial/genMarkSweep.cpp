@@ -227,9 +227,9 @@ public:
 
   virtual void do_complete(bool is_root_reachable) {
     if (is_root_reachable) {
-      MarkSweep::follow_stack<false>();
-    } else {
       MarkSweep::follow_stack<true>();
+    } else {
+      MarkSweep::follow_stack<false>();
     }
   }
 

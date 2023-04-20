@@ -55,13 +55,13 @@ inline void MarkSweep::mark_object(oop obj) {
   }
 }
 
-template <bool tenure_reachable>
+template <bool root_reachable>
 inline bool MarkSweep::mark_and_push_internal(oop obj) {
   rt_assert(obj != NULL);
 
   bool is_trackable = rtHeap::is_trackable(obj);
   if (is_trackable) {
-    if (!tenure_reachable) {
+    if (root_reachable) {
       rtHeap::mark_survivor_reachable(obj);
     } else {
       rt_assert(rtHeap::is_alive(obj));
@@ -71,7 +71,7 @@ inline bool MarkSweep::mark_and_push_internal(oop obj) {
   
   if (!obj->mark().is_marked()) {
     mark_object(obj);
-    if (!tenure_reachable) {
+    if (root_reachable) {
       _marking_stack.push(obj);
     } else {
       //void rtHeap__ensure_resurrect_mode();
@@ -90,7 +90,7 @@ inline bool MarkSweep::mark_and_push_internal(oop obj) {
       rtHeap::create_circuit_node(obj);
     }
   }
-  return !is_trackable;
+  return root_reachable;
 }
 
 template <class T> 
