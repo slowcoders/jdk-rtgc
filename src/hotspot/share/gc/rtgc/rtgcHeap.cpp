@@ -829,7 +829,7 @@ void GCNode::markGarbage(const char* reason)  {
       __get_discovered(cast_to_oop(this)), rtHeapEx::print_ghost_anchors((GCObject*)this));
 
   _flags.isGarbage = true;
-  // flags().isPublished = true;
+  // _flags.isPublished = true;
 }
 
 bool rtHeapEx::print_ghost_anchors(GCObject* node, int depth) {

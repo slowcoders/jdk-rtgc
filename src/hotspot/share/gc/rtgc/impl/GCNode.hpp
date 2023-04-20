@@ -110,7 +110,7 @@ public:
 	}
 
 	bool isAcyclic() {
-		return _flags.isAcyclic;
+		return false;
 	}
 
 	bool isTrackable() {
