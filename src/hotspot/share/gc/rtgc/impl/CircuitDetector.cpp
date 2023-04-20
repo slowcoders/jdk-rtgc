@@ -35,6 +35,8 @@ void GarbageProcessor::clearReachableShortcutMarks() {
 }
 
 bool GarbageProcessor::scanSurvivalPath(GCObject* node, bool scanStrongPathOnly) {
+    // rtgc_debug_log(node, "scanSurvivalPath %p(%s)", node, getClassName(node));
+
     ShortOOP tail = node;
     rt_assert(EnableRTGC);
     rt_assert(node->isTrackable());
@@ -97,14 +99,14 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
                  * 2) 그 전에 root-ref 를 만나 tracing 이 종료된다.
                  */
 
-                SafeShortcut* shortcut = top->node_()->getShortcut();
+                SafeShortcut* shortcut = top->getShortcut();
                 rt_assert(shortcut->inTracing());
-                rt_assert(top->node_()->hasAnchor());
+                rt_assert(top->hasAnchor());
                 //rt_assert(!_visitedNodes.contains(top));
 
                 shortcut->unmarkInTracing();
                 rtgc_log(LOG_OPT(7), "shortcut poped %p:%d anchor=%p\n", 
-                    top, top->node_()->getShortcutId(), (void*)shortcut->anchor());
+                    top, top->getShortcutId(), (void*)shortcut->anchor());
                 shortcut->shrinkAnchorTo(top);
                 it = _trackers.push_empty();
                 it->initialize(top);
@@ -115,12 +117,11 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         GCObject* R = it->next();
-        RtNode* nx = R->getMutableNode();
-        SafeShortcut* shortcut = nx->getShortcut();
+        SafeShortcut* shortcut = R->getShortcut();
 
         if (R->isGarbageMarked() || shortcut->inContiguousTracing(R, &shortcut)) {
             rtgc_log(LOG_OPT(7), "pass marked %p:%d[%d](gm=%d)\n", 
-                R, nx->getShortcutId(), _trackers.size(), R->isGarbageMarked());
+                R, R->getShortcutId(), _trackers.size(), R->isGarbageMarked());
             continue;
         }
 
@@ -130,12 +131,12 @@ bool GarbageProcessor::findSurvivalPath(ShortOOP& tail) {
         }
 
         rtgc_log(LOG_OPT(7), "findSurvivalPath %p:%d[%d] vn=%d\n", 
-            R, nx->getShortcutId(), _trackers.size(), _visitedNodes.size());
+            R, R->getShortcutId(), _trackers.size(), _visitedNodes.size());
 
-        if (nx->hasAnchor()) {
+        if (R->hasAnchor()) {
             it = _trackers.push_empty();
             if (shortcut->isValid()) {
-                debug_only(shortcut->vailidateShortcut();)
+                debug_only(shortcut->vailidateShortcut(R);)
                 GCObject* warp_target = shortcut->anchor_ref();
                 if (!warp_target->isGarbageMarked()) {//} && !warp_target->getShortcut()->inTracing()) {
                     it->initSingleIterator(&shortcut->anchor_ref());
@@ -178,18 +179,50 @@ void GarbageProcessor::constructShortcut() {
     int cntNode = 0;
     for (; ait < end; ait++) {
         GCObject* obj = ait->peekPrev();        
-        rtgc_log(LOG_OPT(7), "link(%p) to anchor(%p)%d\n", link, obj, obj->node_()->getShortcutId());
+        rtgc_log(LOG_OPT(10), "link(%p) to anchor(%p)%d\n", link, obj, obj->getShortcutId());
+
+        if (obj->isDirtyAnchor()) {
+            if (link != NULL) {
+                SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
+                if (!link->isSurvivorReachable()) {
+                    rt_assert(link->isDirtyReferrerPoints());
+                    link->markSurvivorReachable_unsafe();
+                }
+                rtgc_log(LOG_OPT(10), "dirty anchor  Shortcut %d\n", s2->getIndex());
+                cntNode = 0;
+                if (lastShortcut != NULL) {
+                    if (link != lastShortcut->anchor()) {
+                        rtgc_log(LOG_OPT(10), "extend Shortcut anchor 22 %p:%d\n", link, lastShortcut->getIndex());
+                        lastShortcut->extendAnchor(link);
+                    }
+                    lastShortcut = NULL;
+                }
+                link = NULL;
+            }
+            else {
+                rt_assert(cntNode == 0);
+                lastShortcut = NULL;
+            }
+            // if (tail != NULL) {
+            //     rtgc_log(LOG_OPT(10), "mark_dirty_survivor_reachable %p -> %p", obj, tail);
+            //     rtHeap::mark_survivor_reachable(cast_to_oop(tail));
+            //     tail = NULL;
+            // }
+            continue;
+        }
+
+
         if (link != NULL) {
-            rt_assert_f(link->node_()->hasAnchor(),
-                "link has no anchor %p:%d\n", obj, obj->node_()->getShortcutId());
-            link->getMutableNode()->setSafeAnchor(obj);
+            rt_assert_f(link->hasAnchor(),
+                "link has no anchor %p:%d\n", obj, obj->getShortcutId());
+            link->setSafeAnchor(obj);
         } else {
             precond (lastShortcut == NULL || obj == lastShortcut->anchor());
         }
 
-        rt_assert_f(SafeShortcut::isValidIndex(obj->node_()->getShortcutId()),
-            "invalid shortcut id %p:%d\n", obj, obj->node_()->getShortcutId());
-		SafeShortcut* ss = obj->node_()->getShortcut();
+        rt_assert_f(SafeShortcut::isValidIndex(obj->getShortcutId()),
+            "invalid shortcut id %p:%d\n", obj, obj->getShortcutId());
+		SafeShortcut* ss = obj->getShortcut();
         if (!ss->isValid()) {
             if (++cntNode >= MAX_SHORTCUT_LEN) {
                 lastShortcut = SafeShortcut::create(obj, tail, cntNode);
@@ -202,7 +235,7 @@ void GarbageProcessor::constructShortcut() {
             link = obj;
         } else {
             rt_assert_f(ait+1 == end || ait[+1].peekPrev() == ss->anchor(), 
-                "invalid shortcut %p:%d\n", obj, obj->node_()->getShortcutId());
+                "invalid shortcut %p:%d\n", obj, obj->getShortcutId());
             rt_assert(ss->inTracing() || (ait+1 == end && obj->getRootRefCount() > ZERO_ROOT_REF));
             ss->unmarkInTracing();
             if (cntNode > 0) {
@@ -211,7 +244,7 @@ void GarbageProcessor::constructShortcut() {
                     ss->extendTail(tail);
                 }
                 else if (lastShortcut != NULL) {
-                    rtgc_log(LOG_OPT(10), "extend Shortcut anchor %d\n", ss->getIndex());
+                    rtgc_log(LOG_OPT(10), "extend Shortcut anchor %p:%d\n", obj, ss->getIndex());
                     lastShortcut->extendAnchor(obj);
                 }
                 else {
@@ -228,15 +261,24 @@ void GarbageProcessor::constructShortcut() {
     GCObject* root = ait->peekPrev();        
     rt_assert(root == NULL || root->getRootRefCount() > ZERO_ROOT_REF);
     if (link != NULL) {
-        /** root 가 속한 shortcut 은 무시된다.
-         * 해당 shortcut 이 valid 한 지는 현재 확인되지 않았다. 
-         */
-        link->getMutableNode()->setSafeAnchor(root);
-        if (lastShortcut != NULL) {
-            lastShortcut->extendAnchor(root);
-        } else {
-            rtgc_log(LOG_OPT(10), "SafeShortcut::create 3\n")
-            SafeShortcut::create(root, tail, cntNode);
+        if (root->isDirtyAnchor()) {
+            SafeShortcut* s2 = SafeShortcut::create(link, tail, cntNode);
+            if (!link->isSurvivorReachable()) {
+                rt_assert(link->isDirtyReferrerPoints());
+                link->markSurvivorReachable_unsafe();
+            }
+        } 
+        else {
+            link->setSafeAnchor(root);
+            if (lastShortcut != NULL) {
+                /** root 가 속한 shortcut 은 무시된다. (shortcut 의 anchor 는 shortcut 에 포함되지 않는다)
+                 * 해당 shortcut 이 valid 한 지는 현재 확인되지 않았다. 
+                 */
+                lastShortcut->extendAnchor(root);
+            } else {
+                rtgc_log(LOG_OPT(10), "SafeShortcut::create 3\n")
+                SafeShortcut::create(root, tail, cntNode);
+            }
         }
     }
     // last anchor may not have safe-anchor
@@ -246,7 +288,13 @@ void GarbageProcessor::constructShortcut() {
 bool GarbageProcessor::clear_garbage_links(GCObject* link, GCObject* garbageAnchor) {
     rt_assert(!rtHeapEx::g_lock_unsafe_list);
     rt_assert(garbageAnchor->isTrackable());
-    rtgc_debug_log(link, "clear_garbage_links %p->%p\n", garbageAnchor, link);
+    if (true) {
+        link->removeReferrer(garbageAnchor);
+        rtgc_debug_log(link, "clear_garbage_links %p->%p(ac=%d, remain=%d)\n", 
+                garbageAnchor, link, link->getAnchorCount(), link->hasReferrer(garbageAnchor));
+        return false;//link->isUnstableMarked();
+    }
+
     if (link->removeMatchedReferrers(garbageAnchor)) {
         if (link->isUnsafeTrackable() && !link->isUnstableMarked()) {
             link->markUnstable();
@@ -263,7 +311,7 @@ void GarbageProcessor::addUnstable_ex(GCObject* obj) {
 }
 
 void GarbageProcessor::addUnstable(GCObject* obj) {
-    rtgc_debug_log(obj, "add unsafe=%p\n", obj);
+    rtgc_debug_log(obj, "add unsafe=%p", obj);
     rt_assert(!rtHeapEx::g_lock_unsafe_list);
     rt_assert(obj->isTrackable());
     rt_assert(!obj->isUnstableMarked());
@@ -271,53 +319,53 @@ void GarbageProcessor::addUnstable(GCObject* obj) {
     addUnstable_ex(obj);
 }
 
-void GarbageProcessor::collectGarbage(bool isTenured) {
-    // rtgc_log(1, "collectGarbage start cntUnsafe %d\n", _unsafeObjects.size()); 
-    // TODO <true> 에서 정상 동작해야 한다.
-    collectGarbage<false>(_unsafeObjects.adr_at(0), _unsafeObjects.size(), isTenured);
-    // rtgc_log(1, "collectGarbage done cntUnsafe %d\n", _unsafeObjects.size()); 
+void GarbageProcessor::collectAndDestroyGarbage(bool isTenured) {
+    GCObject** ppNode = _unsafeObjects.adr_at(0);
+    destroyDetectedGarbage(isTenured);
+
+    for (int cntUnsafe; (cntUnsafe = _unsafeObjects.size()) > 0; ) {
+        scanGarbage(ppNode, cntUnsafe);
+        _unsafeObjects.resize(0);
+        destroyDetectedGarbage(isTenured);
+    } 
 }
 
-template <bool scanUnstableOnly>
-void GarbageProcessor::collectGarbage(GCObject** ppNode, int cntUnsafe, bool isTenured) {
-    do {
-        rtgc_log(LOG_OPT(14), "collectGarbage cntUnsafe %d\n", cntUnsafe); 
-        GCObject** end = ppNode + cntUnsafe;
-        for (; ppNode < end; ppNode ++) {
-            GCObject* node = *ppNode;
-            if (!node->node_()->hasSafeAnchor()) {
-                bool isGarbage = detectGarbage(node);
-            } else {
-                node->unmarkUnstable();
-            }
-            rt_assert(node->isGarbageMarked() || !node->isUnstableMarked());
+void GarbageProcessor::scanGarbage(GCObject** ppNode, int cntUnsafe) {
+    rtgc_log(LOG_OPT(1), "scanGarbage cntUnsafe %d\n", cntUnsafe); 
+    GCObject** end = ppNode + cntUnsafe;
+    for (; ppNode < end; ppNode ++) {
+        GCObject* node = *ppNode;
+        if (!node->hasSafeAnchor()) {
+            bool isGarbage = detectGarbage(node);
+        } else {
+            node->unmarkUnstable();
         }
+        rt_assert(node->isGarbageMarked() || !node->isUnstableMarked());
+    }
+}
 
-        _unsafeObjects.resize(0);
-
-        rtgc_log(LOG_OPT(14), "destroyGarbages %d\n", _visitedNodes.size()); 
-        ppNode = _visitedNodes.adr_at(0);
-        end = ppNode + _visitedNodes.size();
-        for (; ppNode < end; ppNode++) {
-            GCObject* obj = *ppNode;
-            if (obj->isGarbageMarked()) {
+void GarbageProcessor::destroyDetectedGarbage(bool isTenured) {
+    rtgc_log(LOG_OPT(1), "destroyGarbages %d\n", _visitedNodes.size()); 
+    GCObject** ppNode = _visitedNodes.adr_at(0);
+    GCObject** end = ppNode + _visitedNodes.size();
+    for (; ppNode < end; ppNode++) {
+        GCObject* obj = *ppNode;
+        if (obj->isGarbageMarked()) {
+            if (!obj->isDirtyAnchor()) {
                 destroyObject(obj, (RTGC::RefTracer2)clear_garbage_links, isTenured);
-            } else {
-                // garbage resurrected!
             }
+        } else {
+            // garbage resurrected!
         }
-        _visitedNodes.resize(0);
-
-        cntUnsafe = _unsafeObjects.size();
-        ppNode = _unsafeObjects.adr_at(0);
-    } while (cntUnsafe > 0);
+    }
+    _visitedNodes.resize(0);
 }
 
 void GarbageProcessor::destroyObject(GCObject* obj, RefTracer2 instanceScanner, bool isTenured) {
-    rt_assert(!obj->node_()->hasShortcut());
+    rt_assert(!obj->hasShortcut());
     rt_assert(obj->isGarbageMarked());
     obj->clearAnchorList();
-    rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d\n", 
+    rtgc_debug_log(obj, "destroyObject %p(%s) YR=%d", 
         obj, RTGC::getClassName(obj), obj->isYoungRoot());    
     RuntimeHeap::scanInstanceGraph(obj, instanceScanner, &this->_unsafeObjects, isTenured);
     RuntimeHeap::reclaimObject(obj);
@@ -345,7 +393,7 @@ bool GarbageProcessor::detectGarbage(GCObject* node) {
     }
     rt_assert(node->isTrackable());
     if (node->isUnreachable()) {
-        node->markGarbage("collectGarbage");
+        node->markGarbage("scanGarbage");
         _visitedNodes.push_back(node);
         return true;
     }
@@ -395,17 +443,67 @@ bool GarbageProcessor::hasStableSurvivalPath(GCObject* tail) {
         return false;
     }
     while (node->getRootRefCount() == 0) {
-        const RtNode* nx = node->node_();
-        if (!nx->hasSafeAnchor()) {
+        if (!node->hasSafeAnchor()) {
             addUnstable(tail);
             return false;
         }
 
-        if (nx->hasShortcut()) {
-            node = nx->getShortcut()->anchor();
+        if (node->hasShortcut()) {
+            node = node->getShortcut()->anchor();
         } else {
-            node = nx->getSafeAnchor();
+            node = node->getSafeAnchor();
         }
     } 
     return true;
+}
+
+AnchorState GarbageProcessor::checkAnchorStateFast(GCObject* tail, bool enableShortcut) {
+    bool multi_anchor_found = false;
+    const int MAX_PATH_LENGTH_FOR_FAST_CHECK = 20;
+    GCObject* node = tail;
+    for (int i = MAX_PATH_LENGTH_FOR_FAST_CHECK; --i >= 0; ) {
+        if (node->isGarbageMarked()) {
+            rtgc_log(1, "garbage anchor at %d ", i);
+            node = tail;
+            for (int j = MAX_PATH_LENGTH_FOR_FAST_CHECK; --j >= i; ) {
+                rtgc_log(1, "garbage anchor %d " PTR_DBG_SIG, j, PTR_DBG_INFO(node));
+                if (j == i + 1) {
+                    for (AnchorIterator ai(node); ai.hasNext(); ) {
+                        GCObject* p = ai.next();
+                        rtgc_log(true, "__ %p", p);
+                    }
+                }
+
+                rt_assert(!node->isGarbageMarked());
+                if (enableShortcut && node->hasShortcut()) {
+                    /* shortcut 은 multi_ref 로 간주한다. */
+                    multi_anchor_found = true;
+                    node = node->getShortcut()->anchor();
+                } else {
+                    multi_anchor_found |= node->hasMultiRef();
+                    node = node->getSafeAnchor();
+                }
+            }
+        }
+
+        if (node->getRootRefCount() > 0) {
+            return AnchorState::AnchoredToRoot;
+        }
+
+        if (!node->hasSafeAnchor()) {
+            if (!multi_anchor_found && !node->hasAnchor()) {
+                return AnchorState::NotAnchored;
+            }
+            break;
+        }
+        if (node->hasShortcut()) {
+            /* shortcut 은 multi_ref 로 간주한다. */
+            multi_anchor_found = true;
+            node = node->getShortcut()->anchor();
+        } else {
+            multi_anchor_found |= node->hasMultiRef();
+            node = node->getSafeAnchor();
+        }
+    } 
+    return AnchorState::Unknown;
 }

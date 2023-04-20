@@ -109,7 +109,7 @@ namespace rtCLDCleaner {
             // CLD 가 계층적으로 참조된 경우, 하위 CLD 에 대한 detectGarbage 에 의해
             // 상위 handle이 garbageMarking 된 상태가 될 수 있다. 
             rt_assert_f(node->isTrackable(), "invalid handle %p(%s) cld=[%p] idx=%d rc=%d\n", 
-                node, RTGC::getClassName(node), _cld, idx_cld, node->getReferrerCount());
+                node, RTGC::getClassName(node), _cld, idx_cld, node->getAnchorCount());
             rtHeapUtil::resurrect_young_root(node);
           }
           rtHeap::lock_jni_handle_at_safepoint(obj);

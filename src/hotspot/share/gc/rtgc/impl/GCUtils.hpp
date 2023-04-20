@@ -27,7 +27,7 @@
 
 namespace RTGC {
 
-static const int MEM_BUCKET_SIZE = 64 * 1024;
+static const int MEM_BUCKET_ALIGN_SIZE = 64 * 1024;
 
 struct VirtualMemory {
     static void* reserve_memory(size_t bytes);
@@ -61,25 +61,25 @@ template <int max_bucket>
 struct FixedAllocator {
 
     static void* alloc(uint32_t& capacity, size_t item_size, size_t header_size) {
-        capacity = (MEM_BUCKET_SIZE - header_size) / item_size;
+        capacity = (MEM_BUCKET_ALIGN_SIZE - header_size) / item_size;
         rtgc_log(false, "fixed_alloc cap=%d, off=%d\n", capacity, (int)header_size);
-        void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_SIZE);
-        VirtualMemory::commit_memory(mem, mem, MEM_BUCKET_SIZE);
+        void* mem = VirtualMemory::reserve_memory(max_bucket * MEM_BUCKET_ALIGN_SIZE);
+        VirtualMemory::commit_memory(mem, mem, MEM_BUCKET_ALIGN_SIZE);
         return mem;
     }
 
     static void* realloc(void* mem, uint32_t& capacity, size_t item_size, size_t header_size) {
-        int idx_bucket = (capacity * item_size + MEM_BUCKET_SIZE - 1) / MEM_BUCKET_SIZE;
+        int idx_bucket = (capacity * item_size + MEM_BUCKET_ALIGN_SIZE - 1) / MEM_BUCKET_ALIGN_SIZE;
         rt_assert(idx_bucket < max_bucket);
-        int mem_offset = idx_bucket * MEM_BUCKET_SIZE;
-        VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_SIZE);
-        capacity = (mem_offset + MEM_BUCKET_SIZE - header_size) / item_size;
+        int mem_offset = idx_bucket * MEM_BUCKET_ALIGN_SIZE;
+        VirtualMemory::commit_memory(mem, (char*)mem + mem_offset, MEM_BUCKET_ALIGN_SIZE);
+        capacity = (mem_offset + MEM_BUCKET_ALIGN_SIZE - header_size) / item_size;
         rtgc_log(false, "fixed_realloc cap=%d, off=%d\n", capacity, (int)header_size);
         return mem; 
     }
 
     static void free(void* mem) { 
-        VirtualMemory::free(mem, max_bucket * MEM_BUCKET_SIZE); 
+        VirtualMemory::free(mem, max_bucket * MEM_BUCKET_ALIGN_SIZE); 
     }
 };
 
@@ -261,6 +261,12 @@ public:
         return found;
     }
 
+    void swap(int idx1, int idx2) {
+        T tmp = _data->_items[idx1];
+        _data->_items[idx1] = _data->_items[idx2];
+        _data->_items[idx2] = tmp;
+    }
+
     void removeFast(int idx) {
         rt_assert(idx >= 0 && idx < this->size());
         int newSize = this->size() - 1;
@@ -279,7 +285,7 @@ public:
     HugeArray() : _SUPER(DoNotInitialize::Flag) {}
 };
 
-template <class T, size_t MAX_BUCKET, int indexStart, int clearOffset, int nextOffset=0>
+template <class T, size_t max_size, int indexStart, int clearOffset, int nextOffset=0>
 class MemoryPool {
     T* _items;
     T* _free;
@@ -296,8 +302,24 @@ class MemoryPool {
 
 public:
     void initialize() {
-        _end = _next = (T*)VirtualMemory::reserve_memory(MAX_BUCKET*MEM_BUCKET_SIZE);
+        initialize((T*)VirtualMemory::reserve_memory(getReservedMemorySize()));
+    }
+
+    void initialize(T* memory) {
+        _end = _next = memory;
         _items = _next - indexStart;
+        _free = nullptr;
+        #if GC_DEBUG
+        _cntFree = 0;
+        #endif
+    }
+
+    size_t getReservedMemorySize() {
+        return (max_size + MEM_BUCKET_ALIGN_SIZE-1) / MEM_BUCKET_ALIGN_SIZE * MEM_BUCKET_ALIGN_SIZE;
+    }
+
+    void reset() {
+        _next = _items + indexStart;
         _free = nullptr;
         #if GC_DEBUG
         _cntFree = 0;
@@ -313,8 +335,8 @@ public:
         if (_free == nullptr) {
             ptr = _next ++;
             if (_next >= _end) {
-                VirtualMemory::commit_memory(_items, _end, MEM_BUCKET_SIZE);
-                _end = (char*)_end + MEM_BUCKET_SIZE;
+                VirtualMemory::commit_memory(_items, _end, MEM_BUCKET_ALIGN_SIZE);
+                _end = (char*)_end + MEM_BUCKET_ALIGN_SIZE;
             }
         }
         else {
@@ -350,11 +372,12 @@ public:
     }
 
     int getIndex(void* ptr) {
+        // rt_assert(this->contains(ptr));
         return (int)((T*)ptr - _items);
     }
 
-    bool isInside(void* mem) {
-        return mem >= _items && mem < _items + MAX_BUCKET;
+    bool contains(void* mem) {
+        return mem >= _items && mem < _next;
     }
 };
 
