@@ -928,7 +928,7 @@ static int rtgc_arraycopy_conjoint(ITEM_T* src_p, ITEM_T* dst_p,
     }
     for (int i = cp_len; --i >= 0; ) {
       oopDesc* erased = CompressedOops::decode(dst_p[i]);
-      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array, true);
+      if (erased != NULL && isTrackableArray) RTGC::remove_referrer_unsafe(erased, dst_array);
     }
   } else {
     int cp_len = MIN(-diff, length);

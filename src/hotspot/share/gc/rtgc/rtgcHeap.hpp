@@ -30,9 +30,9 @@ protected:
 public:  
   RtYoungRootClosure() : _current_anchor(0) {}
 
-  virtual bool iterate_tenured_young_root_oop(oopDesc* root) = 0;
-  virtual void do_complete() = 0;
-  oopDesc* current_anchor() { return _current_anchor; }
+  virtual bool iterate_tenured_young_root_oop(oopDesc* root, bool is_root_reachable) = 0;
+  virtual void do_complete(bool is_strong_rechable) = 0;
+  virtual oop  keep_alive_young_referent(oop p) = 0;
 };
 
 class rtHeap : AllStatic {
@@ -69,6 +69,7 @@ public:
   static void mark_promoted_trackable(oopDesc* new_p);
   static void add_trackable_link(oopDesc* promoted_anchor, oopDesc* linked);
   static void ensure_trackable_link(oopDesc* anchor, oopDesc* obj);
+
   static void mark_survivor_reachable(oopDesc* tenured_p);
   static void mark_resurrected_link(oopDesc* resurrected_anchor, oopDesc* tenured_p);
 

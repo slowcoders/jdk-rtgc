@@ -121,6 +121,7 @@ bool RTGC::needTrack(oopDesc* obj) {
   return to_obj(obj)->isTrackable();
 }
 
+#if 0
 void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
   rt_assert(p != NULL);
   check_valid_obj(p, debug_base);
@@ -141,19 +142,19 @@ void RTGC::add_referrer_unsafe(oopDesc* p, oopDesc* base, oopDesc* debug_base) {
         to_obj(p)->getRootRefCount(), to_obj(p)->getAnchorCount());
   }
 #endif
-  GCRuntime::connectReferenceLink(to_obj(p), to_obj(base)); 
+  to_obj(p)->addAnchor(to_obj(base)); 
 }
+#endif
 
-
-void RTGC::add_referrer_ex(oopDesc* p, oopDesc* base, bool checkYoungRoot) {
-  add_referrer_unsafe(p, base, base);
-  if (checkYoungRoot && !to_obj(p)->isTrackable() && !to_obj(base)->isYoungRoot()) {
-    rtHeap::add_young_root(base, base);
-  }
-}
 
 void RTGC::add_trackable_link_or_mark_young_root(oopDesc* p, oopDesc* base) {
-  return add_referrer_ex(p, base, true);
+  if (to_obj(p)->isTrackable()) {
+    to_obj(p)->addTrackableAnchor(to_obj(base)); 
+    //add_referrer_unsafe(p, base, base);
+  }
+  else if (!to_obj(base)->isYoungRoot()) {
+    rtHeap::add_young_root(base, base);
+  }
 }
 
 void RTGC::on_field_changed(oopDesc* base, oopDesc* oldValue, oopDesc* newValue, volatile void* addr, const char* fn) {

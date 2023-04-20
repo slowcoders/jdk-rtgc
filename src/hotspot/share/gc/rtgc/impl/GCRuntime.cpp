@@ -42,8 +42,8 @@ void GCRuntime::connectReferenceLink(
     GCObject* assigned, 
     GCObject* owner 
 ) {
-    //fatal("not implemented");
-    assigned->addTrackableAnchor(owner);
+    fatal("not implemented");
+    // assigned->addAnchor(owner);
 }
 
 void GCRuntime::disconnectReferenceLink(

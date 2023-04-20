@@ -240,7 +240,7 @@ Test summary Orignal version
     // YG-GC 시에서는 weak/soft reference 는 garbage 처리하지 않는다.
   5) rtHeap::process_final_phantom_references()
     -> rtHeap__clear_garbage_young_roots()
-      -> _rtgc.g_pGarbageProcessor->collectGarbage(is_full_gc);
+      -> _rtgc.g_pGarbageProcessor->collectAndDestroyGarbage(is_full_gc);
     GC 종료 후 marking 된 phantom_ref 객체의 주소 변경.
   6) weak-oop clean-up. WeakProcessor::weak_oops_do
 

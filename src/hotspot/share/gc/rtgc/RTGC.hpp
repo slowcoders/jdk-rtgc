@@ -49,8 +49,6 @@ namespace RTGC {
 
   bool heap_locked_bySelf();
 
-  void add_referrer_ex(oopDesc* obj, oopDesc* referrer, bool checkYoungRoot);
-
   void add_trackable_link_or_mark_young_root(oopDesc* obj, oopDesc* referrer);
 
   void add_referrer_unsafe(oopDesc* obj, oopDesc* referrer, oopDesc* debug_base);

@@ -390,7 +390,8 @@ namespace RTGC {
 
     void break_weak_soft_link() {
       GCObject* ref = to_obj(_curr_ref);
-      if (ref->isTrackable()) {
+      rt_assert(ref->isTrackable());
+      if (to_obj(_referent_p)->isTrackable()) {
         to_obj(_referent_p)->removeReferrerWithoutReallocaton(ref);
       }
     } 
@@ -405,6 +406,12 @@ namespace RTGC {
             is_alive = !referent->clearEmptyAnchorList();
           } else {
             is_alive = !_rtgc.g_pGarbageProcessor->detectGarbage(referent);
+          }
+        }
+        if (is_alive) {
+          GCObject* ref = to_obj(_curr_ref);
+          if (ref->isTrackable()) {
+            referent->addTrackableAnchor(ref);
           }
         }
       } else {
@@ -431,10 +438,6 @@ namespace RTGC {
               "referent %p(%s) tr=%d gm=%d refT=%d multi=%d", referent, RTGC::getClassName(referent), 
               referent->isTrackable(), referent->isGarbageMarked(), _refList.ref_type(), 
               referent->hasMultiRef());
-        }
-        GCObject* ref = to_obj(_curr_ref);
-        if (ref->isTrackable()) {
-          referent->addTrackableAnchor(ref);
         }
       }
     }

@@ -206,25 +206,27 @@ void GenMarkSweep::deallocate_stacks() {
 
 #if INCLUDE_RTGC // RtYoungRootClosure
 template<bool is_tracked>
-class TenuredYoungRootClosure : public MarkAndPushClosure, public RtYoungRootClosure, public ObjectClosure {
+class TenuredYoungRootClosure : public RtYoungRootClosure, public MarkAndPushClosure, public ObjectClosure {
   bool _is_young_root;
+  bool _is_root_reachable;
 public:
   
-  bool iterate_tenured_young_root_oop(oopDesc* obj) {
+  virtual bool iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachable) {
     precond(rtHeap::is_trackable(obj));
-    if (rtHeap::DoCrossCheck && obj->is_gc_marked()) {
-      return true;
-    }
-    _is_young_root = false;
-    oop old_anchor = _current_anchor;
+    _is_root_reachable = is_root_reachable;
     _current_anchor = obj;
+
+    _is_young_root = false;
     obj->oop_iterate(this);
-    _current_anchor = old_anchor;
     return _is_young_root;
   }
 
-  void do_complete() {
-    MarkSweep::follow_stack();
+  virtual void do_complete(bool is_root_reachable) {
+    if (is_root_reachable) {
+      MarkSweep::follow_stack();
+    } else {
+      MarkSweep::follow_stack();
+    }
   }
 
   oop keep_alive_young_referent(oop obj) {
@@ -247,17 +249,16 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
       if (!rtHeap::is_trackable(obj)) {
+        MarkSweep::mark_and_push_internal<true>(obj);
         _is_young_root = true;
+        // if (!_is_root_reachable) {
+        //   rtHeap::mark_young_root_reachable(_current_anchor, obj);
+        // }
+      } else if (is_tracked || AUTO_TRACKABLE_MARK_BY_ADDRESS) {
+        rtHeap::ensure_trackable_link(_current_anchor, obj);
       } else {
-        if (!rtHeap::is_alive(obj)) {
-          rtHeap::mark_survivor_reachable(obj);
-        } 
-        if (is_tracked && !rtHeap::DoCrossCheck) return;
-      } 
-      if (!is_tracked) {
         rtHeap::add_trackable_link(_current_anchor, obj);
       }
-      MarkSweep::mark_and_push_internal<true>(obj);
     }
   }
 
@@ -276,7 +277,8 @@ public:
   }
 
   void do_object(oop obj) {
-    iterate_tenured_young_root_oop(obj);
+    rt_assert(!is_tracked);
+    iterate_tenured_young_root_oop(obj, true);
   }
 
 };
