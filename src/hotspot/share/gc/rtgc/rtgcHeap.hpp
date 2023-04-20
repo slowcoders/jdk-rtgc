@@ -65,6 +65,7 @@ public:
   static void iterate_younger_gen_roots(RtYoungRootClosure* young_root_closure, bool is_full_gc);
   static void finish_rtgc(bool is_full_gc, bool promotion_finished);
 
+  // for younger object collection
   static void mark_promoted_trackable(oopDesc* new_p);
   static void mark_young_root_reachable(oopDesc* anchor, oopDesc* link);
   static void mark_young_survivor_reachable(oopDesc* anchor, oopDesc* link);
@@ -79,6 +80,7 @@ public:
   static void mark_young_root(oopDesc* tenured_p, bool is_young_root);
   static void oop_recycled_iterate(ObjectClosure* closure);
 
+  // for full gc
   static void mark_dead_space(oopDesc* obj);
   
   static void mark_forwarded_trackable(oopDesc* p);

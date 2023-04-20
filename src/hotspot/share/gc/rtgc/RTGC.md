@@ -111,6 +111,17 @@ bash configure --with-jvm-variants=client \
 
 
 ==============================
+Test summary 2023 04/19 rollback-to rt-17 v4.1
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1584    21     5 <<
+>> jtreg:test/jdk:tier1                               2062  2056     0     6 <<
+>> jtreg:test/langtools:tier1                         4215  4190     0    25 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
+
+==============================
 Test summary 2022 03/21 Acyclic/AnchorList-LinkTrackable-Only
 ==============================
    TEST                                              TOTAL  PASS  FAIL ERROR   

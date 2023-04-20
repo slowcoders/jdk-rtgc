@@ -945,7 +945,7 @@ bool rtHeap::try_discover(oopDesc* ref, ReferenceType type, ReferenceDiscoverer*
         return false;
       } else {
         oop referent = RawAccess<>::oop_load_at(ref, RefList::_referent_off);
-        return referent != NULL;// && referent->is_gc_marked();
+        return referent != NULL;
       }
 
     case REF_SOFT:

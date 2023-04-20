@@ -329,7 +329,6 @@ void rtHeap__clearStack() {
 
     for (; src < end; src++) {
       GCObject* erased = src[0];
-      // rtgc_log(true, "clear stack root %p", erased);
       rt_assert(erased->is_adjusted_trackable());
       rt_assert_f(erased->isSurvivorReachable(), "cls %p " PTR_DBG_SIG, 
           (void*)cast_to_oop(erased)->klass()->java_mirror_no_keepalive(), PTR_DBG_INFO(erased));
@@ -913,7 +912,6 @@ void rtHeap::finish_adjust_pointers() {
   if (RTGC_FAT_OOP) {
     rtHeap__clearStack<true>();
   }
-
 }
 
 class ClearWeakHandleRef: public OopClosure {

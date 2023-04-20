@@ -22,7 +22,6 @@ static const int 	TRACKABLE_BIT = 1;
 #define ROOT_REF_COUNT_BITS 	25
 
 struct GCFlags {
-	uint32_t isAcyclic: 1;
 	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;
 #if RTGC_SHARE_GC_MARK

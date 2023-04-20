@@ -706,7 +706,7 @@ klassItable InstanceKlass::itable() const {
   return klassItable(const_cast<InstanceKlass*>(this));
 }
 
-void InstanceKlass::eager_initialize(RTGC_ONLY(JavaThread) NOT_RTGC(Thread) *thread) {
+void InstanceKlass::eager_initialize(Thread *thread) {
   if (!EagerInitialization) return;
 
   if (this->is_not_initialized()) {
