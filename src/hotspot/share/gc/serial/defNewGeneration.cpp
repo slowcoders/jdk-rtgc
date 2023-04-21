@@ -100,9 +100,89 @@ FastKeepAliveClosure(DefNewGeneration* g, ScanWeakRefClosure* cl) :
 void DefNewGeneration::FastKeepAliveClosure::do_oop(oop* p)       { DefNewGeneration::FastKeepAliveClosure::do_oop_work(p); }
 void DefNewGeneration::FastKeepAliveClosure::do_oop(narrowOop* p) { DefNewGeneration::FastKeepAliveClosure::do_oop_work(p); }
 
+#if INCLUDE_RTGC // RtYoungRootClosure
+template <bool is_promoted, bool resurrected>
+class ScanEvacuatedObjClosure : public ObjectClosure, 
+    public FastScanClosure<ScanEvacuatedObjClosure<is_promoted, resurrected>, is_promoted> {
+  oop _current_anchor;
+  bool _has_young_ref;
+
+public:
+  ScanEvacuatedObjClosure(DefNewGeneration* g, Generation* old_gen = NULL) : 
+      FastScanClosure<ScanEvacuatedObjClosure<is_promoted, resurrected>, is_promoted>(g) {}
+
+  void barrier(oop old_p, oop new_p) {
+    if (is_promoted) {
+      _has_young_ref = true;
+    //   if (!is_root_reachable) {
+    //     rtHeap::mark_young_root_reachable(_current_anchor, new_p);
+    //   }
+    // } else if (!is_root_reachable) {
+    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
+    }
+  }
+
+  void trackable_barrier(oop old_p, oop new_p) {
+    if (is_promoted) {
+      if (resurrected) {
+        rtHeap::mark_resurrected_link(_current_anchor, new_p);
+      } else {
+        rtHeap::add_trackable_link(_current_anchor, new_p);
+      }
+    // } else if (!is_root_reachable) {
+    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
+    }
+  }
+
+  void promoted_trackable_barrier(oop old_p, oop new_p) {
+    if (is_promoted) {
+      rtHeap::add_trackable_link(_current_anchor, new_p);
+    // } else if (!is_root_reachable) {
+    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
+    }
+  }
+
+  void do_object(oop obj) {
+    _current_anchor = obj;
+    if (is_promoted) {
+      _has_young_ref = false;
+    }
+    obj->oop_iterate(this);
+    if (is_promoted) {
+      rtHeap::mark_young_root(_current_anchor, _has_young_ref);
+    }
+  }
+};
+
+
+bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachable) {
+  _has_young_ref = false;
+  _current_anchor = obj;
+  _is_root_reachable = is_root_reachable;
+  obj->oop_iterate(this);
+  return _has_young_ref;
+}
+
+void YoungRootClosure::do_complete(bool is_strong_rechable) {
+  if (is_strong_rechable) {
+    _complete_closure->do_void();
+  } else {
+    _unstable_complete_closure->do_void();
+  }
+}
+
+oop YoungRootClosure::keep_alive_young_referent(oop obj) {
+    rt_assert(cast_from_oop<HeapWord*>(obj) < young_gen()->reserved().end());
+    rt_assert_f(!young_gen()->to()->is_in_reserved(obj), "Scanning field twice?");
+    rt_assert(!obj->is_forwarded());
+    oop new_obj = young_gen()->copy_to_survivor_space(obj);
+    return new_obj;
+}
+#endif
+
 template <typename ScanYoung, typename ScanOlder>
 void DefNewGeneration::FastEvacuateFollowersClosure<ScanYoung, ScanOlder>::do_void() {
-  ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
+  ScanEvacuatedObjClosure<true, true> resurrector(_heap->young_gen());
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
     if (EnableRTGC) {
@@ -543,81 +623,7 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   age_table()->print_age_table(_tenuring_threshold);
 }
 
-#if INCLUDE_RTGC // RtYoungRootClosure
-template <bool is_promoted, bool is_root_reachable>
-class ScanEvacuatedObjClosure : public ObjectClosure, 
-    public FastScanClosure<ScanEvacuatedObjClosure<is_promoted, is_root_reachable>, is_promoted> {
-  oop _current_anchor;
-  bool _has_young_ref;
 
-public:
-  ScanEvacuatedObjClosure(DefNewGeneration* g, Generation* old_gen = NULL) : 
-      FastScanClosure<ScanEvacuatedObjClosure<is_promoted, is_root_reachable>, is_promoted>(g) {}
-
-  void barrier(oop old_p, oop new_p) {
-    if (is_promoted) {
-      _has_young_ref = true;
-    //   if (!is_root_reachable) {
-    //     rtHeap::mark_young_root_reachable(_current_anchor, new_p);
-    //   }
-    // } else if (!is_root_reachable) {
-    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
-    }
-  }
-
-  void trackable_barrier(oop old_p, oop new_p) {
-    if (is_promoted) {
-      rtHeap::add_trackable_link(_current_anchor, new_p);
-    // } else if (!is_root_reachable) {
-    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
-    }
-  }
-
-  void promoted_trackable_barrier(oop old_p, oop new_p) {
-    if (is_promoted) {
-      rtHeap::add_trackable_link(_current_anchor, new_p);
-    // } else if (!is_root_reachable) {
-    //   rtHeap::mark_young_survivor_reachable(_current_anchor, new_p);
-    }
-  }
-
-  void do_object(oop obj) {
-    _current_anchor = obj;
-    if (is_promoted) {
-      _has_young_ref = false;
-    }
-    obj->oop_iterate(this);
-    if (is_promoted && _has_young_ref) {
-      rtHeap::mark_young_root(_current_anchor, true);
-    }
-  }
-};
-
-
-bool YoungRootClosure::iterate_tenured_young_root_oop(oopDesc* obj, bool is_root_reachable) {
-  _has_young_ref = false;
-  _current_anchor = obj;
-  _is_root_reachable = is_root_reachable;
-  obj->oop_iterate(this);
-  return _has_young_ref;
-}
-
-void YoungRootClosure::do_complete(bool is_strong_rechable) {
-  if (is_strong_rechable) {
-    _complete_closure->do_void();
-  } else {
-    _unstable_complete_closure->do_void();
-  }
-}
-
-oop YoungRootClosure::keep_alive_young_referent(oop obj) {
-    rt_assert(cast_from_oop<HeapWord*>(obj) < young_gen()->reserved().end());
-    rt_assert_f(!young_gen()->to()->is_in_reserved(obj), "Scanning field twice?");
-    rt_assert(!obj->is_forwarded());
-    oop new_obj = young_gen()->copy_to_survivor_space(obj);
-    return new_obj;
-}
-#endif
 
 void DefNewGeneration::collect(bool   full,
                                bool   clear_all_soft_refs,
@@ -668,7 +674,7 @@ void DefNewGeneration::collect(bool   full,
 
   DefNewScanClosure       scan_closure(this);
 #if INCLUDE_RTGC  // RtYoungRootClosure
-  typedef ScanEvacuatedObjClosure<true, true> DefNewYoungerGenClosure;
+  typedef ScanEvacuatedObjClosure<true, false> DefNewYoungerGenClosure;
 #endif
   DefNewYoungerGenClosure younger_gen_closure(this, _old_gen);
 

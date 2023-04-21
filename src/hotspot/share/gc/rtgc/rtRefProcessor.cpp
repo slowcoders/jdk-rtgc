@@ -416,7 +416,15 @@ namespace RTGC {
         }
       } else {
         is_alive = _referent_p->is_gc_marked();
-        if (!is_alive) referent->clearAnchorList();
+        if (!is_alive) {
+          referent->clearAnchorList();
+        } else {
+          GCObject* ref = to_obj(_curr_ref);
+          if (ref->isTrackable()) {
+            // rt_assert(ref->isYoungRoot());
+            rtHeap::mark_young_root(_curr_ref, true);
+          }
+        }
       }
 
       rtgc_log(LOG_OPT(3),

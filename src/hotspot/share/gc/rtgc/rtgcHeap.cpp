@@ -368,8 +368,8 @@ void rtHeap::iterate_younger_gen_roots(RtYoungRootClosure* closure, bool is_full
     }
 
     // rtgc_log(LOG_OPT(7), "iterate yg root %p", (void*)node); 0x3f74adc18
-    bool is_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node));
-    closure->do_complete();
+    bool is_root = closure->iterate_tenured_young_root_oop(cast_to_oop(node), true);
+    closure->do_complete(true);
     if (!is_root) {
       node->unmarkYoungRoot();
       g_young_roots.removeFast(idx_root);
@@ -410,7 +410,7 @@ void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
   rt_assert(anchor->isTrackable());
   rt_assert_f(!anchor->isGarbageMarked(), "grabage anchor %p(%s)", 
       anchor, anchor_p->klass()->name()->bytes());
-  rt_assert_f(!link->isGarbageMarked(), "grabage link " PTR_DBG_SIG "\n anchor" PTR_DBG_SIG, PTR_DBG_INFO(link), PTR_DBG_INFO(anchor));
+  // rt_assert_f(!link->isGarbageMarked(), "grabage link " PTR_DBG_SIG "\n anchor" PTR_DBG_SIG, PTR_DBG_INFO(link), PTR_DBG_INFO(anchor));
   if (link->isGarbageMarked()) {
     rt_assert_f(link->hasAnchor() || (link->isYoungRoot() && link->isDirtyReferrerPoints()), 
         "invalid link_p %p(%s) -> %p(%s)", 
