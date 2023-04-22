@@ -109,6 +109,16 @@ bash configure --with-jvm-variants=client \
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.
 
+==============================
+Test summary 2023 04/22 rt-17 v4.1 tested
+==============================
+   TEST                                              TOTAL  PASS  FAIL ERROR   
+>> jtreg:test/hotspot/jtreg:tier1                     1610  1588    18     4 <<
+>> jtreg:test/jdk:tier1                               2062  2056     0     6 <<
+>> jtreg:test/langtools:tier1                         4215  4199     0    16 <<
+   jtreg:test/jaxp:tier1                                 0     0     0     0   
+   jtreg:test/lib-test:tier1                             0     0     0     0   
+==============================
 
 ==============================
 Test summary 2023 04/19 rollback-to rt-17 v4.1
