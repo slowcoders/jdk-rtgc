@@ -55,7 +55,8 @@ RtThreadLocalData* RtThreadLocalData::g_active_thread_q = NULL;
 
 template <bool _atomic>
 void FieldUpdateLog::updateAnchorList() {
-  if (false && _anchor == NULL) {
+  if (_anchor == NULL) {
+    rt_assert(RTGC::LAZY_REF_COUNT);
     narrowOop erased = _erased._obj;
     narrowOop assigned = *(narrowOop*)&_erased._offset;
     RTGC::on_root_changed(CompressedOops::decode(erased), CompressedOops::decode(assigned), NULL, NULL);
@@ -106,21 +107,25 @@ void FieldUpdateLog::add(oopDesc* anchor, volatile narrowOop* field, narrowOop e
 
 
 void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
-  rtgc_debug_log(anchor, "add log(%p yr=%d) [%d] %p", 
-      anchor, to_obj(anchor)->isYoungRoot(), erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
-  rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d", 
-      anchor->size(), erasedField._offset);
+  if (anchor != NULL) {
+    rt_assert_f(anchor, "add log(%p) (%p yr=%d) [%d] %p", 
+        this, anchor, to_obj(anchor)->isYoungRoot(), erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
+    rt_assert_f(anchor->size() * sizeof(HeapWord) > (uint64_t)erasedField._offset, "size %d offset %d", 
+        anchor->size(), erasedField._offset);
+    rt_assert(to_obj(anchor)->isTrackable());
+    rt_assert(!rtHeap::is_modified(erasedField._obj));
+  }
 
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
-
-  rt_assert(to_obj(anchor)->isTrackable());
-  rt_assert(!rtHeap::is_modified(erasedField._obj));
   this->_anchor = (address)anchor;
   this->_erased = erasedField;
-  rt_assert_f(rtHeap::is_modified(*field()), "%p(%s) [%d] v=%x/n", 
-      _anchor, RTGC::getClassName(_anchor), erasedField._offset, 
-      (int32_t)*field());
-  rt_assert_f(erasedField._offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+
+  if (anchor != NULL) {
+    rt_assert_f(rtHeap::is_modified(*field()), "%p(%s) [%d] v=%x/n", 
+        _anchor, RTGC::getClassName(_anchor), erasedField._offset, 
+        (int32_t)*field());
+    rt_assert_f(erasedField._offset > 0, PTR_DBG_SIG, PTR_DBG_INFO(anchor));
+  }
 }
 
 
@@ -260,7 +265,7 @@ void UpdateLogBuffer::flush_pending_logs() {
 
 void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, RtThreadLocalData* rtData) {
   rt_assert(rtData == RtThreadLocalData::data(Thread::current()));
-  rt_assert(!Thread::current()->is_VM_thread());
+  // rt_assert(!Thread::current()->is_VM_thread());
 
   UpdateLogBuffer* curr_buffer = rtData->_log_buffer;
   rt_assert_f(curr_buffer == g_dummy_buffer || 

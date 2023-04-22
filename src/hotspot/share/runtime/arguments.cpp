@@ -1632,7 +1632,8 @@ jint Arguments::set_ergonomics_flags() {
 
 #if INCLUDE_RTGC // RTGC_RELEASE + NO_BIASED_LOCKING
 #ifdef ASSERT
-  EnableRTGC = UseSerialGC && UseCompressedClassPointers;
+  // RTGC-TODO 64bit mode 지원 필요.
+  EnableRTGC = UseSerialGC && UseCompressedOops && UseCompressedClassPointers;
   /**
    * RtLazyClearWeakHandle 은 사용하지 않는다.
    * WeakHandle 은 예상보다 생명이 긴 편이다.

@@ -5,7 +5,6 @@
 #include "../rtgcDebug.hpp"
 #include "oops/oop.hpp"
 #include "GCPointer.hpp"
-#include "../rtgcGlobals.hpp"
 #include "../rtgcHeap.hpp"
 
 #define ZERO_ROOT_REF 		0

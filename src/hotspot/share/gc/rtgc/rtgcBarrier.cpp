@@ -113,17 +113,29 @@ static void raw_set_field(oop* addr, oopDesc* value) {
   RawAccess<>::oop_store(addr, value);
 }
 
-template <bool in_heap>
+template <bool in_heap, bool dest_uninitialized=false>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc* value) {
   rt_assert(!is_gc_started);
   rt_assert(!in_heap || to_obj(base)->isTrackable());
   narrowOop new_v = CompressedOops::encode(value);
+  if (dest_uninitialized) {
+    rt_assert(!in_heap);
+    raw_set_volatile_field(addr, value);
+    if (RTGC::LAZY_REF_COUNT) {
+      FieldUpdateLog::add(NULL, (narrowOop*)new_v, (narrowOop)NULL);
+    }
+    return NULL;
+  }
   if (in_heap && rtHeap::useModifyFlag()) {
     new_v = rtHeap::to_modified(new_v);
     rt_assert(!rtHeap::in_full_gc);
   }
   narrowOop old_v = Atomic::xchg(addr, new_v);
-  if (in_heap && rtHeap::useModifyFlag()) {
+  if (!in_heap) {
+    if (RTGC::LAZY_REF_COUNT) {
+      FieldUpdateLog::add(NULL, (narrowOop*)new_v, old_v);
+    }
+  } else if (rtHeap::useModifyFlag()) {
     if (!rtHeap::is_modified(old_v)) {
       FieldUpdateLog::add(base, addr, old_v);
     }
@@ -131,11 +143,39 @@ static oopDesc* raw_atomic_xchg(oopDesc* base, volatile narrowOop* addr, oopDesc
   return CompressedOops::decode(old_v);
 }
 
-template <bool in_heap>
+template <bool in_heap, bool dest_uninitialized=false>
 static oopDesc* raw_atomic_xchg(oopDesc* base, volatile oop* addr, oopDesc* value) {
-  oop n_v = value;
-  oop res = Atomic::xchg(addr, n_v);
-  return res;
+  rt_assert(!is_gc_started);
+  rt_assert(!in_heap || to_obj(base)->isTrackable());
+  oop new_v = value;
+  if (dest_uninitialized) {
+    rt_assert(!in_heap);
+    raw_set_volatile_field(addr, value);
+    if (RTGC::LAZY_REF_COUNT) {
+      narrowOop new_v0 = CompressedOops::encode(value);
+      FieldUpdateLog::add(NULL, (narrowOop*)new_v0, (narrowOop)NULL);
+    }
+    return NULL;
+  }
+  if (in_heap && rtHeap::useModifyFlag()) {
+    new_v = rtHeap::to_modified(new_v);
+    rt_assert(!rtHeap::in_full_gc);
+  }
+  oop old_v = Atomic::xchg(addr, new_v);
+  if (!in_heap) {
+    if (RTGC::LAZY_REF_COUNT) {
+      narrowOop new_v0 = CompressedOops::encode(value);
+      narrowOop old_v0 = CompressedOops::encode(value);
+      FieldUpdateLog::add(NULL, (narrowOop*)new_v0, old_v0);
+    }
+  } else if (rtHeap::useModifyFlag()) {
+    rt_assert(!UseCompressedOops);
+    if (!rtHeap::is_modified(old_v)) {
+      narrowOop old_v0 = CompressedOops::encode(value);
+      FieldUpdateLog::add(base, (narrowOop*)addr, old_v0);
+    }
+  }
+  return old_v;
 }
 
 template <bool in_heap>
@@ -150,7 +190,11 @@ static oopDesc* raw_atomic_cmpxchg(oopDesc* base, volatile narrowOop* addr, oopD
   }
 
   narrowOop res = Atomic::cmpxchg(addr, c_v, n_v);
-  if (in_heap && rtHeap::useModifyFlag()) {
+  if (!in_heap) {
+    if (RTGC::LAZY_REF_COUNT && res == c_v) {
+      FieldUpdateLog::add(NULL, (narrowOop*)n_v, c_v);
+    }
+  } else if (rtHeap::useModifyFlag()) {
     if (res == c_v) {
       FieldUpdateLog::add(base, addr, c_v);
     } else {
@@ -213,22 +257,26 @@ void rtgc_store(T* addr, oopDesc* new_v, oopDesc* base) {
 
 template<class T, bool dest_uninitialized, int shift>
 void rtgc_store_not_in_heap(T* addr, oopDesc* new_v) {
-  RTGC::publish_and_lock_heap(new_v);
+  if (!RTGC::LAZY_REF_COUNT) {       
+    RTGC::publish_and_lock_heap(new_v);
+  }
+  // printf("rtgc_store_not_in_heap %p, %p, %d\n", addr, new_v, dest_uninitialized);
   oopDesc* old;
   if (dest_uninitialized) {
     old = NULL;
-    raw_set_volatile_field(addr, new_v);
+    raw_atomic_xchg<false, true>(NULL, addr, new_v);
   }
   else {
     old = raw_atomic_xchg<false>(NULL, addr, new_v);
   }
-  //oopDesc* old = dest_uninitialized ? NULL : (oopDesc*)(oop)RawAccess<>::oop_load(addr);
-  //raw_set_volatile_field(addr, new_v);
+
   rt_assert_f(!(!dest_uninitialized && new_v != NULL && 
       RTGC::debugOptions[2] >= 16 && new_v->klass() == vmClasses::String_klass()), 
         "rtgc_store_not_in_heap %p\n", (void*)new_v);
-  RTGC::on_root_changed(old, new_v, addr, "stor");
-  RTGC::unlock_heap();
+  if (!RTGC::LAZY_REF_COUNT) {       
+    RTGC::on_root_changed(old, new_v, addr, "stor");
+    RTGC::unlock_heap();
+  }
 }
 
 void (*RtgcBarrier::rt_store)(void* addr, oopDesc* new_v, oopDesc* base) = 0;
@@ -368,12 +416,15 @@ oopDesc* rtgc_xchg(volatile T* addr, oopDesc* new_v, oopDesc* base) {
 template<class T, bool inHeap, int shift>
 oopDesc* rtgc_xchg_not_in_heap(volatile T* addr, oopDesc* new_v) {
   rtgc_log(LOG_OPT(11), "xchg_nh (%p) <-> %p\n", addr, new_v);
-  RTGC::publish_and_lock_heap(new_v);
+  if (!RTGC::LAZY_REF_COUNT) {       
+    RTGC::publish_and_lock_heap(new_v);
+  }
   oopDesc* old = raw_atomic_xchg<false>(NULL, addr, new_v);
-  // oop old = RawAccess<>::oop_load(addr);
-  // raw_set_volatile_field(addr, new_v);
-  RTGC::on_root_changed(old, new_v, addr, "xchg");
-  RTGC::unlock_heap();
+
+  if (!RTGC::LAZY_REF_COUNT) {       
+    RTGC::on_root_changed(old, new_v, addr, "xchg");
+    RTGC::unlock_heap();
+  }
   return old;
 }
 
@@ -490,14 +541,17 @@ template<class T, bool inHeap, int shift>
 oopDesc* rtgc_cmpxchg_not_in_heap(volatile T* addr, oopDesc* cmp_v, oopDesc* new_v) {
   rtgc_log(LOG_OPT(11), "cmpxchg *(%p)=%p <-> %p\n", 
         addr, cmp_v, new_v);
-  RTGC::publish_and_lock_heap(new_v);
+  if (!RTGC::LAZY_REF_COUNT) {       
+    RTGC::publish_and_lock_heap(new_v);
+  }
   oopDesc* old_value = raw_atomic_cmpxchg<false>(NULL, addr, cmp_v, new_v);
   // oop old = RawAccess<>::oop_load(addr);
-  if (old_value == cmp_v) {
-    // raw_set_volatile_field(addr, new_v);
-    RTGC::on_root_changed(old_value, new_v, addr, "cmpx");
+  if (!RTGC::LAZY_REF_COUNT) {       
+    if (old_value == cmp_v) {
+      RTGC::on_root_changed(old_value, new_v, addr, "cmpx");
+    }
+    RTGC::unlock_heap();
   }
-  RTGC::unlock_heap();
   return old_value;
 }
 

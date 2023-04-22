@@ -79,6 +79,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/preserveException.hpp"
+#include "gc/serial/defNewGeneration.inline.hpp"
 
 // Known objects
 Klass* Universe::_typeArrayKlassObjs[T_LONG+1]        = { NULL /*, NULL...*/ };
@@ -506,8 +507,25 @@ bool Universe::has_reference_pending_list() {
   return _reference_pending_list.peek() != NULL;
 }
 
+#if INCLUDE_RTGC
+namespace RTGC {
+  extern bool REF_LINK_ENABLED;
+  extern bool is_gc_started;
+}
+#include "gc/rtgc/rtgcGlobals.hpp"
+#endif
+
 oop Universe::swap_reference_pending_list(oop list) {
   assert_pll_locked(is_locked);
+#if INCLUDE_RTGC
+  if (RTGC::LAZY_REF_COUNT) {
+    rt_assert(RTGC::is_gc_started);
+    oop* ptr = _reference_pending_list.ptr_raw();
+    oop old = RawAccess<>::oop_atomic_xchg(ptr, list);
+    RTGC::on_root_changed(old, list, ptr, "swap_reference_pending_list");
+    return old;
+  }
+#endif
   return _reference_pending_list.xchg(list);
 }
 

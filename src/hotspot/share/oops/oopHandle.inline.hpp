@@ -44,7 +44,7 @@ inline OopHandle::OopHandle(OopStorage* storage, oop obj) :
     vm_exit_out_of_memory(sizeof(oop), OOM_MALLOC_ERROR,
                           "Cannot create oop handle");
   }
-  NativeAccess<>::oop_store(_obj, obj);
+  NativeAccess<RTGC_ONLY(IS_DEST_UNINITIALIZED)>::oop_store(_obj, obj);
 }
 
 inline void OopHandle::release(OopStorage* storage) {

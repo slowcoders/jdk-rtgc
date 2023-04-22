@@ -4,6 +4,7 @@
 class Klass;
 
 namespace RTGC {
+  static const bool LAZY_REF_COUNT = true;
 
   static const int LOG_BARRIER    = 1;
   static const int LOG_BARRIER_C1 = 2;
