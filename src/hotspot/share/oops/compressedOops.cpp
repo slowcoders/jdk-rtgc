@@ -75,6 +75,7 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   }
 
   _heap_address_range = heap_space.region();
+  // printf("RTGC _heap_address_range %p ~ %p", _heap_address_range.start(), _heap_address_range.end());
 
   LogTarget(Debug, gc, heap, coops) lt;
   if (lt.is_enabled()) {

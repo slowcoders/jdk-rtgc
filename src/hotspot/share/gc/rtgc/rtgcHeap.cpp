@@ -168,11 +168,13 @@ bool rtHeap::is_in_trackable_space(void* p) {
 }
 
 void rtHeap::lock_jni_handle_at_safepoint(oopDesc* p) {
+  rt_assert(is_gc_started);
   GCObject* obj = to_obj(p);
   GCRuntime::onAssignRootVariable_internal(obj);
 }
 
 void rtHeap::release_jni_handle_at_safepoint(oopDesc* p) {
+  rt_assert(is_gc_started);
   GCObject* obj = to_obj(p);
   GCRuntime::onEraseRootVariable_internal(obj);
 }

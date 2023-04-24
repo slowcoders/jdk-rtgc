@@ -35,11 +35,11 @@ namespace RTGC {
   int g_field_update_cnt = 0;
   int g_inverse_graph_update_cnt = 0;
 #endif
-  extern bool is_gc_started;  
   int g_cnt_update = 0;
   int g_cnt_update_log = 0;
   address g_buffer_area_start = 0;
   address g_buffer_area_end = 0;
+  narrowOop* g_erase_q;
 
   static const int STACK_CHUNK_SIZE = sizeof(FieldUpdateLog)*512;
   static const int MAX_LOG_IN_CHUNK = STACK_CHUNK_SIZE / sizeof(FieldUpdateLog) - 2;
@@ -59,7 +59,13 @@ void FieldUpdateLog::updateAnchorList() {
     rt_assert(RTGC::LAZY_REF_COUNT);
     narrowOop erased = _erased._obj;
     narrowOop assigned = *(narrowOop*)&_erased._offset;
-    RTGC::on_root_changed(CompressedOops::decode(erased), CompressedOops::decode(assigned), NULL, NULL);
+    if (_atomic) {
+      RTGC::on_root_changed(CompressedOops::decode(erased), CompressedOops::decode(assigned), NULL, NULL);
+    } else {
+      --g_erase_q;
+      *g_erase_q = erased;
+      RTGC::on_root_changed(NULL, CompressedOops::decode(assigned), NULL, NULL);
+    }
     return;
   }
 
@@ -114,11 +120,22 @@ void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
         anchor->size(), erasedField._offset);
     rt_assert(to_obj(anchor)->isTrackable());
     rt_assert(!rtHeap::is_modified(erasedField._obj));
+  } else {
+    // printf("RTGC add log(%p) (%p yr=%d) [%x] %p\n", 
+    //     this, anchor, 0, erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
+    narrowOop assigned = *(narrowOop*)&erasedField._offset;
+    // printf("RTGC p %p\n", (void*)(intptr_t)((uint32_t)assigned << 2));
+    rt_assert(CompressedOops::is_null(assigned) ||
+        !to_obj((void*)CompressedOops::decode(assigned))->isGarbageTrackable());
   }
 
   debug_only(Atomic::add(&g_cnt_update_log, 1);)
   this->_anchor = (address)anchor;
   this->_erased = erasedField;
+
+  // printf("RTGC er %p\n", (void*)this->erased());
+  rt_assert(CompressedOops::is_null(this->erased()) ||
+      !to_obj(CompressedOops::decode(this->erased()))->isGarbageTrackable());
 
   if (anchor != NULL) {
     rt_assert_f(rtHeap::is_modified(*field()), "%p(%s) [%d] v=%x/n", 
@@ -253,10 +270,10 @@ void UpdateLogBuffer::recycle(UpdateLogBuffer* buffer) {
 
 template <bool _atomic>
 void UpdateLogBuffer::flush_pending_logs() {
-  FieldUpdateLog* log = first_log();
-  FieldUpdateLog* end = end_of_log();
-  rtgc_log(LOG_OPT(10), "flush_pending_logs atomic=%d buffer:%p cnt:%ld", _atomic, this, end-log);
-  for (; log < end; log++) {
+  FieldUpdateLog* top = first_log();
+  FieldUpdateLog* log = end_of_log();
+  rtgc_log(LOG_OPT(10), "flush_pending_logs atomic=%d buffer:%p cnt:%ld", _atomic, this, log-top);
+  for (; --log >= top; ) {
     log->updateAnchorList<_atomic>();
   }
   _sp = this->end_of_log();
@@ -283,13 +300,13 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
       curr_buffer = rtData->_log_buffer = new_buffer;
     } else if (curr_buffer != g_dummy_buffer) {
       reuse_curr_buffer = true;
-      rtgc_log(LOG_OPT(1), "Reuse CurrBuffer %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
+      rtgc_log(true, "Reuse CurrBuffer %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
       RTGC::lock_heap(true);
       curr_buffer->flush_pending_logs<true>();
       RTGC::unlock_heap();
     } else {
       buffer_full = true;
-      rtgc_log(LOG_OPT(1), "LogBuffer full!! %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
+      rtgc_log(true, "LogBuffer full!! %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
       RTGC::lock_heap();
@@ -359,15 +376,26 @@ void UpdateLogBuffer::process_update_logs() {
   RTGC::lock_heap();
   UpdateLogBuffer* top_active_buffer = g_active_buffer_q;
   UpdateLogBuffer* top_inactive_buffer = g_inactive_buffer_q;
+  UpdateLogBuffer* end_buffer = g_free_buffer_q; 
   g_free_buffer_q = NULL;
   g_active_buffer_q = NULL;
   g_inactive_buffer_q = NULL;
   RTGC::unlock_heap();
  
-  for (UpdateLogBuffer* buffer = top_active_buffer; buffer != NULL; buffer = buffer->_next) {
+  g_erase_q = (narrowOop*)end_buffer;
+  for (UpdateLogBuffer* buffer = end_buffer; --buffer >= (void*)g_buffer_area_start;) {
     buffer->flush_pending_logs<false>();
   }
-  for (UpdateLogBuffer* buffer = top_inactive_buffer; buffer != NULL; buffer = buffer->_next) {
-    buffer->flush_pending_logs<false>();
-  }  
+
+  // for (UpdateLogBuffer* buffer = top_active_buffer; buffer != NULL; buffer = buffer->_next) {
+  //   buffer->flush_pending_logs<false>();
+  // }
+  // for (UpdateLogBuffer* buffer = top_inactive_buffer; buffer != NULL; buffer = buffer->_next) {
+  //   buffer->flush_pending_logs<false>();
+  // }  
+  if (RTGC::LAZY_REF_COUNT) {
+    for (narrowOop* pErased = (narrowOop*)end_buffer; --pErased >= g_erase_q; ) {
+      RTGC::on_root_changed(CompressedOops::decode(*pErased), NULL, NULL, NULL);   
+    }
+  }
 }

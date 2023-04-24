@@ -79,6 +79,7 @@
 #include "utilities/ostream.hpp"
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
+#include "gc/rtgc/rtgcGlobals.hpp"
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -886,6 +887,13 @@ void ClassLoaderData::remove_handle(OopHandle h) {
   oop* ptr = h.ptr_raw();
   if (ptr != NULL) {
     assert(_handles.owner_of(ptr), "Got unexpected handle " PTR_FORMAT, p2i(ptr));
+#if INCLUDE_RTGC // LAZY_REF_COUNT
+    if (RTGC::LAZY_REF_COUNT && RTGC::is_gc_started) {
+      oop old = *ptr;
+      RawAccess<>::oop_store(ptr, oop(NULL));
+      RTGC::on_root_changed(old, NULL, ptr, "ClassLoaderData::remove_handle");
+    } else
+#endif
     NativeAccess<>::oop_store(ptr, oop(NULL));
   }
 }

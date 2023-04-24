@@ -6,6 +6,9 @@ class Klass;
 namespace RTGC {
   static const bool LAZY_REF_COUNT = true;
 
+  extern bool REF_LINK_ENABLED;
+  extern bool is_gc_started;
+
   static const int LOG_BARRIER    = 1;
   static const int LOG_BARRIER_C1 = 2;
   static const int LOG_HEAP       = 3;

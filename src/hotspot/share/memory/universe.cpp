@@ -453,7 +453,9 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
         BasicType bt = (BasicType)i;
         if (!is_reference_type(bt)) {
           oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, CHECK);
+          // printf("RTGC create_basic_type_mirror %p\n", (void*)m);
           _mirrors[i] = OopHandle(vm_global(), m);
+          // printf("RTGC done create_basic_type_mirror %p\n", (void*)m);
         }
       }
     }
@@ -508,16 +510,12 @@ bool Universe::has_reference_pending_list() {
 }
 
 #if INCLUDE_RTGC
-namespace RTGC {
-  extern bool REF_LINK_ENABLED;
-  extern bool is_gc_started;
-}
 #include "gc/rtgc/rtgcGlobals.hpp"
 #endif
 
 oop Universe::swap_reference_pending_list(oop list) {
   assert_pll_locked(is_locked);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // LAZY_REF_COUNT
   if (RTGC::LAZY_REF_COUNT) {
     rt_assert(RTGC::is_gc_started);
     oop* ptr = _reference_pending_list.ptr_raw();

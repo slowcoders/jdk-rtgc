@@ -16,8 +16,6 @@ static const int LOG_OPT(int function) {
 }
 
 namespace RTGC {
-  extern bool REF_LINK_ENABLED;
-  extern bool is_gc_started;
   FreeNode* g_destroyed = NULL;
 };
 

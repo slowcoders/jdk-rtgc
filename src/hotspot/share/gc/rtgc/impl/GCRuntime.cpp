@@ -86,8 +86,8 @@ void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
          "not locked");
 
     rt_assert_f(!erased->isGarbageTrackable() && erased->isStrongRootReachable(), 
-        "wrong ref-count %p rc=%d garbage=%d\n", 
-        erased, erased->getRootRefCount(), erased->isGarbageTrackable());
+        "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(erased));
+        
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
