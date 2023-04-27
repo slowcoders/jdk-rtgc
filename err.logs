@@ -1,258 +1,115 @@
-sh exec_test.sh java/lang/ref/SoftReference/Pin
-sh exec_test.sh java/lang/invoke/MethodHandlesGeneralTest
+# 2023.04.27 LAZY REF COUNT
 
-sh exec_test.sh tools/doclint/EmptyTagsTest
-sh exec_test.sh tools/doclint/AccessTest
-sh exec_test.sh jdk/javadoc/doclet/testRecordTypes/TestRecordTypes
+javac/cast/intersection/IntersectionTypeCastTest
+#  Internal Error (../../src/hotspot/share/gc/rtgc/rtRefProcessor.cpp:708), pid=27938, tid=19203
+#  assert(!referent->hasShortcut()) failed: precond
+V  [libjvm.dylib+0xb6632c]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb66958]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x38
+V  [libjvm.dylib+0x2cbb2d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x8e33c4]  void __keep_alive_final_referents<narrowOop, false>(OopClosure*, VoidClosure*)+0x984
+V  [libjvm.dylib+0x8e48df]  rtHeap::process_final_phantom_references(OopClosure*, VoidClosure*, bool)+0x5f
+V  [libjvm.dylib+0x2d5a5b]  DefNewGeneration::collect(bool, bool, unsigned long, bool)+0x95b
+V  [libjvm.dylib+0x42e82b]  GenCollectedHeap::collect_generation(Generation*, bool, unsigned long, bool, bool, bool, bool)+0x3db
+V  [libjvm.dylib+0x42efad]  GenCollectedHeap::do_collection(bool, bool, unsigned long, bool, GenCollectedHeap::GenerationType)+0x54d
+V  [libjvm.dylib+0x42f969]  GenCollectedHeap::satisfy_failed_allocation(unsigned long, bool)+0x159
+V  [libjvm.dylib+0x42afcb]  VM_GenCollectForAllocation::doit()+0x5b
+V  [libjvm.dylib+0xb6b9f2]  VM_Operation::evaluate()+0xf2
+V  [libjvm.dylib+0xb87403]  VMThread::evaluate_operation(VM_Operation*)+0x123
+V  [libjvm.dylib+0xb87f53]  VMThread::inner_execute(VM_Operation*)+0x213
+V  [libjvm.dylib+0xb870c5]  VMThread::loop()+0xa5
+V  [libjvm.dylib+0xb86ead]  VMThread::run()+0xdd
+V  [libjvm.dylib+0xaeb9f7]  Thread::call_run()+0x177
+V  [libjvm.dylib+0x844770]  thread_native_entry(Thread*)+0x150
+C  [libsystem_pthread.dylib+0x68fc]  _pthread_start+0xe0
+C  [libsystem_pthread.dylib+0x2443]  thread_start+0xf
 
-sh exec_test.sh runtime/Shutdown/ShutdownTest
-sh exec_test.sh java/util/regex/RegExTest
-sh exec_test.sh com/sun/jdi/SourceNameFilterTest
-sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:186), pid=35801, tid=6403
-#  assert(prev != __null) failed: precond
-V  [libjvm.dylib+0x8e3b46]  RTGC::UpdateLogBuffer::recycle(RTGC::UpdateLogBuffer*)+0xc6
-V  [libjvm.dylib+0xae0866]  Thread::~Thread()+0x46
-V  [libjvm.dylib+0xae2a9c]  JavaThread::~JavaThread()+0x15c
-V  [libjvm.dylib+0xae2ace]  JavaThread::~JavaThread()+0xe
-V  [libjvm.dylib+0xaeb5a6]  Threads::destroy_vm()+0x2c6
-V  [libjvm.dylib+0x5a07a1]  jni_DestroyJavaVM+0xd1
+
+tools/javac/defaultMethods/static/hiding/InterfaceMethodHidingTest
+#  Internal Error (../../src/hotspot/share/gc/rtgc/impl/GCUtils.cpp:14), pid=27934, tid=12803
+#  assert(offset != 0) failed: precond
+V  [libjvm.dylib+0xb6632c]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb66958]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x38
+V  [libjvm.dylib+0x2cbb2d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x1fadd]  RTGC::_offset2Pointer(unsigned int)+0x2d
+V  [libjvm.dylib+0x23a61]  RTGC::SafeShortcut::inContiguousTracing(RTGC::GCObject*, RTGC::SafeShortcut**)+0x41
+V  [libjvm.dylib+0x3a76]  bool RTGC::GarbageProcessor::findSurvivalPath<false>(RTGC::ShortOOP&)+0x306
+V  [libjvm.dylib+0x2f84]  RTGC::GarbageProcessor::scanSurvivalPath(RTGC::GCObject*, bool)+0xf4
+V  [libjvm.dylib+0x50c6]  RTGC::GarbageProcessor::detectGarbage(RTGC::GCObject*)+0xf6
+V  [libjvm.dylib+0x8e010a]  RTGC::RefIterator<true>::next_ref(RTGC::SkipPolicy)+0x2ba
+V  [libjvm.dylib+0x8e0c65]  rtHeap::process_weak_soft_references(OopClosure*, VoidClosure*, bool)+0x245
+V  [libjvm.dylib+0x432510]  GenMarkSweep::mark_sweep_phase1(bool)+0xe0
+V  [libjvm.dylib+0x4322fd]  GenMarkSweep::invoke_at_safepoint(ReferenceProcessor*, bool)+0x20d
+V  [libjvm.dylib+0xae9f1b]  TenuredGeneration::collect(bool, bool, unsigned long, bool)+0xbb
+V  [libjvm.dylib+0x42e82b]  GenCollectedHeap::collect_generation(Generation*, bool, unsigned long, bool, bool, bool, bool)+0x3db
+V  [libjvm.dylib+0x42f360]  GenCollectedHeap::do_collection(bool, bool, unsigned long, bool, GenCollectedHeap::GenerationType)+0x900
+V  [libjvm.dylib+0x42f969]  GenCollectedHeap::satisfy_failed_allocation(unsigned long, bool)+0x159
+V  [libjvm.dylib+0x42afcb]  VM_GenCollectForAllocation::doit()+0x5b
+V  [libjvm.dylib+0xb6b9f2]  VM_Operation::evaluate()+0xf2
+V  [libjvm.dylib+0xb87403]  VMThread::evaluate_operation(VM_Operation*)+0x123
+V  [libjvm.dylib+0xb87f53]  VMThread::inner_execute(VM_Operation*)+0x213
+V  [libjvm.dylib+0xb870c5]  VMThread::loop()+0xa5
+V  [libjvm.dylib+0xb86ead]  VMThread::run()+0xdd
+V  [libjvm.dylib+0xaeb9f7]  Thread::call_run()+0x177
+V  [libjvm.dylib+0x844770]  thread_native_entry(Thread*)+0x150
+C  [libsystem_pthread.dylib+0x68fc]  _pthread_start+0xe0
+C  [libsystem_pthread.dylib+0x2443]  thread_start+0xf
 
 
-sh exec_test.sh runtime/Unsafe/InternalErrorTest
-# SIGSEGV oop_desc::verify_on()
-# Exceptions::throw_unsafe_access_internal_error -> Exception 과 관계??
-
-sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
-#  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=56105, tid=5891
+runtime/modules/ClassLoaderNoUnnamedModuleTest
+#  Internal Error (../../src/hotspot/share/classfile/moduleEntry.cpp:275), pid=15484, tid=6659
 #  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
-V  [libjvm.dylib+0x7d9be3]  ModuleEntry::create_unnamed_module(ClassLoaderData*)+0x193
-V  [libjvm.dylib+0x255bf0]  ClassLoaderData::ClassLoaderData(Handle, bool)+0x320
-V  [libjvm.dylib+0x25e212]  ClassLoaderDataGraph::add_to_graph(Handle, bool)+0xc2
-V  [libjvm.dylib+0x25e4bf]  ClassLoaderDataGraph::add(Handle, bool)+0x5f
-V  [libjvm.dylib+0xa96370]  ClassLoaderDataGraph::find_or_create(Handle)+0x120
-V  [libjvm.dylib+0xa97382]  SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, JavaThread*)+0x262
-V  [libjvm.dylib+0xa96a14]  SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, JavaThread*)+0x64
-V  [libjvm.dylib+0x5e6850]  find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, JavaThread*)+0x30
-V  [libjvm.dylib+0x5e6764]  JVM_FindClassFromCaller+0x494
-C  [libjava.dylib+0x22ba]  Java_java_lang_Class_forName0+0x12a
+V  [libjvm.dylib+0xb6632c]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb66958]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x38
+V  [libjvm.dylib+0x2cbb2d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x7d3f43]  ModuleEntry::create_unnamed_module(ClassLoaderData*)+0x193
+V  [libjvm.dylib+0x25776d]  ClassLoaderData::ClassLoaderData(Handle, bool)+0x29d
+V  [libjvm.dylib+0x25f8d2]  ClassLoaderDataGraph::add_to_graph(Handle, bool)+0xc2
+V  [libjvm.dylib+0x25facf]  ClassLoaderDataGraph::add(Handle, bool)+0x5f
+V  [libjvm.dylib+0xa908a4]  ClassLoaderDataGraph::find_or_create(Handle)+0xf4
+V  [libjvm.dylib+0xa918d1]  SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, JavaThread*)+0x261
+V  [libjvm.dylib+0xa90f54]  SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, JavaThread*)+0x64
+V  [libjvm.dylib+0x5e5ce1]  find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, JavaThread*)+0x31
+V  [libjvm.dylib+0x5e5bf6]  JVM_FindClassFromCaller+0x496
+C  [libjava.dylib+0x217b]  Java_java_lang_Class_forName0+0x12b
+j  java.lang.Class.forName0(Ljava/lang/String;ZLjava/lang/ClassLoader;Ljava/lang/Class;)Ljava/lang/Class;+0 java.base@17-internal
+j  java.lang.Class.forName(Ljava/lang/String;ZLjava/lang/ClassLoader;)Ljava/lang/Class;+43 java.base@17-internal
+j  ClassLoaderNoUnnamedModule.testConstructorCall()V+62
+j  ClassLoaderNoUnnamedModule.main([Ljava/lang/String;)V+0
 
-
-
-
-runtime/Throwable/TestCatchThrowableOOM
-tools/javac/6341866/T6341866
-java/util/concurrent/ArrayBlockingQueue/WhiteBox
-java/nio/Buffer/ReachabilityTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/util/stream/CollectorToUnmodListTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/util/stream/CollectionAndMapModifyStreamTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/util/stream/CollectAndSummaryStatisticsTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/lang/invoke/SerializedLambdaTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/lang/invoke/DeserializeMethodTest
-sh exec_test.sh java/util/stream/test/org/openjdk/tests/java/lang/invoke/MHProxiesTest
-sh exec_test.sh java/util/concurrent/ArrayBlockingQueue/WhiteBox
-sh exec_test.sh java/nio/Buffer/ReachabilityTest
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:470), pid=76040, tid=13315
-#  assert(!old_p->isGarbageMarked()) failed: precond
-V  [libjvm.dylib+0x90b552]  adjust_anchor_pointer(RTGC::ShortOOP*, RTGC::GCObject*)+0xa2
-V  [libjvm.dylib+0x90aee8]  rtHeap::adjust_pointers(oopDesc*)+0x598
-V  [libjvm.dylib+0xa216d6]  void CompactibleSpace::scan_and_adjust_pointers<CompactibleSpace>(CompactibleSpace*)+0x176
-V  [libjvm.dylib+0x444535]  Generation::adjust_pointers()+0x25
-V  [libjvm.dylib+0x43009e]  GenCollectedHeap::generation_iterate(GenCollectedHeap::GenClosure*, bool)+0x1e
-V  [libjvm.dylib+0x431c7a]  GenMarkSweep::mark_sweep_phase3()+0xaa
-V  [libjvm.dylib+0x43142d]  GenMarkSweep::invoke_at_safepoint(ReferenceProcessor*, bool)+0x22d
-
-
-
-
-
-
-
-sh exec_test.sh serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorThreadOnOffTest
-sh exec_test.sh runtime/memory/ReadFromNoaccessArea
-sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader
-
-sh exec_test.sh java/util/LinkedHashSet/Basic
-sh exec_test.sh java/util/concurrent/ScheduledThreadPoolExecutor/GCRetention
-sh exec_test.sh tools/sjavac/CompileWithInvisibleSources
-sh exec_test.sh tools/javac/TryWithResources/InterruptedExceptionTest
-sh exec_test.sh tools/jdeps/modules/TransitiveDeps
-#  Internal Error (../../src/hotspot/share/gc/rtgc/impl/GCUtils.hpp:345), pid=71471, tid=19459
-#  assert(_items + idx < _next) failed: invalid idx: 10832093 (max=845)
-V  [libjvm.dylib+0x21ed0]  RTGC::SafeShortcut::getPointer(int)+0x50
-V  [libjvm.dylib+0x1b8c]  bool RTGC::GarbageProcessor::findSurvivalPath<false>(RTGC::ShortOOP&)+0x33c
-V  [libjvm.dylib+0xf27]  RTGC::GarbageProcessor::scanSurvivalPath(RTGC::GCObject*, bool)+0xc7
-V  [libjvm.dylib+0x36ba]  RTGC::GarbageProcessor::detectGarbage(RTGC::GCObject*)+0x1da
-V  [libjvm.dylib+0x2f1b]  void RTGC::GarbageProcessor::collectGarbage<false>(RTGC::GCObject**, int, bool)+0x10b
-V  [libjvm.dylib+0x9089fa]  rtHeap__clear_garbage_young_roots(bool)+0x4a
-V  [libjvm.dylib+0x8edd8b]  void __keep_alive_final_referents<narrowOop, false>(OopClosure*, VoidClosure*)+0x9eb
-V  [libjvm.dylib+0x8ee81f]  rtHeap::process_final_phantom_references(OopClosure*, VoidClosure*, bool)+0x5f
-
-
-
-sh exec_test.sh com/sun/jdi/sde/TemperatureTableTest
-sh exec_test.sh com/sun/jdi/redefineMethod/RedefineTest
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3b5ac2f58, buffer_start = 0x3b05a0000, buffer_end = 0x3b0650000
-# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
-# V [libjvm.dylib+0x8ee018]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
-# V [libjvm.dylib+0x8f2049]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-# V [libjvm.dylib+0x8f55b0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
-# V [libjvm.dylib+0x228be7]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xb7
-# V [libjvm.dylib+0x22848f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
-# V [libjvm.dylib+0x228152]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
-# V [libjvm.dylib+0x22806e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
-# V [libjvm.dylib+0x227fae]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-# V [libjvm.dylib+0x58eebf]  jni_SetStaticObjectField+0x2ff
-
-sh exec_test.sh java/lang/ProcessHandle/Basic
-sh exec_test.sh java/lang/ProcessHandle/InfoTest
-sh exec_test.sh gc/g1/humongousObjects/TestHumongousClassLoader
+gc/g1/humongousObjects/TestHumongousClassLoader
+runtime/LoadClass/LongBCP
+#  Internal Error (../../src/hotspot/share/classfile/javaClasses.inline.hpp:121), pid=18201, tid=18691
 #  assert(is_instance(java_string)) failed: must be java_string
-# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
-# V [libjvm.dylib+0x49dc2e]  java_lang_String::length(oop)+0x9e
-# V [libjvm.dylib+0xa41335]  VerifyStrings::operator()(WeakHandle*)+0x75
-# V [libjvm.dylib+0xa4116c]  void ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::do_scan_locked<VerifyStrings>(Thread*, VerifyStrings&)+0x12c
-# V [libjvm.dylib+0xa3d3b8]  bool ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::try_scan<VerifyStrings>(Thread*, VerifyStrings&)+0x58
-# V [libjvm.dylib+0xa3d33b]  StringTable::verify()+0x5b
-# V [libjvm.dylib+0xb1751b]  Universe::verify(VerifyOption, char const*)+0x2cb
-# V [libjvm.dylib+0xb69d51]  VM_Exit::doit()+0x51
+V  [libjvm.dylib+0xb6632c]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb66958]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x38
+V  [libjvm.dylib+0x2cbb2d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x4a010e]  java_lang_String::length(oop)+0x9e
+V  [libjvm.dylib+0xa40dd5]  VerifyStrings::operator()(WeakHandle*)+0x75
+V  [libjvm.dylib+0xa40c1c]  void ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::do_scan_locked<VerifyStrings>(Thread*, VerifyStrings&)+0x11c
+V  [libjvm.dylib+0xa3ceb8]  bool ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::try_scan<VerifyStrings>(Thread*, VerifyStrings&)+0x58
+V  [libjvm.dylib+0xa3ce3b]  StringTable::verify()+0x5b
+V  [libjvm.dylib+0xb1b721]  Universe::verify(VerifyOption, char const*)+0x2b1
+V  [libjvm.dylib+0xb6cb01]  VM_Exit::doit()+0x51
+V  [libjvm.dylib+0xb6b9f2]  VM_Operation::evaluate()+0xf2
+V  [libjvm.dylib+0xb87403]  VMThread::evaluate_operation(VM_Operation*)+0x123
+V  [libjvm.dylib+0xb87f53]  VMThread::inner_execute(VM_Operation*)+0x213
+V  [libjvm.dylib+0xb870c5]  VMThread::loop()+0xa5
+V  [libjvm.dylib+0xb86ead]  VMThread::run()+0xdd
+V  [libjvm.dylib+0xaeb9f7]  Thread::call_run()+0x177
+V  [libjvm.dylib+0x844770]  thread_native_entry(Thread*)+0x150
+C  [libsystem_pthread.dylib+0x68fc]  _pthread_start+0xe0
+C  [libsystem_pthread.dylib+0x2443]  thread_start+0xf
 
-
-sh exec_test.sh compiler/blackhole/BlackholeIntrinsicTest
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:158), pid=48325, tid=12547
-sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
-#  assert(!to_obj(new_p)->isTrackable()) failed: precond
-#  guarantee(java_lang_Module::is_instance(module)) failed: The unnamed module for ClassLoader ClassLoaderNoUnnamedModule$TestClass, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.
-# V [libjvm.dylib+0x2cc5ad]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
-# V [libjvm.dylib+0x90084b]  rtHeap::mark_promoted_trackable(oopDesc*)+0x4b
-# V [libjvm.dylib+0x2d74e9]  DefNewGeneration::copy_to_survivor_space(oop)+0x649
-# V [libjvm.dylib+0x2d8716]  void FastScanClosure<DefNewScanClosure, true>::do_oop_work<oop>(oop*)+0x276
-# V [libjvm.dylib+0x1dd64b]  void ObjArrayKlass::oop_oop_iterate<oop, DefNewScanClosure>(oop, DefNewScanClosure*)+0x1eb
-# V [libjvm.dylib+0x1dd1fc]  void OopOopIterateDispatch<DefNewScanClosure>::Table::oop_oop_iterate<ObjArrayKlass, oop>(DefNewScanClosure*, oop, Klass*)+0x3c
-# V [libjvm.dylib+0x2db573]  int oopDesc::oop_iterate_size<DefNewScanClosure>(DefNewScanClosure*)+0x103
-# V [libjvm.dylib+0x2db3ae]  void ContiguousSpace::oop_since_save_marks_iterate<DefNewScanClosure>(DefNewScanClosure*)+0x19e
-# V [libjvm.dylib+0x2d395f]  void SerialHeap::oop_since_save_marks_iterate<DefNewScanClosure, DefNewYoungerGenClosure>(DefNewScanClosure*, DefNewYoungerGenClosure*)+0x11f
-# V [libjvm.dylib+0x2d37ae]  DefNewGeneration::FastEvacuateFollowersClosure::do_void()+0x3e
-
-
-sh exec_test.sh tools/sjavac/PooledExecution
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtgcHeap.cpp:184), pid=52903, tid=14339
-#  assert(rtHeap::in_full_gc || anchor == __null) failed: precond
-V  [libjvm.dylib+0x8f5d9c]  rtHeapUtil::resurrect_young_root(RTGC::GCObject*)+0x25c
-V  [libjvm.dylib+0x8f7e3b]  rtHeap::add_trackable_link(oopDesc*, oopDesc*)+0x34b
-V  [libjvm.dylib+0x2ddb4e]  void FastScanClosure<ScanTrackableClosure<true>, true>::do_oop_work<narrowOop>(narrowOop*)+0x1ce
-V  [libjvm.dylib+0x2e5efb]  void OopOopIterateDispatch<ScanTrackableClosure<true> >::Table::oop_oop_iterate<InstanceKlass, narrowOop>(ScanTrackableClosure<true>*, oop, Klass*)+0x13b
-V  [libjvm.dylib+0x2ddf37]  void oopDesc::oop_iterate<ScanTrackableClosure<true> >(ScanTrackableClosure<true>*)+0xe7
-V  [libjvm.dylib+0x2dd4a9]  ScanTrackableClosure<true>::do_object(oop)+0xf9
-V  [libjvm.dylib+0x2df6ca]  void ContiguousSpace::oop_since_save_marks_iterate<DefNewYoungerGenClosure>(DefNewYoungerGenClosure*)+0x1ba
-V  [libjvm.dylib+0x2d7ff6]  void SerialHeap::oop_since_save_marks_iterate<DefNewScanClosure, DefNewYoungerGenClosure>(DefNewScanClosure*, DefNewYoungerGenClosure*)+0x86
-V  [libjvm.dylib+0x2d7ede]  DefNewGeneration::FastEvacuateFollowersClosure::do_void()+0x3e
-V  [libjvm.dylib+0x8dbf42]  void __keep_alive_final_referents<narrowOop, false>(OopClosure*, VoidClosure*)+0x9d2
-V  [libjvm.dylib+0x8dc9cf]  rtHeap::process_final_phantom_references(OopClosure*, VoidClosure*, bool)+0x5f
-V  [libjvm.dylib+0x2da4ba]  DefNewGeneration::collect(bool, bool, unsigned long, bool)+0x7ba
-V  [libjvm.dylib+0x42beeb]  GenCollectedHeap::collect_generation(Generation*, bool, unsigned long, bool, bool, bool, bool)+0x3db
-
-
-sh exec_test.sh tools/doclint/anchorTests/p/package-info
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:238), pid=48189, tid=7427
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3a039ff90, buffer_start = 0x394ce0000, buffer_end = 0x395560000
-V  [libjvm.dylib+0x8e3008]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
-V  [libjvm.dylib+0x8e7029]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-V  [libjvm.dylib+0x8ea5a0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
-V  [libjvm.dylib+0x22f129]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xa9
-V  [libjvm.dylib+0x22e9bf]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
-V  [libjvm.dylib+0x22e672]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
-V  [libjvm.dylib+0x22e58e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x22e4ce]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x58d773]  jni_SetStaticObjectField+0x2f3
-j  java.lang.System.setOut0(Ljava/io/PrintStream;)V+0 java.base@17-internal
-
-
-sh exec_test.sh tools/javac/NullQualifiedNew
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:238), pid=52251, tid=41803
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3a0904748, buffer_start = 0x394ce0000, buffer_end = 0x395560000
-V  [libjvm.dylib+0x8e3008]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
-V  [libjvm.dylib+0x8e7029]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-V  [libjvm.dylib+0x8ea5a0]  void rtgc_store<narrowOop, true, 0, false>(narrowOop*, oopDesc*, oopDesc*)+0x70
-V  [libjvm.dylib+0x22f129]  RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xa9
-V  [libjvm.dylib+0x22e9bf]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<286822ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 286822ull>::oop_access_barrier(oop, long, oop)+0x5f
-V  [libjvm.dylib+0x22e672]  std::__1::enable_if<!(HasDecorator<286790ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<286790ull, oop>(oop, long, oop)+0xa2
-V  [libjvm.dylib+0x22e58e]  void AccessInternal::store_at<262148ull, oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x22e4ce]  void Access<262144ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x4d1fa6]  java_lang_Class::set_init_lock(oop, oop)+0xb6
-V  [libjvm.dylib+0x491cda]  InstanceKlass::fence_and_clear_init_lock()+0x8a
-V  [libjvm.dylib+0x493c4a]  InstanceKlass::set_initialization_state_and_notify(InstanceKlass::ClassState, JavaThread*)+0x23a
-V  [libjvm.dylib+0x49319b]  InstanceKlass::initialize_impl(JavaThread*)+0xbab
-V  [libjvm.dylib+0x4c8a39]  JavaCalls::construct_new_instance(InstanceKlass*, Symbol*, JavaCallArguments*, JavaThread*)+0x29
-V  [libjvm.dylib+0x323ddb]  Exceptions::new_exception(JavaThread*, Symbol*, Symbol*, JavaCallArguments*, Handle, Handle)+0xeb
-V  [libjvm.dylib+0x323cc5]  Exceptions::_throw_args(JavaThread*, char const*, int, Symbol*, Symbol*, JavaCallArguments*)+0x255
-V  [libjvm.dylib+0x8bbe49]  invoke(InstanceKlass*, methodHandle const&, Handle, bool, objArrayHandle, BasicType, objArrayHandle, bool, JavaThread*)+0x13d9
-V  [libjvm.dylib+0x8ba929]  Reflection::invoke_method(oop, Handle, objArrayHandle, JavaThread*)+0x2d9
-V  [libjvm.dylib+0x602f95]  JVM_InvokeMethod+0x495
-
-sh exec_test.sh tools/javac/patterns/LocalVariableReuse
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:238), pid=50977, tid=41735
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3a0519028, buffer_start = 0x394450000, buffer_end = 0x394cd0000
-V  [libjvm.dylib+0x8e3008]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
-V  [libjvm.dylib+0x8e7029]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-V  [libjvm.dylib+0x8ea893]  void rtgc_store<narrowOop, true, 0, true>(narrowOop*, oopDesc*, oopDesc*)+0x73
-V  [libjvm.dylib+0x259aa9]  RtgcBarrierSet::AccessBarrier<1335398ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xa9
-V  [libjvm.dylib+0x25933f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<1335398ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 1335398ull>::oop_access_barrier(oop, long, oop)+0x5f
-V  [libjvm.dylib+0x258ff2]  std::__1::enable_if<!(HasDecorator<1335366ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<1335366ull, oop>(oop, long, oop)+0xa2
-V  [libjvm.dylib+0x258f0e]  void AccessInternal::store_at<1310724ull, oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x258e4e]  void Access<1310720ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x256c02]  objArrayOopDesc::obj_at_put(int, oop)+0x122
-V  [libjvm.dylib+0x2b8af5]  ConstantPool::string_at_put(int, int, oop)+0xb5
-V  [libjvm.dylib+0x2b7cde]  ConstantPool::string_at_impl(constantPoolHandle const&, int, int, JavaThread*)+0x23e
-V  [libjvm.dylib+0x2bd0c4]  ConstantPool::resolve_constant_at_impl(constantPoolHandle const&, int, int, bool*, JavaThread*)+0x1234
-V  [libjvm.dylib+0xe2f0b]  Bytecode_loadconstant::resolve_constant(JavaThread*) const+0x12b
-V  [libjvm.dylib+0x4b7ca8]  InterpreterRuntime::resolve_ldc(JavaThread*, Bytecodes::Code)+0x2a8
-j  com.sun.tools.javac.main.Option$19.matches(Ljava/lang/String;)Z+1 jdk.compiler@17-internal
-
-sh exec_test.sh java/util/logging/TestLogConfigurationDeadLock
-#  Internal Error (../../src/hotspot/share/gc/rtgc/rtThreadLocalData.cpp:238), pid=41241, tid=23043
-#  assert(log >= (void*)g_buffer_area_start && log < (void*)g_buffer_area_end) failed:  log = 0x3e010ca88, buffer_start = 0x3d4ce0000, buffer_end = 0x3d5560000
-V  [libjvm.dylib+0x8e3008]  RTGC::RtThreadLocalData::addUpdateLog(oopDesc*, RTGC::ErasedSlot, RTGC::RtThreadLocalData*)+0x198
-V  [libjvm.dylib+0x8e7029]  oopDesc* raw_atomic_xchg<true>(oopDesc*, narrowOop volatile*, oopDesc*)+0x149
-V  [libjvm.dylib+0x8ea893]  void rtgc_store<narrowOop, true, 0, true>(narrowOop*, oopDesc*, oopDesc*)+0x73
-V  [libjvm.dylib+0x259aa9]  RtgcBarrierSet::AccessBarrier<1335398ull, RtgcBarrierSet>::oop_store_in_heap_at(oop, long, oop)+0xa9
-V  [libjvm.dylib+0x25933f]  AccessInternal::PostRuntimeDispatch<RtgcBarrierSet::AccessBarrier<1335398ull, RtgcBarrierSet>, (AccessInternal::BarrierType)1, 1335398ull>::oop_access_barrier(oop, long, oop)+0x5f
-V  [libjvm.dylib+0x258ff2]  std::__1::enable_if<!(HasDecorator<1335366ull, AS_RAW>::value), void>::type AccessInternal::PreRuntimeDispatch::store_at<1335366ull, oop>(oop, long, oop)+0xa2
-V  [libjvm.dylib+0x258f0e]  void AccessInternal::store_at<1310724ull, oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x258e4e]  void Access<1310720ull>::oop_store_at<oop>(oop, long, oop)+0x7e
-V  [libjvm.dylib+0x256c02]  objArrayOopDesc::obj_at_put(int, oop)+0x122
-V  [libjvm.dylib+0x2b8af5]  ConstantPool::string_at_put(int, int, oop)+0xb5
-V  [libjvm.dylib+0x2b7cde]  ConstantPool::string_at_impl(constantPoolHandle const&, int, int, JavaThread*)+0x23e
-V  [libjvm.dylib+0x2bd0c4]  ConstantPool::resolve_constant_at_impl(constantPoolHandle const&, int, int, bool*, JavaThread*)+0x1234
-V  [libjvm.dylib+0x2bdf27]  ConstantPool::copy_bootstrap_arguments_at_impl(constantPoolHandle const&, int, int, int, objArrayHandle, int, bool, Handle, JavaThread*)+0x377
-V  [libjvm.dylib+0xdde6a]  BootstrapInfo::resolve_args(JavaThread*)+0x6ba
-V  [libjvm.dylib+0xdd61c]  BootstrapInfo::resolve_bsm(JavaThread*)+0x54c
-V  [libjvm.dylib+0xa8f5ed]  SystemDictionary::invoke_bootstrap_method(BootstrapInfo&, JavaThread*)+0x2d
-V  [libjvm.dylib+0x6d2665]  LinkResolver::resolve_dynamic_call(CallInfo&, BootstrapInfo&, JavaThread*)+0x25
-V  [libjvm.dylib+0x6d1cd7]  LinkResolver::resolve_invokedynamic(CallInfo&, constantPoolHandle const&, int, JavaThread*)+0xb7
-V  [libjvm.dylib+0x4bea55]  InterpreterRuntime::resolve_invokedynamic(JavaThread*)+0x1f5
-V  [libjvm.dylib+0x4bebea]  InterpreterRuntime::resolve_from_cache(JavaThread*, Bytecodes::Code)+0xfa
-j  TestLogConfigurationDeadLock.test()V+241
-j  TestLogConfigurationDeadLock.main([Ljava/lang/String;)V+8
-
-
-
-sh exec_test.sh tools/javap/T4501660
-sh exec_test.sh tools/javap/stackmap/StackmapTest
-sh exec_test.sh tools/javac/plugin/AutostartPlugins
-
-sh exec_test.sh java/util/concurrent/Semaphore/RacingReleases
-sh exec_test.sh java/lang/RuntimePermission/ExitVM
-# sh exec_test.sh runtime/Monitor/SyncOnValueBasedClassTest
-sh exec_test.sh runtime/memory/ReadFromNoaccessArea
-sh exec_test.sh runtime/handshake/HandshakeTimeoutTest
-sh exec_test.sh runtime/Unsafe/InternalErrorTest
-sh exec_test.sh runtime/modules/ClassLoaderNoUnnamedModuleTest
-sh exec_test.sh gc/metaspace/TestMetaspacePerfCounters
-sh exec_test.sh gc/metaspace/TestSizeTransitions
-sh exec_test.sh gc/metaspace/TestPerfCountersAndMemoryPools
-sh exec_test.sh gc/arguments/TestSurvivorRatioFlag
-sh exec_test.sh compiler/unsafe/SunMiscUnsafeAccessTestInt
-
-exit
-
+gc/arguments/TestShrinkHeapInSteps
+#  Internal Error (../../src/hotspot/share/classfile/javaClasses.cpp:766), pid=17728, tid=5891
+#  assert(java_string->klass() == vmClasses::String_klass()) failed: must be java_string
+V  [libjvm.dylib+0xb6632c]  VMError::report_and_die(int, char const*, char const*, __va_list_tag*, Thread*, unsigned char*, void*, void*, char const*, int, unsigned long)+0x6dc
+V  [libjvm.dylib+0xb66958]  VMError::report_and_die(Thread*, void*, char const*, int, char const*, char const*, __va_list_tag*)+0x38
+V  [libjvm.dylib+0x2cbb2d]  report_vm_error(char const*, int, char const*, char const*, ...)+0xdd
+V  [libjvm.dylib+0x4d22e8]  java_lang_String::equals(oop, unsigned short const*, int)+0xd8
+V  [libjvm.dylib+0xa3e2ae]  StringTableLookupJchar::equals(WeakHandle*, bool*)+0x8e
+V  [libjvm.dylib+0xa3a7e3]  bool ConcurrentHashTable<StringTableConfig, (MEMFLAGS)10>::get<StringTableLookupJchar, StringTableGet>(Thread*, StringTableLookupJchar&, StringTableGet&, bool*)+0x113
+V  [libjvm.dylib+0xa3a679]  StringTable::do_lookup(unsigned short const*, int, unsigned long)+0xa9
+V  [libjvm.dylib+0xa3abdb]  StringTable::intern(Handle, unsigned short const*, int, JavaThread*)+0x1db
+V  [libjvm.dylib+0xa3ae15]  StringTable::intern(oop, JavaThread*)+0x1a5
+V  [libjvm.dylib+0x6055fb]  JVM_InternString+0xdb

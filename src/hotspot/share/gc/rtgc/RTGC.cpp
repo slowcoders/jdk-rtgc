@@ -350,7 +350,7 @@ void RTGC::initialize() {
 
 #if ENABLE_RTGC_ASSERT
   RTGC_DEBUG = AbortVMOnExceptionMessage != NULL && AbortVMOnExceptionMessage[0] == '#';
-  RTGC_DEBUG = 1;
+  // RTGC_DEBUG = 1;
   logOptions[0] = -1;
 
   // printf("init rtgc narrowOop=%d tr_heap= %p", rtHeap::useModifyFlag(),  GCNode::g_trackable_heap_start);

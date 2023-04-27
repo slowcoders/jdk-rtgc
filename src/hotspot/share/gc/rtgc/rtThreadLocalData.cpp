@@ -37,8 +37,10 @@ namespace RTGC {
 #endif
   int g_cnt_update = 0;
   int g_cnt_update_log = 0;
+  int g_cnt_update_not_in_heap = 0;
   address g_buffer_area_start = 0;
   address g_buffer_area_end = 0;
+  UpdateLogBuffer* g_end_of_buffer;
   narrowOop* g_erase_q;
 
   static const int STACK_CHUNK_SIZE = sizeof(FieldUpdateLog)*512;
@@ -121,6 +123,7 @@ void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
     rt_assert(to_obj(anchor)->isTrackable());
     rt_assert(!rtHeap::is_modified(erasedField._obj));
   } else {
+    debug_only(Atomic::add(&g_cnt_update_not_in_heap, 1);)
     // printf("RTGC add log(%p) (%p yr=%d) [%x] %p\n", 
     //     this, anchor, 0, erasedField._offset, (void*)CompressedOops::decode(erasedField._obj));
     narrowOop assigned = *(narrowOop*)&erasedField._offset;
@@ -177,6 +180,7 @@ void UpdateLogBuffer::reset_gc_context() {
     buffer->_next = buffer + 1;
     buffer->_sp = buffer->end_of_log();
   }
+  g_end_of_buffer = buffer;
   buffer[-1]._next = NULL;
 
   RtThreadLocalData::reset_gc_context();
@@ -306,6 +310,7 @@ void RtThreadLocalData::addUpdateLog(oopDesc* anchor, ErasedSlot erasedField, Rt
       RTGC::unlock_heap();
     } else {
       buffer_full = true;
+      // rt_assert_f(false, "LogBuffer full root-ref=%d/%d", g_cnt_update_not_in_heap, g_cnt_update_log);
       rtgc_log(true, "LogBuffer full!! %p[%d] v=%x", anchor, erasedField._offset, (int32_t)erasedField._obj);
       FieldUpdateLog tmp;
       tmp.init(anchor, erasedField);
@@ -382,6 +387,11 @@ void UpdateLogBuffer::process_update_logs() {
   g_inactive_buffer_q = NULL;
   RTGC::unlock_heap();
  
+  if (end_buffer == NULL) {
+    end_buffer = g_end_of_buffer;
+  }
+  rt_assert(end_buffer != NULL);
+  
   g_erase_q = (narrowOop*)end_buffer;
   for (UpdateLogBuffer* buffer = end_buffer; --buffer >= (void*)g_buffer_area_start;) {
     buffer->flush_pending_logs<false>();
