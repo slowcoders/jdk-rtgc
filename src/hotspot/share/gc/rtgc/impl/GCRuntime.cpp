@@ -91,7 +91,8 @@ void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
     if (erased->decrementRootRefCount() <= ZERO_ROOT_REF) {
         detectUnsafeObject(erased);
     }
-    rtgc_debug_log(erased, "root erased %p(%s) rc=%d\n", erased, RTGC::getClassName(erased), erased->getRootRefCount());
+    rtgc_debug_log(erased, "root erased %p(%s) rc=%d f=%p\n", 
+        erased, RTGC::getClassName(erased), erased->getRootRefCount(), (void*)cast_to_oop(erased)->forwardee());
     // rt_assert(!RTGC::is_debug_pointer(erased));// || erased->getRootRefCount() != 2);
 }
 
@@ -157,36 +158,13 @@ void GCRuntime::replaceMemberVariable(
 }
 #endif 
 
-void GCRuntime::adjustShortcutPoints() {
-    int allocSize = _rtgc.g_shortcutPool.size();
-    allocSize -= INVALID_SHORTCUT + 1;
-    if (allocSize <= 0) return;
-
-    //rtgc_log(true, "g_shortcutPool allocSize %d\n", allocSize);
-    SafeShortcut* p = SafeShortcut::getPointer(INVALID_SHORTCUT + 1);
-    SafeShortcut* end = p + allocSize;
-    for (; p < end; p++) {
-        if (p->isValid()) {
-#ifdef ASSERT
-            if (!rtHeap::is_alive(cast_to_oop((GCObject*)p->anchor()))) {
-                for (GCObject* node = p->tail(); node != p->anchor(); node = node->getSafeAnchor()) {
-                    rtgc_log(1, "invalid shortcut node %p g=%d\n", node, node->isGarbageMarked());
-                }
-            }
-#endif            
-            GCObject* anchor = RTGC::getForwardee(p->anchor(), "anchor");
-            GCObject* tail = RTGC::getForwardee(p->tail(), "tail");
-            // rtgc_log(LOG_OPT(10), "adjustShortcutPoints[%d] %p->%p, %p->%p\n", 
-            //     p->getIndex(p), (void*)p->anchor(), anchor, (void*)p->tail(), tail);
-            p->adjustPointUnsafe(anchor, tail);
-        }
-    }
+void GCRuntime::adjustCircuitPoints() {
 }
 
 void GCRuntime::dumpDebugInfos() {
     #if GC_DEBUG
     printf("Shorcut: %d, ReferrerList::Chunk: %d\n", 
-        _rtgc.g_shortcutPool.getAllocatedItemCount(), ReferrerList::getAllocatedItemCount());
+        _rtgc.g_circuitPool.getAllocatedItemCount(), 0);
     #endif
 }
 

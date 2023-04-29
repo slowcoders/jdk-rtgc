@@ -14,6 +14,17 @@ static const int LOG_OPT(int function) {
   return LOG_OPTION(RTGC::LOG_GCNODE, function);
 }
 
+void GCObject::removeReferrer(GCObject* referrer) {
+    GCRuntime::onEraseRootVariable_internal(this);
+}
+
+// return true if safe_anchor removed;
+void GCObject::removeReferrerWithoutReallocaton(GCObject* referrer) {
+    GCRuntime::onEraseRootVariable_internal(this);
+}
+
+
+#if 0
 static void assert_valid_link(oopDesc* link, oopDesc* anchor) {
     rt_assert_f(link != anchor ||
         (rtHeap::in_full_gc && link->forwardee() != NULL && (void*)link->forwardee() != anchor), 
@@ -50,9 +61,9 @@ GCObject* GCNode::getSafeAnchor() const {
 }
 
 void GCNode::setSafeAnchor(GCObject* anchor) {
-    // rt_assert_f(this->hasAnchor() && SafeShortcut::isValidIndex(this->getShortcutId()), 
-    //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getShortcutId());
-    rt_assert(!this->getShortcut()->isValid());
+    // rt_assert_f(this->hasAnchor() && CircuitNode::isValidIndex(this->getCircuitId()), 
+    //     "incorrect anchor(%p) for empty obj(%p:%d)", anchor, this, this->getCircuitId());
+    rt_assert(!this->getCircuit()->isValid());
 
     if (hasMultiRef()) {
         ReferrerList* anchors = getAnchorList();
@@ -62,11 +73,6 @@ void GCNode::setSafeAnchor(GCObject* anchor) {
         rt_assert_f(getSingleAnchor() == anchor, "incorrect safe anchor(%p) for this(%p). it must be (%p)",
             anchor, this, (GCObject*)getSingleAnchor());
     }
-}
-
-SafeShortcut* GCNode::getShortcut() const {
-	int p_id = this->getShortcutId();
-    return SafeShortcut::getPointer(p_id);
 }
 
 
@@ -84,7 +90,9 @@ static void* __getAdjustedAnchorPoint(GCObject* obj) {
     if (new_p == NULL) return obj;
     return to_obj(new_p);
 }
+#endif
 
+#if 0
 template <bool tenuredSelf, bool tenuredAnchor>
 void GCObject::addAnchor(GCObject* anchor) {
     /**
@@ -262,9 +270,9 @@ int  GCObject::removeReferrer_impl(GCObject* anchor) {
         return this->hasAnchor() ? 1 : 0; 
     }
 
-    if (this->hasShortcut()) {
-		SafeShortcut* shortcut = this->getShortcut();
-        shortcut->split(anchor, this);
+    if (this->hasCircuit()) {
+		CircuitNode* circuit = this->getCircuit();
+        circuit->split(anchor, this);
     } 
     else {
         rt_assert(this->hasSafeAnchor());
@@ -321,7 +329,7 @@ void GCObject::invalidateAnchorList_unsafe() {
 
 void GCObject::clearAnchorList() {
     // rtgc_debug_log(this, "clearAnchorList from " PTR_DBG_SIG, PTR_DBG_INFO(this));
-    rt_assert(!this->hasShortcut());
+    rt_assert(!this->hasCircuit());
     if (this->hasMultiRef()) {
         ReferrerList* anchors = this->getAnchorList();
         ReferrerList::delete_(anchors);
@@ -340,7 +348,7 @@ bool GCObject::clearEmptyAnchorList() {
     if (cntAnchor <= (this->isAnchorListLocked() ? 0 : 1)) {
         this->setHasMultiRef(false);
         if (anchors->empty()) {
-            rt_assert_f(!this->hasShortcut(), " shortcut attached %p %d", this, this->getShortcutId());
+            rt_assert_f(!this->hasCircuit(), " circuit attached %p %d", this, this->getCircuitId());
             this->removeSingleAnchor();
             // rtgc_log(rtHeap::in_full_gc, "all anchor removed from %p", this);
         } else {
@@ -354,9 +362,9 @@ bool GCObject::clearEmptyAnchorList() {
 void GCObject::removeAllAnchors() {
     rtgc_log(LOG_OPT(1), "refList of garbage cleaned %p", this);
 
-    if (this->hasShortcut()) {
-        SafeShortcut* shortcut = this->getShortcut();
-        shortcut->shrinkTailTo(this->getSafeAnchor());
+    if (this->hasCircuit()) {
+        CircuitNode* circuit = this->getCircuit();
+        circuit->shrinkTailTo(this->getSafeAnchor());
     }  
     clearAnchorList();
     rtgc_debug_log(this, "anchor-list cleared by removeAllAnchors %p", this);
@@ -365,10 +373,11 @@ void GCObject::removeAllAnchors() {
 
 
 void GCObject::invaliateSurvivalPath(GCObject* newTail) {
-    if (this->getShortcutId() > 0) {
-		SafeShortcut* shortcut = this->getShortcut();
-        shortcut->split(newTail, this);
-    	this->setShortcutId_unsafe(0);
+    if (this->getCircuitId() > 0) {
+		CircuitNode* circuit = this->getCircuit();
+        circuit->split(newTail, this);
+    	this->setCircuitId_unsafe(0);
     }
 }
 
+#endif

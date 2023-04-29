@@ -44,7 +44,7 @@
 
 1) Flags
 2) RootRefCount
-3) ShortcutId
+3) CircuitId
 4) AnchorList
 
 1. shorcut_id
@@ -52,7 +52,7 @@
    1: Not Anchored
    2: Path Broken
    3: Safely Anchored
-   4 ~: Shortcut-Id
+   4 ~: Circuit-Id
 
 isYoungRoot
 dirtyReferrerPoints

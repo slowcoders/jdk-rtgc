@@ -395,7 +395,8 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
 #if INCLUDE_RTGC // debug assert
-    rt_assert_f(!EnableRTGC || rtHeap::is_destroyed(q) || rtHeap::is_alive(q), 
+    rt_assert_f(!EnableRTGC || rtHeap::UseRefCount ||
+         rtHeap::is_destroyed(q) || rtHeap::is_alive(q), 
         "YG 객체만 marking 된 상태이어야 한다 %p m=%p alive=%d", (void*)q, q->mark().to_pointer(), rtHeap::is_alive(q));
 #endif
     // copy_to_survior_space 실행 시 age 등의 값이 clear 되지 않은 상태이다.
@@ -404,6 +405,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
     assert(q->forwardee() == NULL, "should be forwarded to NULL %p m=%p", (void*)q, q->mark().to_pointer());
   }
 
+  rtgc_debug_log((void*)q, "forward %p -> %p", (void*)q, (void*)q->forwardee());
   compact_top += size;
 
   /* RTGC-TODO. Block 단위 GC 처리에 대해서 연구해 볼 것*/

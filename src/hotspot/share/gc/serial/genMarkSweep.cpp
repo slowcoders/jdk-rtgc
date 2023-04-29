@@ -300,7 +300,7 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     gch->full_process_roots(false, // not the adjust phase
                             GenCollectedHeap::SO_None,
-                            NULL, //ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
+                            (rtHeap::UseRefCount && !ClassUnloading) ? &follow_cld_closure : NULL, //ClassUnloading RTGC_ONLY(? &release_weak_cld_rtgc_ref : NULL), // only strong roots if ClassUnloading
                                             // is enabled
                             &follow_root_closure,
                             &follow_cld_closure);

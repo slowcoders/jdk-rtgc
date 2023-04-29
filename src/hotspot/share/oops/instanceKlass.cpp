@@ -95,7 +95,7 @@
 #if INCLUDE_JFR
 #include "jfr/jfrEvents.hpp"
 #endif
-
+#include "gc/rtgc/impl/GCObject.hpp"
 
 #ifdef DTRACE_ENABLED
 
@@ -3709,10 +3709,8 @@ class VerifyFieldClosure: public BasicOopIterateClosure {
     narrowOop heap_oop = *p;
     if (!CompressedOops::is_null(heap_oop)) {
       oop result = CompressedOops::decode_raw(heap_oop);
-      assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d)  anchor = %p(%s)", 
-          (void*)result, rtHeap::is_alive(result, false),
-          (void*)_anchor, _anchor->klass()->name()->bytes());
-
+      assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d) " PTR_DBG_SIG, 
+          (void*)result, rtHeap::is_alive(result, false), PTR_DBG_INFO(_anchor));
     }
 #endif    
     VerifyFieldClosure::do_oop_work(p); 

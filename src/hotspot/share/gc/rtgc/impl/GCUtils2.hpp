@@ -13,6 +13,7 @@ static const uint32_t ANCHOR_LIST_INDEX_MASK = RTGC_NO_HASHCODE - 1;
 
 static const bool  MARK_ALIVE_CHUNK = true;
 
+#if 0
 class ReferrerList {
     friend class ReverseIterator;    
 public:
@@ -286,6 +287,6 @@ public:
         return this->_current;
     }
 };
-
+#endif
 }
 #endif

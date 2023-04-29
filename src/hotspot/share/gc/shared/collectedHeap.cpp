@@ -425,7 +425,7 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 
 #if INCLUDE_RTGC // init dead space
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
-  precond(!rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
+  precond(rtHeap::UseRefCount || !rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
   if (UseBiasedLocking) {
     oopDesc::set_mark(mem, klass->prototype_header());
   } else {

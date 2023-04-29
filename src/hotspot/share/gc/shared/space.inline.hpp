@@ -168,7 +168,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
   // zee scan_and_forward
   while (cur_obj < scan_limit) {
     if (space->scanned_block_is_obj(cur_obj) && 
-        ((!EnableRTGC || rtHeap::DoCrossCheck) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
+        ((!EnableRTGC || rtHeap::UseRefCount) ? cast_to_oop(cur_obj)->is_gc_marked() : rtHeap::is_alive(cast_to_oop(cur_obj), false))) {
       // prefetch beyond cur_obj
       Prefetch::write(cur_obj, interval);
 #if INCLUDE_RTGC // rtHeap::mark_forwarded_trackable
@@ -187,7 +187,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
       if (EnableRTGC) {
         if (space->scanned_block_is_obj(cur_obj)) {
           // 아직 adust_pointers 수행 전. oop_iteration 이 가능하다.
-          if (rtHeap::DoCrossCheck) {
+          if (rtHeap::UseRefCount) {
             rtHeap::destroy_trackable(cast_to_oop(cur_obj));
           } else {
             precond(!rtHeap::is_alive(cast_to_oop(cur_obj), false));
@@ -199,7 +199,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
           end += space->scanned_block_size(end);
           if (end >= scan_limit) break;
           if (!space->scanned_block_is_obj(end)) continue;
-          if (rtHeap::DoCrossCheck) {
+          if (rtHeap::UseRefCount) {
             if (cast_to_oop(end)->is_gc_marked()) break;
             rtHeap::destroy_trackable(cast_to_oop(end));
           } else {
@@ -244,6 +244,7 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   assert(cur_obj == scan_limit, "just checking");
   space->_end_of_live = end_of_live;
+  rtgc_log(true, "first_dead %p", first_dead);
   if (first_dead != NULL) {
     space->_first_dead = first_dead;
   } else {
@@ -270,7 +271,7 @@ inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   while (cur_obj < end_of_live) {
     Prefetch::write(cur_obj, interval);
     if (cur_obj < first_dead || 
-        (EnableRTGC ? rtHeap::is_alive(cast_to_oop(cur_obj), false) : cast_to_oop(cur_obj)->is_gc_marked())) {
+        ((EnableRTGC && !rtHeap::UseRefCount) ? rtHeap::is_alive(cast_to_oop(cur_obj), false) : cast_to_oop(cur_obj)->is_gc_marked())) {
       // cur_obj is alive
       // point all the oops to the new location
 #if INCLUDE_RTGC // debug logging

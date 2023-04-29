@@ -166,7 +166,7 @@ class MarkSweep : AllStatic {
   static void mark_and_push(T* p);
 
   template <bool is_anchored, bool is_resurrected=false>
-  static inline bool mark_and_push_internal(oop p, oopDesc* anchor=NULL);
+  static inline void mark_and_push_internal(oop p, oopDesc* anchor=NULL);
 
  private:
   // Call backs for marking

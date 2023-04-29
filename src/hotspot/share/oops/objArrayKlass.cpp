@@ -44,6 +44,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"
+#include "gc/rtgc/impl/GCObject.hpp"
 
 ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, TRAPS) {
   assert(ObjArrayKlass::header_size() <= InstanceKlass::header_size(),
@@ -509,6 +510,20 @@ void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   guarantee(obj->is_objArray(), "must be objArray");
   objArrayOop oa = objArrayOop(obj);
   for(int index = 0; index < oa->length(); index++) {
+#if INCLUDE_RTGC // rtgc debug
+#ifdef ASSERT    
+    ptrdiff_t offset = UseCompressedOops ? oa->obj_at_offset<narrowOop>(index) : oa->obj_at_offset<oop>(index);
+    if (UseCompressedOops) {
+      ptrdiff_t offset = oa->obj_at_offset<narrowOop>(index);
+      uint32_t heap_oop = RawAccess<>::load_at(oa, offset);
+      if (heap_oop > 1) {
+        oop result = CompressedOops::decode_raw(*(narrowOop*)&heap_oop);
+        assert(Universe::is_in_heap(result), "object not in heap %p (alive=%d) " PTR_DBG_SIG, 
+            (void*)result, rtHeap::is_alive(result, false), PTR_DBG_INFO(oa));
+      }
+    }
+#endif
+#endif
     guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");
   }
 }

@@ -26,47 +26,47 @@ public:
 	void initialize();
 	void addUnstable(GCObject* node);
 	void addUnstable_ex(GCObject* node);
-	void destroyObject(GCObject* garbage, RefTracer2 instanceScanner, bool isTenured);
+	void destroyObject(GCObject* garbage, bool isTenured);
 	void collectAndDestroyGarbage(bool isTenured);
 	void scanGarbage(GCObject** ppNode, int cntNode);
 
 	bool detectGarbage(GCObject* node);
-	bool resolveStrongSurvivalPath(GCObject* node);
+	// bool resolveStrongSurvivalPath(GCObject* node);
 	void validateGarbageList();
-	bool hasStableSurvivalPath(GCObject* node);
-	AnchorState checkAnchorStateFast(GCObject* node, bool enableShortcut);
+	// bool hasStableSurvivalPath(GCObject* node);
+	// AnchorState checkAnchorStateFast(GCObject* node, bool enableCircuit);
 	HugeArray<GCObject*>* getGarbageNodes() { return &_visitedNodes; }
 	bool hasUnsafeObjects();
 private:
     HugeArray<GCObject*> _unsafeObjects;
     HugeArray<GCObject*> _visitedNodes;
-    HugeArray<AnchorIterator> _trackers;
+    // HugeArray<AnchorIterator> _trackers;
 	GCObject* delete_q;
-    SafeShortcut* reachableShortcurQ;
+    CircuitNode* reachableShortcurQ;
 
-	template<bool scanStrongPathOnly>
-    bool findSurvivalPath(ShortOOP& tail);
-    bool scanSurvivalPath(GCObject* tail, bool scanStrongPathOnly);
-    void constructShortcut();
-    void clearReachableShortcutMarks();
+	// template<bool scanStrongPathOnly>
+    // bool findSurvivalPath(ShortOOP& tail);
+    // bool scanSurvivalPath(GCObject* tail, bool scanStrongPathOnly);
+    // void constructCircuit();
+    // void clearReachableCircuitMarks();
 	void destroyDetectedGarbage(bool isTenured);
 
 	static bool clear_garbage_links(GCObject* link, GCObject* garbageAnchor);
 };
 
-typedef MemoryPool<SafeShortcut, 64*1024*1024, 0, -1> ShortcutPool;
+typedef MemoryPool<CircuitNode, 64*1024*1024, 0, -1> CircuitPool;
 // typedef MemoryPool<ReferrerList, 64*1024*1024, 1, 0> ReferrerListPool;
 // typedef MemoryPool<TinyChunk, 64*1024*1024, 1, -1> TinyMemPool;
 
 class GCRuntime {
 public:
-	ShortcutPool g_shortcutPool;
+	CircuitPool g_circuitPool;
 	GarbageProcessor* g_pGarbageProcessor;
 	char _gp[sizeof(GarbageProcessor)];
 
 	void initialize() {
-		g_shortcutPool.initialize();
-		SafeShortcut::initialize();
+		g_circuitPool.initialize();
+		CircuitNode::initialize();
 		g_pGarbageProcessor = new (_gp)GarbageProcessor();
 		g_pGarbageProcessor->initialize();
 	}
@@ -92,7 +92,7 @@ public:
 		return false;
 	}
 	
-	static void adjustShortcutPoints();
+	static void adjustCircuitPoints();
 
 	static void connectReferenceLink(GCObject* assigned, GCObject* owner);
 

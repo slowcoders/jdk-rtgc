@@ -13,8 +13,8 @@ static const int INVALID_SHORTCUT = 1;
 
 namespace RTGC {
 
-class ReferrerList;
-class SafeShortcut;
+// class ReferrerList;
+class CircuitNode;
 static const int 	TRACKABLE_BIT = 1;
 
 
@@ -54,10 +54,10 @@ class GCNode {
 	struct {
 		uint32_t _jvmFlags: 7;
 		uint32_t _hasMultiRef: 1;
-		int32_t _shortcutId: 24;
+		// int32_t _circuitId: 24;
 	}; 
 
-	int32_t _refs;
+	int32_t _circuitId;
 
 	narrowOop _jvm_klass;
 	
@@ -73,11 +73,11 @@ public:
 	}
 
 	int getTraceDepth() {
-		return _shortcutId;
+		return _circuitId;
 	}
 
 	void setTraceDepth(int depth) {
-		_shortcutId = depth;
+		_circuitId = depth;
 	}
 
 	void markDirtyReferrerPoints() {
@@ -117,10 +117,6 @@ public:
 		return this->isTrackable_unsafe();
 	}
 
-	bool isDirtyAnchor() {
-		return !isTrackable();
-	}
-	
 	bool isTrackable_unsafe() {
 		if (!AUTO_TRACKABLE_MARK_BY_ADDRESS) {
 			return _flags.isTrackableOrDestroyed;
@@ -171,12 +167,10 @@ public:
 		return _flags.rootRefCount;
 	}
 
-	int getAnchorCount();
-
 	void markSurvivorReachable_unsafe() {
 		rt_assert(!isSurvivorReachable());
-		rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d",    
-			this, this->getRootRefCount(), this->getAnchorCount());
+		// rtgc_debug_log(this, "markSurvivorReachable %p rc=%d ac=%d",    
+		// 	this, this->getRootRefCount(), this->getAnchorCount());
 		_flags.rootRefCount |= survivor_reachable_value;
 	}
 
@@ -246,7 +240,7 @@ public:
 	}
 
 	bool isStrongReachable() {
-		return isStrongRootReachable() || this->hasAnchor();
+		return isStrongRootReachable();// || this->hasAnchor();
 	}
 
 	int getRootRefCount() {
@@ -258,11 +252,7 @@ public:
 	int decrementRootRefCount();
 
 	bool isAlive() {
-		#if RTGC_SHARE_GC_MARK
-			return _flags.isMarked;
-		#else
-			return !_flags.isGarbage;
-		#endif
+		return !_flags.isGarbage;
 	}
 
 	bool isGarbageTrackable() {
@@ -279,7 +269,7 @@ public:
 	}
 
 	bool isUnreachable() {
-		return _flags.rootRefCount == ZERO_ROOT_REF && !this->hasAnchor();
+		return _flags.rootRefCount == ZERO_ROOT_REF;
 	}
 
 	bool isPublished() {
@@ -312,6 +302,41 @@ public:
 
 public:
 
+	int32_t getIdentityHashCode() const {
+		fatal("not implemented");
+		return 0;
+	}
+
+	bool hasCircuit() const {
+		return getCircuitId() > 0;
+	}
+
+	CircuitNode* getCircuit() const;
+
+	int getCircuitId() const {
+		return this->_circuitId;
+	}
+
+	void setCircuitId_unsafe(int circuitId) {
+		this->_circuitId = circuitId;
+	}
+
+	void invalidateCircuitId() {
+		// no-circuit. but this has valid safe-anchor.
+		setCircuitId_unsafe(0);
+	}	
+
+
+#if 0
+	int getAnchorCount() {
+		return _flags.rootRefCount;
+	}
+
+	bool isDirtyAnchor() {
+		return !isTrackable();
+	}
+	
+
 	bool mayHaveAnchor() const {
 		return _refs != 0;
 	}
@@ -329,30 +354,18 @@ public:
 
 	ReferrerList* getAnchorList() const;
 
-	bool hasShortcut() const {
-		return getShortcutId() > INVALID_SHORTCUT;
-	}
-
-	SafeShortcut* getShortcut() const;
-
-	int getShortcutId() const {
-		return this->_shortcutId;
-	}
-
 	bool isAnchorListLocked() {
 		rt_assert(_hasMultiRef);
 		return (int32_t)_refs > 0;
 	}
 
-	int32_t getIdentityHashCode() const {
-		rt_assert(_hasMultiRef);
-		return _refs;
+	GCObject* getSafeAnchor() const {
+		fatal("deprecated");
+		return NULL;
 	}
 
-	GCObject* getSafeAnchor() const;
-
 	bool hasSafeAnchor() const {
-		return getShortcutId() > NO_SAFE_ANCHOR;
+		return getCircuitId() > NO_SAFE_ANCHOR;
 	}
 
 	void setHasMultiRef(bool multiRef) {
@@ -370,24 +383,20 @@ public:
 		_refs = 0;
 	}
 
-	void setAnchorList(ReferrerList* anchors);
-
-	void setShortcutId_unsafe(int shortcutId) {
-		this->_shortcutId = shortcutId;
+	void setAnchorList(ReferrerList* anchors) {
+		fatal("deprecated");
 	}
 
-	void setSafeAnchor(GCObject* anchor);
+	void setSafeAnchor(GCObject* anchor) {
+		fatal("deprecated");
+	}
 
 	void invalidateSafeAnchor() {
-		// no-shortcut. no safe-anchor.
-		setShortcutId_unsafe(NO_SAFE_ANCHOR);
+		// no-circuit. no safe-anchor.
+		setCircuitId_unsafe(NO_SAFE_ANCHOR);
 	}
 
-	void invalidateShortcutId() {
-		rt_assert(hasSafeAnchor());
-		// no-shortcut. but this has valid safe-anchor.
-		setShortcutId_unsafe(INVALID_SHORTCUT);
-	}	
+#endif
 };
 
 }

@@ -43,8 +43,9 @@ inline void MarkSweep::mark_object(oop obj) {
   // and overwrite the mark.  We'll restore it at the end of markSweep.
   markWord mark = obj->mark();
   obj->set_mark(markWord::prototype().set_marked());
+  rtgc_debug_log(obj, "mark_object %p", (void*)obj);
 #if INCLUDE_RTGC
-  if (EnableRTGC) {
+  if (EnableRTGC && !rtHeap::UseRefCount) {
     rt_assert(!rtHeap::is_trackable(obj));
     precond(rtHeap::is_alive(obj));
   }
@@ -55,7 +56,7 @@ inline void MarkSweep::mark_object(oop obj) {
 }
 
 template <bool is_anchored, bool is_resurrected>
-inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
+inline void MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
 #if INCLUDE_RTGC
   if (EnableRTGC) {
     if (rtHeap::is_trackable(obj)) {
@@ -66,7 +67,7 @@ inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
       } else {
         rtHeap::mark_survivor_reachable(obj);
       }
-      if (!rtHeap::DoCrossCheck) return false;
+      if (!rtHeap::UseRefCount) return;
     }
   } 
 #endif
@@ -74,7 +75,7 @@ inline bool MarkSweep::mark_and_push_internal(oop obj, oopDesc* anchor) {
     mark_object(obj);
     _marking_stack.push(obj);
   }
-  return true;
+  return;
 }
 
 template <class T, bool is_anchored> 
@@ -104,7 +105,7 @@ inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
 #if INCLUDE_RTGC // REF_LINK
   if (EnableRTGC) { // REF_LINK
     _is_rt_anchor_trackable = false;
-    if (!rtHeap::DoCrossCheck) {
+    if (!rtHeap::UseRefCount) { 
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
       oop holder = cld->holder_no_keepalive();
       if (holder != NULL) {
