@@ -212,7 +212,7 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
 }
 
 RTGC_ONLY(template <bool root_reachable>)
-void MarkSweep::follow_stack() {
+void MarkSweep::follow_stack(int bottom) {
   do {
     while (rtHeap::UseRefCount || !_marking_stack.is_empty()) {
       if (rtHeap::UseRefCount) {

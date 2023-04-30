@@ -157,7 +157,7 @@ class MarkSweep : AllStatic {
   static int adjust_pointers(oop obj);
 
   RTGC_ONLY(template <bool root_reachable=true>)
-  static void follow_stack();   // Empty marking stack.
+  static void follow_stack(int bottom = 0);   // Empty marking stack.
 
   static void follow_klass(Klass* klass);
 
