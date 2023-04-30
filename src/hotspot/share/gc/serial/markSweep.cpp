@@ -192,6 +192,8 @@ void MarkSweep::follow_array_chunk(objArrayOop array, int index) {
   }
 }
 
+debug_only(extern void add_leaf_nodes(oopDesc* p);)
+
 void MarkSweep::follow_stack(int bottom) {
   do {
     while (rtHeap::UseRefCount || !_marking_stack.is_empty()) {
@@ -214,7 +216,9 @@ void MarkSweep::follow_stack(int bottom) {
       }
       assert (obj->is_gc_marked(), "p must be marked");
       rt_assert(!EnableRTGC || !rtHeap::is_trackable(obj));
+      debug_only(size_t cntStack = _marking_stack.size());
       follow_object<false>(obj);
+      debug_only(if (cntStack == _marking_stack.size()) add_leaf_nodes(obj));
     }
     // Process ObjArrays one at a time to avoid marking stack bloat.
     if (!_objarray_stack.is_empty()) {

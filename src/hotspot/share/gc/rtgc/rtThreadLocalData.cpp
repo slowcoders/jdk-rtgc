@@ -136,7 +136,8 @@ void FieldUpdateLog::init(oopDesc* anchor, ErasedSlot erasedField) {
   this->_anchor = (address)anchor;
   this->_erased = erasedField;
 
-  // printf("RTGC er %p\n", (void*)this->erased());
+  // rtgc_debug_log(CompressedOops::decode(this->erased()), 
+  //     "init updateLog erased= %p", (void*)CompressedOops::decode(this->erased()));
   rt_assert(CompressedOops::is_null(this->erased()) ||
       !to_obj(CompressedOops::decode(this->erased()))->isGarbageTrackable());
 

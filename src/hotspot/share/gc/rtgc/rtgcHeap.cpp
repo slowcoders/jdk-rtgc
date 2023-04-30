@@ -427,10 +427,18 @@ void rtHeap::add_trackable_link(oopDesc* anchor_p, oopDesc* link_p) {
   link->addTrackableAnchor(anchor);
 }
 
+int cnt_leaf_nodes = 0;
+static int cnt_linear_nodes = 0;
+static int cnt_multi_ref_nodes = 0;
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   rt_assert(!node->isGarbageMarked());  
   if (node->isTrackable_unsafe()) {
+    debug_only(if (node->getAnchorCount() <= 1) {
+      cnt_linear_nodes ++;
+    } else {
+      cnt_multi_ref_nodes ++;
+    })
     rt_assert_f(!node->isUnreachable(), PTR_DBG_SIG, PTR_DBG_INFO(node));
     markWord mark = p->mark();
     if (p->mark_must_be_preserved(mark)) {
@@ -828,7 +836,9 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
 
 void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused) {
   rt_assert(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
-  rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d", in_full_gc);
+  //rtgc_log(LOG_OPT(1), 
+  if (in_full_gc) printf("finish_rtgc full_gc=%d leaf=%d, linear=%d, multi=%d\n", in_full_gc, cnt_leaf_nodes, cnt_linear_nodes-cnt_leaf_nodes, cnt_multi_ref_nodes);
+  debug_only(cnt_leaf_nodes = 0; cnt_linear_nodes = 0; cnt_multi_ref_nodes = 0;)
   is_gc_started = false;
   if (!RTGC_FAT_OOP || !in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
@@ -1067,4 +1077,14 @@ void rtHeap::create_circuit_node(oop circularNode) {
 
 }
 
-
+void add_leaf_nodes(oopDesc* p) {
+  GCObject* node = to_obj(p);
+  cnt_leaf_nodes ++;
+  while (node->hasAnchor() && !node->hasMultiRef()) {
+    node = node->getSingleAnchor();
+    if (node->hasMultiRef()) break;
+    if (*((uint64_t*)node) & 0x80) break;
+    *((uint64_t*)node) |= 0x80;
+    cnt_leaf_nodes ++;
+  }
+}

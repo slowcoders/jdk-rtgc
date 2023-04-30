@@ -22,6 +22,11 @@ TEST=dotty
   -Xms6g -Xmx6g -Xlog:gc=trace \
   -jar ./renaissance/renaissance-gpl-0.14.1.jar ${TEST}
 
+./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
+  -Xms6g -Xmx6g \
+  -jar ./renaissance/renaissance-gpl-0.14.1.jar ${TEST}
+
+
 echo -------------------------------------------------
 echo RTGC done
 echo -------------------------------------------------

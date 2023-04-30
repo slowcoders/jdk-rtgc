@@ -85,6 +85,9 @@ void GCRuntime::onEraseRootVariable_internal(GCObject* erased) {
          (SafepointSynchronize::is_at_safepoint() && Thread::current()->is_VM_thread()),
          "not locked");
 
+    rtgc_log(erased->isGarbageTrackable() || !erased->isStrongRootReachable(), 
+        "wrong ref-count %p", erased);
+
     rt_assert_f(!erased->isGarbageTrackable() && erased->isStrongRootReachable(), 
         "wrong ref-count " PTR_DBG_SIG, PTR_DBG_INFO(erased));
         
