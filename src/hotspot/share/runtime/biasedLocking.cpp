@@ -51,6 +51,9 @@ static GrowableArray<Handle>*   _preserved_oop_stack  = NULL;
 static GrowableArray<markWord>* _preserved_mark_stack = NULL;
 
 static void enable_biased_locking(InstanceKlass* k) {
+  #if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    return;
+  #endif
   k->set_prototype_header(markWord::biased_locking_prototype());
 }
 

@@ -129,14 +129,19 @@ class markWord {
   // Constants
   static const int age_bits                       = 4;
   static const int lock_bits                      = 2;
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+  static const int biased_lock_bits               = 0;
+#else
   static const int biased_lock_bits               = 1;
+#endif
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - biased_lock_bits;
 #if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
   static const int hash_bits                      = max_hash_bits > 32 ? 32 : max_hash_bits;
+  static const int node_type_bits                 = 2;
 #else
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
-#endif
   static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0);
+#endif
   static const int epoch_bits                     = 2;
 
   // The biased locking code currently requires that the age bits be
@@ -144,11 +149,12 @@ class markWord {
   static const int lock_shift                     = 0;
   static const int biased_lock_shift              = lock_bits;
   static const int age_shift                      = lock_bits + biased_lock_bits;
-  static const int unused_gap_shift               = age_shift + age_bits;
 #if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
-  static const int epoch_shift                    = unused_gap_shift + unused_gap_bits;
+  static const int node_type_shift                = age_shift + age_bits;
+  static const int epoch_shift                    = node_type_shift + node_type_bits;
   static const int hash_shift                     = 32;
 #else
+  static const int unused_gap_shift               = age_shift + age_bits;
   static const int hash_shift                     = unused_gap_shift + unused_gap_bits;
   static const int epoch_shift                    = hash_shift;
 #endif
@@ -192,10 +198,9 @@ class markWord {
   // fixes up biased locks to be compatible with it when a bias is
   // revoked.
   bool has_bias_pattern() const {
-#if INCLUDE_RTGC // NO_BIASED_LOCKING 
-#ifndef ASSERT 
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    assert(biased_lock_mask_in_place < biased_lock_pattern);
     return false;
-#endif
 #endif
     return (mask_bits(value(), biased_lock_mask_in_place) == biased_lock_pattern);
   }
@@ -225,6 +230,9 @@ class markWord {
   }
   // Prototype mark for initialization
   static markWord biased_locking_prototype() {
+#if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    fatal("should not reach here!")
+#endif 
     return markWord( biased_lock_pattern );
   }
 

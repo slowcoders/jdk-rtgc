@@ -167,7 +167,12 @@ class Abstract_VM_Version: AllStatic {
   }
 
   // ARCH specific policy for the BiasedLocking
-  static bool use_biased_locking()  { return true; }
+  static bool use_biased_locking()  { 
+  #if defined(_LP64) && INCLUDE_RTGC && !RTGC_FAT_OOP
+    return false;
+  #endif
+    return true; 
+  }
 
   // Number of page sizes efficiently supported by the hardware.  Most chips now
   // support two sizes, thus this default implementation.  Processor-specific
