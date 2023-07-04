@@ -55,7 +55,9 @@ class GCNode {
 #endif	
 
 	struct {
-		uint32_t _jvmFlags: 7;
+		uint32_t _jvmFlags: 5;
+		uint32_t _isLinear: 1;
+		uint32_t _multiJump: 1;
 		uint32_t _hasMultiRef: 1;
 		uint32_t _shortcutId: 24;
 	}; 
@@ -370,6 +372,18 @@ public:
 	void invalidateSafeAnchor() {
 		// no-shortcut. no safe-anchor.
 		setShortcutId_unsafe(NO_SAFE_ANCHOR);
+	}
+
+	bool set_isLinear(bool isLinear) {
+		if (this->_isLinear == isLinear) return false;
+		this->_isLinear = isLinear;
+		return true;
+	}
+
+	bool set_multiJump(bool multiJump) {
+		if (this->_multiJump == multiJump) return false;
+		this->_multiJump = multiJump;
+		return true;
 	}
 
 	void invalidateShortcutId() {

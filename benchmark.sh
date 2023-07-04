@@ -18,8 +18,8 @@ TEST=dotty
 # echo Azul C4 done
 # echo -------------------------------------------------
 
-./build/macosx-x86_64-client-release/images/jdk/bin/java \
-  -Xms6g -Xmx6g -Xlog:gc=trace \
+./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java \
+  -Xms6g -Xmx6g \
   -jar ./renaissance/renaissance-gpl-0.14.1.jar ${TEST}
 
 echo -------------------------------------------------

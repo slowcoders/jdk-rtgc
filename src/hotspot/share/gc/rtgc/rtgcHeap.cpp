@@ -428,10 +428,62 @@ void rtHeap::add_trackable_link(oopDesc* anchor, oopDesc* link) {
   }
 }
 
+int cnt_leaf_nodes = 0;
+static int cnt_trackable_nodes = 0;
+static int cnt_linear_nodes = 0;
+static int cnt_multi_ref_nodes = 0;
+static int cnt_split_jump_nodes = 0;
+static int cnt_acyclic_nodes = 0;
+
+GCObject* mark_linear_section(GCObject* node) {
+  while (!node->hasMultiRef()) {
+    if (!node->set_isLinear(true)) {
+      if (node->set_multiJump(true)) {
+         cnt_split_jump_nodes ++;
+      }
+      break;
+    } else {
+      cnt_linear_nodes ++;
+    }
+    if (!node->hasAnchor()) {
+
+      break;
+    }
+    node = node->getSingleAnchor();
+  }
+  return node;
+}
+
+void check_ref_links(GCObject* tail) {
+  if (tail->isAcyclic()) {
+    cnt_acyclic_nodes ++;
+    return;
+  }
+  if (!tail->hasMultiRef()) return;
+  cnt_multi_ref_nodes ++;
+  GCObject* split = NULL;
+  int cc = 0;
+  for (AnchorIterator ai(tail); ai.hasNext();) {
+    GCObject* node = ai.next();
+    GCObject* split2 = mark_linear_section(node);
+    if (split == NULL) {
+      split = split2;
+    } else if (split2 == split) {
+      cc ++;
+    }
+  }
+  cnt_split_jump_nodes += cc;
+  if (cc > 50) {
+    printf("multi_jump_nodes %d %s -> %s\n", cc, getClassName(split), getClassName(tail));
+  }
+}
 void rtHeap::mark_forwarded_trackable(oopDesc* p) {
   GCObject* node = to_obj(p);
   rt_assert(!node->isGarbageMarked());  
   if (node->isTrackable_unsafe()) {
+    debug_only(cnt_trackable_nodes ++;)
+    debug_only(check_ref_links(node);)
+
     rt_assert_f(!node->isUnreachable(), PTR_DBG_SIG, PTR_DBG_INFO(node));
     markWord mark = p->mark();
     if (p->mark_must_be_preserved(mark)) {
@@ -545,6 +597,10 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
   }
   // 참고) 주소가 옮겨지지 않은 YG 객체는 unmarked 상태이다.
 
+  debug_only(if (node->isTrackable_unsafe() && !node->hasMultiRef() && 
+      !node->isAcyclic() && !node->set_isLinear(false)) cnt_leaf_nodes++;)
+  debug_only(node->set_multiJump(false);)
+
   rtgc_debug_log(old_p, "adjust_pointers %p", old_p);
   debug_only(g_cnt_alive_obj++;);
   oopDesc* new_anchor_p = NULL;
@@ -602,8 +658,8 @@ size_t rtHeap::adjust_pointers(oopDesc* old_p) {
           adjust_anchor_pointer(ptr, node);
           debug_only(cnt_anchor++;)
         }
-        rtgc_log(cnt_anchor > 5000, "big ref list %d acyclic %d %s", 
-            cnt_anchor, old_p->klass()->is_acyclic(), old_p->klass()->name()->bytes());
+        if(cnt_anchor > 10000 && !old_p->klass()->is_acyclic()) printf("big ref list %d %s\n", 
+            cnt_anchor, old_p->klass()->name()->bytes());
       }
     }
     else {
@@ -630,6 +686,7 @@ class AdjustAnchorClosure {
     }
   }
 };
+
 
 void rtHeap::prepare_adjust_pointers(HeapWord* old_gen_heap_start) {
   g_adjust_pointer_closure._old_gen_start = old_gen_heap_start;
@@ -809,6 +866,10 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
 void rtHeap::finish_rtgc(bool is_full_gc_unused, bool promotion_finished_unused) {
   rt_assert(GCNode::g_trackable_heap_start == GenCollectedHeap::heap()->old_gen()->reserved().start());
   rtgc_log(LOG_OPT(1), "finish_rtgc full_gc=%d", in_full_gc);
+  if (in_full_gc) printf("finish_rtgc leaf=%d, linear=%d, multi=%d, split=%d, acyclic=%d tr_total=%d\n", 
+      cnt_leaf_nodes, cnt_linear_nodes, cnt_multi_ref_nodes,
+      cnt_split_jump_nodes, cnt_acyclic_nodes, cnt_trackable_nodes);
+  debug_only(cnt_leaf_nodes = cnt_linear_nodes = cnt_multi_ref_nodes = cnt_split_jump_nodes = cnt_acyclic_nodes = cnt_trackable_nodes = 0;)
   is_gc_started = false;
   if (!RTGC_FAT_OOP || !in_full_gc) {
     // link_pending_reference 수행 시, mark_survivor_reachable() 이 호출될 수 있다.
@@ -1008,3 +1069,27 @@ void rtHeap__initialize() {
 
 }
 
+
+class NodeAnalizeClosure : public BasicOopIterateClosure {
+public:  
+  int cnt_junction;
+
+  NodeAnalizeClosure() { cnt_junction = 0; }
+
+  template <class T> void do_oop_work(T* p) {
+    oop obj = RawAccess<>::oop_load(p);
+    if (obj != NULL) {
+      GCObject* node = to_obj(obj);
+      if (!node->isAcyclic() && node->hasMultiRef()) {
+        cnt_junction ++;
+      }
+    }
+  }
+
+  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+};
+
+void add_leaf_nodes(oopDesc* p) {
+  GCObject* node = to_obj(p);
+}

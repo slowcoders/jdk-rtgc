@@ -92,14 +92,14 @@ void GCObject::addReferrer(GCObject* referrer) {
     rt_assert(RTGC_FAT_OOP || !cast_to_oop(this)->is_gc_marked());
     assert_valid_link(cast_to_oop(this), cast_to_oop(referrer));
 
-    if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
-        rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
-        this->incrementRootRefCount();
-        return;
-    }
+    // if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
+    //     rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
+    //     this->incrementRootRefCount();
+    //     return;
+    // }
 
-    rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !cast_to_oop(this)->klass()->is_acyclic(), 
-        "wrong acyclic mark %s", RTGC::getClassName(this));
+    // rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !cast_to_oop(this)->klass()->is_acyclic(), 
+    //     "wrong acyclic mark %s", RTGC::getClassName(this));
 
     if (!this->mayHaveAnchor()) {
         this->setSingleAnchor(referrer);
@@ -141,13 +141,13 @@ int  GCObject::removeReferrer_impl(GCObject* referrer) {
             referrer, RTGC::getClassName(referrer), 
             cast_to_oop(referrer)->is_gc_marked(), this->isAcyclic(), PTR_DBG_INFO(this)); 
 
-    if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
-        rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
-        return this->decrementRootRefCount();
-    }
+    // if (RTGC_ENABLE_ACYCLIC_REF_COUNT && this->isAcyclic()) {
+    //     rt_assert_f(cast_to_oop(this)->klass()->is_acyclic(), "wrong acyclic mark %s", RTGC::getClassName(this));
+    //     return this->decrementRootRefCount();
+    // }
 
-    rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !cast_to_oop(this)->klass()->is_acyclic(), 
-        "wrong acyclic mark %s", RTGC::getClassName(this));
+    // rt_assert_f(!RTGC_ENABLE_ACYCLIC_REF_COUNT || !cast_to_oop(this)->klass()->is_acyclic(), 
+    //     "wrong acyclic mark %s", RTGC::getClassName(this));
 
     if (!must_exist && !this->mayHaveAnchor()) return -1;
 

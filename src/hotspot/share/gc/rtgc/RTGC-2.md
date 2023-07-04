@@ -355,48 +355,9 @@ DefNewGeneration::collect() ...
                         -> Reference->discovered field 이용.
 
 
-==============================
-Test summary (BarrierSetAssembly)
-==============================
-   TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/langtools:tier1                         4215  4181     0    34 <<
-==============================
-TEST FAILURE
-
-real    123m10.620s
-user    399m12.700s
-sys     11m43.092s
-
-==============================
-Test summary (rtgcBarrier function calls)
-==============================
-   TEST                                              TOTAL  PASS  FAIL ERROR   
->> jtreg:test/langtools:tier1                         4215  4183     0    32 <<
-==============================
-TEST FAILURE
-
-make[1]: *** [main] Error 1
-make: *** [test] Error 2
-
-real    129m40.893s
-user    387m3.703s
-sys     12m12.053s
-
---- acylic ref-count enabled -------------------
-alive objects 90914 anchors 52968 multi 5014
-alive objects 187646 anchors 240898 multi 57020
-alive objects 70578 anchors 52841 multi 5142
-alive objects 138120 anchors 82636 multi 5731
-alive objects 282307 anchors 122806 multi 5823
-alive objects 502519 anchors 629451 multi 170981
-alive objects 924497 anchors 1470441 multi 359440
-
-
---- acylic ref-count disabled -------------------
-alive objects 90912 anchors 130308 multi 13358
-alive objects 187668 anchors 424694 multi 76289
-alive objects 70577 anchors 117607 multi 14308
-alive objects 138119 anchors 221506 multi 22470
-alive objects 282306 anchors 383748 multi 32340
-alive objects 502512 anchors 1177547 multi 233862
-alive objects 924416 anchors 2430149 multi 424139
+==== 2003/05/01 ref link analysis ====
+finish_rtgc leaf=40141, linear=16087, multi=4994, split=5714, acyclic=9172 tr_total=69321
+finish_rtgc leaf=91819, linear=23828, multi=5734, split=13562, acyclic=16725 tr_total=137938
+finish_rtgc leaf=216146, linear=33819, multi=5847, split=23428, acyclic=26489 tr_total=264516
+finish_rtgc leaf=251965, linear=16688, multi=170984, split=5748, acyclic=62855 tr_total=501396
+finish_rtgc leaf=450466, linear=49822, multi=359387, split=9007, acyclic=64737 tr_total=891523
