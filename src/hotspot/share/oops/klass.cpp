@@ -204,6 +204,7 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
 Klass::Klass(KlassID id) : _id(id),
                            _prototype_header(markWord::prototype()),
                            _shared_class_path_index(-1) {
+  // INCLUDE_RTGC Acyclic ref count
   RTGC_ONLY(_node_type = rtNodeType::Unknown;) 
   RTGC_ONLY(_init_state = InstanceKlass::fully_initialized;)  
   CDS_ONLY(_shared_class_flags = 0;)
@@ -959,4 +960,3 @@ const char* Klass::class_in_module_of_loader(bool use_are, bool include_parent_l
 
   return class_description;
 }
-

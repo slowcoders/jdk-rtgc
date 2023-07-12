@@ -32,6 +32,7 @@
 #define LOG_TEST_STRING_LITERAL "a (hopefully) unique log message for testing"
 
 #ifdef __APPLE__
+  // Zee Mac XCode 13.1
   PRAGMA_DISABLE_GCC_WARNING("-Wstring-concatenation")
 #endif
 

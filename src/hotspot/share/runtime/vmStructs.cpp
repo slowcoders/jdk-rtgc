@@ -242,7 +242,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
   nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
-  /* rtgc changed */                                                                                                                 \
+  /* INCLUDE_RTGC // acyclic ref count */                                                                                                                 \
   nonstatic_field(InstanceKlass,               _node_type,                                   u2)                                     \
   nonstatic_field(InstanceKlass,               _init_state,                                   u2)                                    \
   /*nonstatic_field(InstanceKlass,               _init_state,                                   u1)  */                              \
@@ -839,7 +839,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(ciObjArrayKlass,             _element_klass,                                ciKlass*)                              \
   nonstatic_field(ciObjArrayKlass,             _base_element_klass,                           ciKlass*)                              \
                                                                                                                                      \
-  /*rtgc change ----------------------------------------------------------------------------------------------- */                   \
+  /* INCLUDE_RTGC // acyclic ref count  */                   \
   nonstatic_field(ciInstanceKlass,             _node_type,                                    u2)                                    \
   nonstatic_field(ciInstanceKlass,             _init_state,                                   u2)                                    \
   /*nonstatic_field(ciInstanceKlass,             _init_state,                                   InstanceKlass::ClassState)  */       \

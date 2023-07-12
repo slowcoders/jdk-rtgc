@@ -272,13 +272,11 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name, Handle class_loader
 // Forwards to resolve_array_class_or_null or resolve_instance_class_or_null
 
 Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS) {
-  Klass* klass;
   if (Signature::is_array(class_name)) {
-    klass = resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
+    return resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
   } else {
-    klass = resolve_instance_class_or_null_helper(class_name, class_loader, protection_domain, THREAD);
+    return resolve_instance_class_or_null_helper(class_name, class_loader, protection_domain, THREAD);
   }
-  return klass;
 }
 
 // name may be in the form of "java/lang/Object" or "Ljava/lang/Object;"
@@ -318,7 +316,6 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          CHECK_NULL);
     if (k != NULL) {
       k = k->array_klass(ndims, CHECK_NULL);
-      //k->resolve_instance_class_or_null      
     }
   } else {
     k = Universe::typeArrayKlassObj(t);
@@ -950,13 +947,11 @@ InstanceKlass* SystemDictionary::resolve_from_stream(ClassFileStream* st,
                                                      Handle class_loader,
                                                      const ClassLoadInfo& cl_info,
                                                      TRAPS) {
-  InstanceKlass* k;
   if (cl_info.is_hidden()) {
-    k = resolve_hidden_class_from_stream(st, class_name, class_loader, cl_info, CHECK_NULL);
+    return resolve_hidden_class_from_stream(st, class_name, class_loader, cl_info, CHECK_NULL);
   } else {
-    k = resolve_class_from_stream(st, class_name, class_loader, cl_info, CHECK_NULL);
+    return resolve_class_from_stream(st, class_name, class_loader, cl_info, CHECK_NULL);
   }
-  return k;
 }
 
 

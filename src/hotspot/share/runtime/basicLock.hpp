@@ -40,8 +40,8 @@ class BasicLock {
   volatile markWord* displaced_header_addr() const {
     return (markWord*)&_displaced_header;
   }
-
  #endif
+ 
   markWord displaced_header() const {
     return Atomic::load(&_displaced_header);
   }

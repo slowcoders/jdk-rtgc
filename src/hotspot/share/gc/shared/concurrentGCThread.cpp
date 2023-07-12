@@ -44,6 +44,7 @@ void ConcurrentGCThread::create_and_start(ThreadPriority prio) {
 
 void ConcurrentGCThread::run() {
   // Setup handle area
+  // INCLUDE_RTGC // local jni block
   set_active_handles(JNIHandleBlock::allocate_block(RTGC_ONLY(this)));
 
   // Wait for initialization to complete

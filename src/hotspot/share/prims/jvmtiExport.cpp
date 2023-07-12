@@ -2846,6 +2846,7 @@ void JvmtiObjectAllocEventCollector::generate_call_for_allocated() {
       _post_callback(JavaThread::current(), obj);
       // Release OopHandle
       _allocated->at(i).release(JvmtiExport::jvmti_oop_storage());
+
     }
     delete _allocated, _allocated = NULL;
   }

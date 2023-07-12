@@ -107,6 +107,7 @@ inline void MarkSweep::follow_cld(ClassLoaderData* cld) {
     _is_rt_anchor_trackable = false;
     if (!rtHeap::DoCrossCheck) {
       // TODO non-trackable 에 대한 mark_and_push 선택적 실행.
+      // TODO 중복 실행 여부 검사.
       oop holder = cld->holder_no_keepalive();
       if (holder != NULL) {
         mark_and_push_internal<false>(holder);

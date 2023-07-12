@@ -1010,7 +1010,6 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         } 
 #endif      
       }
-
       if (monitor->is_being_async_deflated()) {
         // If we detect that async deflation has occurred, then we
         // attempt to restore the header/dmw to the object's header

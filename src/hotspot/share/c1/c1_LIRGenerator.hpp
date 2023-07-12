@@ -259,7 +259,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_MathIntrinsic(Intrinsic* x);
   void do_LibmIntrinsic(Intrinsic* x);
   void do_ArrayCopy(Intrinsic* x);
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC // exact array update check, check final field update
   void do_CompareAndSwap(Intrinsic* x, ValueType* type, DecoratorSet extraFlag=0);
 #else
   void do_CompareAndSwap(Intrinsic* x, ValueType* type);

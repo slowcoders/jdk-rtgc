@@ -520,9 +520,6 @@ extern int MinObjAlignmentInBytesMask;
 
 extern int LogMinObjAlignment;
 extern int LogMinObjAlignmentInBytes;
-#if INCLUDE_RTGC
-extern int CompressedOppShift;
-#endif
 
 const int LogKlassAlignmentInBytes = 3;
 const int LogKlassAlignment        = LogKlassAlignmentInBytes - LogHeapWordSize;

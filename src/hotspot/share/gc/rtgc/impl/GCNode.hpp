@@ -26,11 +26,7 @@ struct GCFlags {
 	uint32_t isAyclic: 1;
 	uint32_t isTrackableOrDestroyed: 1;
 	uint32_t isYoungRoot: 1;
-#if RTGC_SHARE_GC_MARK
-	uint32_t isMarked: 1;
-#else
 	uint32_t isGarbage: 1;
-#endif
 	uint32_t dirtyReferrerPoints: 1;
 	uint32_t isUnstable: 1;
 
@@ -219,11 +215,7 @@ public:
 
 	void unmarkGarbage(bool resurrected=true) {
 		// rtgc_log(resurrected, "resurrected %p\n", this);
-		#if RTGC_SHARE_GC_MARK
-			_flags.isMarked = true;
-		#else
-			_flags.isGarbage = false;
-		#endif
+		_flags.isGarbage = false;
 		// _flags.isUnstable = false;
 		// _flags.dirtyReferrerPoints = false;
 	}
@@ -247,23 +239,14 @@ public:
 	int decrementRootRefCount();
 
 	bool isAlive() {
-		#if RTGC_SHARE_GC_MARK
-			return _flags.isMarked;
-		#else
-			return !_flags.isGarbage;
-		#endif
+		return !_flags.isGarbage;
 	}
 
 	bool isGarbageTrackable() {
-		if (RTGC_SHARE_GC_MARK) {		
-			return this->is_adjusted_trackable() && !this->isAlive();
-		} else {
-			return !this->isAlive();
-		}
+		return !this->isAlive();
 	}
 
 	bool isGarbageMarked() {
-		rt_assert(!RTGC_SHARE_GC_MARK || this->is_adjusted_trackable());
 		return !isAlive();
 	}
 

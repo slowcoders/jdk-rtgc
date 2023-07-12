@@ -618,7 +618,6 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
   ShouldNotReachHere();   // should have found this class!!
 }
 
-
 void ClassLoaderData::unload() {
   _unloading = true;
 
@@ -642,7 +641,6 @@ void ClassLoaderData::unload() {
 
   // Clean up global class iterator for compiler
   ClassLoaderDataGraph::adjust_saved_class(this);
-
 }
 
 ModuleEntryTable* ClassLoaderData::modules() {

@@ -403,6 +403,7 @@ class HandleEraser : public OopClosure {
     template <typename T> void do_oop_work(T* p) {
       T heap_oop = RawAccess<>::oop_load(p);
       if (!CompressedOops::is_null(heap_oop)) {
+        fatal("HandleEraser 가 필요한가?");
         oop obj = CompressedOops::decode_not_null(heap_oop);
         rtHeap::release_jni_handle_at_safepoint(obj);
       }
@@ -437,10 +438,7 @@ void JNIHandleBlock::release_block(JNIHandleBlock* block, Thread* thread) {
 
     // Add original freelist to end of chain
     if ( freelist != NULL ) {
-      while ( block->_next != NULL ) {
-        block = block->_next;
-        //RTGC_ONLY(precond(!EnableRTGC || thread == block->local_thread());)
-      }
+      while ( block->_next != NULL ) block = block->_next;
       block->_next = freelist;
     }
     block = NULL;

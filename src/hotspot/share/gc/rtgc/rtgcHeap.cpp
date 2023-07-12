@@ -795,9 +795,6 @@ void rtHeap::init_reference_processor(ReferencePolicy* policy) {
   rtgc_log(LOG_OPT(1), "init_reference_processor %p", policy);
   if (policy != NULL) {
     FreeMemStore::clearStore();
-    if (RtLazyClearWeakHandle) {
-      WeakProcessor::oops_do(&clear_weak_handle_ref);
-    }
     in_full_gc = 1;
     g_in_progress_marking = true;
     rtHeapEx::break_reference_links(policy);

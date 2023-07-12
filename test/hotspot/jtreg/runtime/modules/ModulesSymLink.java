@@ -46,10 +46,6 @@ public class ModulesSymLink {
     static String test_jdk;
 
     public static void main(String[] args) throws Throwable {
-        // System.out.println(
-        //     "-XX:+dddddd\n--\n" +
-        //     "-XX:AbortVMOnExceptionMessage=java/lang/invoke/ResolvedMethodName\n--\n" +
-        //     "-version");
         java_home = System.getProperty("java.home");
         test_jdk = System.getProperty("user.dir") + File.separator +
                    "modulessymlink_jdk" + Long.toString(System.currentTimeMillis());
@@ -58,14 +54,8 @@ public class ModulesSymLink {
 
         ProcessBuilder pb = new ProcessBuilder(
             test_jdk + File.separator + "bin" + File.separator + "java",
-            // "-XX:+UnlockExperimentalVMOptions",
-            // "-XX:AbortVMOnExceptionMessage=#[Ljava/lang/invoke/LambdaForm$Name;",
             "-version");
-        // System.out.println(test_jdk + File.separator + "bin" + File.separator + "java\n--\n" +
-        //     "-XX:+UnlockExperimentalVMOptions\n--\n" +
-        //     "-XX:AbortVMOnExceptionMessage=java/lang/invoke/ResolvedMethodName\n--\n" +
-        //     "-version");
-        OutputAnalyzer out = new OutputAnalyzer(pb.inheritIO().start());
+        OutputAnalyzer out = new OutputAnalyzer(pb.start());
         out.shouldHaveExitValue(0);
     }
 

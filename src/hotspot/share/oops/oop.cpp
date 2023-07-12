@@ -115,6 +115,7 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (obj->mark().value() != 0) {
     return true;
   }
+  // INCLUDE_RTGC  // oop verify 
   return !SafepointSynchronize::is_at_safepoint() RTGC_ONLY(|| rtHeap::is_destroyed(obj));
 }
 

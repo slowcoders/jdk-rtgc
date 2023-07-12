@@ -1863,7 +1863,7 @@ int os::PlatformMonitor::wait(jlong millis) {
 // Darwin has no "environ" in a dynamic library.
 #ifdef __APPLE__
   #define environ (*_NSGetEnviron())
-  // Zee Mac OSX (vfork is deprecated)
+  // for Mac XCode 13.3 (vfork is deprecated)
   #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #else
   extern char** environ;

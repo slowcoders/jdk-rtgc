@@ -65,14 +65,10 @@ public class TestMetaSpaceLog {
     testMetaSpaceUpdate();
   }
 
-  private static boolean check2(String s) {
-    return s.contains("[gc,metaspace");
-  }
-
   private static void verifyContainsMetaSpaceUpdate(OutputAnalyzer output) {
     // At least one metaspace line from GC should show GC being collected.
     boolean foundCollectedMetaSpace = output.asLines().stream()
-        .filter(s -> check2(s))
+        .filter(s -> s.contains("[gc,metaspace"))
         .anyMatch(TestMetaSpaceLog::check);
     Asserts.assertTrue(foundCollectedMetaSpace);
   }
@@ -128,7 +124,7 @@ public class TestMetaSpaceLog {
 
     public static void main(String args[]) {
       WhiteBox wb = WhiteBox.getWhiteBox();
-      for(int i = 0; i < 100000; i++) {
+      for(int i = 0; i < 10000; i++) {
         loadClass(wb);
       }
       wb.fullGC();

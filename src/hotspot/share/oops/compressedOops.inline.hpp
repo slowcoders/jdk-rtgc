@@ -49,9 +49,9 @@ inline oop CompressedOops::decode_raw_not_null(narrowOop v) {
 
 inline oop CompressedOops::decode_raw(narrowOop v) {
   precond(!is_null(v));
-#if INCLUDE_RTGC      
-  precond(UseCompressedOops);
-    if (rtHeap::useModifyFlag()) {
+#if INCLUDE_RTGC  // modify_flag      
+  rt_assert(UseCompressedOops);
+  if (rtHeap::useModifyFlag()) {
     // remove sign bit
     uint32_t p = (uint32_t)v & ~1;
     return cast_to_oop((uintptr_t)base() + ((uintptr_t)p << shift()));

@@ -794,9 +794,6 @@ void InstanceKlass::eager_initialize_impl() {
       ResourceMark rm(THREAD);
       log_info(class, init)("[Initialized %s without side effects]", external_name());
     }
-// #if INCLUDE_RTGC
-//     this->resolve_node_type(THREAD);
-// #endif    
   }
 }
 
@@ -1032,8 +1029,6 @@ void InstanceKlass::initialize_super_interfaces(TRAPS) {
 void InstanceKlass::initialize_impl(TRAPS) {
   HandleMark hm(THREAD);
 
-  // printf("initialize_impl %s\n", name()->bytes());
-
   // Make sure klass is linked (verified) before initialization
   // A class could already be verified, since it has been reflected upon.
   link_class(CHECK);
@@ -1125,6 +1120,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
       THROW_OOP(e());
     }
   }
+
 
   // Step 8
   {
@@ -1463,7 +1459,6 @@ Method* InstanceKlass::class_initializer() const {
 }
 
 void InstanceKlass::call_class_initializer(TRAPS) {
-  // printf("InstanceKlass::call_class_initializer %s\n", name()->bytes());
   if (ReplayCompiles &&
       (ReplaySuppressInitializers == 1 ||
        (ReplaySuppressInitializers >= 2 && class_loader() != NULL))) {
@@ -1486,8 +1481,6 @@ void InstanceKlass::call_class_initializer(TRAPS) {
     JavaValue result(T_VOID);
     JavaCalls::call(&result, h_method, &args, CHECK); // Static call (no args)
   }
-  // printf("InstanceKlass::call_class_initializer done %s\n", name()->bytes());
-
 }
 
 
@@ -3892,7 +3885,7 @@ void InstanceKlass::set_init_state(ClassState state) {
   assert(good_state || state == allocated, "illegal state transition");
 #endif
   assert(_init_thread == NULL, "should be cleared before state change");
-  _init_state = (u1)state;  
+  _init_state = (u1)state;
 }
 
 #if INCLUDE_JVMTI

@@ -444,7 +444,7 @@ static int copystrings(char *buf, int offset, const char * const *arg) {
 __attribute_noinline__
 #endif
 
-// Zee Mac OSX (vfork is deprecated)
+// Zee Mac XCode 13.1 (vfork is deprecated)
 #ifdef __APPLE__
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif

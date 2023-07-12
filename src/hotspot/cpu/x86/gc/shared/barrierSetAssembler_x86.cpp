@@ -34,7 +34,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
-#include "gc/rtgc/rtHeapEx.hpp"
 
 #define __ masm->
 
@@ -118,7 +117,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
         assert(!is_not_null, "inconsistent access");
 #ifdef _LP64
         if (UseCompressedOops) {
-          __ movl(dst, 0);
+          __ movl(dst, (int32_t)NULL_WORD);
         } else {
           __ movslq(dst, (int32_t)NULL_WORD);
         }

@@ -148,7 +148,7 @@ class oopDesc {
   void obj_field_put(int offset, oop value);
   void obj_field_put_raw(int offset, oop value);
   void obj_field_put_volatile(int offset, oop value);
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // IS_FINAL_FIELD
   void obj_field_put_final(int offset, oop value);
 #endif
 

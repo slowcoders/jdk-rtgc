@@ -72,7 +72,7 @@ public:
 //
 // This closure performs barrier store calls on pointers into the DefNewGeneration.
 #if !INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-class DefNewYoungerGenClosure : public FastScanClosure<DefNewYoungerGenClosure> {
+class DefNewYoungerGenClosure : public FastScanClosure<DefNewYoungerGenClosure, false> {
 private:
   Generation*  _old_gen;
   HeapWord*    _old_gen_start;
@@ -171,6 +171,7 @@ public:
 // This closures records changes to oops in CLDs.
 class DefNewScanClosure : public FastScanClosure<DefNewScanClosure, false> {
   ClassLoaderData* _scanned_cld;
+
 public:
   DefNewScanClosure(DefNewGeneration* g);
 

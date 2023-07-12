@@ -383,8 +383,7 @@ public class JavadocHelperTest {
 
     }
 
-    private void skip_test_AllDocs() throws IOException {
-        if (true) throw new RuntimeException("skip test (OOM in samll memory)");
+    public void testAllDocs() throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         DiagnosticListener<? super JavaFileObject> noErrors = d -> {
             if (d.getKind() == Kind.ERROR) {

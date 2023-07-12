@@ -1548,12 +1548,6 @@ void Arguments::set_use_compressed_oops() {
   // to use UseCompressedOops are InitialHeapSize and MinHeapSize.
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
-#if INCLUDE_RTGC
-#ifndef ASSERT
-  FLAG_SET_ERGO(UseCompressedOops, true);
-  return;
-#endif
-#endif
   if (max_heap_size <= max_heap_for_compressed_oops()) {
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);

@@ -744,8 +744,8 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     case T_ARRAY:
       if (c->as_jobject() == NULL) {
         if (UseCompressedOops && !wide) {
-          precond(!rtHeap::useModifyFlag());
-          __ movl(as_Address(addr), 0); // RTGC_MODIFIED_NULL);
+          RTGC_ONLY(precond(!rtHeap::useModifyFlag());)
+          __ movl(as_Address(addr), (int32_t)NULL_WORD);
         } else {
 #ifdef _LP64
           __ xorptr(rscratch1, rscratch1);
@@ -1622,14 +1622,20 @@ void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) {
                       Klass::node_type_offset()), 
                       InstanceKlass::clinit_check_value());
       __ jcc(Assembler::less, *op->stub()->entry());
-    } else 
-#endif
-    {
+    } else {
       __ cmpl(Address(op->klass()->as_register(),
                       InstanceKlass::init_state_offset()),
                       InstanceKlass::fully_initialized);
       __ jcc(Assembler::notEqual, *op->stub()->entry());
     }
+#else
+    {
+      __ cmpb(Address(op->klass()->as_register(),
+                      InstanceKlass::init_state_offset()),
+                      InstanceKlass::fully_initialized);
+      __ jcc(Assembler::notEqual, *op->stub()->entry());
+    }
+#endif    
   }
   __ allocate_object(op->obj()->as_register(),
                      op->tmp1()->as_register(),
@@ -1662,7 +1668,6 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
     } else {
       __ mov(tmp3, len);
     }
-
     __ allocate_array(op->obj()->as_register(),
                       len,
                       tmp1,

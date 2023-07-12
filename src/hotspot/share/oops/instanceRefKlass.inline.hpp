@@ -80,7 +80,7 @@ bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType*
 template <typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, OopClosureType* closure, Contains& contains) {
   // Try to discover reference and return if it succeeds.
-#if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
+#if INCLUDE_RTGC // reference processor
   if (RtNoDiscoverPhantom && rtHeap::try_discover(obj, type, closure->ref_discoverer())) {
     // if (type < REF_FINAL) {
     //   do_referent<T>(obj, closure, contains);
@@ -131,7 +131,7 @@ void InstanceRefKlass::oop_oop_iterate_ref_processing(oop obj, OopClosureType* c
       oop_oop_iterate_discovered_and_discovery<T>(obj, reference_type(), closure, contains);
       break;
     case OopIterateClosure::DO_FIELDS:
-#if INCLUDE_RTGC // RTGC_OPT_PHANTOM_REF
+#if INCLUDE_RTGC // reference-processor
       if (RtNoDiscoverPhantom) {
         if (!rtHeap::is_referent_reachable(obj, reference_type())) {
           do_discovered<T>(obj, closure, contains);

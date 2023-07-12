@@ -9,16 +9,13 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  develop(bool, EnableRTGC, true,                                          \
+  develop(bool, EnableRTGC, true,                                           \
           "Enable Reverse Tracking garbage collection(RTGC) method")        \
                                                                             \
-  develop(bool, RtLazyClearWeakHandle, false,                              \
+  develop(bool, RtNoDiscoverPhantom, true,                                  \
           "Disable discovering of phantom reference")                       \
                                                                             \
-  develop(bool, RtNoDiscoverPhantom, true,                                 \
-          "Disable discovering of phantom reference")                       \
-                                                                            \
-  develop(bool, RtNoDirtyCardMarking, true,                                \
+  develop(bool, RtNoDirtyCardMarking, true,                                 \
           "Disable dirty card marking")
 
 

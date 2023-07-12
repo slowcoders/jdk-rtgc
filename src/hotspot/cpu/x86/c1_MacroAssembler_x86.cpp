@@ -312,7 +312,7 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
   assert(!(BytesPerWord & 1), "must be a multiple of 2 for masking code to work");
 
   // check for negative or excessive length
-  cmpptr(len, (int32_t)max_array_allocation_length);  
+  cmpptr(len, (int32_t)max_array_allocation_length);
   jcc(Assembler::above, slow_case);
 #if INCLUDE_RTGC
   if (EnableRTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT && (elementType == T_OBJECT || elementType == T_ARRAY)) {

@@ -40,7 +40,6 @@ class ModRefBarrierSetC1: public RtgcBarrierSetC1 {
 class ModRefBarrierSetC1 : public BarrierSetC1 {
 #endif
 protected:
-
   virtual void pre_barrier(LIRAccess& access, LIR_Opr addr_opr,
                            LIR_Opr pre_val, CodeEmitInfo* info) {}
   virtual void post_barrier(LIRAccess& access, LIR_OprDesc* addr,

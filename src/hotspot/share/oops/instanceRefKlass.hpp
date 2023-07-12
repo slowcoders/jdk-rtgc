@@ -56,9 +56,7 @@ class InstanceRefKlass: public InstanceKlass {
   InstanceRefKlass(const ClassFileParser& parser) : InstanceKlass(parser, InstanceKlass::_kind_reference, ID) {}
 
  public:
-  InstanceRefKlass() { 
-    assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); 
-  }
+  InstanceRefKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
 #if INCLUDE_RTGC
   virtual rtNodeType resolve_node_type_impl(JavaThread* thread);

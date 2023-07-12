@@ -657,8 +657,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
   if (UseFastNewInstance && klass->is_loaded()
       && !Klass::layout_helper_needs_slow_path(klass->layout_helper())) {
 
-    bool is_initialized = klass->is_initialized();
-    Runtime1::StubID stub_id = is_initialized ? Runtime1::fast_new_instance_id : Runtime1::fast_new_instance_init_check_id;
+    Runtime1::StubID stub_id = klass->is_initialized() ? Runtime1::fast_new_instance_id : Runtime1::fast_new_instance_init_check_id;
 
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
@@ -667,7 +666,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     assert(klass->size_helper() >= 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
-                       oopDesc::header_size(), instance_size, klass_reg, !is_initialized, slow_path);
+                       oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
     __ branch(lir_cond_always, slow_path);
@@ -1655,7 +1654,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (is_volatile) {
     decorators |= MO_SEQ_CST;
   }
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // check final field update 
   if (x->field()->is_final()) {
     decorators |= IS_FINAL_FIELD;
   }

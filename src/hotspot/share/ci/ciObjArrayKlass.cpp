@@ -145,8 +145,7 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
       return ciEnv::unloaded_ciobjarrayklass();
     }
-    ciObjArrayKlass* k = CURRENT_THREAD_ENV->get_obj_array_klass(array);
-    return k;
+    return CURRENT_THREAD_ENV->get_obj_array_klass(array);
   }
 
   // The array klass was unable to be made or the element klass was

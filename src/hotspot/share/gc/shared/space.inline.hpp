@@ -118,11 +118,11 @@ public:
     if (_allowed_deadspace_words >= dead_length) {
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length, false);
+      oop obj = cast_to_oop(dead_start);
       if (!EnableRTGC) {
-        oop obj = cast_to_oop(dead_start);
         obj->set_mark(obj->mark().set_marked());
       }
-      assert(dead_length == (size_t)cast_to_oop(dead_start)->size(), "bad filler object size");
+      assert(dead_length == (size_t)obj->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
           p2i(dead_start), p2i(dead_end), dead_length * HeapWordSize);
 
@@ -259,6 +259,7 @@ template <class SpaceType>
 inline void CompactibleSpace::scan_and_adjust_pointers(SpaceType* space) {
   // adjust all the interior pointers to point at the new locations of objects
   // Used by MarkSweep::mark_sweep_phase3()
+
   HeapWord* cur_obj = space->bottom();
   HeapWord* const end_of_live = space->_end_of_live;  // Established by "scan_and_forward".
   HeapWord* const first_dead = space->_first_dead;    // Established by "scan_and_forward".
@@ -382,14 +383,13 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       size_t size = space->obj_size(cur_obj);
       HeapWord* compaction_top = cast_from_oop<HeapWord*>(cast_to_oop(cur_obj)->forwardee());
       rt_assert_f(compaction_top != NULL, "cur_obj %p, _first_dead %p, end_of_live %p", cur_obj, space->_first_dead, end_of_live);
-      {
+
         // prefetch beyond compaction_top
         Prefetch::write(compaction_top, copy_interval);
 
         // copy object and reinit its mark
         assert(cur_obj != compaction_top, "everything in this pass should be moving");
         Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
-      }
       // zee clear gc mark
       cast_to_oop(compaction_top)->init_mark();
       assert(cast_to_oop(compaction_top)->klass() != NULL, "should have a class");

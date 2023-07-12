@@ -423,7 +423,8 @@ void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
 }
 #endif // ASSERT
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC   // dead-space
+// crc  todo register recyclable memory
 inline void init_dead_space(HeapWord* mem, Klass* klass, int array_length) {
   precond(!rtHeap::is_trackable(cast_to_oop(mem)) || rtHeap::is_destroyed(cast_to_oop(mem)));
   if (UseBiasedLocking) {
@@ -456,7 +457,7 @@ CollectedHeap::fill_with_array(HeapWord* start, size_t words, bool zap)
   const size_t len = payload_size * HeapWordSize / sizeof(jint);
   assert((int)len >= 0, "size too large " SIZE_FORMAT " becomes %d", words, (int)len);
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC //  dead-space
   if (EnableRTGC) {
     init_dead_space(start, Universe::intArrayKlassObj(), len);
   }
@@ -473,11 +474,12 @@ void
 CollectedHeap::fill_with_object_impl(HeapWord* start, size_t words, bool zap)
 {
   assert(words <= filler_array_max_size(), "too big for a single object");
+
   if (words >= filler_array_min_size()) {
     fill_with_array(start, words, zap);
   } else if (words > 0) {
     assert(words == min_fill_size(), "unaligned size");
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
+#if INCLUDE_RTGC  // dead-space
     if (EnableRTGC) {
       init_dead_space(start, vmClasses::Object_klass(), -1);
     }

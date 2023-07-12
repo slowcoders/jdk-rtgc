@@ -202,9 +202,7 @@ protected:
 
   // Constructor
   Klass(KlassID id);
-  Klass() : _id(KlassID(-1)) {
-    assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); 
-  }
+  Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 

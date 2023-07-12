@@ -109,9 +109,12 @@ FastEvacuateFollowersClosure(SerialHeap* heap,
 }
 
 void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
-  ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
+#if INCLUDE_RTGC
+    ResurrectTrackableClosure resurrector(_scan_older->young_gen(), _scan_older->old_gen());
+#endif
   do {
     _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap, _scan_older);
+#if INCLUDE_RTGC // scan recycled old-objects.
     if (EnableRTGC) {
       rtHeap::oop_recycled_iterate(_scan_older);
       while (!MarkSweep::_resurrect_stack.is_empty()) {
@@ -120,6 +123,7 @@ void DefNewGeneration::FastEvacuateFollowersClosure::do_void() {
         resurrector.do_object(obj);
       }      
     }
+#endif
   } while (!_heap->no_allocs_since_save_marks());
   guarantee(_heap->young_gen()->promo_failure_scan_is_complete(), "Failed to finish scan");
 }
@@ -589,7 +593,7 @@ void DefNewGeneration::collect(bool   full,
   // The preserved marks should be empty at the start of the GC.
   _preserved_marks_set.init(1);
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC // reference processor
   if (EnableRTGC) { 
     rtHeap::init_reference_processor(NULL);
   }
@@ -618,6 +622,7 @@ void DefNewGeneration::collect(bool   full,
                               NOT_RTGC(&younger_gen_closure),
                               &cld_scan_closure);
   }
+
   // "evacuate followers".
   evacuate_followers.do_void();
 
@@ -646,6 +651,7 @@ void DefNewGeneration::collect(bool   full,
   }
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
   pt.print_all_references();
+
   assert(heap->no_allocs_since_save_marks(), "save marks have not been newly set.");
 
 #if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
@@ -706,13 +712,6 @@ void DefNewGeneration::collect(bool   full,
     // Reset the PromotionFailureALot counters.
     NOT_PRODUCT(heap->reset_promotion_should_fail();)
   }
-
-// #if INCLUDE_RTGC
-//   if (EnableRTGC) { 
-//     rtHeap::finish_rtgc(false, !_promotion_failed);
-//   }
-// #endif
-
   // We should have processed and cleared all the preserved marks.
   _preserved_marks_set.reclaim();
 

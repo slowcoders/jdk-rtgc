@@ -544,7 +544,7 @@ size_t ContiguousSpace::block_size(const HeapWord* p) const {
   assert(p == current_top || oopDesc::is_oop(cast_to_oop(p)),
          "p (" PTR_FORMAT ") is not a block start - "
          "current_top: " PTR_FORMAT ", is_oop: %s mark.value=%p %s",
-         p2i(p), p2i(current_top), BOOL_TO_STR(Universe::heap()->is_oop(cast_to_oop(p))),
+         p2i(p), p2i(current_top), BOOL_TO_STR(oopDesc::is_oop(cast_to_oop(p))),
          (void*)cast_to_oop(p)->mark().value(),
          cast_to_oop(p)->klass()->name()->bytes());
   if (p < current_top) {

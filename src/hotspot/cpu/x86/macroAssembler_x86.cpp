@@ -4888,7 +4888,6 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
   if (CompressedOops::base() != NULL) {
     subq(r, r12_heapbase);
   }
-  
   if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      
     if (rtHeap::useModifyFlag()) {
@@ -4960,7 +4959,6 @@ void  MacroAssembler::decode_heap_oop(Register r) {
     } else 
 #endif
     shlq(r, LogMinObjAlignmentInBytes);
-
     jccb(Assembler::equal, done);
     addq(r, r12_heapbase);
     bind(done);
@@ -5025,7 +5023,6 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       } else 
 #endif
       shlq(dst, LogMinObjAlignmentInBytes);
-
       if (CompressedOops::base() != NULL) {
         addq(dst, r12_heapbase);
       }

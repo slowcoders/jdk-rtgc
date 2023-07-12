@@ -127,7 +127,7 @@ jint GenCollectedHeap::initialize() {
   ModRefBarrierSet *bs;
   _rem_set = create_rem_set(heap_rs.region());
   
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // init barrier-set
   if (EnableRTGC) RtgcBarrier::init_barrier_runtime();
   if (RtNoDirtyCardMarking) {  
     bs = new RtgcBarrierSet(_rem_set);
@@ -139,7 +139,7 @@ jint GenCollectedHeap::initialize() {
     bs = new CardTableBarrierSet(_rem_set);
     ((CardTableBarrierSet*)bs)->initialize();
   }
-#if !INCLUDE_RTGC  
+#if !INCLUDE_RTGC  // init barrier-set
   BarrierSet::set_barrier_set(bs);
 #endif
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size());
@@ -149,7 +149,7 @@ jint GenCollectedHeap::initialize() {
   old_rs = old_rs.first_part(_old_gen_spec->max_size());
   _old_gen = _old_gen_spec->init(old_rs, rem_set());
 
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // init barrier-set
   BarrierSet::set_barrier_set(bs);
 #endif
   GCInitLogger::print();
@@ -498,15 +498,7 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     // weak refs more uniform (and indeed remove such concerns
     // from GCH). XXX
 
-#if INCLUDE_RTGC // RTGC_OPT_YOUNG_ROOTS
-    // if (EnableRTGC) {
-    //   _young_gen->save_marks();
-    // } 
-    // else
-#endif    
-    {
-      save_marks();   // save marks for all gens
-    }
+    save_marks();   // save marks for all gens
     // We want to discover references, but not process them yet.
     // This mode is disabled in process_discovered_references if the
     // generation does some collection work, or in
@@ -860,27 +852,8 @@ void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
 #endif  
 }
 
-#if INCLUDE_RTGC
-class ReMarkWeakReachableClosure: public BoolObjectClosure {
-  public:
-  virtual bool do_object_b(oop p) {
-    precond(p != NULL);
-    rtHeap::lock_jni_handle_at_safepoint(p);
-    return true;
-  }
-};
-#endif
-
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
-#if INCLUDE_RTGC
-  if (RtLazyClearWeakHandle) {
-    ReMarkWeakReachableClosure remark_closure;
-    WeakProcessor::weak_oops_do(&remark_closure, root_closure);
-  } else 
-#endif
-  {
-    WeakProcessor::oops_do(root_closure);
-  }
+  WeakProcessor::oops_do(root_closure);
   _young_gen->ref_processor()->weak_oops_do(root_closure);
   _old_gen->ref_processor()->weak_oops_do(root_closure);
 }
