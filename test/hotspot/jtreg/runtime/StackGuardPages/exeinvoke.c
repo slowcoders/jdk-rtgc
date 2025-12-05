@@ -69,7 +69,14 @@ static void handler(int sig, siginfo_t *si, void *unused) {
 }
 
 void set_signal_handler() {
+#if defined __USE_DYNAMIC_STACK_SIZE && __USE_DYNAMIC_STACK_SIZE
+  static char* altstack = NULL;
+  if (altstack == NULL) {
+    altstack = (char*)malloc(SIGSTKSZ);
+  }
+#else
   static char altstack[SIGSTKSZ];
+#endif
 
   stack_t ss = {
     .ss_size = SIGSTKSZ,

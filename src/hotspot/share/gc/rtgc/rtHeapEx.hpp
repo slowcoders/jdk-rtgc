@@ -2,6 +2,7 @@
 #define SHARE_GC_RTGC_RTREFPROCESSOR_HPP
 
 #include "rtgcHeap.hpp"
+#include "oops/markWord.hpp"
 
 class RefProcProxyTask;
 

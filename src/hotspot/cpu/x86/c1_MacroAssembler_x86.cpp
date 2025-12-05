@@ -302,9 +302,9 @@ static Address::ScaleFactor __array_element_size(BasicType type) {
 void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, BasicType elementType, Register klass, Label& slow_case) {
   int header_size = arrayOopDesc::header_size(elementType);
   Address::ScaleFactor f = __array_element_size(elementType);
-#else
+#else // INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
 void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, int header_size, Address::ScaleFactor f, Register klass, Label& slow_case) {
-#endif
+#endif // INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   assert(obj == rax, "obj must be in rax, for cmpxchg");
   assert_different_registers(obj, len, t1, t2, klass);
 

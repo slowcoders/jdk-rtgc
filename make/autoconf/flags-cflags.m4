@@ -154,7 +154,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       WARNINGS_ENABLE_ALL_CFLAGS="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
       WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ALL_CFLAGS $WARNINGS_ENABLE_ADDITIONAL_CXX"
 
-      DISABLED_WARNINGS="unused-parameter unused"
+      DISABLED_WARNINGS="unused-parameter unused use-after-free stringop-overflow nonnull unused-function address format-truncation"
       ;;
 
     clang)

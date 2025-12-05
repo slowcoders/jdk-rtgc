@@ -328,7 +328,7 @@ protected:
   rtNodeType node_type() { return (rtNodeType)_node_type; }
 
   bool is_acyclic() {
-    rt_assert_f(_node_type != rtNodeType::Unknown, "node type not resolved %s", name()->bytes()); 
+    rt_assert_f(_node_type != rtNodeType::Unknown, "node type not resolved %s", "name()->bytes()"); 
     return _node_type >= rtNodeType::Acyclic;
   }
 

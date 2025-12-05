@@ -1522,7 +1522,7 @@ void set_object_alignment() {
 #endif
   if (EnableRTGC && rtHeapEx__useModifyFlag) {
     OopEncodingHeapMax /= 2;
-    CompressedOppShift = LogMinObjAlignmentInBytes - 1;
+    // ????? CompressedOppShift = LogMinObjAlignmentInBytes - 1;
   }
 #endif
 }
@@ -1634,7 +1634,6 @@ jint Arguments::set_ergonomics_flags() {
    */
   RtNoDirtyCardMarking = EnableRTGC;
   RtNoDiscoverPhantom  = EnableRTGC;
-  RtLazyClearWeakHandle = false;//EnableRTGC;
 #else
   rt_assert(!UseBiasedLocking);
   if (!(UseSerialGC && UseCompressedClassPointers && UseCompressedOops)) {

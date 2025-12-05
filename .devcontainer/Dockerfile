@@ -2,7 +2,7 @@
 # ARG VARIANT="14"
 # FROM mcr.microsoft.com/vscode/devcontainers/java:0-${VARIANT}
 ARG VARIANT="buster"
-FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-${VARIANT}
+FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/cpp:1-debian-12
 RUN rm /root/.bashrc
 
 COPY ./usr_bin_file-for-ubuntu/*.deb /tmp/usr_bin_file-for-ubuntu/
@@ -11,15 +11,24 @@ RUN dpkg -i /tmp/usr_bin_file-for-ubuntu/libmagic-mgc_5.39-3_amd64.deb \
   && dpkg -i /tmp/usr_bin_file-for-ubuntu/file_5.39-3_amd64.deb 
 
 
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
-RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+# RUN curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg \
+#  && echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/adoptium.list 
+# RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+# RUN wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+
+
 
 # Install jdk
-RUN apt update && export DEBIAN_FRONTEND=noninteractive \
-  && apt install -y software-properties-common \
-  && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
-  && apt update \
-  && apt install -y adoptopenjdk-16-hotspot
+# RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+#   && apt install -y software-properties-common \
+#   && apt update \
+#   $$ apt install libx11-dev xorg-dev  
+  # && add-apt-repository --yes ppa:linuxuprising/java \
+  # && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
+  # && apt install -y openjdk-17-jdk
+  
+
+  # temurin-16-jdk
 
 # Install dev tools
 RUN apt update && export DEBIAN_FRONTEND=noninteractive \

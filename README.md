@@ -13,6 +13,10 @@
 - ccache 설치
 ```sh
    brew install ccache
+# on linix(devian)
+   sudo apt update
+   sudo apt install ccache   
+   sudo apt-get install autoconf
 ```
 
 - VS Code C++ in Macosx
@@ -55,7 +59,7 @@ bash configure --with-jvm-variants=client \
   --with-gtest=./googletest
 ```
 
-## 3. Make Images
+## 3. Make Images (Full build: 71m)
     `make images CONF=linux debug LOG_LEVEL=info`
     `make images CONF=macosx debug LOG_LEVEL=info`
 
@@ -64,7 +68,7 @@ bash configure --with-jvm-variants=client \
 ### client CDS 생성.
    `./build/macosx-x86_64-client-release/images/jdk/bin/java -Xshare:dump`
 
-## 4. Run basic tests
+## 4. Run basic tests (all-test: 156m)
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 

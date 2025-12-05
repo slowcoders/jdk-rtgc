@@ -11,9 +11,6 @@ using namespace RTGC;
 FreeMemStore g_freeMemStore;
 static Klass* g_deadspace_klass;
 
-static const int LOG_OPT(int function) {
-  return RTGC::LOG_OPTION(RTGC::LOG_SPACE, function);
-}
 
 namespace RTGC {
   extern bool REF_LINK_ENABLED;
