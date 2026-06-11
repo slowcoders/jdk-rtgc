@@ -35,6 +35,7 @@ RUN apt update && export DEBIAN_FRONTEND=noninteractive \
   && apt install -y autoconf \
   && apt install -y build-essential \
   && apt install -y zip unzip \
+  && apt install -y ccache \
   && apt install -y libcups2-dev libfontconfig1-dev libasound2-dev \
   && apt install -y libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev
 

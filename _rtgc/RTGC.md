@@ -10,10 +10,14 @@
 ```sh
    git clone https://github.com/google/googletest.git -b release-1.8.1
 ```
-- ccache 설치
+- ccache 설치 (mac)
 ```sh
+   # mac
    brew install ccache
+   # linux dockerfile
+   apt install -y ccache
 ```
+
 - VS Code C++ in Macosx
    https://code.visualstudio.com/docs/cpp/config-clang-mac
 
@@ -59,17 +63,17 @@ bash configure --with-jvm-variants=client \
     `make images CONF=macosx debug LOG_LEVEL=info`
 
 ### client CDS 사용 강제.
-   `./build/macosx-x86_64-client-release/images/jdk/bin/java -Xshare:on`
+   `./build/linux-x86_64-client-release/images/jdk/bin/java -Xshare:on`
 ### client CDS 생성.
-   `./build/macosx-x86_64-client-release/images/jdk/bin/java -Xshare:dump`
+   `./build/linux-x86_64-client-release/images/jdk/bin/java -Xshare:dump`
 
 ## 4. Run basic tests
    `ulimit -c unlimited; make run-test-tier1 CONF=linux debug`
    `ulimit -c unlimited; make run-test-tier1 CONF=macosx debug`
 
-   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/jdk:tier1`
-   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/langtools:tier1`
-   `make test CONF=macosx LOG_LEVEL=info TEST=jtreg:test/hotspot/jtreg:tier1`
+   `make test CONF=linux LOG_LEVEL=info TEST=jtreg:test/jdk:tier1`
+   `make test CONF=linux LOG_LEVEL=info TEST=jtreg:test/langtools:tier1`
+   `make test CONF=linux LOG_LEVEL=info TEST=jtreg:test/hotspot/jtreg:tier1`
 
 ## 5. Test tips
 - test codedump 파일 자동삭제 방지<br>
@@ -104,7 +108,7 @@ bash configure --with-jvm-variants=client \
    javac test/rtgc/Main.java
 
 7. Custom Test 실행
-   ./build/macosx-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
+   ./build/linux-x86_64-client-fastdebug/images/jdk/bin/java -Xlog:gc=trace -cp test/rtgc Main 200 100000
 
 8. Debugging 
   .vscode/launch.json "Launch Main" 실행.

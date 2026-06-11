@@ -55,6 +55,7 @@ bash configure --with-jvm-variants=client \
 ```
 bash configure --with-jvm-variants=client \
   --with-native-debug-symbols=external --with-debug-level=fastdebug \
+  --enable-ccache \
   --with-jtreg=./jtreg-6.1 \
   --with-gtest=./googletest
 ```
