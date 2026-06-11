@@ -7,6 +7,8 @@
 #include "gc/serial/serialGcRefProcProxyTask.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "oops/instanceRefKlass.inline.hpp"
+#include "oops/markWord.inline.hpp"
+
 
 using namespace rtHeapUtil;
 using namespace RTGC;

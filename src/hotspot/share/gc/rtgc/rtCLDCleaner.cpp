@@ -21,6 +21,7 @@
 #include "rtSpace.hpp"
 #include "rtCLDCleaner.hpp"
 
+
 static const int LOG_OPT(int function) {
   return RTGC::LOG_OPTION(RTGC::LOG_CLD, function);
 }

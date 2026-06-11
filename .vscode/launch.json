@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "RTGC",
+            "name": "RTGC(linux)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceRoot}/build/linux-x86_64-client-fastdebug/images/jdk/bin/java",
@@ -21,6 +21,17 @@
             ],
             "preLaunchTask": "Build Main"
         },
+        {
+            "name": "RTGC(linux/jdk-lldb)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceRoot}/build/linux-x86_64-client-fastdebug/jdk/bin/java",
+            "args": ["-cp", "test/rtgc", "Main", "2", "1000"],
+            "stopOnEntry": false,
+            "cwd": "${workspaceRoot}",
+            "breakpointMode": "file",
+            // "preLaunchTask": "Build Main"
+        },        
         {
             "name": "RTGC(mac)",
             "type": "cppdbg",

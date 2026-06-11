@@ -189,22 +189,22 @@ public:
     }
 
     T& operator[](size_t __n) {
-        rt_assert(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T& at(size_t __n) {
-        rt_assert(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n < _data->_capacity);
         return _data->_items[__n];
     }
 
     T* adr_at(size_t __n) {
-        rt_assert(__n >= 0 && __n < _data->_capacity);
+        rt_assert(__n < _data->_capacity);
         return _data->_items + __n;
     }
 
     void resize(size_t __n) {
-        rt_assert(__n >= 0 && __n <= _data->_capacity);
+        rt_assert(__n <= _data->_capacity);
         _data->_size = (int)__n;
     }
 

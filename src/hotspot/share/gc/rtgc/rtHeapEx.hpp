@@ -2,6 +2,8 @@
 #define SHARE_GC_RTGC_RTREFPROCESSOR_HPP
 
 #include "rtgcHeap.hpp"
+#include "oops/markWord.hpp"
+#include "impl/GCPointer.hpp"
 
 class RefProcProxyTask;
 
@@ -10,7 +12,7 @@ class RefProcProxyTask;
 namespace RTGC {
 
 class GCObject;
-class ShortOOP;
+// class ShortOOP;
 
 #if TRACE_UPDATE_LOG
   extern int g_inverse_graph_update_cnt;

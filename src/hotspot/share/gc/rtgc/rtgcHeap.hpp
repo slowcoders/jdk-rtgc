@@ -8,7 +8,7 @@
 #include "oops/oopsHierarchy.hpp"
 
 #include "rtgcDebug.hpp"
-#define RTGC_FAT_OOP true
+#define RTGC_FAT_OOP false
 
 class Thread;
 class oopDesc;

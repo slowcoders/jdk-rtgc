@@ -30,21 +30,32 @@ void* _offset2Pointer(uint32_t offset);
 
 class GCObject;
 
-class ShortOOP {
+template <class T, bool nullable>
+class CompressedPointer {
 public:
     typedef uint32_t OffsetType;
-    ShortOOP(GCObject* ptr) {
-        rt_assert(ptr != NULL);
-        _ofs = _pointer2offset(ptr);
-        rt_assert(_ofs != 0);
+    CompressedPointer(T* ptr) {
+        if (nullable && ptr == NULL) {
+            _ofs = 0;
+        } else {
+            rt_assert(ptr != NULL);
+            _ofs = _pointer2offset(ptr);
+            rt_assert(_ofs != 0);
+        }
     }
 
-    operator GCObject* () const {
-        return (GCObject*)_offset2Pointer(_ofs);
+    operator T* () const {
+        if (nullable && _ofs == 0) {
+            return NULL;
+        }
+        return (T*)_offset2Pointer(_ofs);
     }
 
-    GCObject* operator -> () const {
-        return (GCObject*)_offset2Pointer(_ofs);
+    T* operator -> () const {
+        if (nullable && _ofs == 0) {
+            return NULL;
+        }
+        return (T*)_offset2Pointer(_ofs);
     }
 
     OffsetType getOffset() const {
@@ -53,6 +64,8 @@ public:
 private:
     OffsetType _ofs;
 };
+
+typedef CompressedPointer<GCObject, false> ShortOOP;
 
 template <class T>
 class OffsetPointer {

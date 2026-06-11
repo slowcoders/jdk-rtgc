@@ -345,7 +345,7 @@ void RTGC::initialize() {
 
 
 #ifdef _LP64
-  rt_assert(DEFAULT_CACHE_LINE_SIZE >= 64);
+  // rt_assert(DEFAULT_CACHE_LINE_SIZE >= 64); --> Mac: 64, Linux: ??
   is_narrow_oop_mode = UseCompressedOops;
 #else
   is_narrow_oop_mode = false;

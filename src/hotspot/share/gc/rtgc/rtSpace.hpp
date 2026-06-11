@@ -15,8 +15,8 @@ namespace rtHeapUtil {
 namespace RTGC {
   
   struct FreeNode {
-    FreeNode* _prev;
-    FreeNode* _next;
+    CompressedPointer<FreeNode, true> _next;
+    CompressedPointer<FreeNode, true> _prev;
   };
 
   struct FreeMemQ {

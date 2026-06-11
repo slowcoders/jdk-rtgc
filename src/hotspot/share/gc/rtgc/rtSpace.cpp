@@ -5,6 +5,7 @@
 
 #include "rtCLDCleaner.hpp"
 
+
 using namespace rtHeapUtil;
 using namespace RTGC;
 
@@ -122,18 +123,20 @@ void FreeMemStore::clearStore() {
   g_freeMemStore.freeMemQList.resize(0);
 }
 
-
+#define ENABLE_RECYCLE 0 // 2026.06.11 임시로 막음.
 void RuntimeHeap::reclaimObject(GCObject* obj) {
   rt_assert(!cast_to_oop(obj)->is_gc_marked());
   rt_assert(obj->isTrackable());
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
   
   obj->markDestroyed();
+#if ENABLE_RECYCLE
   if (!rtHeap::in_full_gc) {
     ((FreeNode*)obj)->_next = g_destroyed;
     g_destroyed = (FreeNode*)obj;
   }
   rt_assert(obj->isDestroyed());
+#endif
 }
 
 void RuntimeHeap::reclaimSpace() {

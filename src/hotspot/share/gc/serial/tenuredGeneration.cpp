@@ -43,6 +43,7 @@
 #include "gc/rtgc/rtSpace.hpp"
 #endif
 
+
 TenuredGeneration::TenuredGeneration(ReservedSpace rs,
                                      size_t initial_byte_size,
                                      size_t min_byte_size,
