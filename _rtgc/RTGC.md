@@ -1,3 +1,8 @@
+## 0. jdk 버전 확인
+./make/conf/version-numbers.conf
+```txt
+DEFAULT_VERSION_FEATURE=17
+```
 
 ## 1. Prepare external libraries
 -  jtreg 
