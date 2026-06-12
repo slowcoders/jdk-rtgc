@@ -126,10 +126,12 @@ void RuntimeHeap::reclaimObject(GCObject* obj) {
   rtCLDCleaner::unlock_cld(cast_to_oop(obj));
   
   obj->markDestroyed();
+#if RTGC_FAT_OOP  
   if (!rtHeap::in_full_gc) {
     ((FreeNode*)obj)->_next = g_destroyed;
     g_destroyed = (FreeNode*)obj;
   }
+#endif
   rt_assert(obj->isDestroyed());
 }
 

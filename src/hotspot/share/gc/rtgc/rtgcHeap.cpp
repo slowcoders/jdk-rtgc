@@ -938,6 +938,7 @@ int RtHashLock::allocateHashSlot(ShortOOP* first) {
   int hash = ReferrerList::getIndex(refList);
   RTGC::unlock_heap();
   if (first == NULL) {
+    // 2026.06.11 임시로 막음
     fatal("not tested!");
     refList->initEmpty();
     rt_assert(refList->empty());

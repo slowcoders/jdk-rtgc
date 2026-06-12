@@ -58,14 +58,17 @@ bash configure --with-jvm-variants=client \
 ### for linux (without ccache -> is docker problrem??)
 ```
 bash configure --with-jvm-variants=client \
-  --with-native-debug-symbols=external --with-debug-level=fastdebug \
+  --with-native-debug-symbols=external \
+  --with-debug-level=fastdebug \
   --with-jtreg=./jtreg-6.1 \
+  --enable-ccache \
   --with-gtest=./googletest
 ```
 
 ## 3. Make Images
-    `make images CONF=linux debug LOG_LEVEL=info`
-    `make images CONF=macosx debug LOG_LEVEL=info`
+   `make images LOG_LEVEL=info`
+   `make images CONF=linux-x86_64-client-fastdebug LOG_LEVEL=info`
+   `make images CONF=macosx debug LOG_LEVEL=info` 
 
 ### client CDS 사용 강제.
    `./build/linux-x86_64-client-release/images/jdk/bin/java -Xshare:on`
