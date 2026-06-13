@@ -77,8 +77,10 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
 #include "gc/rtgc/impl/GCNode.hpp"
+#endif
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 

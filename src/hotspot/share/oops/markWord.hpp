@@ -29,7 +29,9 @@
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
+#endif
 
 // The markWord describes the header of an object.
 //

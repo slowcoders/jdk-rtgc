@@ -37,7 +37,9 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "gc/rtgc/rtgcHeap.hpp"
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtHeapEx.hpp"
+#endif
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
   const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);

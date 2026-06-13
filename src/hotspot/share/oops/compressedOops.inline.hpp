@@ -48,8 +48,8 @@ inline oop CompressedOops::decode_raw_not_null(narrowOop v) {
 }
 
 inline oop CompressedOops::decode_raw(narrowOop v) {
-  precond(!is_null(v));
 #if INCLUDE_RTGC  // modify_flag      
+  precond(!is_null(v));
   rt_assert(UseCompressedOops);
   if (rtHeap::useModifyFlag()) {
     // remove sign bit

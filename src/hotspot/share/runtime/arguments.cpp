@@ -62,7 +62,9 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtHeapEx.hpp"
+#endif
 
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 

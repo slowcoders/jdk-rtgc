@@ -39,7 +39,9 @@
 #include "services/lowMemoryDetector.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
+#endif
 
 class MemAllocator::Allocation: StackObj {
   friend class MemAllocator;

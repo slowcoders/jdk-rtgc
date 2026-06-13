@@ -59,7 +59,10 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/impl/GCNode.hpp"
+#endif
+
 //
 // DefNewGeneration functions.
 

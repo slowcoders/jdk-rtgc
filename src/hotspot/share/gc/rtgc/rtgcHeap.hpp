@@ -11,6 +11,7 @@
 #define RTGC_FAT_OOP                  true
 #define RTGC_SHARE_GC_MARK            false
 #define RTGC_ENABLE_ACYCLIC_REF_COUNT true
+#define RTGC_HASH_HOOK                !RTGC_FAT_OOP
 
 class Thread;
 class oopDesc;

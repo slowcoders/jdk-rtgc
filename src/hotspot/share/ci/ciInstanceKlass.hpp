@@ -50,7 +50,7 @@ private:
   jobject                _loader;
   jobject                _protection_domain;
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
   u2                     _node_type;
   u2                     _init_state;
 #else
@@ -124,7 +124,7 @@ protected:
 public:
   // Has this klass been initialized?
   bool                   is_initialized() {
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_ENABLE_ACYCLIC_REF_COUNT
     if (EnableRTGC) {
       if (_is_shared && (_init_state != InstanceKlass::fully_initialized || _node_type < rtNodeType::Cyclic)) {
         if (is_loaded()) compute_shared_init_state();

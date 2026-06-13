@@ -68,7 +68,7 @@ bash configure --with-jvm-variants=client \
 ## 3. Make Images
    `make images LOG_LEVEL=info`
    `make images CONF=linux-x86_64-client-fastdebug LOG_LEVEL=info`
-   `make images CONF=macosx debug LOG_LEVEL=info` 
+   `make images CONF=macosx-x86_64-client-fastdebug LOG_LEVEL=info` 
 
 ### client CDS 사용 강제.
    `./build/linux-x86_64-client-release/images/jdk/bin/java -Xshare:on`

@@ -1472,7 +1472,7 @@ void java_lang_Class::set_protection_domain(oop java_class, oop pd) {
 
 void java_lang_Class::set_component_mirror(oop java_class, oop comp_mirror) {
   assert(_component_mirror_offset != 0, "must be set");
-#if INCLUDE_RTGC  
+#if INCLUDE_RTGC  // IS_FINAL
   if (EnableRTGC) {
     java_class->obj_field_put_final(_component_mirror_offset, comp_mirror);
   } else

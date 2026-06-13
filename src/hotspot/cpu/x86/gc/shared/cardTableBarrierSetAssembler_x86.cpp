@@ -29,8 +29,9 @@
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableBarrierSetAssembler.hpp"
 #include "gc/shared/gc_globals.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtgcHeap.hpp"
-
+#endif
 #define __ masm->
 
 #ifdef PRODUCT

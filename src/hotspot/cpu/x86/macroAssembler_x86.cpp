@@ -53,8 +53,10 @@
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
 #include "crc32c.h"
+#if INCLUDE_RTGC
 #include "gc/shared/gc_globals.hpp"
 #include "gc/rtgc/rtHeapEx.hpp"
+#endif
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -4936,9 +4938,11 @@ void  MacroAssembler::decode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
+#if INCLUDE_RTGC      
   if (rtHeap::useModifyFlag()) {
     andl(r, ~1); // clear modified flag
   }
+#endif
   if (CompressedOops::base() == NULL) {
     if (CompressedOops::shift() != 0) {
 #if INCLUDE_RTGC      

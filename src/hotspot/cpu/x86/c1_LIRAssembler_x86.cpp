@@ -44,8 +44,9 @@
 #include "runtime/stubRoutines.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_x86.inline.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtHeapEx.hpp"
-
+#endif
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
 // instructions, to allow sign-masking or sign-bit flipping.  They allow

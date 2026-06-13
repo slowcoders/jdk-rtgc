@@ -55,7 +55,9 @@
 #if INCLUDE_ZGC
 #include "gc/z/zThreadLocalData.hpp"
 #endif
-#include "gc/rtgc/rtgcHeap.hpp"
+#if INCLUDE_RTGC
+#include "gc/rtgc/rtHeapEx.hpp"
+#endif
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -1341,9 +1343,13 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
 
+#if INCLUDE_RTGC
   void setup_argument_regs(BasicType type, bool four_args = false) {
+#else 
+  void setup_argument_regs(BasicType type) {
+#endif
     if (type == T_BYTE || type == T_SHORT) {
-      setup_arg_regs(four_args); // from => rdi, to => rsi, count => rdx
+      setup_arg_regs(RTGC_ONLY(four_args)); // from => rdi, to => rsi, count => rdx
                         // r9 and r10 may be used to save non-volatile registers
     } else {
       setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx

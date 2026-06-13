@@ -55,10 +55,10 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
   // Only set the heap base for compressed oops because it indicates
   // compressed oops for pstack code.
   
-  rt_assert(UseCompressedOops);
   if ((uint64_t)heap_space.end() > UnscaledOopHeapMax) {
     // Didn't reserve heap below 4Gb.  Must shift.
   #if INCLUDE_RTGC
+    rt_assert(UseCompressedOops);
     if (rtHeap::useModifyFlag()) {
       set_shift(LogMinObjAlignmentInBytes-1);
     } else 
@@ -69,7 +69,9 @@ void CompressedOops::initialize(const ReservedHeapSpace& heap_space) {
     // Did reserve heap below 32Gb. Can use base == 0;
     set_base(0);
   } else {
+  #if INCLUDE_RTGC
     rt_assert((uint64_t)heap_space.end() - (uint64_t)heap_space.compressed_oop_base() <= OopEncodingHeapMax);
+  #endif
     set_base((address)heap_space.compressed_oop_base());
   }
 

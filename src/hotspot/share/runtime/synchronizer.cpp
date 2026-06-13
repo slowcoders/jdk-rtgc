@@ -57,8 +57,10 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/preserveException.hpp"
+#if INCLUDE_RTGC
 #include "gc/rtgc/rtHeapEx.hpp"
 #include "gc/rtgc/rtgcGlobals.hpp"
+#endif
 
 void MonitorList::add(ObjectMonitor* m) {
   ObjectMonitor* head;
@@ -868,7 +870,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     }
   }
 
-#if INCLUDE_RTGC
+#if INCLUDE_RTGC && RTGC_HASH_HOOK
   RTGC::RtHashLock hashLock;
 #endif
   while (true) {
@@ -882,7 +884,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 
     if (mark.is_neutral()) {               // if this is a normal header
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP) {
+      if (EnableRTGC && RTGC_HASH_HOOK) {
         hash = hashLock.initHash(mark);
       } else
 #endif      
@@ -891,7 +893,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         return hash;
       }
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP) {
+      if (EnableRTGC && RTGC_HASH_HOOK) {
         hash = hashLock.hash();
       } else
 #endif      
@@ -900,7 +902,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
                                            // try to install the hash
       test = obj->cas_set_mark(temp, mark);
       if (test == mark) {                  // if the hash was installed, return it
-        if (EnableRTGC && !RTGC_FAT_OOP) {
+        if (EnableRTGC && RTGC_HASH_HOOK) {
           hashLock.consumeHash(hash);
         }
         return hash;
@@ -914,7 +916,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       temp = monitor->header();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP) {
+      if (EnableRTGC && RTGC_HASH_HOOK) {
         hash = hashLock.initHash(temp);
       } else
 #endif      
@@ -947,7 +949,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       temp = mark.displaced_mark_helper();
       assert(temp.is_neutral(), "invariant: header=" INTPTR_FORMAT, temp.value());
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP) {
+      if (EnableRTGC && RTGC_HASH_HOOK) {
         hash = hashLock.initHash(temp);
       } else
 #endif      
@@ -974,14 +976,14 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     mark = monitor->header();
     assert(mark.is_neutral(), "invariant: header=" INTPTR_FORMAT, mark.value());
 #if INCLUDE_RTGC
-    if (EnableRTGC && !RTGC_FAT_OOP) {
+    if (EnableRTGC && RTGC_HASH_HOOK) {
       hash = hashLock.initHash(mark);
     } else
 #endif      
     hash = mark.hash();
     if (hash == 0) {                       // if it does not have a hash
 #if INCLUDE_RTGC
-      if (EnableRTGC && !RTGC_FAT_OOP) {
+      if (EnableRTGC && RTGC_HASH_HOOK) {
         hash = hashLock.hash();
       } else
 #endif      
@@ -997,7 +999,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         // If we add any new usages of the header/dmw field, this code
         // will need to be updated.
 #if INCLUDE_RTGC
-        if (EnableRTGC && !RTGC_FAT_OOP) {
+        if (EnableRTGC && RTGC_HASH_HOOK) {
           hash = hashLock.initHash(mark);
         } else
 #endif      
@@ -1005,7 +1007,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         assert(test.is_neutral(), "invariant: header=" INTPTR_FORMAT, test.value());
         assert(hash != 0, "should only have lost the race to a thread that set a non-zero hash");
 #if INCLUDE_RTGC
-        if (EnableRTGC && !RTGC_FAT_OOP) {
+        if (EnableRTGC && RTGC_HASH_HOOK) {
           // ...
         } 
 #endif      
@@ -1021,7 +1023,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     }
 
 #if INCLUDE_RTGC      
-    if (EnableRTGC && !RTGC_FAT_OOP) {
+    if (EnableRTGC && RTGC_HASH_HOOK) {
       hashLock.consumeHash(hash);
     }
 #endif      
@@ -1035,7 +1037,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 intptr_t ObjectSynchronizer::identity_hash_value_for(Handle obj) {
   intptr_t hash = FastHashCode(Thread::current(), obj());
 #if INCLUDE_RTGC
-  if (EnableRTGC && !RTGC_FAT_OOP) {
+  if (EnableRTGC && RTGC_HASH_HOOK) {
     // rtgc_log(true, "identity hash %p %x\n", (void*)obj(), (jint)hash);
     assert((jint)hash > 0, "hash %lx\n", hash);
   }
