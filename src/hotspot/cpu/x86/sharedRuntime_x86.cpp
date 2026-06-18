@@ -73,7 +73,7 @@ void SharedRuntime::inline_check_hashcode_from_object_header(MacroAssembler* mas
     __ shrptr(result, markWord::hash_shift);
     __ testl(result, 0);
     __ jcc(Assembler::lessEqual, slowCase);
-  }
+  } else
 #endif
   {
     // get hash
